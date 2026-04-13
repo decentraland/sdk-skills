@@ -1,0 +1,284 @@
+---
+name: scene-runtime
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/setInterval — native setTimeout is unavailable), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assertComponentValue, assertEntitiesCount). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+---
+
+# Scene Runtime APIs
+
+Cross-cutting runtime APIs available in every Decentraland SDK7 scene.
+
+## Async Tasks
+
+The scene runtime is single-threaded. Wrap any async work in `executeTask()`:
+
+```typescript
+import { executeTask } from '@dcl/sdk/ecs'
+
+executeTask(async () => {
+	const res = await fetch('https://api.example.com/data')
+	const data = await res.json()
+	console.log(data)
+})
+```
+
+## HTTP: fetch & signedFetch
+
+**Plain fetch** works for public APIs:
+
+```typescript
+const res = await fetch('https://api.example.com/data')
+```
+
+**signedFetch** proves the player's identity to your backend. Use `getHeaders()` to obtain only the signed headers (useful when a library manages its own fetch):
+
+```typescript
+import { signedFetch, getHeaders } from '~system/SignedFetch'
+
+// Full signed request
+const res = await signedFetch({
+	url: 'https://your-server.com/api',
+	init: { method: 'POST', body: JSON.stringify(payload) },
+})
+
+// Get signed headers only (for custom fetch calls)
+const { headers } = await getHeaders({ url: 'https://your-server.com/api' })
+```
+
+> **Permission**: External HTTP requires `"ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE"` or no special permission for plain fetch; `signedFetch` needs the player to have interacted with the scene.
+
+## WebSocket
+
+```typescript
+const ws = new WebSocket('wss://your-server.com/ws')
+ws.onopen = () => ws.send('hello')
+ws.onmessage = (event) => console.log(event.data)
+ws.onclose = () => console.log('disconnected')
+```
+
+## Scene & Realm Information
+
+```typescript
+import { getSceneInformation, getRealm } from '~system/Runtime'
+import { getExplorerInformation } from '~system/EnvironmentApi'
+
+executeTask(async () => {
+	// Scene info: URN, content mappings, metadata JSON, baseUrl
+	const scene = await getSceneInformation({})
+	const metadata = JSON.parse(scene.metadataJson)
+	console.log(scene.urn, scene.baseUrl, metadata)
+
+	// Realm info: baseUrl, realmName, isPreview, networkId, commsAdapter
+	const realm = await getRealm({})
+	console.log(realm.realmInfo?.realmName, realm.realmInfo?.isPreview)
+
+	// Explorer info: agent string, platform, configurations
+	const explorer = await getExplorerInformation({})
+	console.log(explorer.agent, explorer.platform)
+})
+```
+
+## World Time
+
+```typescript
+import { getWorldTime } from '~system/Runtime'
+
+executeTask(async () => {
+	const { seconds } = await getWorldTime({})
+	// seconds = coordinated world time (cycles 0-86400 for day/night)
+})
+```
+
+## Read Deployed Files
+
+Read files deployed with the scene at runtime:
+
+```typescript
+import { readFile } from '~system/Runtime'
+
+executeTask(async () => {
+	const result = await readFile({ fileName: 'data/config.json' })
+	const text = new TextDecoder().decode(result.content)
+	const config = JSON.parse(text)
+})
+```
+
+## EngineInfo Component
+
+Access frame-level timing:
+
+```typescript
+import { EngineInfo } from '@dcl/sdk/ecs'
+
+engine.addSystem(() => {
+	const info = EngineInfo.getOrNull(engine.RootEntity)
+	if (info) {
+		console.log(info.frameNumber, info.tickNumber, info.totalRuntime)
+	}
+})
+```
+
+## Restricted Actions
+
+These require player interaction before they can execute. Import from `~system/RestrictedActions`:
+
+```typescript
+import {
+	movePlayerTo,
+	teleportTo,
+	triggerEmote,
+	changeRealm,
+	openExternalUrl,
+	openNftDialog,
+	triggerSceneEmote,
+	copyToClipboard,
+	setCommunicationsAdapter,
+} from '~system/RestrictedActions'
+
+// Move player within scene bounds
+movePlayerTo({ newRelativePosition: { x: 8, y: 0, z: 8 } })
+
+// Teleport to coordinates in Genesis City
+teleportTo({ worldCoordinates: { x: 50, y: 70 } })
+
+// Play a built-in emote
+triggerEmote({ predefinedEmote: 'wave' })
+
+// Open URL in browser (prompts user)
+openExternalUrl({ url: 'https://decentraland.org' })
+
+// Open NFT detail dialog
+openNftDialog({
+	urn: 'urn:decentraland:ethereum:erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d:558536',
+})
+
+// Copy text to clipboard
+copyToClipboard({ value: 'Hello from Decentraland!' })
+
+// Change realm
+changeRealm({ realm: 'other-realm.dcl.eth', message: 'Join this realm?' })
+```
+
+## Timers
+
+The native `setTimeout()` and `setInterval()` functions are **not available**. Use the `timers` module from `@dcl/sdk/ecs` instead:
+
+```typescript
+import { timers } from '@dcl/sdk/ecs'
+
+const timeOut = timers.setTimeout(() => console.log('delayed'), 2000)
+timers.clearTimeout(timeOut)
+const interval = timers.setInterval(() => console.log('tick'), 1000)
+timers.clearInterval(interval)
+```
+
+**System-based timers** (recommended for game logic — synchronized with the frame loop):
+
+```typescript
+let elapsed = 0
+engine.addSystem((dt: number) => {
+	elapsed += dt
+	if (elapsed >= 3) {
+		elapsed = 0
+		// Do something every 3 seconds
+	}
+})
+```
+
+## Component.onChange() Listener
+
+React to component changes on any entity:
+
+```typescript
+Transform.onChange(engine.PlayerEntity, (newValue) => {
+	if (newValue) {
+		console.log('Player moved to', newValue.position)
+	}
+})
+```
+
+## Utility: removeEntityWithChildren
+
+Recursively remove an entity and all its children:
+
+```typescript
+import { removeEntityWithChildren } from '@dcl/sdk/ecs'
+
+removeEntityWithChildren(engine, parentEntity)
+```
+
+<!--
+## Portable Experiences
+
+Scenes that persist across world navigation:
+
+```typescript
+import {
+	spawn,
+	kill,
+	exit,
+	getPortableExperiencesLoaded,
+} from '~system/PortableExperiences'
+
+// Spawn a portable experience by URN
+const result = await spawn({ urn: 'urn:decentraland:entity:bafk...' })
+
+// List currently loaded portable experiences
+const loaded = await getPortableExperiencesLoaded({})
+
+// Kill a specific portable experience
+await kill({ urn: 'urn:decentraland:entity:bafk...' })
+
+// Exit self (if this scene IS a portable experience)
+await exit({})
+``` -->
+
+## Testing Framework
+
+Scenes can ship unit tests using `@dcl/sdk/testing`. Tests are generators — yielding pauses until the next frame so you can observe engine state across ticks.
+
+```typescript
+import { test } from '@dcl/sdk/testing'
+import { assertComponentValue, assertEquals, assertEntitiesCount } from '@dcl/sdk/testing/assert'
+import { engine, Transform, MeshRenderer } from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+test('transform is applied after one frame', function* () {
+	const entity = engine.addEntity()
+	Transform.create(entity, { position: Vector3.One() })
+
+	// Let the engine run for a frame before asserting
+	yield
+
+	assertComponentValue(entity, Transform, {
+		position: Vector3.One(),
+		scale: Vector3.One(),
+		rotation: Quaternion.Identity(),
+		parent: 0 as any,
+	})
+})
+
+test('five meshes are present', function* () {
+	yield
+	assertEquals(1 + 1, 2, 'basic math')
+	assertEntitiesCount(engine.getEntitiesWith(MeshRenderer), 5, 'should have 5 meshes')
+})
+```
+
+**Available assertions** (`@dcl/sdk/testing/assert`):
+
+- `assertEquals(actual, expected, message?)` — deep-equals check
+- `assertComponentValue(entity, Component, expected)` — full component value comparison
+- `assertEntitiesCount(iterable, count, message?)` — verifies `engine.getEntitiesWith(...)` returns the expected number of entities
+
+**Running tests**: use `npx @dcl/sdk-commands test` (or the test runner from the Creator Hub). Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
+
+## Best Practices
+
+- Always wrap async code in `executeTask()` or async functions — bare promises will be silently dropped
+- Use `signedFetch` (not plain `fetch`) when your backend needs to verify the player's identity
+- Check `realm.realmInfo?.isPreview` to detect preview mode and enable debug features
+- Use `readFile()` for data files (JSON configs, level data) deployed alongside the scene
+- `removeEntityWithChildren()` is essential when cleaning up complex entity hierarchies
+- Only `console.log()` is available for logging — `console.warn()` and `console.error()` are not supported
+
+For complete executeTask patterns, all RestrictedActions, realm detection, and portable experiences, see `{baseDir}/references/runtime-apis.md`.
