@@ -4,24 +4,26 @@ AI coding skills for building [Decentraland](https://decentraland.org) scenes wi
 
 ## Quick Start
 
-Install all skills at once:
+Install everything with a single command — no flags needed:
 
 ```bash
-npx skills add decentraland/sdk-skills --skill '*'
+npx skills add decentraland/sdk-skills
 ```
 
-Or install just the entry-point skill (behavioral guidelines + skill index):
+This installs the root skill which includes behavioral guidelines, the composite-first rule, an index of all topic skills, and references to all sub-skill documentation.
 
-```bash
-npx skills add decentraland/sdk-skills --skill sdk-scenes
-```
-
-Or install individual topic skills:
+You can also install individual topic skills if you only need specific areas:
 
 ```bash
 npx skills add decentraland/sdk-skills --skill create-scene
 npx skills add decentraland/sdk-skills --skill add-3d-models
 npx skills add decentraland/sdk-skills --skill multiplayer-sync
+```
+
+Or install all individual skills at once:
+
+```bash
+npx skills add decentraland/sdk-skills --all
 ```
 
 ## Available Skills
