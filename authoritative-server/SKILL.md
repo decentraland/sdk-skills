@@ -7,7 +7,11 @@ description: Build multiplayer Decentraland scenes with a headless authoritative
 
 **IMPORTANT**: The authoritative server is feature in BETA. Always notify the user and ask them if they want to proceed in using this feature before adding it to the scene.
 
+**IMPORTANT — deployment constraint**: The authoritative server currently only works on scenes published to **Worlds**, NOT to LAND parcels in Genesis City. If a world has multiple scenes, only one of them can have an authoritative server. Both limitations will be lifted in the future, but today you must deploy to a World.
+
 Build multiplayer Decentraland scenes where a **headless server** controls game state, validates changes, and prevents cheating. The same codebase runs on both server and client, with the server having full authority.
+
+Decentraland hosts and deploys the server for you automatically when you publish the scene — no extra hosting or setup.
 
 For basic CRDT multiplayer (no server), see the `multiplayer-sync` skill instead.
 
@@ -72,6 +76,82 @@ The server runs your scene code headlessly (no rendering). It has access to all 
 ## Synced Components with Validation
 
 Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state.
+
+`validateBeforeChange()` only has meaning on the server — **always guard calls with `isServer()`**. On the client the call is a no-op. If the validator returns `true`, the change is accepted and propagated; if `false`, the change is rejected and reverted for the sender.
+
+Every incoming value includes a `senderAddress` field: the wallet address of whoever attempted the change. When the sender is the server, this equals `AUTH_SERVER_PEER_ID`.
+
+### Validation Patterns
+
+**Pattern 1 — Server-only writes** (strictest; use for scores, game phase, spawned entities):
+
+```typescript
+Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)
+```
+
+**Pattern 2 — Validate the value itself** (e.g. reject impossible positions):
+
+```typescript
+if (isServer()) {
+	Transform.validateBeforeChange(entity, (value) => {
+		return value.position.y > 0 // reject anything at or below ground
+	})
+}
+```
+
+**Pattern 3 — Proximity validation** (anti-cheat: player must be near the object to interact):
+
+```typescript
+if (isServer()) {
+	Transform.validateBeforeChange(pickableEntity, (value) => {
+		for (const [playerEntity, identity] of engine.getEntitiesWith(
+			PlayerIdentityData
+		)) {
+			if (identity.address.toLowerCase() !== value.senderAddress.toLowerCase())
+				continue
+			const playerTransform = Transform.getOrNull(playerEntity)
+			const objectTransform = Transform.getOrNull(pickableEntity)
+			if (!playerTransform || !objectTransform) return false
+			return (
+				Vector3.distance(playerTransform.position, objectTransform.position) <=
+				5
+			)
+		}
+		return false // sender not among connected players
+	})
+}
+```
+
+Always compare addresses with `.toLowerCase()` — wallet addresses may arrive in mixed casing.
+
+**Pattern 4 — Admin-only writes** (use for VideoPlayer, scene moderation, etc.):
+
+```typescript
+import { isServer, isPreview } from '@dcl/sdk/network'
+import { getSceneAdmins } from '@dcl/sdk/server'
+
+if (isServer()) {
+	let adminAddresses = new Set<string>()
+
+	async function updateAdminAddresses() {
+		if (isPreview()) return
+		const [error, response] = await getSceneAdmins()
+		if (error) {
+			adminAddresses = new Set()
+			return
+		}
+		adminAddresses = new Set((response ?? []).map((a) => a.admin.toLowerCase()))
+	}
+	await updateAdminAddresses()
+
+	VideoPlayer.validateBeforeChange(videoEntity, (value) => {
+		if (isPreview()) return true // always allow in local preview
+		return adminAddresses.has(value.senderAddress.toLowerCase())
+	})
+}
+```
+
+Use `isPreview()` (from `@dcl/sdk/network`) to relax validation during local development so testing stays frictionless.
 
 ### Custom Components (Global Validation)
 
@@ -210,6 +290,31 @@ engine.addSystem(() => {
 })
 ```
 
+### Schema Types Reference
+
+All message payloads and custom components use `Schemas` for binary serialization:
+
+```typescript
+// Basic
+Schemas.String // "hello"
+Schemas.Int // 42
+Schemas.Float // 3.14
+Schemas.Bool // true / false
+Schemas.Int64 // use for Date.now() / 13+ digit numbers — Schemas.Number corrupts these
+
+// Vectors
+Schemas.Vector3
+Schemas.Quaternion
+
+// Complex
+Schemas.Entity // entity reference
+Schemas.Array(Schemas.String) // typed array
+Schemas.Optional(Schemas.String) // value or undefined
+Schemas.Map({ name: Schemas.String, hp: Schemas.Int }) // nested object
+```
+
+**Messages MUST be defined with `Schemas.Map(...)`** — plain JS objects will fail binary serialization.
+
 ## Server Reading Player Positions
 
 The server can read **actual** player positions — critical for anti-cheat:
@@ -277,6 +382,15 @@ Storage only accepts strings. Use `JSON.stringify()`/`JSON.parse()` for objects 
 
 Local development storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`.
 
+### Managing Live Storage Data
+
+View and edit production storage at **[decentraland.org/storage](https://decentraland.org/storage)** (also reachable via Creator Hub → Manage → three-dot menu on a published place → "View server data"):
+
+- **Scene tab**: all world-level variables — edit or delete with pencil/trash icons
+- **Player tab**: per-player data searchable by address or name — useful for diagnosing stuck player state and restoring them to a stable state
+
+Storage is persisted at the location level — it is NOT wiped between scene version deploys.
+
 ## Environment Variables
 
 Configure your scene without hardcoding values. **Server-only** — guard with `isServer()`.
@@ -313,6 +427,12 @@ npx sdk-commands deploy-env OLD_VAR --delete
 
 Deployed env vars take precedence over `.env` file values.
 
+You can also manage env vars through the web UI at **[decentraland.org/storage](https://decentraland.org/storage)** → Environment tab. Note: **you cannot read values back through the UI** (by design, to protect secrets) — you can only overwrite or delete them.
+
+### Sensitive Data Pattern
+
+Env vars are the right place for private keys, reward claim codes, API tokens, and similar secrets. Since they are server-only, the sensitive data never reaches the player's machine or the public scene bundle — critical because scene code is publicly downloadable.
+
 ## Recommended Project Structure
 
 ```
@@ -331,11 +451,74 @@ src/
 
 Put synced components and messages in `shared/` so both server and client import the same definitions. Keep server logic (Storage, EnvVar, game systems) in `server/`. Keep UI and client input in `client/`.
 
+## Performance Best Practices
+
+Every component change sends the **entire** component data over the network (unlike Colyseus, which diffs). Design components around this constraint.
+
+**Prefer atomic components over monolithic ones** — group fields that change together and at similar frequency, separate fast-changing data (timers, positions) from slow-changing data (scores, config):
+
+```typescript
+// BAD — changing the score also re-sends the positions array
+const GameState = engine.defineComponent('GameState', {
+	playerAScore: Schemas.Int,
+	timer: Schemas.Int,
+	playerPositions: Schemas.Array(Schemas.Vector3), // large, high-frequency
+})
+
+// GOOD — each update is small and independent
+const PlayerScore = engine.defineComponent('PlayerScore', {
+	playerA: Schemas.Int,
+})
+const GameTimer = engine.defineComponent('GameTimer', {
+	secondsLeft: Schemas.Int,
+})
+```
+
+**Throttle frequent messages** — never send on every frame:
+
+```typescript
+let acc = 0
+engine.addSystem((dt) => {
+	acc += dt
+	if (acc > 0.1) {
+		// every 100 ms
+		room.send('position', transform.position)
+		acc = 0
+	}
+})
+```
+
+For derivable state like countdown timers, broadcast the server's current state every ~30s and let each client compute passage of time locally in between.
+
+## Server Lifecycle
+
+The server is **only active while at least one player is in the scene**. If the scene sits empty, the server shuts down after a few minutes. When the next player arrives, the server takes a few seconds to spin up again.
+
+Scene code must tolerate this cold start:
+
+- Use retry/catch logic around initial server requests from the client.
+- Rely on `Storage` to restore state when the server restarts — anything held only in memory is lost on shutdown.
+- Don't assume `isStateSyncronized()` is instant on first join.
+
+## Version Control of Deploys
+
+Every published scene version gets its own hash and a paired server instance. Client and server always move together — there is no mismatched-version window.
+
+When you deploy an update:
+
+- **Players already in the scene** keep the old version and stay connected to the old server instance until they leave and return.
+- **New arrivals** load the new version and connect to the new server instance.
+- **`Storage` data persists across versions** (it's scoped to the world, not the hash), so new versions pick up where the old one left off.
+
+Trade-off: for a brief post-deploy window, players can be split across two server instances and may not see each other in-scene until the older players rejoin.
+
 ## Testing & Debugging
 
-- **Log prefixes**: Use `[Server]` and `[Client]` prefixes in `console.log()` to distinguish server and client output in the terminal.
+- **Log prefixes**: Use `[SERVER]` and `[CLIENT]` prefixes in `console.log()` to distinguish server and client output in the terminal.
+- **Local multi-player testing**: Open the preview in two separate windows, each is treated as a distinct player; both connect to the same local server.
+- **Stream production logs**: `npx sdk-commands sdk-server-logs --world WORLD_NAME.dcl.eth` — signs in with a wallet listed in `logsPermissions` and streams live `console.log()` output from the deployed server (no redeploy needed to diagnose).
 - **Stale CRDT files**: If you see "Outside of the bounds of written data" errors, delete `main.crdt` and `main1.crdt` files and restart.
-- **Storage inspection**: Check `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json` to inspect persisted data during local development.
+- **Storage inspection**: Check `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json` locally, or use [decentraland.org/storage](https://decentraland.org/storage) in production.
 - **Timers**: `setTimeout`/`setInterval` are available via runtime polyfill. For game logic, prefer `engine.addSystem()` with a delta-time accumulator to stay in sync with the frame loop.
 - **Entity sync issues**: Verify you call `syncEntity(entity, [componentIds])` with the correct component IDs (`MyComponent.componentId`).
 
@@ -348,6 +531,13 @@ Put synced components and messages in `shared/` so both server and client import
 - **No Node.js APIs**: The DCL runtime uses sandboxed QuickJS — no `fs`, `http`, etc. `setTimeout`/`setInterval` are supported. Use SDK-provided APIs (Storage, EnvVar, engine systems) for server-side operations.
 - **SDK branch (MANDATORY)**: The auth-server pattern requires `npm install @dcl/sdk@auth-server`, not the standard `@dcl/sdk`. Without it, `isServer()`, `registerMessages()`, `Storage`, and `EnvVar` are unavailable.
 - **scene.json required fields**: `authoritativeMultiplayer: true` must be set, and `logsPermissions: ["0xWalletAddress"]` must list wallet addresses that should see server logs.
+- **Worlds-only**: This feature only works on scenes deployed to Worlds (not Genesis City LAND). Multi-scene worlds can only have one authoritative server.
+- **Server sleeps when empty**: Code defensively — initial client→server requests should have retry logic, and persistent state must live in `Storage`.
+- **Deploys are paired by hash**: Client code and server code always match versions. Existing players don't see updates until they rejoin; `Storage` persists across versions.
 - For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill.
+
+## Alternative: Third-Party Servers
+
+If the user already has existing server infrastructure, they can connect their scene via REST APIs or WebSockets (e.g. Colyseus) instead of using the native authoritative server. Trade-off: third-party servers do **not** integrate with `syncEntity`, `validateBeforeChange`, or `Storage` — state management and sync must be implemented manually. For new scenes, prefer the native authoritative server.
 
 For complete server setup examples, authentication flow, state reconciliation, Storage patterns, and EnvVar usage, see `{baseDir}/references/server-patterns.md`.

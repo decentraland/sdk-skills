@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr:*)",
+      "Bash(gh --version)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -s \"https://api.github.com/repos/decentraland/docs/pulls/75\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/authoritative-servers.md\" -o /tmp/authoritative-servers.md)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/README.md\" -o /tmp/networking-readme.md)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/serverless-multiplayer.md\" -o /tmp/serverless.md)"
+    ]
+  }
+}
