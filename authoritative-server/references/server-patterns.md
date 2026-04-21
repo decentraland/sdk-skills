@@ -207,6 +207,25 @@ const progress = saved ? JSON.parse(saved) : { level: 1, coins: 0, achievements:
 
 **Local dev storage location:** `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`
 
+### CLI: Scene Storage
+
+```bash
+npx sdk-commands storage scene set high_score --value 100
+npx sdk-commands storage scene get high_score
+npx sdk-commands storage scene delete high_score
+npx sdk-commands storage scene clear --confirm
+```
+
+### CLI: Player Storage
+
+```bash
+npx sdk-commands storage player set level --value 10 --address 0x1234...
+npx sdk-commands storage player get level --address 0x1234...
+npx sdk-commands storage player delete level --address 0x1234...
+npx sdk-commands storage player clear --address 0x1234... --confirm
+npx sdk-commands storage player clear --confirm
+```
+
 ## Environment Variables
 
 ```typescript
@@ -229,9 +248,9 @@ DEBUG=true
 ### Production Deployment
 
 ```bash
-npx sdk-commands deploy-env MAX_PLAYERS --value 8
-npx sdk-commands deploy-env GAME_DURATION --value 300
-npx sdk-commands deploy-env OLD_VAR --delete
+npx sdk-commands storage env set MAX_PLAYERS --value 8
+npx sdk-commands storage env set GAME_DURATION --value 300
+npx sdk-commands storage env delete OLD_VAR
 ```
 
 ## scene.json Required Fields

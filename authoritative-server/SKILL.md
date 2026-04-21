@@ -391,6 +391,41 @@ View and edit production storage at **[decentraland.org/storage](https://decentr
 
 Storage is persisted at the location level — it is NOT wiped between scene version deploys.
 
+You can also manage scene storage via the command line, using `npx sdk-commands storage scene`:
+
+```bash
+# Set a value
+npx sdk-commands storage scene set high_score --value 100
+
+# Get a value
+npx sdk-commands storage scene get high_score
+
+# Delete a value
+npx sdk-commands storage scene delete high_score
+
+# Delete all scene storage data
+npx sdk-commands storage scene clear --confirm
+```
+
+You can also manage player storage via the command line, using `npx sdk-commands storage player`:
+
+```bash
+# Set a value for a specific player
+npx sdk-commands storage player set level --value 10 --address 0x1234...
+
+# Get a value for a specific player
+npx sdk-commands storage player get level --address 0x1234...
+
+# Delete a value for a specific player
+npx sdk-commands storage player delete level --address 0x1234...
+
+# Delete all data for a specific player
+npx sdk-commands storage player clear --address 0x1234... --confirm
+
+# Delete all player data (all players)
+npx sdk-commands storage player clear --confirm
+```
+
 ## Environment Variables
 
 Configure your scene without hardcoding values. **Server-only** — guard with `isServer()`.
@@ -419,10 +454,10 @@ Add `.env` to your `.gitignore`.
 
 ```bash
 # Set a variable
-npx sdk-commands deploy-env MAX_PLAYERS --value 8
+npx sdk-commands storage env set MAX_PLAYERS --value 8
 
 # Delete a variable
-npx sdk-commands deploy-env OLD_VAR --delete
+npx sdk-commands storage env delete OLD_VAR
 ```
 
 Deployed env vars take precedence over `.env` file values.
