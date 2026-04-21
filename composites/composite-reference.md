@@ -35,7 +35,7 @@ These components are auto-generated and must **NEVER** be in the composite. Incl
 - **`composite::root`** — auto-generated, never include manually
 - **`asset-packs::ActionTypes`** — auto-generated from the engine's action type registry
 
-**Rule of thumb:** if a component name starts with `inspector::`, do NOT include it. The Creator Hub Inspector manages these components internally.
+**Rule of thumb:** if a component name starts with `inspector::` or `asset-packs::`, do NOT include it. The Creator Hub Inspector manages these components internally.
 
 ## jsonSchema Rules
 
@@ -143,18 +143,14 @@ Adding parcels to `scene.json` is not always an option, it depends where the sce
 
 ## Entity ID Allocation
 
-| ID   | Purpose                                                                                   |
-| ---- | ----------------------------------------------------------------------------------------- |
-| 0    | RootEntity — holds `inspector::Nodes`, `inspector::SceneMetadata`, `asset-packs::Counter` |
-| 1    | PlayerEntity (reserved, must appear in Nodes)                                             |
-| 2    | CameraEntity (reserved, must appear in Nodes)                                             |
-| 512+ | User entities (first = 512, then 513, 514, ...)                                           |
+| ID   | Purpose                                         |
+| ---- | ----------------------------------------------- |
+| 0    | RootEntity                                      |
+| 1    | PlayerEntity (reserved, must appear in Nodes)   |
+| 2    | CameraEntity (reserved, must appear in Nodes)   |
+| 512+ | User entities (first = 512, then 513, 514, ...) |
 
 **For existing scenes:** Read the current composite, find the highest entity ID, allocate new ones starting from `highest + 1`.
-
-## Required Components (Every Scene)
-
-**NOTE:** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata` in the composite. The Inspector creates these automatically when opening the scene. Including them causes the SDK build to fail.
 
 ### 1. core::Transform (on every entity)
 
@@ -599,7 +595,15 @@ Components share entity IDs across the `data` map. All components for entity 512
 }
 ```
 
-## inspector::SceneMetadata
+## Non-core components
+
+All components that start with `asset-packs::` or `inspector::` are non-core, and require installing the `asset-packs` library in the project. Do not add any of these unless the user wants to use the Creator Hub.
+
+### Root Entity components
+
+**NOTE:** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata` in the composite. The Creator Hub creates these automatically when opening the scene. Including them causes the SDK build to fail. These components should only exist on the RootEntity (ID 0).
+
+If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 
 The `inspector::SceneMetadata` component in the composite must match `scene.json`:
 
@@ -703,7 +707,7 @@ Before writing a composite, verify:
 - [ ] All positions within parcel bounds — bounds were calculated in **Step 0** from the actual `scene.json` parcel list. Every entity's X is in `[0, maxX]` and Z is in `[0, maxZ]`. Negative values and values above maxX/maxZ do not render. If the user requested a "large" scene but parcel count was not changed, all entities fit within the original bounds.
 - [ ] For every `GltfContainer` entity: checked whether the GLB contains animations (clip names embedded in the file). If it does, an `core::Animator` component is present on that entity. A model with animations but no Animator will silently loop its first clip with no way to control it.
 - [ ] For every `GltfContainer` entity: checked whether the GLB contains collision meshes (any mesh whose name includes the string `_collider`). If yes, `invisibleMeshesCollisionMask` is set to `3` (CL_POINTER + CL_PHYSICS) to activate them. If no built-in colliders, evaluated whether a `core::MeshCollider` box/sphere is needed to cover the model's rough shape (for walkable surfaces, walls, or clickable objects).
-- [ ] `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
+- [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
 - [ ] The project must have the `@dcl/asset-packs` library as a dependency to be able to use a composite file
