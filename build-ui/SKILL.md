@@ -305,6 +305,118 @@ Use `textureSlices` for scalable UI backgrounds (buttons, panels) that don't str
 />
 ```
 
+### Texture UVs
+
+Use the `uvs` property on a `uiBackground` component to display a specific region of a texture. This is useful for picking individual sprites from a sprite sheet, or for rotating an image.
+
+The `uvs` field takes an array of 8 numbers, representing 4 pairs of UV coordinates for the four corners of the texture region. The order is: **bottom-left**, **top-left**, **top-right**, **bottom-right**. Each value ranges from 0 to 1, where `(0, 0)` is the bottom-left corner of the image and `(1, 1)` is the top-right.
+
+When using custom `uvs`, set `textureMode` to `'stretch'` so the selected region fills the entity's area.
+
+**Sprites from a sprite sheet:**
+
+```tsx
+import { UiEntity, ReactEcs } from '@dcl/sdk/react-ecs'
+
+// Display the left half of a texture (e.g. the first card in a 2-column sheet)
+export const uiMenu = () => (
+  <UiEntity
+    uiTransform={{ width: 200, height: 300 }}
+    uiBackground={{
+      textureMode: 'stretch',
+      texture: { src: 'images/card-atlas.png' },
+      uvs: [
+        // bottom-left, top-left, top-right, bottom-right
+        0, 0,
+        0, 1,
+        0.5, 1,
+        0.5, 0
+      ]
+    }}
+  />
+)
+```
+
+For a sprite sheet with a grid of frames, calculate UVs based on column and row:
+
+```tsx
+import { UiEntity, ReactEcs } from '@dcl/sdk/react-ecs'
+
+// Pick a single frame from a grid sprite sheet
+function getFrameUVs(col: number, row: number, totalCols: number, totalRows: number): number[] {
+  const stepU = 1 / totalCols
+  const stepV = 1 / totalRows
+  const left = col * stepU
+  const right = (col + 1) * stepU
+  const top = 1 - row * stepV
+  const bottom = 1 - (row + 1) * stepV
+  return [
+    left, bottom,
+    left, top,
+    right, top,
+    right, bottom
+  ]
+}
+
+// Display column 2, row 0 of a 4x2 sprite sheet
+export const uiMenu = () => (
+  <UiEntity
+    uiTransform={{ width: 128, height: 128 }}
+    uiBackground={{
+      textureMode: 'stretch',
+      texture: { src: 'images/spritesheet.png' },
+      uvs: getFrameUVs(2, 0, 4, 2)
+    }}
+  />
+)
+```
+
+**Rotating an image with UVs:**
+
+Rotate a texture by applying a 2D rotation to the UV coordinates — useful for spinners or loading indicators.
+
+```tsx
+import { UiEntity, ReactEcs } from '@dcl/sdk/react-ecs'
+import { engine } from '@dcl/sdk/ecs'
+
+// Rotate a 2D point around a center
+function rotate2D(angle: number, x: number, y: number, cx: number, cy: number): number[] {
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  return [
+    cos * (x - cx) - sin * (y - cy) + cx,
+    sin * (x - cx) + cos * (y - cy) + cy
+  ]
+}
+
+// Build rotated UV coordinates
+function rotateUVs(angle: number): number[] {
+  const uv00 = rotate2D(angle, 0, 0, 0.5, 0.5)
+  const uv01 = rotate2D(angle, 0, 1, 0.5, 0.5)
+  const uv11 = rotate2D(angle, 1, 1, 0.5, 0.5)
+  const uv10 = rotate2D(angle, 1, 0, 0.5, 0.5)
+  return [uv00[0], uv00[1], uv01[0], uv01[1], uv11[0], uv11[1], uv10[0], uv10[1]]
+}
+
+let spinnerAngle = 0
+
+// System that updates the angle each frame
+engine.addSystem((dt: number) => {
+  spinnerAngle += dt * 5
+})
+
+export const uiMenu = () => (
+  <UiEntity
+    uiTransform={{ width: 128, height: 128 }}
+    uiBackground={{
+      textureMode: 'stretch',
+      texture: { src: 'images/spinner.png' },
+      uvs: rotateUVs(spinnerAngle)
+    }}
+  />
+)
+```
+
 ### Hover Events
 
 Respond to mouse enter/leave for hover effects:
