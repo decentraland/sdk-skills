@@ -28,15 +28,10 @@ npm install @dcl/js-runtime@auth-server
 
 ### 2. Configure scene.json
 
-Your `scene.json` **must** include these properties:
-
-- **`authoritativeMultiplayer: true`** — enables the authoritative server runtime.
-- **`worldConfiguration.name`** — identifies the world for deployment, Storage, and EnvVar.
-- **`logsPermissions`** — array of wallet addresses allowed to see server logs in the console. Without this, server `console.log()` output is hidden.
+Optionally add `logsPermissions` to list wallet addresses that can see `console.log()` from the server. The listed users can then view server logs in production by running `npx sdk-commands sdk-server-logs`.
 
 ```json
 {
-	"authoritativeMultiplayer": true,
 	"worldConfiguration": {
 		"name": "my-world-name.dcl.eth"
 	},
@@ -46,7 +41,7 @@ Your `scene.json` **must** include these properties:
 
 ### 3. Run the scene
 
-Just use the normal preview — it automatically starts the authoritative server in the background when `authoritativeMultiplayer: true` is set in scene.json.
+Just use the normal preview — when using the auth-server branch of the SDK, the preview automatically starts a local version of the authoritative server in the background.
 
 > **Debugging note (do NOT tell the user to run this):** Under the hood, the preview runs `npx @dcl/hammurabi-server@next`. If the auth server isn't starting, check that the hammurabi process is running and look for errors in its output.
 
@@ -458,6 +453,19 @@ npx sdk-commands storage env set MAX_PLAYERS --value 8
 
 # Delete a variable
 npx sdk-commands storage env delete OLD_VAR
+
+# Delete all environment variables
+npx sdk-commands storage env clear --confirm
+```
+
+You can target a specific environment with the `--target` flag:
+
+```bash
+# Deploy to staging
+npx sdk-commands storage env set MY_KEY --value my_value --target https://storage.decentraland.zone
+
+# Deploy to a local development server
+npx sdk-commands storage env set MY_KEY --value my_value --target http://localhost:8000
 ```
 
 Deployed env vars take precedence over `.env` file values.
@@ -550,8 +558,8 @@ Trade-off: for a brief post-deploy window, players can be split across two serve
 ## Testing & Debugging
 
 - **Log prefixes**: Use `[SERVER]` and `[CLIENT]` prefixes in `console.log()` to distinguish server and client output in the terminal.
-- **Local multi-player testing**: Open the preview in two separate windows, each is treated as a distinct player; both connect to the same local server.
-- **Stream production logs**: `npx sdk-commands sdk-server-logs --world WORLD_NAME.dcl.eth` — signs in with a wallet listed in `logsPermissions` and streams live `console.log()` output from the deployed server (no redeploy needed to diagnose).
+- **Local multi-player testing**: Using the Creator Hub, click the Preview button a second time, and that opens a second Decentraland explorer window. You must connect on both windows with different addresses. As an alternative, open a second window by entering this URL in a browser: `decentraland://realm=http://127.0.0.1:8000&local-scene=true&debug=true`
+- **Stream production logs**: Run `npx sdk-commands sdk-server-logs` in your project folder (optionally with `--world WORLD_NAME.dcl.eth`) — signs in with a wallet listed in `logsPermissions` and streams live `console.log()` output from the deployed server (no redeploy needed to diagnose).
 - **Stale CRDT files**: If you see "Outside of the bounds of written data" errors, delete `main.crdt` and `main1.crdt` files and restart.
 - **Storage inspection**: Check `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json` locally, or use [decentraland.org/storage](https://decentraland.org/storage) in production.
 - **Timers**: `setTimeout`/`setInterval` are available via runtime polyfill. For game logic, prefer `engine.addSystem()` with a delta-time accumulator to stay in sync with the frame loop.
@@ -565,14 +573,10 @@ Trade-off: for a brief post-deploy window, players can be split across two serve
 - **Single codebase**: Both server and client run the same `index.ts` entry point. Use `isServer()` to branch.
 - **No Node.js APIs**: The DCL runtime uses sandboxed QuickJS — no `fs`, `http`, etc. `setTimeout`/`setInterval` are supported. Use SDK-provided APIs (Storage, EnvVar, engine systems) for server-side operations.
 - **SDK branch (MANDATORY)**: The auth-server pattern requires `npm install @dcl/sdk@auth-server`, not the standard `@dcl/sdk`. Without it, `isServer()`, `registerMessages()`, `Storage`, and `EnvVar` are unavailable.
-- **scene.json required fields**: `authoritativeMultiplayer: true` must be set, and `logsPermissions: ["0xWalletAddress"]` must list wallet addresses that should see server logs.
+- **scene.json optional fields**: `logsPermissions: ["0xWalletAddress"]` should list wallet addresses that need to see server logs.
 - **Worlds-only**: This feature only works on scenes deployed to Worlds (not Genesis City LAND). Multi-scene worlds can only have one authoritative server.
 - **Server sleeps when empty**: Code defensively — initial client→server requests should have retry logic, and persistent state must live in `Storage`.
 - **Deploys are paired by hash**: Client code and server code always match versions. Existing players don't see updates until they rejoin; `Storage` persists across versions.
 - For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill.
-
-## Alternative: Third-Party Servers
-
-If the user already has existing server infrastructure, they can connect their scene via REST APIs or WebSockets (e.g. Colyseus) instead of using the native authoritative server. Trade-off: third-party servers do **not** integrate with `syncEntity`, `validateBeforeChange`, or `Storage` — state management and sync must be implemented manually. For new scenes, prefer the native authoritative server.
 
 For complete server setup examples, authentication flow, state reconciliation, Storage patterns, and EnvVar usage, see `{baseDir}/references/server-patterns.md`.

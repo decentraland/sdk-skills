@@ -137,6 +137,11 @@ A World can host multiple independent scenes, each at different coordinates. The
 
 **Enable via Creator Hub:** When publishing, toggle **Multi-Scene World (advanced)** on the first publish.
 
+**Deploy via CLI:**
+```bash
+npm run deploy -- --multi-scene --target-content https://worlds-content-server.decentraland.org
+```
+
 After enabling, the World Owner can:
 - Publish additional scenes to different parcels of the same World
 - Add **Collaborators** with deploy rights (all parcels or specific coordinates)

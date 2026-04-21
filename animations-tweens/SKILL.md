@@ -21,7 +21,7 @@ description: Animate objects in Decentraland scenes. Play GLTF model animations 
 
 ## GLTF Animations (Animator)
 
-Play animations embedded in .glb models:
+Play animations embedded in .glb models. The Animator supports **skeletal animations**, **object animations**, and **shape key (morph target) animations** — all three types play in-world when embedded in a glTF/GLB file. Shape keys are particularly useful for facial expressions, lip sync, or deformations that are hard to achieve with bones alone.
 
 ```typescript
 import { engine, Transform, GltfContainer, Animator } from '@dcl/sdk/ecs'
