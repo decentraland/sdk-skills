@@ -1,6 +1,6 @@
 ---
 name: add-interactivity
-description: Event-driven interactivity for Decentraland entities. Covers pointerEventsSystem (onPointerDown/Up/hover on entities), trigger areas (enter/exit zones), raycasting, and one-shot key presses on entities. Use when the user wants clickable objects, hover highlights, detecting when a player enters a zone, E/F key actions on an entity, or ray-hit detection. For system-level polling (held keys, WASD movement, cursor lock, InputModifier, action bar) see advanced-input. For screen-space UI buttons see build-ui.
+description: Event-driven interactivity for Decentraland entities. Covers pointerEventsSystem (onPointerDown/Up/hover on entities), proximity events (onProximityDown/Up/Enter/Leave for nearby interactions without aiming), trigger areas (enter/exit zones), raycasting, and one-shot key presses on entities. Use when the user wants clickable objects, hover highlights, proximity-based interactions, detecting when a player enters a zone, E/F key actions on an entity, or ray-hit detection. For system-level polling (held keys, WASD movement, cursor lock, InputModifier, action bar) see advanced-input. For screen-space UI buttons see build-ui.
 ---
 
 # Adding Interactivity to Decentraland Scenes
@@ -43,6 +43,7 @@ These lookups must happen inside `main()` or functions called after `main()` —
 | Need | Approach | API |
 |------|----------|-----|
 | Click/hover on a specific entity | Pointer events | `pointerEventsSystem.onPointerDown()` |
+| Button press when player is nearby (no aiming needed) | Proximity events | `pointerEventsSystem.onProximityDown()` |
 | Detect player entering an area | Trigger area | `TriggerArea` + `triggerAreaEventsSystem` |
 | Poll key state every frame | Global input | `inputSystem.isTriggered()` / `isPressed()` |
 | Detect objects in a direction | Raycasting | `raycastSystem` or `Raycast` component |
@@ -96,10 +97,12 @@ InputAction.IA_WALK       // Shift key
 
 ### All Event Types
 ```typescript
-PointerEventType.PET_DOWN         // Button pressed
-PointerEventType.PET_UP           // Button released
-PointerEventType.PET_HOVER_ENTER  // Cursor enters entity
-PointerEventType.PET_HOVER_LEAVE  // Cursor leaves entity
+PointerEventType.PET_DOWN             // Button pressed
+PointerEventType.PET_UP               // Button released
+PointerEventType.PET_HOVER_ENTER      // Cursor enters entity
+PointerEventType.PET_HOVER_LEAVE      // Cursor leaves entity
+PointerEventType.PET_PROXIMITY_ENTER  // Player walks within entity's proximity range
+PointerEventType.PET_PROXIMITY_LEAVE  // Player moves out of entity's proximity range
 ```
 
 ### Pointer Up (Release)
@@ -115,10 +118,28 @@ pointerEventsSystem.onPointerUp(
 )
 ```
 
+### Hover Enter and Leave
+
+Detect when the player's cursor starts or stops pointing at an entity — useful for custom hover effects like sounds or animations:
+
+```typescript
+pointerEventsSystem.onPointerHoverEnter(
+  { entity: myEntity, opts: { button: InputAction.IA_POINTER } },
+  () => { console.log('Cursor started hovering over entity') }
+)
+
+pointerEventsSystem.onPointerHoverLeave(
+  { entity: myEntity, opts: { button: InputAction.IA_POINTER } },
+  () => { console.log('Cursor stopped hovering over entity') }
+)
+```
+
 ### Removing Handlers
 ```typescript
 pointerEventsSystem.removeOnPointerDown(cube)
 pointerEventsSystem.removeOnPointerUp(cube)
+pointerEventsSystem.removeOnPointerHoverEnter(cube)
+pointerEventsSystem.removeOnPointerHoverLeave(cube)
 ```
 
 ### Important: Colliders Required
@@ -133,6 +154,185 @@ For GLTF models, set the collision mask:
 GltfContainer.create(entity, {
   src: 'models/button.glb',
   visibleMeshesCollisionMask: ColliderLayer.CL_POINTER
+})
+```
+
+---
+
+## Proximity Events (Nearby Interactions Without Aiming)
+
+Proximity events let entities react to button presses when the player is nearby and roughly facing the entity, **without requiring the player to aim their cursor at it**. The interactive area is a wide triangular slice projecting forward from the avatar's position — the avatar's facing direction matters, not the camera direction.
+
+If the player is both in proximity of an entity with a proximity interaction AND aiming at an entity with a pointer interaction, the **pointer interaction always takes priority**. Among multiple proximity entities in range, only the closest one (or highest priority) is activated.
+
+### Proximity Button Presses
+
+```typescript
+pointerEventsSystem.onProximityDown(
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: 'Press E',
+      maxPlayerDistance: 5,
+    },
+  },
+  () => { console.log('Player pressed button near entity') }
+)
+
+pointerEventsSystem.onProximityUp(
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: 'Release E',
+      maxPlayerDistance: 5,
+    },
+  },
+  () => { console.log('Player released button near entity') }
+)
+```
+
+> **Note**: Only one `onProximityDown` and one `onProximityUp` can be registered per entity. Do not call these within a system loop.
+
+### Proximity Enter and Leave
+
+Detect when a player walks into or out of an entity's proximity range — useful for extra feedback like sounds or animations:
+
+```typescript
+pointerEventsSystem.onProximityEnter(
+  {
+    entity: myEntity,
+    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxPlayerDistance: 5 },
+  },
+  () => { console.log('Player entered proximity') }
+)
+
+pointerEventsSystem.onProximityLeave(
+  {
+    entity: myEntity,
+    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxPlayerDistance: 5 },
+  },
+  () => { console.log('Player left proximity') }
+)
+```
+
+### Priority
+
+When multiple entities are within range, use `priority` to control which one responds. Higher numbers take precedence:
+
+```typescript
+pointerEventsSystem.onProximityDown(
+  {
+    entity: doorEntity,
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open door', maxPlayerDistance: 5, priority: 2 },
+  },
+  () => { console.log('Door activated') }
+)
+
+pointerEventsSystem.onProximityDown(
+  {
+    entity: floorEntity,
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Step here', maxPlayerDistance: 5, priority: 1 },
+  },
+  () => { console.log('Floor activated') }
+)
+```
+
+### Proximity Options
+
+- `button`: Which button to listen for (same as pointer events)
+- `maxDistance`: Max distance from the player's **camera** to the entity
+- `maxPlayerDistance`: Max distance from the player's **avatar** to the entity (most relevant for proximity)
+- `hoverText`: Text shown when player is near
+- `showHighlight`: Edge highlight when in range (default: `true`)
+- `showFeedback`: Hover feedback around entity center (default: `true`)
+- `priority`: Resolves conflicts — higher values take precedence, closest wins on ties
+
+### Remove Proximity Callbacks
+
+```typescript
+pointerEventsSystem.removeOnProximityDown(myEntity)
+pointerEventsSystem.removeOnProximityUp(myEntity)
+pointerEventsSystem.removeOnProximityEnter(myEntity)
+pointerEventsSystem.removeOnProximityLeave(myEntity)
+```
+
+### Proximity Door Example
+
+```typescript
+const doorPivot = engine.addEntity()
+Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) })
+
+const door = engine.addEntity()
+GltfContainer.create(door, { src: 'assets/door.glb' })
+Transform.create(door, { position: Vector3.create(-1, 0, 0), parent: doorPivot })
+
+let isDoorOpen = false
+const closedRot = Quaternion.fromEulerDegrees(0, 0, 0)
+const openRot = Quaternion.fromEulerDegrees(0, 90, 0)
+
+pointerEventsSystem.onProximityDown(
+  {
+    entity: door,
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open / Close', maxPlayerDistance: 5, priority: 1 },
+  },
+  () => {
+    if (isDoorOpen) {
+      Tween.setRotate(doorPivot, openRot, closedRot, 700)
+      isDoorOpen = false
+    } else {
+      Tween.setRotate(doorPivot, closedRot, openRot, 700)
+      isDoorOpen = true
+    }
+  }
+)
+```
+
+### System-Based Proximity Events
+
+For more control, use the system-based approach with `InteractionType.PROXIMITY`:
+
+```typescript
+import { PointerEvents, InteractionType, inputSystem, PointerEventType } from '@dcl/sdk/ecs'
+
+// Define proximity interaction on the entity
+PointerEvents.create(myEntity, {
+  pointerEvents: [
+    {
+      eventType: PointerEventType.PET_DOWN,
+      eventInfo: {
+        button: InputAction.IA_PRIMARY,
+        hoverText: 'Press E',
+        maxDistance: 5,
+        interactionType: InteractionType.PROXIMITY,
+      },
+    },
+  ],
+})
+
+// Check in a system
+engine.addSystem(() => {
+  if (inputSystem.isTriggered(InputAction.IA_PRIMARY, PointerEventType.PET_DOWN, myEntity)) {
+    console.log('Proximity button pressed!')
+  }
+})
+```
+
+You can combine pointer and proximity interactions on the same entity using the system-based approach (the helper-based approach is limited to one event type per entity):
+
+```typescript
+PointerEvents.create(myEntity, {
+  pointerEvents: [
+    {
+      eventType: PointerEventType.PET_DOWN,
+      eventInfo: { button: InputAction.IA_PRIMARY, hoverText: 'Aim & Press E', interactionType: InteractionType.CURSOR },
+    },
+    {
+      eventType: PointerEventType.PET_DOWN,
+      eventInfo: { button: InputAction.IA_SECONDARY, hoverText: 'Press F nearby', interactionType: InteractionType.PROXIMITY, maxDistance: 5 },
+    },
+  ],
 })
 ```
 
