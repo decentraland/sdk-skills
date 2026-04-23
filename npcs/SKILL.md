@@ -113,10 +113,17 @@ For the full `AvatarShape` field reference, body shape URNs, and common base wea
 
 ## Adding interactivity to AvatarShape NPCs
 
-AvatarShape entities don't have built-in click handling. Add it via `pointerEventsSystem` (see **add-interactivity** skill):
+AvatarShape entities are **not clickable** — they have no collider, so pointer events won't register on them directly. To let players interact with an AvatarShape NPC, use one of these approaches:
+
+### Option A — Add a MeshCollider for click interaction
+
+Attach an invisible collider to the same entity so `pointerEventsSystem` can detect clicks (see **add-interactivity** skill):
 
 ```typescript
-import { pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+import { MeshCollider, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+
+// invisible cylinder collider roughly matching avatar size
+MeshCollider.setCylinder(npc)
 
 pointerEventsSystem.onPointerDown(
   { entity: npc, opts: { button: InputAction.IA_POINTER, hoverText: 'Talk' } },
@@ -124,4 +131,24 @@ pointerEventsSystem.onPointerDown(
     console.log('Player clicked NPC')
   }
 )
+```
+
+### Option B — Proximity-based interaction
+
+Trigger the interaction when the player walks near the NPC instead of requiring a click:
+
+```typescript
+import { engine, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+const INTERACT_DISTANCE = 4
+
+engine.addSystem(() => {
+  const playerPos = Transform.get(engine.PlayerEntity).position
+  const npcPos = Transform.get(npc).position
+  const dist = Vector3.distance(playerPos, npcPos)
+  if (dist < INTERACT_DISTANCE) {
+    // start dialogue or other interaction
+  }
+})
 ```
