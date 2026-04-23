@@ -140,7 +140,7 @@ Create `assets/scene/main.composite` with the initial scene entities. See `{base
 }
 ```
 
-> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground.
+> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground. Never at a height below 0.
 
 ### src/index.ts
 
