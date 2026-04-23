@@ -7,11 +7,11 @@ description: Add sound effects, music, audio streaming, and video players to Dec
 
 ## When to Use Which Media Component
 
-| Need                                                  | Component                                | Key Difference                           |
-| ----------------------------------------------------- | ---------------------------------------- | ---------------------------------------- |
-| Sound effect from a file (click, explosion, footstep) | `AudioSource`                            | Local file, spatial, one-shot or looping |
-| Background music or radio stream                      | `AudioStream`                            | External URL, non-spatial, continuous    |
-| Video on a surface (screen, billboard)                | `VideoPlayer` + `Material.Texture.Video` | Requires a mesh to display on            |
+| Need | Component | Key Difference |
+|------|-----------|---------------|
+| Sound effect from a file (click, explosion, footstep) | `AudioSource` | Local file, spatial, one-shot or looping |
+| Background music or radio stream | `AudioStream` | External URL, non-spatial, continuous |
+| Video on a surface (screen, billboard) | `VideoPlayer` + `Material.Texture.Video` | Requires a mesh to display on |
 
 **Decision flow:**
 
@@ -19,410 +19,56 @@ description: Add sound effects, music, audio streaming, and video players to Dec
 2. Is it a streaming URL (radio, live audio)? → `AudioStream`
 3. Is it video content? → `VideoPlayer` on a plane/mesh
 
-## Audio Source (Sound Effects & Music)
+## AudioSource (Sound Effects & Music)
 
-Play audio clips from files:
+Attach to any entity for positional sound. Key fields: `audioClipUrl` (local file path), `playing` (boolean), `loop`, `volume` (0-1), `pitch` (playback speed). Audio files go in `assets/scene/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
 
-```typescript
-import { engine, Transform, AudioSource } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
+Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
-const speaker = engine.addEntity()
-Transform.create(speaker, { position: Vector3.create(8, 1, 8) })
+Control playback via `AudioSource.getMutable(entity).playing = true/false`. To replay from start, set `playing = false` then `playing = true`.
 
-AudioSource.create(speaker, {
-	audioClipUrl: 'assets/scene/Audio/music.mp3',
-	playing: true,
-	loop: true,
-	volume: 0.5, // 0 to 1
-	pitch: 1.0, // Playback speed (0.5 = half speed, 2.0 = double)
-})
-```
+> **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
-### Supported Formats
+## AudioStream (Streaming)
 
-- `.mp3` (recommended)
-- `.ogg`
-- `.wav`
+Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
-### File Organization
+Query state with `AudioStream.getAudioState(entity)` which returns a `MediaState` enum (`MS_PLAYING`, `MS_ERROR`, etc.).
 
-```
-project/
-├── assets/
-│   └── scene/
-│       └── Audio/
-│           ├── click.mp3
-│           ├── background-music.mp3
-│           └── explosion.ogg
-├── src/
-│   └── index.ts
-└── scene.json
-```
+> **Before adding a streaming URL**: If not provided by the user, confirm the source first.
 
-### Play/Stop/Toggle
+## VideoPlayer
 
-```typescript
-// Play
-AudioSource.getMutable(speaker).playing = true
+Play video on a surface. Key fields: `src` (URL or local path), `playing`, `loop`, `volume`, `playbackRate`, `position` (start time in seconds). Non-spatial by default — set `spatial: true` with min/max distances for positional audio.
 
-// Stop
-AudioSource.getMutable(speaker).playing = false
+**Setup requires 3 steps**: create entity with `MeshRenderer.setPlane()`, add `VideoPlayer`, create `Material.Texture.Video({ videoPlayerEntity })` and apply to material. Use `Material.setBasicMaterial` (recommended, better performance) or `Material.setPbrMaterial` with emissive for a brighter screen.
 
-// Toggle
-const audio = AudioSource.getMutable(speaker)
-audio.playing = !audio.playing
-```
+Monitor playback with `videoEventsSystem.registerVideoEventsEntity()` for state callbacks, or `videoEventsSystem.getVideoState()` for polling. States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
 
-### Play on Click
+Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 
-```typescript
-import { pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
-
-const button = engine.addEntity()
-// ... set up transform and mesh ...
-
-const audioEntity = engine.addEntity()
-Transform.create(audioEntity, { position: Vector3.create(8, 1, 8) })
-AudioSource.create(audioEntity, {
-	audioClipUrl: 'assets/scene/Audio/click.mp3',
-	playing: false,
-	loop: false,
-	volume: 0.8,
-})
-
-pointerEventsSystem.onPointerDown(
-	{
-		entity: button,
-		opts: { button: InputAction.IA_POINTER, hoverText: 'Play sound' },
-	},
-	() => {
-		// Reset and play
-		const audio = AudioSource.getMutable(audioEntity)
-		audio.playing = false
-		audio.playing = true
-	}
-)
-```
-
-## Audio Streaming
-
-Stream audio from a URL (radio, live streams).
-
-> **Before adding a streaming URL:** If the URL wasn't provided by the user, confirm the source before adding it — e.g., "I'd reference the stream at [URL]. Is that the source you want?" See `agent-behaviors.md` in `overview/` for the full confirmation pattern.
-
-```typescript
-import { engine, Transform, AudioStream } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-const radio = engine.addEntity()
-Transform.create(radio, { position: Vector3.create(8, 1, 8) })
-
-AudioStream.create(radio, {
-	url: 'https://example.com/stream.mp3',
-	playing: true,
-	volume: 0.3,
-})
-```
-
-### AudioStream State
-
-Query the current state of an audio stream with `AudioStream.getAudioState` and the `MediaState` enum — useful for reacting to buffering, errors, or end-of-stream:
-
-```typescript
-import { AudioStream, MediaState } from '@dcl/sdk/ecs'
-
-const state = AudioStream.getAudioState(radio)
-if (state === MediaState.MS_PLAYING) {
-	console.log('Stream is playing')
-} else if (state === MediaState.MS_ERROR) {
-	console.log('Stream error occurred')
-}
-
-// Monitor state changes in a system
-let lastState: MediaState | undefined = undefined
-engine.addSystem(() => {
-	const current = AudioStream.getAudioState(radio)
-	if (lastState !== current) {
-		console.log('Stream state changed:', current)
-		lastState = current
-	}
-})
-```
-
-## Video Player
-
-Play video on a surface. If the video URL wasn't provided by the user, confirm before referencing it (same pattern as audio streams above).
-
-```typescript
-import {
-	engine,
-	Transform,
-	VideoPlayer,
-	Material,
-	MeshRenderer,
-} from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-// Create a screen
-const screen = engine.addEntity()
-Transform.create(screen, {
-	position: Vector3.create(8, 3, 15.9),
-	scale: Vector3.create(8, 4.5, 1), // 16:9 ratio
-})
-MeshRenderer.setPlane(screen)
-
-// Add video player
-VideoPlayer.create(screen, {
-	src: 'https://example.com/video.mp4',
-	playing: true,
-	loop: true,
-	volume: 0.5,
-	playbackRate: 1.0,
-	position: 0, // Start time in seconds
-})
-
-// Create video texture
-const videoTexture = Material.Texture.Video({ videoPlayerEntity: screen })
-
-// Basic material (recommended — better performance)
-Material.setBasicMaterial(screen, {
-	texture: videoTexture,
-})
-```
-
-### Video Controls
-
-```typescript
-// Play
-VideoPlayer.getMutable(screen).playing = true
-
-// Pause
-VideoPlayer.getMutable(screen).playing = false
-
-// Change volume
-VideoPlayer.getMutable(screen).volume = 0.8
-
-// Change source
-VideoPlayer.getMutable(screen).src = 'https://example.com/other.mp4'
-```
-
-### Enhanced Video Material (PBR)
-
-Ideally video screens should use basic (unlit) materials, that way they're always bright and crisp.
-
-```typescript
-const videoTexture = Material.Texture.Video({ videoPlayerEntity: screen })
-
-Material.setBasicMaterial(screen, {
-	texture: videoTexture,
-})
-```
-
-For a brighter, emissive video screen:
-
-```typescript
-import { Color3 } from '@dcl/sdk/math'
-
-const videoTexture = Material.Texture.Video({ videoPlayerEntity: screen })
-Material.setPbrMaterial(screen, {
-	texture: videoTexture,
-	roughness: 1.0,
-	specularIntensity: 0,
-	metallic: 0,
-	emissiveTexture: videoTexture,
-	emissiveIntensity: 0.6,
-	emissiveColor: Color3.White(),
-})
-```
-
-### Video Events
-
-Monitor video playback state:
-
-```typescript
-import { videoEventsSystem, VideoState } from '@dcl/sdk/ecs'
-
-videoEventsSystem.registerVideoEventsEntity(screen, (videoEvent) => {
-	switch (videoEvent.state) {
-		case VideoState.VS_PLAYING:
-			console.log('Video started playing')
-			break
-		case VideoState.VS_PAUSED:
-			console.log('Video paused')
-			break
-		case VideoState.VS_READY:
-			console.log('Video ready to play')
-			break
-		case VideoState.VS_ERROR:
-			console.log('Video error occurred')
-			break
-	}
-})
-```
-
-## Spatial Audio
-
-Audio from the `AudioSource` component in Decentraland is **spatial by default** — it gets louder as the player approaches the audio source entity and quieter as they move away. The position is determined by the entity's `Transform`. You can change this by setting the `global` property to true.
-
-```typescript
-AudioSource.create(sourceEntity, {
-	audioClipUrl: 'assets/scene/Audio/music.mp3',
-	playing: true,
-	global: true,
-})
-```
-
-Audio from the `VideoPlayer` component and the `AudioStream` component is global by default. Set it to spatial by setting the `spatial` to true. You can also change these properties:
-
-- spatialMinDistance: The minimum distance at which audio becomes spatial. If the player is closer, the audio will be heard at full volume. 0 by default.
-
-- spatialMaxDistance: The maximum distance at which the audio is heard. If the player is further away, the audio will be heard at 0 volume. 60 by default
-
-```typescript
-VideoPlayer.create(videoPlayerEntity, {
-	src: 'https://player.vimeo.com/progressive_redirect/playback/1145666916/rendition/540p/file.mp4%20%28540p%29.mp4?loc=external&signature=db1cd6946851313cb8f7be60d1f6c30af0902bcc46fdae0ba2a06e5fdf44c329',
-	playing: true,
-	spatial: true,
-	spatialMinDistance: 5,
-	spatialMaxDistance: 10,
-})
-
-AudioStream.create(audioStreamEntity, {
-	url: 'https://radioislanegra.org/listen/up/stream',
-	playing: true,
-	volume: 1.0,
-	spatial: true,
-	spatialMinDistance: 5,
-	spatialMaxDistance: 10,
-})
-```
+To play video on a non-primitive shape (curved screens), use `GltfNodeModifiers` to swap the material of a GLTF model.
 
 ## Free Audio Files
 
 Always check the audio catalog before creating placeholder sound file references. It contains 50 free sounds from the Creator Hub asset packs.
 
-Read `{baseDir}/references/audio-catalog.md` for music tracks (ambient, dance, medieval, sci-fi, etc.), ambient sounds (birds, city, factory, etc.), interaction sounds (buttons, doors, levers, chests), sound effects (explosions, sirens, bells), and game mechanic sounds (win/lose, heal, respawn, damage).
+Read `{baseDir}/references/audio-catalog.md` for music tracks, ambient sounds, interaction sounds, sound effects, and game mechanic sounds.
 
-To use a catalog sound:
+**Workflow**: Read catalog → suggest specific sounds → download with `curl -o assets/scene/Audio/<name>.mp3 "<URL>"` → reference with local path in `audioClipUrl`.
 
-```bash
-# Download from catalog
-mkdir -p assets/scene/Audio
-curl -o assets/scene/Audio/ambient_1.mp3 "https://builder-items.decentraland.org/contents/bafybeic4faewxkdqx67dloyw57ikgaeibc2e2dbx34hwjubl3gfvs2r4su"
-```
+> **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/scene/Audio/` first.
 
-```typescript
-// Reference in code — must be a local file path
-AudioSource.create(entity, {
-	audioClipUrl: 'assets/scene/Audio/ambient_1.mp3',
-	playing: true,
-	loop: true,
-})
-```
+## Permission for External Media
 
-### How to suggest audio
+External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scene.json with specific hostnames listed in `allowedMediaHostnames`.
 
-1. Read the audio catalog file
-2. Search for sounds matching the user's description/theme
-3. Suggest specific sounds with download commands
-4. Download selected sounds into the scene's `assets/scene/Audio/` directory
-5. Reference them in code with local paths
+## Video Limits & Tips
 
-> **Important**: `AudioSource` only works with **local files**. Never use external URLs for the `audioClipUrl` field. Always download audio into `assets/scene/Audio/` first.
-
-### Video State Polling
-
-Check video playback state programmatically:
-
-```typescript
-import { videoEventsSystem, VideoState } from '@dcl/sdk/ecs'
-
-engine.addSystem(() => {
-	const state = videoEventsSystem.getVideoState(videoEntity)
-	if (state) {
-		console.log('Video state:', state.state) // VideoState.VS_PLAYING, VS_PAUSED, etc.
-		console.log('Current time:', state.currentOffset)
-	}
-})
-```
-
-### Audio Playback Events
-
-Use the `AudioEvent` component to detect audio state changes:
-
-```typescript
-import { AudioEvent } from '@dcl/sdk/ecs'
-
-engine.addSystem(() => {
-	const event = AudioEvent.getOrNull(audioEntity)
-	if (event) {
-		console.log('Audio state:', event.state) // playing, paused, finished
-	}
-})
-```
-
-### Permission for External Media
-
-External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scene.json:
-
-```json
-{
-	"requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
-	"allowedMediaHostnames": ["stream.example.com", "cdn.example.com"]
-}
-```
-
-### Multiple Video Surfaces
-
-Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity`:
-
-```typescript
-Material.setPbrMaterial(screen1, {
-	texture: Material.Texture.Video({ videoPlayerEntity: videoEntity }),
-})
-Material.setPbrMaterial(screen2, {
-	texture: Material.Texture.Video({ videoPlayerEntity: videoEntity }),
-})
-```
-
-### Play a video on a glTF model
-
-You may want to play a video on a shape that is not a primitive, to have curved screens or exotic shapes. Use `GltfNodeModifiers` to swap the material of a GLTF model.
-
-```typescript
-VideoPlayer.create(myEntity, {
-	src: 'https://player.vimeo.com/external/552481870.m3u8?s=c312c8533f97e808fccc92b0510b085c8122a875',
-	playing: true,
-})
-
-GltfNodeModifiers.create(myEntity, {
-	modifiers: [
-		{
-			path: '',
-			material: {
-				material: {
-					$case: 'pbr',
-					pbr: {
-						texture: Material.Texture.Video({
-							videoPlayerEntity: myEntity,
-						}),
-					},
-				},
-			},
-		},
-	],
-})
-```
-
-### Video Limits & Tips
-
-- **Simultaneous videos**: Always avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. Maximum 5 simultaneous videos.
+- **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. Maximum 5 simultaneous videos.
 - **Distance-based control**: Pause video when player is far away to save bandwidth
 - **Supported formats**: `.mp4` (H.264), `.webm`, HLS (`.m3u8`) for live streaming
 - **Live streaming**: Use HLS (`.m3u8`) URLs — most reliable across clients
-
-For full component field details, supported formats, and advanced patterns, see `{baseDir}/references/media-reference.md`.
 
 ## Important Notes
 
@@ -432,4 +78,6 @@ For full component field details, supported formats, and advanced patterns, see 
 - Keep audio files small — large files increase scene load time
 - Use `.mp3` for music and `.ogg` for sound effects (smaller file sizes)
 - For live video streaming, use HLS (.m3u8) URLs when possible
-- If an audio file needs to be ready to play as the player interacts, use the `AssetLoad` component to pre-load the asset.
+- If an audio file needs to be ready to play as the player interacts, use the `AssetLoad` component to pre-load the asset
+
+For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.
