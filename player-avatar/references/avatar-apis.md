@@ -152,6 +152,47 @@ For `triggerEmote({ predefinedEmote: '...' })`:
 - `dab` — dab
 - `headexplode` — head explode
 
+## AvatarEmoteMask — Upper-Body Animations
+
+`triggerEmote()` and `triggerSceneEmote()` both accept an optional `mask` field. When set to `AEM_UPPER_BODY`, the animation plays only on the torso, arms, and head while legs keep playing locomotion — the player can walk, run, jog, or jump while the animation is active.
+
+```typescript
+import { AvatarEmoteMask } from '@dcl/sdk/ecs'
+import { triggerEmote, triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
+
+AvatarEmoteMask.AEM_FULL_BODY   // default — whole skeleton; movement interrupts it
+AvatarEmoteMask.AEM_UPPER_BODY  // upper body only; legs keep locomotion
+
+triggerSceneEmote({
+	src: 'animations/Juggler_emote.glb',
+	loop: true,
+	mask: AvatarEmoteMask.AEM_UPPER_BODY,
+})
+
+triggerEmote({
+	predefinedEmote: 'wave',
+	mask: AvatarEmoteMask.AEM_UPPER_BODY,
+})
+```
+
+### `stopEmote()`
+
+Ends any active emote (full-body or upper-body). Required to exit a looping upper-body animation.
+
+```typescript
+import { stopEmote } from '~system/RestrictedActions'
+
+stopEmote({}) // empty object argument is required
+```
+
+### Upper-body mask behavior
+
+- A full-body emote overrides an active upper-body animation (e.g. player triggers an emote-wheel dance).
+- Leaving scene bounds pauses the animation; re-entering resumes it.
+- Gliding cancels the upper-body animation. Block gliding with `InputModifier` (`disableGliding: true`) if continuity matters.
+- Head and hand inverse kinematics are disabled while an upper-body animation plays — looking around or pointing has no visible effect.
+- Custom mask emote files still need the `_emote.glb` filename suffix.
+
 ## Player Event Callbacks
 
 ### Scene Entry/Exit

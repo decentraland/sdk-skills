@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), trigger and stop emotes (triggerEmote, triggerSceneEmote, stopEmote, upper-body AvatarEmoteMask), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -155,6 +155,70 @@ triggerSceneEmote({
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Custom emote files must have the `_emote.glb` suffix
+
+### Upper-Body Animations (Avatar Masks)
+
+Play an emote on only the torso, arms and head while the legs keep locomotion — the player can walk, run, jog, or jump while the animation plays. Useful for carrying an object, waving a flag, aiming a weapon, or holding a drink.
+
+Pass `mask: AvatarEmoteMask.AEM_UPPER_BODY` to either `triggerEmote()` or `triggerSceneEmote()`:
+
+```typescript
+import { triggerEmote, triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
+import { AvatarEmoteMask } from '@dcl/sdk/ecs'
+
+// Looping custom upper-body animation (e.g. carrying an object)
+triggerSceneEmote({
+	src: 'animations/Juggler_emote.glb',
+	loop: true,
+	mask: AvatarEmoteMask.AEM_UPPER_BODY,
+})
+
+// Default emote played only on the upper body
+triggerEmote({
+	predefinedEmote: 'wave',
+	mask: AvatarEmoteMask.AEM_UPPER_BODY,
+})
+
+// Stop any active emote — essential for ending a looping upper-body animation
+stopEmote({})
+```
+
+`AvatarEmoteMask` values (from `@dcl/sdk/ecs`):
+
+- `AEM_FULL_BODY` — default. Animation affects the whole skeleton; any movement interrupts it. Matches how emotes have always worked.
+- `AEM_UPPER_BODY` — torso, arms, and head only. Legs keep playing locomotion, so the player can walk/run/jog/jump while the animation plays.
+
+**Behavior notes:**
+
+- A full-body emote (e.g. from the player's emote wheel) overrides an active upper-body animation.
+- Upper-body animations pause when the player leaves the scene's bounds and resume on re-entry.
+- Gliding cancels any active upper-body animation. To block it, use `InputModifier` with `disableGliding: true` (see **advanced-input**).
+- While an upper-body animation is playing, head and hand inverse kinematics are disabled (looking around or pointing has no effect on the avatar).
+- Custom mask emotes still require the `_emote.glb` filename suffix.
+
+**Pattern — pick up and carry a prop:** start a looping upper-body `triggerSceneEmote` with a carry animation and attach a GLB to `AAPT_LEFT_HAND` (or `AAPT_RIGHT_HAND`) via `AvatarAttach`. To drop, call `stopEmote({})` and `AvatarAttach.deleteFrom(anchorEntity)`.
+
+```typescript
+import { triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
+import { AvatarEmoteMask, AvatarAttach, AvatarAnchorPointType } from '@dcl/sdk/ecs'
+
+async function pickUp(anchorEntity: Entity, playerId: string) {
+	triggerSceneEmote({
+		src: 'animations/Carry_emote.glb',
+		loop: true,
+		mask: AvatarEmoteMask.AEM_UPPER_BODY,
+	})
+	AvatarAttach.createOrReplace(anchorEntity, {
+		avatarId: playerId,
+		anchorPointId: AvatarAnchorPointType.AAPT_LEFT_HAND,
+	})
+}
+
+function drop(anchorEntity: Entity) {
+	stopEmote({})
+	AvatarAttach.deleteFrom(anchorEntity)
+}
+```
 
 ## NPC Avatars
 
