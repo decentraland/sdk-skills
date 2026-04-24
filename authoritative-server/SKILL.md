@@ -47,6 +47,8 @@ Use `registerMessages()` for client-to-server and server-to-client communication
 
 Clients must wait for `isStateSyncronized()` (note SDK typo) to return `true` before sending messages.
 
+**IMPORTANT — message size limit**: Never send messages larger than **13 KB**. The transport will silently drop any message that exceeds this limit. Split large payloads into smaller chunks if needed.
+
 ### Schema Types Reference
 
 `Schemas.String`, `.Int`, `.Float`, `.Bool`, `.Int64` (for `Date.now()` / 13+ digit numbers), `.Vector3`, `.Quaternion`, `.Entity`, `.Array(Schemas.String)`, `.Optional(Schemas.String)`, `.Map({ name: Schemas.String, hp: Schemas.Int })`.
