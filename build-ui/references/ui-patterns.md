@@ -354,6 +354,57 @@ engine.addSystem((dt: number) => {
 </UiEntity>
 ```
 
+### Scrollable Container
+
+Set `overflow: 'scroll'` on a parent with fixed dimensions. Content that exceeds the parent size becomes scrollable via drag or mouse wheel. Values: `'hidden'` (clip overflow), `'visible'` (overflow extends beyond parent), `'scroll'` (scrollable).
+
+```tsx
+<UiEntity
+  uiTransform={{
+    width: 300,
+    height: 400,
+    overflow: 'scroll',
+    flexDirection: 'column',
+  }}
+>
+  {menuItems.map((item, i) => (
+    <UiEntity
+      key={i}
+      uiTransform={{ width: '100%', height: 80 }}
+      uiBackground={{ color: Color4.create(0.2, 0.2, 0.2, 1) }}
+    >
+      <Label value={item.name} fontSize={14} />
+    </UiEntity>
+  ))}
+</UiEntity>
+```
+
+Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, useful for dialogs with a fixed header and scrollable body:
+
+```tsx
+<UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
+  {/* Fixed header */}
+  <UiEntity uiTransform={{ width: '100%', height: 60 }}>
+    <Label value="Inventory" fontSize={20} />
+  </UiEntity>
+  {/* Scrollable body fills remaining space */}
+  <UiEntity
+    uiTransform={{
+      width: '100%',
+      flexGrow: 1,
+      overflow: 'scroll',
+      flexDirection: 'column',
+    }}
+  >
+    {items.map((item, i) => (
+      <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
+        <Label value={item.name} fontSize={14} />
+      </UiEntity>
+    ))}
+  </UiEntity>
+</UiEntity>
+```
+
 ### Dropdown Extras
 ```tsx
 <Dropdown
