@@ -24,7 +24,7 @@ Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRende
 
 ## Core Components
 
-**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, padding, margin, display), `uiBackground` (color, texture, textureMode, textureSlices, uvs). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, padding, margin, display, overflow), `uiBackground` (color, texture, textureMode, textureSlices, uvs). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
 
 **Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`.
 
@@ -55,6 +55,7 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **Texture UVs / Sprite sheets** — `uvs` array (8 numbers) to select texture regions
 - **Hover events** — `onMouseEnter`/`onMouseLeave` on UiEntity
 - **Flex wrap** — `flexWrap: 'wrap'` for grid layouts
+- **Scrollable containers** — `overflow: 'scroll'` on a fixed-size parent to scroll through overflowing content (drag or mouse wheel). Use `overflow: 'hidden'` to clip overflow without scrolling. Use `flexGrow: 1` on scrollable entities to fill remaining space
 
 ## dcl-ui-toolkit (Pre-Built Widgets)
 

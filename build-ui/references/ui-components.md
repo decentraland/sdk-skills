@@ -38,6 +38,8 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into
     justifyContent: 'center',    // 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around'
     alignItems: 'center',        // 'flex-start' | 'center' | 'flex-end' | 'stretch'
     flexWrap: 'wrap',            // 'nowrap' | 'wrap'
+    overflow: 'scroll',          // 'hidden' | 'visible' | 'scroll'
+    flexGrow: 1,                 // Fill remaining space in parent
 
     // Spacing
     padding: { top: 10, bottom: 10, left: 10, right: 10 },  // or single number
@@ -166,6 +168,56 @@ const Modal = () => {
     </UiEntity>
   )
 }
+```
+
+### Scrollable Container
+
+```tsx
+<UiEntity
+  uiTransform={{
+    width: 300,
+    height: 400,
+    overflow: 'scroll',
+    flexDirection: 'column',
+  }}
+>
+  {/* Children exceeding 400px height become scrollable via drag or mouse wheel */}
+  {items.map((item, i) => (
+    <UiEntity
+      key={i}
+      uiTransform={{ width: '100%', height: 80 }}
+      uiBackground={{ color: i % 2 === 0 ? Color4.create(0.2, 0.2, 0.2, 1) : Color4.create(0.25, 0.25, 0.25, 1) }}
+    >
+      <Label value={item.name} fontSize={14} />
+    </UiEntity>
+  ))}
+</UiEntity>
+```
+
+### Dialog with Fixed Header and Scrollable Body
+
+```tsx
+<UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
+  {/* Fixed header */}
+  <UiEntity uiTransform={{ width: '100%', height: 60 }}>
+    <Label value="Inventory" fontSize={20} />
+  </UiEntity>
+  {/* Scrollable body fills remaining space */}
+  <UiEntity
+    uiTransform={{
+      width: '100%',
+      flexGrow: 1,
+      overflow: 'scroll',
+      flexDirection: 'column',
+    }}
+  >
+    {items.map((item, i) => (
+      <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
+        <Label value={item.name} fontSize={14} />
+      </UiEntity>
+    ))}
+  </UiEntity>
+</UiEntity>
 ```
 
 ### Inventory Grid
