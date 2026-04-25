@@ -51,6 +51,12 @@ For full dialogue scripting, movement paths, state machines, and all config opti
 - Multiplayer considerations
 - Performance optimization
 
+### Gotchas (NPC Toolkit)
+
+- **Button labels are visually truncated.** Dialog button labels render with `textWrap: 'nowrap'` in a fixed-width slot (default font 16, slot ~217px scaled). Anything past ~15 characters is silently clipped — no ellipsis. Use short labels like `"Yes"`, `"No thanks"`, `"Tell me more"`, `"Decline"`. Avoid full sentences and trailing punctuation (e.g. `"I'm not interested."` renders as `"I'm not interes"`). To fit longer text, drop `fontSize` (e.g. 12) or set `size` on the button. See `references/npc-library.mdc` "ButtonData fields".
+- Opening dialogs on an entity not created via `createNPC` requires `addDialog(entity)` and a minimal `npcDataComponent.set(entity, ...)` — see reference for the full setup.
+- Speech bubbles need `createDialogBubble(entity)` before `talkBubble`. Bubbles do not render question buttons; questions are HUD-only.
+
 ---
 
 ## Approach 2 — AvatarShape (Decentraland avatar look)
