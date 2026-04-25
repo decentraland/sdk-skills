@@ -235,8 +235,9 @@ const questGiver = createNPC(
       {
         text: 'Welcome, traveler! What do you seek?',
         isQuestion: true,
+        // Keep button labels short (~15 chars). Longer labels are visually truncated.
         buttons: [
-          { label: 'Tell me about this place', goToDialog: 1 },
+          { label: 'About this place', goToDialog: 1 },
           { label: 'Give me a quest', goToDialog: 2 },
           { label: 'Goodbye', goToDialog: 3 }
         ]
@@ -256,12 +257,38 @@ const questGiver = createNPC(
 | `text` | `string` | The dialog text displayed to the player. Required. |
 | `isEndOfDialog` | `boolean` | If true, closes the dialog window after this step. |
 | `isQuestion` | `boolean` | If true, shows button choices instead of auto-advancing. |
-| `buttons` | `{ label: string, goToDialog: number }[]` | Choice buttons shown when `isQuestion` is true. |
+| `buttons` | `ButtonData[]` | Choice buttons shown when `isQuestion` is true. See ButtonData fields below. |
 | `typeSpeed` | `number` | Speed of the typewriter text effect (characters per second). |
 | `ifPressE` | `number` | Dialog index to jump to if player presses E. |
 | `ifPressF` | `number` | Dialog index to jump to if player presses F. |
 | `triggeredByNext` | `() => void` | Callback executed when this dialog step is reached. |
 | `goToDialog` | `number` | Auto-jump to this dialog index (for non-question steps). |
+
+### ButtonData fields
+
+| Property | Type | Description |
+|---|---|---|
+| `label` | `string` | Text shown on the button. **Keep short — see warning below.** |
+| `goToDialog` | `number \| string` | Index or name of the next dialog entry when this button is pressed. |
+| `triggeredActions` | `() => void` | Callback run when this button is pressed. |
+| `fontSize` | `number` | Font size for the label. Default `16`. |
+| `size` | `number \| 'auto'` | Width override for the button. Default uses fixed button width. |
+| `offsetX` | `number` | Horizontal offset for the label. |
+| `offsetY` | `number` | Vertical offset for the label. |
+
+### WARNING: Button label length is visually clipped
+
+Button labels in the NPC dialog UI are rendered with `textWrap: 'nowrap'` inside a fixed-width button slot (`maxWidth` ~217px scaled, default `fontSize: 16`). Labels longer than the button width are **silently truncated visually** — no ellipsis, no wrapping, no warning. The string in the data is unchanged; only the rendered display is cut off.
+
+**Empirically observed limit at default font size: ~15 characters.** Examples seen truncating:
+- `"I'm not interested."` rendered as `"I'm not interes"`
+- `"Tell me more..."` rendered as `"Tell me mo"`
+
+**Guidance for labels:**
+- Prefer short, imperative phrases. Good: `"Yes"`, `"No thanks"`, `"Tell me more"`, `"Decline"`, `"Accept quest"`, `"Goodbye"`. Avoid: full sentences, trailing punctuation like `"..."` or `"."`.
+- Aim for **<= 15 characters** at default font size to be safe.
+- If a longer label is unavoidable, lower `fontSize` (e.g. `12`) and/or set an explicit `size` on the button to widen it. There is no SDK-enforced maximum length — only visual clipping.
+- This affects only the UI dialog (HUD); speech bubbles do not show buttons.
 
 **Type casting note:** When using `isQuestion` with `buttons`, cast the object as `as unknown as Dialog` because the toolkit's type definition may not include the buttons field directly. For simple text-only steps, use `as Dialog`.
 
@@ -509,8 +536,9 @@ function createAdvancedNPC() {
       type: 'custom', model: 'models/quest_giver.glb',
       dialog: [
         { text: 'Hello traveler! I have a quest for you.', isQuestion: true, buttons: [
-          { label: 'Tell me about the quest', goToDialog: 1 },
-          { label: 'I\'ll pass for now', goToDialog: 2 }
+          // Short labels — long labels get visually clipped (~15 char limit at default font).
+          { label: 'About the quest', goToDialog: 1 },
+          { label: 'Pass for now', goToDialog: 2 }
         ] } as unknown as Dialog,
         { text: 'Retrieve the ancient token from the ruins to the east.', isEndOfDialog: true } as Dialog,
         { text: 'Come back if you change your mind!', isEndOfDialog: true } as Dialog
