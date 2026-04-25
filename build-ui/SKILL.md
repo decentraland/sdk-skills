@@ -22,6 +22,28 @@ Use React-ECS for any 2D overlay: scoreboards, health bars, dialogs, inventories
 
 Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })` from `setupUi()`. Call `setupUi()` from `main()` in `src/index.ts`. The SDK template already includes the required JSX settings in tsconfig.json — do NOT modify it.
 
+## DEFAULT RULE: Always Set Virtual Screen Size to 1920x1080
+
+**Whenever you generate UI code, you MUST pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer` and `addUiRenderer` by default — without waiting for the user to ask.** Only deviate if the user explicitly requests a different reference resolution.
+
+Why: Without a virtual size, UI is laid out in raw screen pixels and renders inconsistently across different resolutions and aspect ratios — fonts, spacing, and absolute-positioned elements drift between displays. Setting a virtual screen size makes the engine scale the UI proportionally to a fixed reference frame, so layouts look the same on every screen. 1920x1080 is the safe default — it matches the most common displays and matches the assumption made by `dcl-ui-toolkit` and most community examples.
+
+API (verified against `@dcl/react-ecs` 7.22.5, file `dist/system.d.ts`):
+```ts
+type UiRendererOptions = { virtualWidth: number; virtualHeight: number }
+setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
+addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): void
+```
+
+Canonical snippet (use this verbatim unless the user specifies otherwise):
+```tsx
+import { ReactEcsRenderer } from '@dcl/sdk/react-ecs'
+
+export function setupUi() {
+  ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })
+}
+```
+
 ## Core Components
 
 **UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, padding, margin, display, overflow), `uiBackground` (color, texture, textureMode, textureSlices, uvs). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
@@ -33,10 +55,6 @@ Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRende
 **Input** — Text input field. Key props: `placeholder`, `fontSize`, `color`, `onChange`, `onSubmit`, `uiTransform`.
 
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
-
-## Virtual Screen Size (Scaling for All Resolutions)
-
-Always set `virtualWidth` and `virtualHeight` when calling `setUiRenderer` or `addUiRenderer`. Use `1920 x 1080` as the standard reference resolution. This ensures UI elements scale proportionally across all screen sizes.
 
 ## Adding Independent UI Renderers (addUiRenderer)
 
@@ -86,7 +104,7 @@ Install with `npm install dcl-ui-toolkit`. Register with `ReactEcsRenderer.setUi
 - Use `display: 'none'` in `uiTransform` to hide elements without removing them
 - File extension must be `.tsx` for JSX support
 - Only one `ReactEcsRenderer.setUiRenderer()` call per scene — combine all UI into one root component, or use `addUiRenderer()` with separate owner entities
-- Always set `virtualWidth` and `virtualHeight` in `setUiRenderer`/`addUiRenderer`
+- Always pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer`/`addUiRenderer` by default (see "DEFAULT RULE" above) — only change if the user explicitly asks
 - **Desktop:** Avoid placing UI elements on the leftmost ~25% of the screen (reserved for chat, map, platform UI)
 - **Mobile:** Avoid placing UI elements in non-safe zones (notch, status bar, home indicator)
 
