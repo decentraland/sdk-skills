@@ -53,6 +53,10 @@ TypeScript (`src/index.ts`) is ONLY for:
 - Referencing composite entities via `getEntityOrNullByName('name')` or `getEntitiesByTag('tag')`
 - Entities that are truly runtime-only (spawned/despawned during gameplay)
 
+## CRITICAL RULE — Editing an existing composite
+
+Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes` (root entity `0`'s `children` array AND its own top-level entry) and given a `core-schema::Name` entry, or the entity will render in-world but be **invisible in the Creator Hub entity tree** (un-selectable in the editor). See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
+
 ---
 
 ## Individual Skills
