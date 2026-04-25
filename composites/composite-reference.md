@@ -24,18 +24,91 @@ This file must exist at `assets/scene/main.composite`.
 }
 ```
 
-## DO NOT Include
+## Authoring-from-scratch vs editing-an-existing-composite
 
-These components are auto-generated and must **NEVER** be in the composite. Including any of them will break the scene in the Creator Hub and/or cause SDK build failures:
+The rules in this document have **two modes** that you must distinguish before touching a composite. Read this section first — applying the wrong mode causes invisible-in-editor entities or SDK build failures.
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes SDK build error: `"inspector::Nodes is not defined and there is no schema to define it"`
-- **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3`; the engine uses base names only.
+| Mode | Trigger | Inspector/auto components |
+| ---- | ------- | ------------------------- |
+| **Authoring from scratch** | The composite does not exist yet, or it exists but contains NO `inspector::*` / `composite::root` / `asset-packs::ActionTypes` components | These components must be **absent**. The Creator Hub will generate them on first save. |
+| **Editing an existing composite** | The composite already contains `inspector::Nodes`, `inspector::SceneMetadata-v4`, `composite::root`, etc. (i.e. the user has opened and saved the scene in the Creator Hub at least once) | These components are **already present and must be kept in sync**. Do NOT delete them. When you add new entities, you MUST also register them in `inspector::Nodes` (and in `inspector::SceneMetadata-*` only if the layout/parcels change). |
+
+**How to detect the mode:** before editing, scan the composite for any component whose name starts with `inspector::` or equals `composite::root`. If any are present, you are in **edit mode** — go to the section "Editing an existing composite (edit mode)" below.
+
+## DO NOT Include — applies ONLY to authoring-from-scratch mode
+
+When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
+
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes SDK build error: `"inspector::Nodes is not defined and there is no schema to define it"`
+- **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
 - **`composite::root`** — auto-generated, never include manually
 - **`asset-packs::ActionTypes`** — auto-generated from the engine's action type registry
 
-**Rule of thumb:** if a component name starts with `inspector::` or `asset-packs::`, do NOT include it. The Creator Hub Inspector manages these components internally.
+**Rule of thumb (authoring mode only):** if a component name starts with `inspector::` or `asset-packs::ActionTypes`, do NOT include it. The Creator Hub Inspector manages these components internally on first save.
+
+> **WARNING — edit mode is different.** If the composite already contains `inspector::*` components, you are NOT authoring from scratch. Do NOT strip them, and DO update `inspector::Nodes` whenever you add a new entity. See "Editing an existing composite" below.
+
+## Editing an existing composite (edit mode)
+
+After the user opens and saves a scene in the Creator Hub, the composite contains baked-in inspector components. Adding new entities WITHOUT updating `inspector::Nodes` is a silent bug: the entities render correctly in the running scene but are **invisible in the Creator Hub entity tree**, so the user cannot select or edit them in the editor.
+
+### Required updates when adding a new entity (entity ID `<id>`) in edit mode
+
+For every new entity you add (in addition to the normal `core::Transform`, `core-schema::Name`, and feature components):
+
+1. **Update `inspector::Nodes`** — this is the entity-tree registry on root entity `0`. Two changes required:
+   - Append `<id>` to the `children` array inside the entry whose `entity` is `0` (the RootEntity entry).
+   - Append a new entry `{ "entity": <id>, "children": [] }` to the top-level `value` array. (If the new entity has children of its own, list them in `children`; otherwise use `[]`.)
+
+2. **Add a `core-schema::Name` entry** — every new entity MUST have a name in `core-schema::Name.data["<id>"].json.value`. Without it the entity shows as anonymous in the entity tree and cannot be looked up via `engine.getEntityOrNullByName()`.
+
+3. **Add an `inspector::TransformConfig` entry** (optional but expected) — append `"<id>": { "json": {} }` to its `data` map. This is what the Creator Hub uses to track per-entity proportional-scaling state. An empty `{}` is a valid default.
+
+4. **Keep `entity-names.ts` in sync** — this file at `assets/scene/entity-names.ts` is auto-generated by the Creator Hub from `core-schema::Name`. If you add a new name, either (a) add a matching `EntityNames` member to the file so TypeScript references compile, or (b) leave the file alone and let the Creator Hub regenerate it on next save. Never edit the generated header.
+
+5. **Do NOT touch** `inspector::SceneMetadata-*` (only changes when `scene.json` parcels change), `inspector::Selection` (per-user editor state), `composite::root`, or `asset-packs::ActionTypes` — these remain managed by the Creator Hub.
+
+### Concrete shape of `inspector::Nodes`
+
+```json
+{
+  "name": "inspector::Nodes",
+  "jsonSchema": { /* keep as-is from the existing file */ },
+  "data": {
+    "0": {
+      "json": {
+        "value": [
+          { "entity": 0, "open": true, "children": [512, 513, 531, 532, 1, 2] },
+          { "entity": 512, "children": [] },
+          { "entity": 513, "children": [] },
+          { "entity": 531, "children": [] },
+          { "entity": 532, "children": [] },
+          { "entity": 1,   "children": [] },
+          { "entity": 2,   "children": [] }
+        ]
+      }
+    }
+  }
+}
+```
+
+Notes on the structure:
+
+- The first entry is always entity `0` (RootEntity) and is the only one that carries `"open": true`.
+- Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) appear at the END of the entity-`0` `children` array AND as their own entries with empty `children`. Preserve this ordering — append your new IDs **before** the trailing `1` and `2`.
+- Every entity that exists in the composite must have its own `{ "entity": <id>, "children": [...] }` entry, even if `children` is empty.
+- If your new entity has `Transform.parent` set to another entity (e.g. `512`), append your entity ID to the `children` of that parent's entry instead of entity `0`'s.
+
+### Edit-mode failure mode (the bug this section prevents)
+
+A new entity has `core::Transform` + `core::GltfContainer` but is NOT registered in `inspector::Nodes`:
+
+- In the running scene: renders correctly.
+- In the Creator Hub entity tree: **does not appear**, so the user cannot select, rename, reposition, or delete it from the editor — they can only edit it by hand-editing the JSON.
+
+If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, the Creator Hub treats them as "orphan" entities that exist in the ECS but not in the editor's tree.
 
 ## jsonSchema Rules
 
@@ -601,7 +674,11 @@ All components that start with `asset-packs::` or `inspector::` are non-core, an
 
 ### Root Entity components
 
-**NOTE:** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata` in the composite. The Creator Hub creates these automatically when opening the scene. Including them causes the SDK build to fail. These components should only exist on the RootEntity (ID 0).
+**NOTE (authoring-from-scratch mode):** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata-*` in a fresh composite. The Creator Hub creates these automatically when opening the scene. Including them in a fresh file causes the SDK build to fail.
+
+**NOTE (edit mode):** If `inspector::Nodes` and `inspector::SceneMetadata-*` are ALREADY present (the user has opened/saved the scene in the Creator Hub), keep them and update `inspector::Nodes` whenever you add a new entity — see "Editing an existing composite (edit mode)" above. Do not delete or strip them.
+
+These components only exist on the RootEntity (ID 0).
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 
@@ -691,10 +768,14 @@ Tags.remove(entity, 'Crystal')
 
 ## Validation Checklist
 
-Before writing a composite, verify:
+**Step 1 — Detect mode.** Scan the composite for `inspector::*`, `composite::root`, or `asset-packs::ActionTypes`. If any are present, you are in **edit mode** — use the edit-mode checklist below. Otherwise use the authoring-from-scratch checklist.
+
+### Authoring-from-scratch checklist
+
+Before writing a fresh composite, verify:
 
 - [ ] `version` is `1`
-- [ ] NO `inspector::*` components whatsoever — no `inspector::Nodes`, `inspector::SceneMetadata` (any version), `inspector::Selection`, `inspector::TransformConfig`, `inspector::UIState`. These are all auto-generated by the Creator Hub and including them breaks the entity tree or causes build errors.
+- [ ] NO `inspector::*` components whatsoever — no `inspector::Nodes`, `inspector::SceneMetadata` (any version), `inspector::Selection`, `inspector::TransformConfig`, `inspector::UIState`. These are all auto-generated by the Creator Hub and including them in a fresh file breaks the entity tree or causes build errors.
 - [ ] NO `composite::root` or `asset-packs::ActionTypes` — auto-generated by engine
 - [ ] Every user entity (512+) has `core::Transform` and `core-schema::Name`
 - [ ] No duplicate entity IDs across the composite
@@ -711,6 +792,27 @@ Before writing a composite, verify:
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
 - [ ] The project must have the `@dcl/asset-packs` library as a dependency to be able to use a composite file
+
+### Edit-mode checklist (composite already contains `inspector::*`)
+
+For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
+
+- [ ] `<id>` has been appended to the `children` array of the entity-`0` entry inside `inspector::Nodes.data["0"].json.value`, **before** the trailing `1` and `2` reserved entries.
+- [ ] A new entry `{ "entity": <id>, "children": [...] }` has been appended to the `value` array of `inspector::Nodes.data["0"].json` (use `[]` if the entity has no children of its own).
+- [ ] If `<id>`'s `Transform.parent` is not `0`, then `<id>` is in the parent entity's `children` array (not the root's).
+- [ ] `core-schema::Name.data["<id>"]` has a `{ "json": { "value": "..." } }` entry — names are required for the entity to appear correctly in the entity tree and to be looked up by code.
+- [ ] `inspector::TransformConfig.data["<id>"]` has a `{ "json": {} }` entry (empty object is fine).
+- [ ] `entity-names.ts` is either updated to include the new name (in `EntityNames`) OR left untouched so the Creator Hub regenerates it on next save. Do NOT hand-edit the auto-generated header.
+- [ ] You did NOT delete or strip pre-existing `inspector::Nodes`, `inspector::SceneMetadata-*`, `inspector::Selection`, `inspector::TransformConfig`, `composite::root`, or `asset-packs::ActionTypes`. These are managed by the Creator Hub and must stay.
+- [ ] `inspector::SceneMetadata-*` is unchanged unless `scene.json` parcels changed (in which case the layout block must match `scene.json`).
+- [ ] Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) are still present in `inspector::Nodes` — both as the last two children of entity `0` AND as their own `{ "entity": 1, "children": [] }` / `{ "entity": 2, "children": [] }` entries.
+
+**Verification command (edit mode):** after editing, every entity ID present in `core::Transform.data` should also appear:
+
+1. As a top-level `{ "entity": <id>, ... }` entry in `inspector::Nodes.data["0"].json.value`, AND
+2. In exactly one `children` array within that same `value` list (its parent's children).
+
+Missing entries here are the root cause of "entity renders but is invisible in the Creator Hub entity tree".
 
 ## Post-Write Validation
 

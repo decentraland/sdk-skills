@@ -31,6 +31,12 @@ Many GLB models use back-face culling. The rendered face is typically toward loc
 
 To add behavior to a composite model, fetch it in `index.ts` by name or tag — do NOT re-create it.
 
+## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
+
+If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
+
+See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact arrays to append to. Don't skip this when adding 3D models to an existing scene.
+
 ## RULE: Always check for animations
 
 Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has animations**, always add an `Animator` component. Without it the engine silently loops the first clip forever. **If no animations**, omit `Animator`.

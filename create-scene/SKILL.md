@@ -84,7 +84,11 @@ Update the `display` fields and parcels:
 
 ### assets/scene/main.composite
 
-Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format. Example — a box and a 3D model:
+Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format.
+
+> **Editing an existing scene? Read the "Editing an existing composite (edit mode)" section of the composite reference FIRST.** If the user has opened the scene in the Creator Hub at least once, `main.composite` will contain `inspector::Nodes`, `inspector::SceneMetadata-*`, etc. Adding new entities WITHOUT registering them in `inspector::Nodes` makes them invisible in the Creator Hub entity tree (they render in-world but cannot be selected/edited in the editor). The composite reference spells out exactly which arrays to update.
+
+Example — a box and a 3D model:
 
 ```json
 {
