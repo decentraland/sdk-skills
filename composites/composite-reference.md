@@ -288,6 +288,8 @@ Adding parcels to `scene.json` is not always an option, it depends where the sce
 
 **Default collision masks:** If not provided, set `visibleMeshesCollisionMask: 0` and `invisibleMeshesCollisionMask: 3` (CL_POINTER + CL_PHYSICS).
 
+**Swapping `src` on an existing entity:** the inherited `Transform.scale`/`position`/`rotation` were tuned for the **previous** model's native dimensions and pivot — they are almost never correct for a new GLB. Recompute scale from the new model's native bounding box, verify the pivot, and re-check scene bounds. See the "Swapping a model `src`" rule in `../add-3d-models/SKILL.md`.
+
 ### core::MeshRenderer (primitive shapes)
 
 ```json
