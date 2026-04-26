@@ -31,6 +31,20 @@ Many GLB models use back-face culling. The rendered face is typically toward loc
 
 To add behavior to a composite model, fetch it in `index.ts` by name or tag — do NOT re-create it.
 
+## RULE: Swapping a model `src` requires fresh Transform — never inherit scale/position
+
+When you change the `src` of an existing `GltfContainer` (in a composite, in code, or via builder asset replacement), the entity's existing `Transform.scale`, `Transform.position`, and often `rotation` were tuned for the **previous model's native dimensions and pivot**. They are almost never correct for the new model — applying them blindly can produce buildings that overshoot scene bounds, props at wrong heights, or models visibly shifted from where the user expected them.
+
+Treat every model swap as fresh placement:
+
+1. **Look up the new GLB's native bounding box** — use the bounding box script in `{baseDir}/references/model-patterns.md` (raw accessor `min`/`max` is not sufficient; node-level scale/translation must be applied).
+2. **Recompute `scale`** so the world-space size (native size × scale) is sensible for the role. Do not carry over the previous entity's scale — it was calibrated against a different native size.
+3. **Verify pivot location.** Many architecture/building GLBs have pivots at a corner (e.g. `(0,0,0)` at one base corner), not the center. Two models with the same `position` but different pivots will visually shift after the swap.
+4. **Verify the resulting world-space bounding box stays inside scene bounds.** Each parcel is 16 × 16 m horizontally; max height is `log2(parcels+1) × 20 m` (1 parcel → 20 m, 4 parcels → 46 m, 9 parcels → 66 m — see `{baseDir}/../optimize-scene/SKILL.md`). Compute `position +/- bbox` against scene `[0, maxX] × [0, maxZ]` and `y <= maxHeight`.
+5. **State the audit explicitly.** After a swap, the agent must report: native dimensions of the new GLB, chosen scale, chosen position, and the resulting world-space bounding box vs. scene bounds. Do not silently keep the prior Transform.
+
+This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...' })` while leaving Transform untouched) and to composite edits where only the `core::GltfContainer.data["<id>"].json.src` was modified.
+
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
 
 If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
