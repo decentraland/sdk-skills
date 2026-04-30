@@ -143,7 +143,7 @@ Material.setPbrMaterial(entity, {
 
 // Alpha test — cutout (binary visible/invisible based on threshold)
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/cutout.png' }),
+  texture: Material.Texture.Common({ src: 'assets/Images/cutout.png' }),
   transparencyMode: MaterialTransparencyMode.MTM_ALPHA_TEST,
   alphaTest: 0.5
 })
@@ -161,8 +161,8 @@ Material.setPbrMaterial(entity, {
 
 // Emissive with texture
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/diffuse.png' }),
-  emissiveTexture: Material.Texture.Common({ src: 'assets/scene/Images/emissive.png' }),
+  texture: Material.Texture.Common({ src: 'assets/Images/diffuse.png' }),
+  emissiveTexture: Material.Texture.Common({ src: 'assets/Images/emissive.png' }),
   emissiveIntensity: 1.0,
   emissiveColor: Color3.White()
 })
@@ -172,9 +172,9 @@ Material.setPbrMaterial(entity, {
 
 ```typescript
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/diffuse.png' }),
-  bumpTexture: Material.Texture.Common({ src: 'assets/scene/Images/normal.png' }),
-  emissiveTexture: Material.Texture.Common({ src: 'assets/scene/Images/emissive.png' })
+  texture: Material.Texture.Common({ src: 'assets/Images/diffuse.png' }),
+  bumpTexture: Material.Texture.Common({ src: 'assets/Images/normal.png' }),
+  emissiveTexture: Material.Texture.Common({ src: 'assets/Images/emissive.png' })
 })
 ```
 
@@ -302,7 +302,7 @@ import { TextureFilterMode, TextureWrapMode } from '@dcl/sdk/ecs'
 
 Material.setPbrMaterial(entity, {
   texture: Material.Texture.Common({
-    src: 'assets/scene/Images/pixel-art.png',
+    src: 'assets/Images/pixel-art.png',
     filterMode: TextureFilterMode.TFM_POINT,    // crisp pixels (no smoothing)
     wrapMode: TextureWrapMode.TWM_REPEAT        // tile the texture
   })
@@ -352,7 +352,7 @@ The `Material` component provides shortcut methods that skip the nested union st
 const src = Material.getFlatOrNull(entity)?.texture?.src
 
 // Mutate a texture in-place without knowing PBR vs Basic
-Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/scene/Images/new.png' })
+Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/Images/new.png' })
 ```
 
 ## Best Practices

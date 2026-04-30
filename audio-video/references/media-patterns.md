@@ -11,7 +11,7 @@ const speaker = engine.addEntity()
 Transform.create(speaker, { position: Vector3.create(8, 1, 8) })
 
 AudioSource.create(speaker, {
-  audioClipUrl: 'assets/scene/Audio/music.mp3',
+  audioClipUrl: 'assets/Audio/music.mp3',
   playing: true,
   loop: true,
   volume: 0.5,
@@ -42,7 +42,7 @@ const button = engine.addEntity()
 const audioEntity = engine.addEntity()
 Transform.create(audioEntity, { position: Vector3.create(8, 1, 8) })
 AudioSource.create(audioEntity, {
-  audioClipUrl: 'assets/scene/Audio/click.mp3',
+  audioClipUrl: 'assets/Audio/click.mp3',
   playing: false,
   loop: false,
   volume: 0.8,
@@ -256,7 +256,7 @@ GltfNodeModifiers.create(myEntity, {
 ### Global (Non-Spatial) AudioSource
 ```typescript
 AudioSource.create(sourceEntity, {
-  audioClipUrl: 'assets/scene/Audio/music.mp3',
+  audioClipUrl: 'assets/Audio/music.mp3',
   playing: true,
   global: true,
 })
@@ -291,14 +291,14 @@ AudioStream.create(audioStreamEntity, {
 
 ```bash
 # Download from catalog
-mkdir -p assets/scene/Audio
-curl -o assets/scene/Audio/ambient_1.mp3 "https://builder-items.decentraland.org/contents/bafybeic4faewxkdqx67dloyw57ikgaeibc2e2dbx34hwjubl3gfvs2r4su"
+mkdir -p assets/Audio
+curl -o assets/Audio/ambient_1.mp3 "https://builder-items.decentraland.org/contents/bafybeic4faewxkdqx67dloyw57ikgaeibc2e2dbx34hwjubl3gfvs2r4su"
 ```
 
 ```typescript
 // Reference in code — must be a local file path
 AudioSource.create(entity, {
-  audioClipUrl: 'assets/scene/Audio/ambient_1.mp3',
+  audioClipUrl: 'assets/Audio/ambient_1.mp3',
   playing: true,
   loop: true,
 })

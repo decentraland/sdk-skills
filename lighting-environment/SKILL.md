@@ -79,7 +79,7 @@ Project a pattern through the light:
 ```typescript
 const maskedLight = LightSource.getMutable(spotlight)
 maskedLight.shadowMaskTexture = Material.Texture.Common({
-  src: 'assets/scene/images/lightmask1.png'
+  src: 'assets/Images/lightmask1.png'
 })
 ```
 

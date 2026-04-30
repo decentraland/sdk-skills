@@ -4,7 +4,7 @@
 
 ```js
 node -e "
-const buf = require('fs').readFileSync('assets/scene/Models/MyModel.glb');
+const buf = require('fs').readFileSync('assets/Models/MyModel.glb');
 const jsonLen = buf.readUInt32LE(12);
 const json = JSON.parse(buf.slice(20, 20+jsonLen));
 let minW=[Infinity,Infinity,Infinity], maxW=[-Infinity,-Infinity,-Infinity];
@@ -40,7 +40,7 @@ safeMaxZ = sceneMaxZ - bbox.maxZ - edgeMargin
 
 ```js
 node -e "
-const buf = require('fs').readFileSync('assets/scene/Models/myModel.glb');
+const buf = require('fs').readFileSync('assets/Models/myModel.glb');
 const jsonLen = buf.readUInt32LE(12);
 const json = JSON.parse(buf.slice(20, 20+jsonLen));
 const meshHas = json.meshes?.some(m => m.name && m.name.includes('_collider'));
@@ -63,7 +63,7 @@ Transform.create(model, {
   scale: Vector3.create(1, 1, 1),
 })
 GltfContainer.create(model, {
-  src: 'assets/scene/Models/myModel.glb',
+  src: 'assets/Models/myModel.glb',
 })
 ```
 
@@ -115,7 +115,7 @@ Animator.create(model, {
 ### Model HAS `_collider` meshes
 ```typescript
 GltfContainer.create(model, {
-  src: 'assets/scene/Models/building.glb',
+  src: 'assets/Models/building.glb',
   visibleMeshesCollisionMask: 0,
   invisibleMeshesCollisionMask: 3,
 })
@@ -124,7 +124,7 @@ GltfContainer.create(model, {
 ### Model has NO `_collider` meshes
 ```typescript
 GltfContainer.create(model, {
-  src: 'assets/scene/Models/building.glb',
+  src: 'assets/Models/building.glb',
   visibleMeshesCollisionMask: 3,
   invisibleMeshesCollisionMask: 0,
 })
@@ -158,7 +158,7 @@ Transform.create(child, {
   position: Vector3.create(0, 2, 0),
   parent: parent,
 })
-GltfContainer.create(child, { src: 'assets/scene/Models/hat.glb' })
+GltfContainer.create(child, { src: 'assets/Models/hat.glb' })
 ```
 
 ### Get Global (World-Space) Position and Rotation
@@ -200,13 +200,13 @@ grep "^##" {baseDir}/references/model-catalog.md
 
 ### Download and use
 ```bash
-curl -o assets/scene/Models/zombie-purple.glb "https://models.dclregenesislabs.xyz/blobs/bafybeiffc..."
+curl -o assets/Models/zombie-purple.glb "https://models.dclregenesislabs.xyz/blobs/bafybeiffc..."
 ```
 
 ```typescript
 const zombie = engine.addEntity()
 Transform.create(zombie, { position: Vector3.create(8, 0, 8) })
-GltfContainer.create(zombie, { src: 'assets/scene/Models/zombie-purple.glb' })
+GltfContainer.create(zombie, { src: 'assets/Models/zombie-purple.glb' })
 Animator.create(zombie, {
   states: [
     { clip: 'ZombieWalk', playing: true, loop: true },

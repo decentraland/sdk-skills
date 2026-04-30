@@ -154,7 +154,7 @@ maxZ = parcelsDeep * 16
 
 ```js
 node -e "
-const buf = require('fs').readFileSync('assets/scene/Models/MyModel.glb');
+const buf = require('fs').readFileSync('assets/Models/MyModel.glb');
 const jsonLen = buf.readUInt32LE(12);
 const json = JSON.parse(buf.slice(20, 20+jsonLen));
 let minW=[Infinity,Infinity,Infinity], maxW=[-Infinity,-Infinity,-Infinity];
@@ -352,7 +352,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 							"tex": {
 								"$case": "texture",
 								"texture": {
-									"src": "assets/scene/Images/image.png",
+									"src": "assets/Images/image.png",
 									"wrapMode": 0,
 									"filterMode": 0
 								}
@@ -409,7 +409,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 	"data": {
 		"512": {
 			"json": {
-				"audioClipUrl": "assets/scene/Sounds/music.mp3",
+				"audioClipUrl": "assets/Audio/music.mp3",
 				"playing": true,
 				"volume": 1,
 				"loop": true,
