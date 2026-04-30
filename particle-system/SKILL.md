@@ -5,15 +5,19 @@ description: Emit particles (fire, smoke, sparks, snow, magic, fireworks) from a
 
 # ParticleSystem (SDK7)
 
-Emit GPU-rendered particles from an entity. One `ParticleSystem` component per entity, attached alongside a `Transform`. No mesh required — particles render from the component itself.
+Emit particles from an entity. One `ParticleSystem` component per entity, attached alongside a `Transform`. No mesh required — particles render from the component itself.
 
 ## RULE: Transform.scale does NOT scale particles
 
-Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (FloatRange). The entity's `Transform.scale` only affects the emitter shape's spatial dimensions when the shape has size fields (Sphere radius, Box size, Cone radius), and even those are set on the shape itself — not via Transform. Setting `Transform.scale` larger does not produce bigger particles.
+Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (FloatRange). The `ParticleSystem` also sets emitter shape's spatial dimensions when the shape has size fields (Sphere radius, Box size, Cone radius). These are not affected by the entity's `Transform.scale`. Setting `Transform.scale` larger does not produce bigger particles.
 
 ## RULE: Particles only render to players inside scene parcels
 
 Players viewing the scene from outside its parcels see nothing. Particles are not part of the scene LOD silhouette. Position emitters within parcel bounds.
+
+## RULE: Particles only work in the Unity explorer
+
+The mobile Godot explorer and the Bevy explorer don't have this feature implemented. The renderer ignores the component.
 
 ## RULE: Engine caps total particles at ~1000
 
@@ -27,18 +31,14 @@ The engine enforces a per-scene particle budget and will scale down emission rat
 
 When `faceTravelDirection: true`, particles orient along their velocity vector and `billboard` is ignored. Use this for trails/streaks (asteroids, bullets, sparks). Set `billboard: false` explicitly to avoid confusion.
 
-## RULE: Particles are runtime-only — don't add to composite
-
-Unlike static GltfContainer entities, particle emitters are typically created in TypeScript. The Creator Hub composite editor does not currently expose ParticleSystem as a first-class component. Create them in `src/index.ts` (or fetched-via-tag composite entities augmented with `ParticleSystem.create` in code).
-
 ## Import
 
 ```typescript
 import { engine, Transform, ParticleSystem } from '@dcl/sdk/ecs'
 import {
-  PBParticleSystem_BlendMode,
-  PBParticleSystem_PlaybackState,
-  PBParticleSystem_SimulationSpace
+	PBParticleSystem_BlendMode,
+	PBParticleSystem_PlaybackState,
+	PBParticleSystem_SimulationSpace,
 } from '@dcl/sdk/ecs'
 import { Color4, Vector3, Quaternion } from '@dcl/sdk/math'
 ```
@@ -47,33 +47,33 @@ Aliases `ParticleSystemBlendMode` and `ParticleSystemPlaybackState` are also exp
 
 ## Field reference
 
-| Field | Type | Default | Notes |
-|---|---|---|---|
-| `active` | `boolean` | `true` | Master on/off for new emission. |
-| `rate` | `number` | `10` | Particles emitted per second (continuous). Set to `0` when using `bursts`. |
-| `maxParticles` | `number` | `1000` | Hard cap on simultaneous live particles for this system. |
-| `lifetime` | `number` | `5` | Particle lifespan in seconds. |
-| `gravity` | `number` | `0` | Multiplier on scene gravity (~ -9.81 m/s²). Negative = particles rise. |
-| `additionalForce` | `Vector3` | — | Constant force vector applied each frame (world space). |
-| `initialSize` | `FloatRange` | `{start:1, end:1}` | Random size at spawn. |
-| `sizeOverTime` | `FloatRange` | `{start:1, end:1}` | Size lerped start→end over particle lifetime. |
-| `initialRotation` | `Quaternion` | identity | Spawn orientation (3D). |
-| `rotationOverTime` | `Quaternion` | identity | Per-axis angular velocity (quaternion converted to Euler XYZ rad/s-equivalent). |
-| `faceTravelDirection` | `boolean` | `false` | Orient along velocity. Overrides `billboard`. |
-| `initialColor` | `ColorRange` | `{white,white}` | Random color at spawn. |
-| `colorOverTime` | `ColorRange` | `{white,white}` | Color lerped start→end over lifetime. Use alpha=0 at end to fade out. |
-| `initialVelocitySpeed` | `FloatRange` | `{start:1, end:1}` | Initial speed in m/s, randomized per particle. |
-| `texture` | `Texture` | white quad | Particle sprite. Same `Texture` shape as Material textures. |
-| `blendMode` | `PBParticleSystem_BlendMode` | `PSB_ALPHA` | `PSB_ALPHA` \| `PSB_ADD` \| `PSB_MULTIPLY`. |
-| `billboard` | `boolean` | `true` | Particles always face camera. Disable for 3D-oriented particles. |
-| `spriteSheet` | `{tilesX, tilesY, framesPerSecond?}` | — | Texture-atlas frame animation. `framesPerSecond` defaults to 30. |
-| `shape` | oneof Point/Sphere/Cone/Box | Point | Emitter geometry — see below. |
-| `loop` | `boolean` | `true` | Loop the emission cycle. `false` = one-shot. |
-| `prewarm` | `boolean` | `false` | Start as if one full loop has already simulated. Requires `loop: true`. |
-| `simulationSpace` | `PBParticleSystem_SimulationSpace` | `PSS_LOCAL` | `PSS_LOCAL` (move with entity) \| `PSS_WORLD` (stay put after spawn). |
-| `limitVelocity` | `{speed, dampen?}` | — | Clamp top speed. `dampen` 0–1, default `1` = hard clamp. |
-| `playbackState` | `PBParticleSystem_PlaybackState` | `PS_PLAYING` | `PS_PLAYING` \| `PS_PAUSED` \| `PS_STOPPED`. |
-| `bursts` | `{values: Burst[]}` | — | Discrete emission events (see Bursts). |
+| Field                  | Type                                 | Default            | Notes                                                                           |
+| ---------------------- | ------------------------------------ | ------------------ | ------------------------------------------------------------------------------- |
+| `active`               | `boolean`                            | `true`             | Master on/off for new emission.                                                 |
+| `rate`                 | `number`                             | `10`               | Particles emitted per second (continuous). Set to `0` when using `bursts`.      |
+| `maxParticles`         | `number`                             | `1000`             | Hard cap on simultaneous live particles for this system.                        |
+| `lifetime`             | `number`                             | `5`                | Particle lifespan in seconds.                                                   |
+| `gravity`              | `number`                             | `0`                | Multiplier on scene gravity (~ -9.81 m/s²). Negative = particles rise.          |
+| `additionalForce`      | `Vector3`                            | —                  | Constant force vector applied each frame (world space).                         |
+| `initialSize`          | `FloatRange`                         | `{start:1, end:1}` | Random size at spawn.                                                           |
+| `sizeOverTime`         | `FloatRange`                         | `{start:1, end:1}` | Size lerped start→end over particle lifetime.                                   |
+| `initialRotation`      | `Quaternion`                         | identity           | Spawn orientation (3D).                                                         |
+| `rotationOverTime`     | `Quaternion`                         | identity           | Per-axis angular velocity (quaternion converted to Euler XYZ rad/s-equivalent). |
+| `faceTravelDirection`  | `boolean`                            | `false`            | Orient along velocity. Overrides `billboard`.                                   |
+| `initialColor`         | `ColorRange`                         | `{white,white}`    | Random color at spawn.                                                          |
+| `colorOverTime`        | `ColorRange`                         | `{white,white}`    | Color lerped start→end over lifetime. Use alpha=0 at end to fade out.           |
+| `initialVelocitySpeed` | `FloatRange`                         | `{start:1, end:1}` | Initial speed in m/s, randomized per particle.                                  |
+| `texture`              | `Texture`                            | white quad         | Particle sprite. Same `Texture` shape as Material textures.                     |
+| `blendMode`            | `PBParticleSystem_BlendMode`         | `PSB_ALPHA`        | `PSB_ALPHA` \| `PSB_ADD` \| `PSB_MULTIPLY`.                                     |
+| `billboard`            | `boolean`                            | `true`             | Particles always face camera. Disable for 3D-oriented particles.                |
+| `spriteSheet`          | `{tilesX, tilesY, framesPerSecond?}` | —                  | Texture-atlas frame animation. `framesPerSecond` defaults to 30.                |
+| `shape`                | oneof Point/Sphere/Cone/Box          | Point              | Emitter geometry — see below.                                                   |
+| `loop`                 | `boolean`                            | `true`             | Loop the emission cycle. `false` = one-shot.                                    |
+| `prewarm`              | `boolean`                            | `false`            | Start as if one full loop has already simulated. Requires `loop: true`.         |
+| `simulationSpace`      | `PBParticleSystem_SimulationSpace`   | `PSS_LOCAL`        | `PSS_LOCAL` (move with entity) \| `PSS_WORLD` (stay put after spawn).           |
+| `limitVelocity`        | `{speed, dampen?}`                   | —                  | Clamp top speed. `dampen` 0–1, default `1` = hard clamp.                        |
+| `playbackState`        | `PBParticleSystem_PlaybackState`     | `PS_PLAYING`       | `PS_PLAYING` \| `PS_PAUSED` \| `PS_STOPPED`.                                    |
+| `bursts`               | `{values: Burst[]}`                  | —                  | Discrete emission events (see Bursts).                                          |
 
 `FloatRange = { start: number, end: number }` — random value sampled per particle.
 `ColorRange = { start: Color4, end: Color4 }` — random color sampled per particle (each end of the range is sampled independently of the other particle randoms).
@@ -84,8 +84,8 @@ Build with the `ParticleSystem.Shape.*` helpers — never assemble the `oneof` m
 
 ```typescript
 shape: ParticleSystem.Shape.Point()
-shape: ParticleSystem.Shape.Sphere({ radius: 1 })           // default radius=1
-shape: ParticleSystem.Shape.Cone({ angle: 25, radius: 1 })  // angle = half-angle in degrees
+shape: ParticleSystem.Shape.Sphere({ radius: 1 }) // default radius=1
+shape: ParticleSystem.Shape.Cone({ angle: 25, radius: 1 }) // angle = half-angle in degrees
 shape: ParticleSystem.Shape.Box({ size: Vector3.create(1, 1, 1) })
 ```
 
@@ -102,9 +102,7 @@ Discrete emission events at specific times. Set `rate: 0` to use bursts only, or
 
 ```typescript
 bursts: {
-  values: [
-    { time: 0,   count: 100, cycles: 1, interval: 0.01, probability: 1.0 }
-  ]
+	values: [{ time: 0, count: 100, cycles: 1, interval: 0.01, probability: 1.0 }]
 }
 ```
 
@@ -119,25 +117,40 @@ Multiple bursts in one cycle = staggered ignition pattern (fireworks).
 const fire = engine.addEntity()
 Transform.create(fire, { position: Vector3.create(8, 1, 8) })
 ParticleSystem.create(fire, {
-  rate: 40, lifetime: 2, maxParticles: 200,
-  initialSize: { start: 0.1, end: 0.3 },
-  sizeOverTime: { start: 1.0, end: 0.0 },           // shrink to nothing
-  initialColor: { start: Color4.create(1, 0.6, 0.1, 1), end: Color4.create(1, 0.2, 0, 1) },
-  colorOverTime: { start: Color4.create(1, 0.5, 0.1, 1), end: Color4.create(0.2, 0, 0, 0) },
-  initialVelocitySpeed: { start: 1.5, end: 2.5 },
-  gravity: -0.3,                                     // negative = rises
-  blendMode: PBParticleSystem_BlendMode.PSB_ADD,
-  shape: ParticleSystem.Shape.Point()
+	rate: 40,
+	lifetime: 2,
+	maxParticles: 200,
+	initialSize: { start: 0.1, end: 0.3 },
+	sizeOverTime: { start: 1.0, end: 0.0 }, // shrink to nothing
+	initialColor: {
+		start: Color4.create(1, 0.6, 0.1, 1),
+		end: Color4.create(1, 0.2, 0, 1),
+	},
+	colorOverTime: {
+		start: Color4.create(1, 0.5, 0.1, 1),
+		end: Color4.create(0.2, 0, 0, 0),
+	},
+	initialVelocitySpeed: { start: 1.5, end: 2.5 },
+	gravity: -0.3, // negative = rises
+	blendMode: PBParticleSystem_BlendMode.PSB_ADD,
+	shape: ParticleSystem.Shape.Point(),
 })
 
 // 2. One-shot burst — explosion/pickup VFX
 ParticleSystem.create(entity, {
-  loop: false, rate: 0, lifetime: 3, maxParticles: 150,
-  initialSize: { start: 0.1, end: 0.25 },
-  sizeOverTime: { start: 1.0, end: 0.0 },
-  initialVelocitySpeed: { start: 2, end: 4 },
-  shape: ParticleSystem.Shape.Sphere({ radius: 0.5 }),
-  bursts: { values: [{ time: 0, count: 100, cycles: 1, interval: 0.01, probability: 1.0 }] }
+	loop: false,
+	rate: 0,
+	lifetime: 3,
+	maxParticles: 150,
+	initialSize: { start: 0.1, end: 0.25 },
+	sizeOverTime: { start: 1.0, end: 0.0 },
+	initialVelocitySpeed: { start: 2, end: 4 },
+	shape: ParticleSystem.Shape.Sphere({ radius: 0.5 }),
+	bursts: {
+		values: [
+			{ time: 0, count: 100, cycles: 1, interval: 0.01, probability: 1.0 },
+		],
+	},
 })
 ```
 
@@ -184,7 +197,9 @@ Test-scene examples use `4x3` (12 frames) and `1x20` (20-frame strip) sheets at 
 The `texture` field uses the same `Texture` type as `Material`. Common case (local file):
 
 ```typescript
-texture: { src: 'assets/scene/textures/spark.png' }
+texture: {
+	src: 'assets/scene/textures/spark.png'
+}
 ```
 
 The full Texture form supports filterMode/wrapMode but particle systems generally only need `src`. Avatar/Video textures on particles are unverified — stick with file textures.
@@ -198,7 +213,6 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 - **Color.alpha = 0 at end of `colorOverTime`** is the standard way to fade particles out — don't rely on `sizeOverTime` ending at 0 alone.
 - **Bursts ignore `active = false`** at the moment of evaluation — `active` is checked once per frame for continuous rate; setting it after a burst time will not retroactively cancel that burst.
 - **No mesh attached to the emitter entity** — adding `MeshRenderer` is unrelated; particles render via the ParticleSystem component itself.
-- **Live tuning** — Decentraland hosts `ParticleLab.dcl.eth` (a world) with a UI for live-editing all fields next to running emitters.
 
 ## Performance
 
