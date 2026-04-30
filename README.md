@@ -38,7 +38,7 @@ npx skills add decentraland/sdk-skills --all
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
-| `authoritative-server` | Headless authoritative server for multiplayer (BETA). |
+| `authoritative-server` | Headless authoritative server for multiplayer. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |

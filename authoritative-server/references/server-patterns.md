@@ -257,14 +257,9 @@ npx sdk-commands storage env delete OLD_VAR
 
 ```json
 {
-  "authoritativeMultiplayer": true,
-  "worldConfiguration": {
-    "name": "my-world.dcl.eth"
-  },
   "logsPermissions": ["0xYourWalletAddress"]
 }
 ```
 
-- `authoritativeMultiplayer: true` — enables the headless server runtime
-- `worldConfiguration.name` — identifies the world (required for Storage and deploy)
 - `logsPermissions` — wallet addresses that can see `console.log()` from the server
+- `worldConfiguration.name` — only needed when deploying to a World (not required for Genesis City LAND)
