@@ -46,15 +46,17 @@ Before writing scene code, check the asset catalog for free models that match th
 1. Search `{baseDir}/../add-3d-models/references/model-catalog.md` (8,800+ models with descriptions, dimensions, animations, and download URLs)
 2. Read `{baseDir}/../audio-video/references/audio-catalog.md` (50 free sounds — music, ambient, SFX, game mechanics, etc.)
 3. Suggest matching models and sounds to the user
-4. Download selected models into the scene's `assets/scene/Models/` directory:
+4. Download selected models into the scene's `assets/Models/` directory:
    ```bash
-   mkdir -p assets/scene/Models
-   curl -o assets/scene/Models/arcade_machine.glb "https://models.dclregenesislabs.xyz/blobs/bafybei..."
+   mkdir -p assets/Models
+   curl -o assets/Models/arcade_machine.glb "https://models.dclregenesislabs.xyz/blobs/bafybei..."
    ```
 
 > **Important**: `GltfContainer` only works with local files. Never use external URLs for the model `src` field.
 
-> **Important**: Always download into `assets/scene/Models/`. Never write to the scene root.
+> **Important**: Always download into `assets/Models/`. Never write to the scene root.
+
+> **Existing folders take precedence.** If the scene already has `assets/scene/Models/` (legacy layout) or assets under `assets/asset-packs/` / `assets/custom/` (added via the Creator Hub), reuse those paths instead of creating a parallel `assets/Models/`. Same rule applies for `assets/Audio/`, `assets/Images/`, and `assets/Videos/`.
 
 ## 4. Customize the Generated Files
 

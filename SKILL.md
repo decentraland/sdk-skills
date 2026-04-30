@@ -14,7 +14,7 @@ Before taking any significant action, check whether it falls into one of the thr
 **How to ask:** Phrase the question in plain, non-technical language that describes _what will happen to the scene_, not the underlying command.
 
 > Good: _"Should I download this tree model into your scene assets?"_
-> Bad: _"Run `curl https://… -o assets/scene/Models/tree.glb`?"_
+> Bad: _"Run `curl https://… -o assets/Models/tree.glb`?"_
 
 ### 1. Changing parcel count or layout
 

@@ -67,12 +67,12 @@ Check whether the GLB contains `_collider` meshes (mesh or node name includes `_
 
 Choose the mask based on role:
 
-| Role | visibleMeshesCollisionMask | Why |
-|------|---------------------------|-----|
-| Interactive (clicks) | `3` | Physics + pointer |
-| Structural / decorative | `3` | Block walking + clicks |
-| Clickable-only, no bulk | `1` | Detect clicks only |
-| Purely decorative | `0` | No interaction |
+| Role                    | visibleMeshesCollisionMask | Why                    |
+| ----------------------- | -------------------------- | ---------------------- |
+| Interactive (clicks)    | `3`                        | Physics + pointer      |
+| Structural / decorative | `3`                        | Block walking + clicks |
+| Clickable-only, no bulk | `1`                        | Detect clicks only     |
+| Purely decorative       | `0`                        | No interaction         |
 
 **Anti-pattern — DO NOT USE**: `visibleMeshesCollisionMask: 2, invisibleMeshesCollisionMask: 3` — mixes both patterns and causes pointer detection failures.
 
@@ -82,7 +82,15 @@ Choose the mask based on role:
 
 ## Loading a 3D Model in TypeScript (dynamic entities only)
 
-Use `GltfContainer.create(entity, { src: 'assets/scene/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/scene/Models/`.
+Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/Models/`.
+
+### Asset folder conventions
+
+- **Default** for models you download yourself: `assets/Models/`.
+- **Legacy scenes** may already have models under `assets/scene/Models/` — that path still works; reuse it for any new models in those scenes instead of creating a parallel `assets/Models/` folder.
+- **Creator Hub assets**: when the user adds models through the Creator Hub UI they land in `assets/asset-packs/` (free DCL packs) or `assets/custom/` (user-imported) or `assets/scene/` (user-imported). Reference these paths as-is — never move or rename them.
+
+Always check the scene's existing folders before deciding where to put a new model.
 
 ## Free 3D Models — OpenDCL Catalog (8,800+ models)
 
@@ -90,21 +98,21 @@ Always check the scene's local asset folder first. Before fetching any model, co
 
 The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i "keyword"`. Try synonyms if no results. Browse categories with `grep "^##"`.
 
-**Workflow**: Search catalog → review dimensions/triangles/animations → download with curl into `assets/scene/Models/` → reference in code → add Animator if model has animations.
+**Workflow**: Search catalog → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add Animator if model has animations.
 
-> **Important**: `GltfContainer` only works with **local files**. Always download into `assets/scene/Models/` first. Never `cd` into the models directory — run curl from the project root.
+> **Important**: `GltfContainer` only works with **local files**. Always download into `assets/Models/` first. Never `cd` into the models directory — run curl from the project root.
 
 ## Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Model not visible | Wrong file path | Verify path relative to project root |
-| Model not visible | Outside scene boundaries | Check position is within 0-16 per parcel |
-| Model not visible | Scale is 0 or very small | Check `Transform.scale` |
-| Model loads but looks wrong | Y-up vs Z-up mismatch | Re-export from Blender with "Y Up" |
-| "FINISHED_WITH_ERROR" | Corrupted .glb | Re-export as `.glb` (binary GLTF) |
-| Clicking does nothing | CL_POINTER not set | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
-| Click through walls | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`) |
+| Problem                     | Cause                          | Solution                                                     |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------ |
+| Model not visible           | Wrong file path                | Verify path relative to project root                         |
+| Model not visible           | Outside scene boundaries       | Check position is within 0-16 per parcel                     |
+| Model not visible           | Scale is 0 or very small       | Check `Transform.scale`                                      |
+| Model loads but looks wrong | Y-up vs Z-up mismatch          | Re-export from Blender with "Y Up"                           |
+| "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
+| Clicking does nothing       | CL_POINTER not set             | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
+| Click through walls         | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`)      |
 
 ## Model Best Practices
 
