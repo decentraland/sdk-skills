@@ -74,6 +74,9 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Lighting & Environment
 **Skill: `lighting-environment`** — Point/spot lights, shadows, `SkyboxTime` (day/night cycle), emissive materials.
 
+### Particle Systems
+**Skill: `particle-system`** — `ParticleSystem` component for fire, smoke, sparks, snow, rain, magic, fireworks. Emitter shapes (Point/Sphere/Cone/Box), continuous rate vs Burst emission, gravity, sprite-sheet animation, blend modes.
+
 ### Click & Proximity Interactivity
 **Skill: `add-interactivity`** — `pointerEventsSystem`, trigger areas, raycasting. For polling-based input see `advanced-input`.
 
