@@ -5,9 +5,7 @@ description: Build multiplayer Decentraland scenes with a headless authoritative
 
 # Authoritative Server Pattern
 
-**IMPORTANT**: The authoritative server is a feature in BETA. Always notify the user and ask them if they want to proceed before adding it to the scene.
-
-**IMPORTANT — deployment constraint**: The authoritative server currently only works on scenes published to **Worlds**, NOT to LAND parcels in Genesis City. If a world has multiple scenes, only one of them can have an authoritative server.
+**IMPORTANT**: Always notify the user and ask them if they want to proceed before adding it to the scene. Mention that it requires installing the `@dcl/sdk@auth-server` branch instead of the standard SDK.
 
 Build multiplayer Decentraland scenes where a **headless server** controls game state, validates changes, and prevents cheating. The same codebase runs on both server and client, with the server having full authority. Decentraland hosts and deploys the server automatically. For basic CRDT multiplayer (no server), see the `multiplayer-sync` skill instead.
 
@@ -113,7 +111,6 @@ Client and server always move together (paired by hash). Existing players keep t
 ## Important Notes
 
 - **SDK branch (MANDATORY)**: Requires `@dcl/sdk@auth-server`, not standard `@dcl/sdk`
-- **Worlds-only**: Only works on Worlds (not Genesis City LAND)
 - **No Node.js APIs**: QuickJS sandbox — no `fs`, `http`, etc. `setTimeout`/`setInterval` supported
 - **Single codebase**: Both server and client run the same entry point, branched with `isServer()`
 - **Server sleeps when empty**: Code defensively with retry logic and `Storage` for persistence

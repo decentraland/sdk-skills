@@ -11,12 +11,11 @@ npm install @dcl/js-runtime@auth-server
 ### scene.json Configuration
 ```json
 {
-  "worldConfiguration": {
-    "name": "my-world-name.dcl.eth"
-  },
   "logsPermissions": ["0xYourWalletAddress"]
 }
 ```
+
+`worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
 
 ## Server/Client Branching
 

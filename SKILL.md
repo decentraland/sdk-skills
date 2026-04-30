@@ -34,9 +34,9 @@ For streaming references (`AudioStream`, `VideoPlayer`): these don't download fi
 
 ### 3. Adding an authoritative server
 
-Introduces `isServer()`, `registerMessages()`, `Storage`, `EnvVar`, or switches to `@dcl/sdk@auth-server`. This is a **BETA** feature that changes the build and deploy architecture. Many users who want "multiplayer" only need the simpler `multiplayer-sync` skill (no server). Confirm before implementing:
+Introduces `isServer()`, `registerMessages()`, `Storage`, `EnvVar`, or switches to `@dcl/sdk@auth-server`. This feature requires switching to an alternative SDK branch (`@dcl/sdk@auth-server`). Many users who want "multiplayer" only need the simpler `multiplayer-sync` skill (no server). Confirm before implementing:
 
-> "To handle multiplayer this way I'd need to add a Beta Authoritative Server — that's a bigger change than basic sync and requires switching to a different SDK version. Is that what you're after, or would simpler peer-to-peer sync work for your use case?"
+> "To handle multiplayer this way I'd need to add an Authoritative Server — that requires switching to the `@dcl/sdk@auth-server` SDK branch instead of the standard one. Is that what you're after, or would simpler peer-to-peer sync work for your use case?"
 
 ### General principle
 
@@ -104,7 +104,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Multiplayer (CRDT, no server)
 **Skill: `multiplayer-sync`** — `syncEntity` for peer-to-peer sync, `MessageBus`, parent-child sync.
 
-### Authoritative Server (BETA)
+### Authoritative Server
 **Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Requires `@dcl/sdk@auth-server`.
 
 ### Script Components (Creator Hub)

@@ -204,7 +204,6 @@ All valid `scene.json` fields:
 | `allowedMediaHostnames`    | Optional    | Whitelisted domains for external media                                |
 | `featureToggles`           | Optional    | Enable/disable SDK features                                           |
 | `worldConfiguration`       | Optional    | For Worlds deployment (see **deploy-worlds** skill)                   |
-| `authoritativeMultiplayer` | Optional    | Enable authoritative server mode (see **authoritative-server** skill) |
 
 ### Tags
 
