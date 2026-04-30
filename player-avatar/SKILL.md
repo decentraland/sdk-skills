@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), fetch avatar appearance for ANY wallet address (catalyst /lambdas/profile endpoint, for off-scene users like parcel owners or NFT holders), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, off-scene avatar data, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -60,6 +60,28 @@ function main() {
 
 - `userId` — the player's Ethereum wallet address (or guest ID)
 - `isGuest` — `true` if the player hasn't connected a wallet
+
+## Profile Data for Off-Scene Users (Catalyst)
+
+`getPlayer(userId)` only returns data for users **currently connected to this scene**. For any other address (parcel owner, NFT holder, leaderboard entry, off-scene claimant), fetch from the catalyst:
+
+```
+GET https://peer.decentraland.org/lambdas/profile/<wallet-address>
+```
+
+- Always use `peer.decentraland.org` — it is the canonical catalyst regardless of realm/world. Worlds servers do NOT expose `/lambdas`, so do not blindly read `realmInfo.baseUrl`.
+- Response shape: `json.avatars[0].avatar.{ bodyShape, wearables, eyes:{color}, hair:{color}, skin:{color} }` (NOT the `json[0].metadata.avatars...` shape from older docs).
+- Unknown address returns `{ avatars: [], timestamp: 0 }` — handle the empty array.
+- Colors come as `{ r, g, b, a }` floats in `[0,1]`. Build a `Color3` and pass it directly to `AvatarShape.skinColor` / `hairColor` / `eyeColor` — these fields take a raw `Color3`, NOT `{ color: Color3 }` (wrapping causes TS2322).
+
+`AvatarShape.create({ id: address })` with only an `id` does NOT auto-fetch wearables — the avatar renders undressed unless you supply `bodyShape`, `wearables`, and the color fields explicitly.
+
+**Which API to use:**
+
+- Local or in-scene player → `getPlayer(userId)` (sync, includes wearables/emotes).
+- Off-scene address → `fetchAvatarFromCatalyst(address)` (async HTTP).
+
+For the full helper (`fetchAvatarFromCatalyst`), end-to-end usage example, and gotchas, see `{baseDir}/references/catalyst-profile-fetch.md`.
 
 ## Avatar Attachments
 
