@@ -181,7 +181,7 @@ Use `playbackState = PS_STOPPED` for a hard cut. Use `active = false` for a grac
 Texture atlas with frames laid out in a grid (left-to-right, top-to-bottom). Total frames = `tilesX * tilesY`.
 
 ```typescript
-texture: { src: 'assets/scene/textures/flame-sheet.png' },
+texture: { src: 'assets/Images/flame-sheet.png' },
 spriteSheet: { tilesX: 4, tilesY: 3, framesPerSecond: 12 }   // 12 frames, plays at 12fps
 ```
 
@@ -198,7 +198,7 @@ The `texture` field uses the same `Texture` type as `Material`. Common case (loc
 
 ```typescript
 texture: {
-	src: 'assets/scene/textures/spark.png'
+	src: 'assets/Images/spark.png'
 }
 ```
 
@@ -206,7 +206,7 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Gotchas
 
-- **Texture path** — particle textures live in `assets/scene/...`. Same path conventions as Material textures.
+- **Texture path** — particle textures default to `assets/Images/`. Same path conventions as Material textures. Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/` (still works); Creator Hub assets land in `assets/asset-packs/`, `assets/custom/`, or `assets/scene/` — reference those paths as-is.
 - **Quaternion rotation fields** — `rotationOverTime` is interpreted as per-axis angular velocity (quaternion → Euler XYZ). `Quaternion.fromEulerDegrees(0, 90, 0)` = spin 90°/s on Y. Identity = no spin.
 - **`additionalForce` is world-space** even when `simulationSpace = PSS_LOCAL`. Wind/drift directions stay constant regardless of emitter rotation.
 - **`limitVelocity.dampen = 1`** = hard clamp (particles never exceed `speed`). Lower values let velocity exceed cap briefly then decay.
