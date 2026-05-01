@@ -5,7 +5,32 @@ description: The live player in a Decentraland scene. Read player position (Tran
 
 # Player and Avatar System in Decentraland
 
-## Player Position and Movement
+## CRITICAL: The player Transform is READ-ONLY from scene code
+
+`Transform` on `engine.PlayerEntity` is engine-controlled. **Mutations from scene code are silently ignored** — your code compiles, runs, no error is thrown, and nothing moves in-world. This is the most common bug when trying to lift, push, knock back, float, or teleport the player.
+
+```typescript
+// WRONG — compiles cleanly, runs, does NOTHING in-world
+const t = Transform.getMutable(engine.PlayerEntity)
+t.position.y += 0.1                      // ignored
+t.position = Vector3.create(8, 0, 8)     // ignored
+Transform.createOrReplace(engine.PlayerEntity, { ... }) // ignored
+```
+
+**Symptom to recognize:** TypeScript accepts the code, the system ticks, no console error, but the avatar never moves. If you wrote `Transform...PlayerEntity` and expected motion, this is your bug.
+
+**Correct API by intent:**
+
+| Goal | Use | Skill |
+|------|-----|-------|
+| Instant teleport / smooth slide to a point | `movePlayerTo` from `~system/RestrictedActions` | this skill, see below |
+| Lift / float / launch / jump pad / knockback / push / wind / repulsion | `Physics.*` from `@dcl/sdk/ecs` | `player-physics` |
+| Restrict / freeze movement | `InputModifier` on `engine.PlayerEntity` | `advanced-input` |
+| Change run speed / jump height | `AvatarLocomotionSettings` on `engine.PlayerEntity` | this skill, see below |
+
+`Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only.
+
+## Player Position and Movement (Reading)
 
 Access the player's position via the reserved `engine.PlayerEntity`:
 
@@ -253,7 +278,7 @@ For all available flags (`disableWalk`, `disableRun`, `disableJump`, etc.) and t
 
 ## Teleporting the Player
 
-**You MUST use `movePlayerTo` from `~system/RestrictedActions` to move or teleport the player.** Setting `Transform.getMutable(engine.PlayerEntity).position` does NOT work — the runtime ignores direct writes to the player transform.
+**`movePlayerTo` from `~system/RestrictedActions` is the only way to relocate the player to a position.** Setting `Transform.getMutable(engine.PlayerEntity).position` does NOT work (see the read-only warning at the top of this file). For sustained forces (lift, knockback, push, wind), use the `player-physics` skill instead — `movePlayerTo` is for explicit teleports/slides, not for forces.
 
 `movePlayerTo` accepts:
 
@@ -369,8 +394,8 @@ Beyond the commonly used anchor points, the full list includes:
 - Custom emote files must use the `_emote.glb` naming convention
 - Use `AvatarModifierArea` with `AMT_HIDE_AVATARS` for private rooms or single-player puzzle areas
 - Add `excludeIds` to modifier areas when you want specific players (like the scene owner) to remain visible
-- **Never use `Transform.getMutable(engine.PlayerEntity)` to move the player** — it does not work. Always use `movePlayerTo` from `~system/RestrictedActions`
-- `Transform.get(engine.PlayerEntity)` is valid for **reading** position only
+- **Never mutate the player's Transform** (`Transform.getMutable`, `Transform.createOrReplace`, direct `.position` / `.rotation` assignment on `engine.PlayerEntity`) — the engine silently ignores it. Code compiles and runs but the avatar does not move. Use `movePlayerTo` for teleports/slides, or `Physics.*` (skill: `player-physics`) for forces (lift, knockback, push, wind).
+- `Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.

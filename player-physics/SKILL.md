@@ -1,11 +1,32 @@
 ---
 name: player-physics
-description: Apply physics forces to the player in Decentraland scenes. Impulses (one-shot pushes), knockback (push away from a point with falloff), continuous forces (wind tunnels), timed forces, and repulsion fields. Use when the user wants launch pads, knockback on hit, wind zones, gravity fields, or any scene-applied force on the player. Do NOT use for player movement speed (see player-avatar) or platform movement (see animations-tweens).
+description: Apply physics forces to the player in Decentraland scenes. Impulses (one-shot pushes), knockback (push away from a point with falloff), continuous forces (wind tunnels, anti-gravity, lift, levitation, hover), timed forces, and repulsion fields. Use when the user wants launch pads, knockback on hit, wind zones, gravity fields, jumps, lifting/floating the player, pushing the player up/sideways/back, hover effects, or any scene-applied force on the player. THIS is also the right skill when an agent's first instinct is to mutate `Transform` on `engine.PlayerEntity` to move/lift/push the player — that does NOT work (the player Transform is engine-controlled and read-only); use the Physics API instead. Do NOT use for player movement speed (see player-avatar AvatarLocomotionSettings) or platform movement (see animations-tweens).
 ---
 
 # Player Physics in Decentraland
 
 Apply forces to the player's avatar using the `Physics` API from `@dcl/sdk/ecs`. All physics operations affect the **local player** only.
+
+## Why this skill exists — the Transform mistake
+
+The player's `Transform` (on `engine.PlayerEntity`) is **engine-controlled and read-only from scene code**. Writing to it via `Transform.getMutable`, `Transform.createOrReplace`, or direct `.position` / `.rotation` mutation **silently does nothing** — the code compiles, the system ticks, no error is thrown, and the avatar never moves.
+
+**If your goal is to lift, float, push, knock back, or apply any sustained force to the player, use this skill's `Physics` API.** For instant teleports / smooth slides to a specific position, use `movePlayerTo` from `~system/RestrictedActions` (skill: `player-avatar`).
+
+```typescript
+// WRONG — has no effect in-world
+const t = Transform.getMutable(engine.PlayerEntity)
+t.position.y += 0.1  // ignored every frame
+
+// CORRECT — lift the player upward
+import { Physics } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+Physics.applyImpulseToPlayer(Vector3.create(0, 50, 0))   // one-shot upward launch
+// or, sustained lift / hover:
+const lifter = engine.addEntity()
+Physics.applyForceToPlayer(lifter, Vector3.create(0, 1, 0), 12)  // continuous upward force
+// stop with: Physics.removeForceFromPlayer(lifter)
+```
 
 ## Impulse (One-Shot Push)
 
