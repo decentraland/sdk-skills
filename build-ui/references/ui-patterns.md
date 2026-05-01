@@ -1,5 +1,10 @@
 # UI Patterns & Code Examples
 
+## Conventions for every example below
+
+- **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is a safe-default convention used by every shipped scene; it gives absolute-positioned children a full-canvas positioning context. It is not proven to be required — see the "Convention: root `<UiEntity>` should set..." section in `build-ui/SKILL.md`.
+- All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default.
+
 ## Setup
 
 ### File: src/ui.tsx
@@ -7,6 +12,7 @@
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 
 const MyUI = () => (
+  // Convention: root sets width/height to fill the canvas (every shipped scene does this).
   <UiEntity
     uiTransform={{
       width: '100%',
@@ -123,13 +129,17 @@ import { Dropdown } from '@dcl/sdk/react-ecs'
 
 ## addUiRenderer (Independent UI Modules)
 
+By convention, the root returned to `addUiRenderer` follows the same shape as `setUiRenderer`: a full-canvas wrapper containing any absolute-positioned children. This makes absolute positioning predictable across the project. The pattern below shows that shape.
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from '@dcl/sdk/react-ecs'
 import { engine } from '@dcl/sdk/ecs'
 
 const MyWidget = () => (
-  <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 } }}>
-    <Label value="Widget" fontSize={16} />
+  <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 } }}>
+      <Label value="Widget" fontSize={16} />
+    </UiEntity>
   </UiEntity>
 )
 
