@@ -19,6 +19,24 @@ description: Add sound effects, music, audio streaming, and video players to Dec
 2. Is it a streaming URL (radio, live audio)? → `AudioStream`
 3. Is it video content? → `VideoPlayer` on a plane/mesh
 
+## ⚠️ Audio Sourcing Precondition
+
+**Before referencing any audio file path in code (placeholder or real), you MUST read `{baseDir}/references/audio-catalog.md`.** It lists 50 free Decentraland audio clips with direct downloadable URLs that cover most needs (UI clicks, ambients, music, game mechanics, sound effects).
+
+The expected workflow when a user asks for sound:
+
+1. Read this skill + `references/audio-catalog.md`.
+2. Pick concrete catalog entries that match each requested clip.
+3. Confirm picks with the user once.
+4. After confirmation, download with `curl -o assets/Audio/<name>.mp3 "<URL>"` — these URLs work directly from `Bash`.
+5. Reference the downloaded local path in `AudioSource.audioClipUrl`.
+
+**Anti-patterns — do NOT do these:**
+
+- ❌ Inventing placeholder paths like `assets/sounds/join.mp3` and asking the user to drop files in. Use the catalog.
+- ❌ Telling the user "I can't download audio files" / "I don't have a tool that downloads files." `Bash` + `curl` is exactly that tool, and the catalog URLs are stable. The agent CAN download.
+- ❌ Skipping the catalog and recommending the user grab clips from freesound / mixkit / pixabay. Only do that if the catalog has been read AND no fitting clip exists — and even then, surface the closest match before declining.
+
 ## AudioSource (Sound Effects & Music)
 
 Attach to any entity for positional sound. Key fields: `audioClipUrl` (local file path), `playing` (boolean), `loop`, `volume` (0-1), `pitch` (playback speed). Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
@@ -51,11 +69,9 @@ To play video on a non-primitive shape (curved screens), use `GltfNodeModifiers`
 
 ## Free Audio Files
 
-Always check the audio catalog before creating placeholder sound file references. It contains 50 free sounds from the Creator Hub asset packs.
+The audio catalog is the canonical first stop — see the **Audio Sourcing Precondition** at the top of this skill. It lists 50 free Decentraland clips across music, ambient, interaction sounds, sound effects, and game mechanics, each with a `curl`-ready URL.
 
-Read `{baseDir}/references/audio-catalog.md` for music tracks, ambient sounds, interaction sounds, sound effects, and game mechanic sounds.
-
-**Workflow**: Read catalog → suggest specific sounds → download with `curl -o assets/Audio/<name>.mp3 "<URL>"` → reference with local path in `audioClipUrl`.
+Read `{baseDir}/references/audio-catalog.md` before referencing audio in code.
 
 > **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/Audio/` first.
 
