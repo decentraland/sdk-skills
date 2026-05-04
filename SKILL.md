@@ -101,6 +101,9 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Audio & Video
 **Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.
 
+### Audio Analysis (Reactive Visualizers)
+**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Unity-explorer only.
+
 ### Blockchain & NFTs
 **Skill: `nft-blockchain`** — `NftShape`, wallet checks, token gating, signed requests, smart contracts.
 

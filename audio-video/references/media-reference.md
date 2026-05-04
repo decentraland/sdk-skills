@@ -164,21 +164,21 @@ External audio/video URLs require permissions:
 
 ## AudioAnalysis (Advanced)
 
-Real-time frequency and amplitude data from audio sources:
+Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. **Unity explorer only.**
 
 ```typescript
 import { AudioAnalysis, AudioAnalysisView } from '@dcl/sdk/ecs'
 
-// Enable analysis on an audio source entity
-AudioAnalysis.create(audioEntity, {})
+// Enable on an entity that already has AudioSource / AudioStream / VideoPlayer
+AudioAnalysis.createAudioAnalysis(audioEntity)
 
-// Read analysis data in a system
+// Pre-allocate the view ONCE; reuse every frame
+const view: AudioAnalysisView = { amplitude: 0, bands: new Array<number>(8) }
+
 engine.addSystem(() => {
-  const view = AudioAnalysisView.getOrNull(audioEntity)
-  if (view) {
-    // Use frequency/amplitude data for visualizers, beat detection, etc.
-  }
+  AudioAnalysis.readIntoView(audioEntity, view)
+  // view.amplitude (number) and view.bands[0..7] are now populated
 })
 ```
 
-Used for music visualizers, reactive environments, and beat-synced animations.
+For full coverage (modes, gains, gotchas, and a complete visualizer example) see the dedicated `audio-analysis` skill.
