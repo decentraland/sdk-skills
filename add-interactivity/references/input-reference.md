@@ -16,7 +16,8 @@
 | Backward          | S key             | `InputAction.IA_BACKWARD`  |
 | Left              | A key             | `InputAction.IA_LEFT`      |
 | Right             | D key             | `InputAction.IA_RIGHT`     |
-| Walk              | Shift key         | `InputAction.IA_WALK`      |
+| Walk              | Control key       | `InputAction.IA_WALK`      |
+| Run               | Shift key         | `InputAction.IA_MODIFIER`  |
 
 **Notes:**
 
@@ -28,10 +29,10 @@
 ## All Pointer Event Types
 
 ```typescript
-PointerEventType.PET_DOWN // Button/key pressed
-PointerEventType.PET_UP // Button/key released
-PointerEventType.PET_HOVER_ENTER // Cursor enters entity bounds
-PointerEventType.PET_HOVER_LEAVE // Cursor leaves entity bounds
+PointerEventType.PET_DOWN; // Button/key pressed
+PointerEventType.PET_UP; // Button/key released
+PointerEventType.PET_HOVER_ENTER; // Cursor enters entity bounds
+PointerEventType.PET_HOVER_LEAVE; // Cursor leaves entity bounds
 ```
 
 ## Declarative Pointer Events Component
@@ -39,21 +40,21 @@ PointerEventType.PET_HOVER_LEAVE // Cursor leaves entity bounds
 Instead of the callback system, you can use the `PointerEvents` component directly:
 
 ```typescript
-import { PointerEvents, PointerEventType, InputAction } from '@dcl/sdk/ecs'
+import { PointerEvents, PointerEventType, InputAction } from "@dcl/sdk/ecs";
 
 PointerEvents.create(entity, {
-	pointerEvents: [
-		{
-			eventType: PointerEventType.PET_DOWN,
-			eventInfo: {
-				button: InputAction.IA_POINTER,
-				hoverText: 'Click me',
-				showFeedback: true,
-				maxDistance: 10,
-			},
-		},
-	],
-})
+  pointerEvents: [
+    {
+      eventType: PointerEventType.PET_DOWN,
+      eventInfo: {
+        button: InputAction.IA_POINTER,
+        hoverText: "Click me",
+        showFeedback: true,
+        maxDistance: 10,
+      },
+    },
+  ],
+});
 ```
 
 Then read results in a system using `inputSystem.getInputCommand()`.
@@ -67,35 +68,35 @@ Key distinction: avatar facing direction matters, independently of where the cam
 ### onProximityDown / onProximityUp
 
 ```typescript
-import { pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+import { pointerEventsSystem, InputAction } from "@dcl/sdk/ecs";
 
 pointerEventsSystem.onProximityDown(
-	{
-		entity: myEntity,
-		opts: {
-			button: InputAction.IA_PRIMARY,
-			hoverText: 'Press E',
-			maxPlayerDistance: 5,
-		},
-	},
-	function () {
-		console.log('Player pressed button near entity')
-	}
-)
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: "Press E",
+      maxPlayerDistance: 5,
+    },
+  },
+  function () {
+    console.log("Player pressed button near entity");
+  }
+);
 
 pointerEventsSystem.onProximityUp(
-	{
-		entity: myEntity,
-		opts: {
-			button: InputAction.IA_PRIMARY,
-			hoverText: 'Release E',
-			maxPlayerDistance: 5,
-		},
-	},
-	function () {
-		console.log('Player released button near entity')
-	}
-)
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: "Release E",
+      maxPlayerDistance: 5,
+    },
+  },
+  function () {
+    console.log("Player released button near entity");
+  }
+);
 ```
 
 > **Note:** Only one `onProximityDown` and one `onProximityUp` can be registered per entity. Once added, they keep listening until removed. Do not call these inside a system loop — that would keep rewriting the behavior.
@@ -106,32 +107,32 @@ Fires when the player walks into or out of an entity's proximity range. Use this
 
 ```typescript
 pointerEventsSystem.onProximityEnter(
-	{
-		entity: myEntity,
-		opts: {
-			button: InputAction.IA_POINTER,
-			hoverText: 'Nearby',
-			maxPlayerDistance: 5,
-		},
-	},
-	function () {
-		console.log('Player entered proximity')
-	}
-)
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_POINTER,
+      hoverText: "Nearby",
+      maxPlayerDistance: 5,
+    },
+  },
+  function () {
+    console.log("Player entered proximity");
+  }
+);
 
 pointerEventsSystem.onProximityLeave(
-	{
-		entity: myEntity,
-		opts: {
-			button: InputAction.IA_POINTER,
-			hoverText: 'Nearby',
-			maxPlayerDistance: 5,
-		},
-	},
-	function () {
-		console.log('Player left proximity')
-	}
-)
+  {
+    entity: myEntity,
+    opts: {
+      button: InputAction.IA_POINTER,
+      hoverText: "Nearby",
+      maxPlayerDistance: 5,
+    },
+  },
+  function () {
+    console.log("Player left proximity");
+  }
+);
 ```
 
 ### Options
@@ -155,43 +156,43 @@ Pointer interactions (cursor aimed at entity) **always take priority** over prox
 ```typescript
 // Door has higher priority than floor when both are in range
 pointerEventsSystem.onProximityDown(
-	{
-		entity: doorEntity,
-		opts: {
-			button: InputAction.IA_PRIMARY,
-			hoverText: 'Open door',
-			maxPlayerDistance: 5,
-			priority: 2,
-		},
-	},
-	() => {
-		console.log('Door activated')
-	}
-)
+  {
+    entity: doorEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: "Open door",
+      maxPlayerDistance: 5,
+      priority: 2,
+    },
+  },
+  () => {
+    console.log("Door activated");
+  }
+);
 
 pointerEventsSystem.onProximityDown(
-	{
-		entity: floorEntity,
-		opts: {
-			button: InputAction.IA_PRIMARY,
-			hoverText: 'Step here',
-			maxPlayerDistance: 5,
-			priority: 1,
-		},
-	},
-	() => {
-		console.log('Floor activated')
-	}
-)
+  {
+    entity: floorEntity,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: "Step here",
+      maxPlayerDistance: 5,
+      priority: 1,
+    },
+  },
+  () => {
+    console.log("Floor activated");
+  }
+);
 ```
 
 ### Remove Callbacks
 
 ```typescript
-pointerEventsSystem.removeOnProximityDown(myEntity)
-pointerEventsSystem.removeOnProximityUp(myEntity)
-pointerEventsSystem.removeOnProximityEnter(myEntity)
-pointerEventsSystem.removeOnProximityLeave(myEntity)
+pointerEventsSystem.removeOnProximityDown(myEntity);
+pointerEventsSystem.removeOnProximityUp(myEntity);
+pointerEventsSystem.removeOnProximityEnter(myEntity);
+pointerEventsSystem.removeOnProximityLeave(myEntity);
 ```
 
 ### System-Based Proximity (PointerEvents Component)
@@ -199,27 +200,27 @@ pointerEventsSystem.removeOnProximityLeave(myEntity)
 For the system-based approach, use `PET_PROXIMITY_ENTER` and `PET_PROXIMITY_LEAVE` in the `PointerEvents` component, and `InteractionType.IT_PROXIMITY` for proximity button presses:
 
 ```typescript
-import { PointerEvents, PointerEventType, InputAction } from '@dcl/sdk/ecs'
+import { PointerEvents, PointerEventType, InputAction } from "@dcl/sdk/ecs";
 
 PointerEvents.create(myEntity, {
-	pointerEvents: [
-		{
-			eventType: PointerEventType.PET_PROXIMITY_ENTER,
-			eventInfo: {
-				button: InputAction.IA_PRIMARY,
-				hoverText: 'Approach',
-				maxDistance: 5,
-			},
-		},
-		{
-			eventType: PointerEventType.PET_PROXIMITY_LEAVE,
-			eventInfo: {
-				button: InputAction.IA_PRIMARY,
-				maxDistance: 5,
-			},
-		},
-	],
-})
+  pointerEvents: [
+    {
+      eventType: PointerEventType.PET_PROXIMITY_ENTER,
+      eventInfo: {
+        button: InputAction.IA_PRIMARY,
+        hoverText: "Approach",
+        maxDistance: 5,
+      },
+    },
+    {
+      eventType: PointerEventType.PET_PROXIMITY_LEAVE,
+      eventInfo: {
+        button: InputAction.IA_PRIMARY,
+        maxDistance: 5,
+      },
+    },
+  ],
+});
 ```
 
 Then read results in a system using `inputSystem.getInputCommand()` with `InteractionType.IT_PROXIMITY`.
@@ -229,44 +230,44 @@ Then read results in a system using `inputSystem.getInputCommand()` with `Intera
 Opens or closes a door when the player presses E while nearby, without needing to aim at it:
 
 ```typescript
-import { engine, Transform, GltfContainer, Tween } from '@dcl/sdk/ecs'
-import { Vector3, Quaternion } from '@dcl/sdk/math'
-import { pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+import { engine, Transform, GltfContainer, Tween } from "@dcl/sdk/ecs";
+import { Vector3, Quaternion } from "@dcl/sdk/math";
+import { pointerEventsSystem, InputAction } from "@dcl/sdk/ecs";
 
-const doorPivot = engine.addEntity()
-Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) })
+const doorPivot = engine.addEntity();
+Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) });
 
-const door = engine.addEntity()
-GltfContainer.create(door, { src: 'assets/door.glb' })
+const door = engine.addEntity();
+GltfContainer.create(door, { src: "assets/door.glb" });
 Transform.create(door, {
-	position: Vector3.create(-1, 0, 0),
-	parent: doorPivot,
-})
+  position: Vector3.create(-1, 0, 0),
+  parent: doorPivot,
+});
 
-let isDoorOpen = false
-const closedRot = Quaternion.fromEulerDegrees(0, 0, 0)
-const openRot = Quaternion.fromEulerDegrees(0, 90, 0)
+let isDoorOpen = false;
+const closedRot = Quaternion.fromEulerDegrees(0, 0, 0);
+const openRot = Quaternion.fromEulerDegrees(0, 90, 0);
 
 pointerEventsSystem.onProximityDown(
-	{
-		entity: door,
-		opts: {
-			button: InputAction.IA_PRIMARY,
-			hoverText: 'Open / Close',
-			maxPlayerDistance: 5,
-			priority: 1,
-		},
-	},
-	function () {
-		if (isDoorOpen) {
-			Tween.setRotate(doorPivot, openRot, closedRot, 700)
-			isDoorOpen = false
-		} else {
-			Tween.setRotate(doorPivot, closedRot, openRot, 700)
-			isDoorOpen = true
-		}
-	}
-)
+  {
+    entity: door,
+    opts: {
+      button: InputAction.IA_PRIMARY,
+      hoverText: "Open / Close",
+      maxPlayerDistance: 5,
+      priority: 1,
+    },
+  },
+  function () {
+    if (isDoorOpen) {
+      Tween.setRotate(doorPivot, openRot, closedRot, 700);
+      isDoorOpen = false;
+    } else {
+      Tween.setRotate(doorPivot, closedRot, openRot, 700);
+      isDoorOpen = true;
+    }
+  }
+);
 ```
 
 ## Raycast Direction Types
@@ -304,21 +305,21 @@ Cast a ray from the camera to detect what the player is looking at:
 
 ```typescript
 raycastSystem.registerGlobalDirectionRaycast(
-	{
-		entity: engine.CameraEntity,
-		opts: {
-			direction: Vector3.rotate(
-				Vector3.Forward(),
-				Transform.get(engine.CameraEntity).rotation
-			),
-			maxDistance: 16,
-		},
-	},
-	(result) => {
-		if (result.hits.length > 0)
-			console.log('Looking at:', result.hits[0].entityId)
-	}
-)
+  {
+    entity: engine.CameraEntity,
+    opts: {
+      direction: Vector3.rotate(
+        Vector3.Forward(),
+        Transform.get(engine.CameraEntity).rotation
+      ),
+      maxDistance: 16,
+    },
+  },
+  (result) => {
+    if (result.hits.length > 0)
+      console.log("Looking at:", result.hits[0].entityId);
+  }
+);
 ```
 
 ## Avatar Modifier Areas
@@ -326,13 +327,13 @@ raycastSystem.registerGlobalDirectionRaycast(
 Modify how avatars appear or behave in a region:
 
 ```typescript
-import { AvatarModifierArea, AvatarModifierType } from '@dcl/sdk/ecs'
+import { AvatarModifierArea, AvatarModifierType } from "@dcl/sdk/ecs";
 
 AvatarModifierArea.create(entity, {
-	area: { box: Vector3.create(4, 3, 4) },
-	modifiers: [AvatarModifierType.AMT_HIDE_AVATARS],
-	excludeIds: ['0x123...abc'], // Optional
-})
+  area: { box: Vector3.create(4, 3, 4) },
+  modifiers: [AvatarModifierType.AMT_HIDE_AVATARS],
+  excludeIds: ["0x123...abc"], // Optional
+});
 
 // Available modifiers:
 // AMT_HIDE_AVATARS      — Hide all avatars in the area
@@ -344,12 +345,12 @@ AvatarModifierArea.create(entity, {
 
 ```typescript
 // Check if cursor is locked (pointer lock mode)
-const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked
+const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked;
 
 // Get cursor position and world ray
-const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity)
-console.log('Cursor screen position:', pointerInfo.screenCoordinates)
-console.log('World ray direction:', pointerInfo.worldRayDirection)
+const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity);
+console.log("Cursor screen position:", pointerInfo.screenCoordinates);
+console.log("World ray direction:", pointerInfo.worldRayDirection);
 ```
 
 ## Trigger Area Callback Fields
