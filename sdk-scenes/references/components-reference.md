@@ -54,6 +54,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AudioSource** | `audioClipUrl: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `pitch: number` | Play audio clips (.mp3, .ogg, .wav). |
 | **AudioStream** | `url: string`, `playing: boolean`, `volume: number` | Stream audio from a URL. |
 | **AudioEvent** | Read-only | Audio playback events. |
+| **AudioAnalysis** | `mode: PBAudioAnalysisMode`, `amplitudeGain?`, `bandsGain?`; output: `amplitude`, `band0..band7` | Real-time amplitude + 8-band frequency data from `AudioSource`/`AudioStream`/`VideoPlayer`. Use `AudioAnalysis.createAudioAnalysis(entity)` then `readIntoView`. Unity explorer only. |
 | **VideoPlayer** | `src: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `playbackRate: number` | Play video on a surface. Requires `Material` with video texture. |
 | **VideoEvent** | Read-only | Video playback events. |
 

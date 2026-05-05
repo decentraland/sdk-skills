@@ -67,6 +67,10 @@ Read `{baseDir}/references/audio-catalog.md` for music tracks, ambient sounds, i
 
 Always check the scene's existing folders before deciding where to put a new file.
 
+## Audio-reactive scenes (visualizers, beat sync)
+
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.
+
 ## Permission for External Media
 
 External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scene.json with specific hostnames listed in `allowedMediaHostnames`.

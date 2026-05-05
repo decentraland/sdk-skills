@@ -10,26 +10,36 @@ description: Event-driven interactivity for Decentraland entities. Covers pointe
 If the entity to make interactive was defined in `assets/scene/main.composite`, **look it up by name or tag in `index.ts`**. Do NOT call `engine.addEntity()` + component create — that would create a duplicate.
 
 ```typescript
-import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
-import { EntityNames } from '../assets/scene/entity-names'
+import { engine, pointerEventsSystem, InputAction } from "@dcl/sdk/ecs";
+import { EntityNames } from "../assets/scene/entity-names";
 
 export function main() {
   // By name (type-safe via auto-generated EntityNames enum)
-  const door = engine.getEntityOrNullByName(EntityNames.Door_1)
+  const door = engine.getEntityOrNullByName(EntityNames.Door_1);
   if (door) {
     pointerEventsSystem.onPointerDown(
-      { entity: door, opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open' } },
-      () => { /* open door */ }
-    )
+      {
+        entity: door,
+        opts: { button: InputAction.IA_PRIMARY, hoverText: "Open" },
+      },
+      () => {
+        /* open door */
+      }
+    );
   }
 
   // By tag (batch operations on groups of composite entities)
-  const crystals = engine.getEntitiesByTag('Crystal')
+  const crystals = engine.getEntitiesByTag("Crystal");
   for (const crystal of crystals) {
     pointerEventsSystem.onPointerDown(
-      { entity: crystal, opts: { button: InputAction.IA_PRIMARY, hoverText: 'Collect' } },
-      () => { /* collect crystal */ }
-    )
+      {
+        entity: crystal,
+        opts: { button: InputAction.IA_PRIMARY, hoverText: "Collect" },
+      },
+      () => {
+        /* collect crystal */
+      }
+    );
   }
 }
 ```
@@ -40,14 +50,14 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 ## Decision Tree
 
-| Need | Approach | API |
-|------|----------|-----|
-| Click/hover on a specific entity | Pointer events | `pointerEventsSystem.onPointerDown()` |
-| Button press when player is nearby (no aiming needed) | Proximity events | `pointerEventsSystem.onProximityDown()` |
-| Detect player entering an area | Trigger area | `TriggerArea` + `triggerAreaEventsSystem` |
-| Poll key state every frame | Global input | `inputSystem.isTriggered()` / `isPressed()` |
-| Detect objects in a direction | Raycasting | `raycastSystem` or `Raycast` component |
-| Read cursor position / lock state | Cursor state | `PointerLock`, `PrimaryPointerInfo` |
+| Need                                                  | Approach         | API                                         |
+| ----------------------------------------------------- | ---------------- | ------------------------------------------- |
+| Click/hover on a specific entity                      | Pointer events   | `pointerEventsSystem.onPointerDown()`       |
+| Button press when player is nearby (no aiming needed) | Proximity events | `pointerEventsSystem.onProximityDown()`     |
+| Detect player entering an area                        | Trigger area     | `TriggerArea` + `triggerAreaEventsSystem`   |
+| Poll key state every frame                            | Global input     | `inputSystem.isTriggered()` / `isPressed()` |
+| Detect objects in a direction                         | Raycasting       | `raycastSystem` or `Raycast` component      |
+| Read cursor position / lock state                     | Cursor state     | `PointerLock`, `PrimaryPointerInfo`         |
 
 ---
 
@@ -58,30 +68,33 @@ Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Als
 **Important: Colliders Required** — Pointer events only work on entities with a collider using the `ColliderLayer.CL_POINTER` layer. Use `MeshCollider.setBox(entity)` for invisible colliders, or set `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` on `GltfContainer`.
 
 ### All Input Actions
+
 ```typescript
-InputAction.IA_POINTER    // Left mouse button
-InputAction.IA_PRIMARY    // E key
-InputAction.IA_SECONDARY  // F key
-InputAction.IA_ACTION_3   // 1 key
-InputAction.IA_ACTION_4   // 2 key
-InputAction.IA_ACTION_5   // 3 key
-InputAction.IA_ACTION_6   // 4 key
-InputAction.IA_JUMP       // Space key
-InputAction.IA_FORWARD    // W key
-InputAction.IA_BACKWARD   // S key
-InputAction.IA_LEFT       // A key
-InputAction.IA_RIGHT      // D key
-InputAction.IA_WALK       // Shift key
+InputAction.IA_POINTER; // Left mouse button
+InputAction.IA_PRIMARY; // E key
+InputAction.IA_SECONDARY; // F key
+InputAction.IA_ACTION_3; // 1 key
+InputAction.IA_ACTION_4; // 2 key
+InputAction.IA_ACTION_5; // 3 key
+InputAction.IA_ACTION_6; // 4 key
+InputAction.IA_JUMP; // Space key
+InputAction.IA_FORWARD; // W key
+InputAction.IA_BACKWARD; // S key
+InputAction.IA_LEFT; // A key
+InputAction.IA_RIGHT; // D key
+InputAction.IA_WALK; // Control key
+InputAction.IA_MODIFIER; // Shift key
 ```
 
 ### All Event Types
+
 ```typescript
-PointerEventType.PET_DOWN             // Button pressed
-PointerEventType.PET_UP               // Button released
-PointerEventType.PET_HOVER_ENTER      // Cursor enters entity
-PointerEventType.PET_HOVER_LEAVE      // Cursor leaves entity
-PointerEventType.PET_PROXIMITY_ENTER  // Player walks within entity's proximity range
-PointerEventType.PET_PROXIMITY_LEAVE  // Player moves out of entity's proximity range
+PointerEventType.PET_DOWN; // Button pressed
+PointerEventType.PET_UP; // Button released
+PointerEventType.PET_HOVER_ENTER; // Cursor enters entity
+PointerEventType.PET_HOVER_LEAVE; // Cursor leaves entity
+PointerEventType.PET_PROXIMITY_ENTER; // Player walks within entity's proximity range
+PointerEventType.PET_PROXIMITY_LEAVE; // Player moves out of entity's proximity range
 ```
 
 ---
