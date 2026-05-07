@@ -114,6 +114,7 @@ GameState.validateBeforeChange((value) => {
 
 ```typescript
 import { Entity, Transform, GltfContainer } from '@dcl/sdk/ecs'
+import { isServer } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 
 type ComponentWithValidation = {
@@ -134,18 +135,27 @@ function protectServerEntity(
   }
 }
 
-// Usage:
-const entity = engine.addEntity()
-Transform.create(entity, { position: Vector3.create(10, 5, 10) })
-GltfContainer.create(entity, { src: 'assets/model.glb' })
-protectServerEntity(entity, [Transform, GltfContainer])
+// Always call protectServerEntity() inside isServer() — it wraps
+// validateBeforeChange(), which only has meaning on the server.
+// Calling it on a client produces errors.
+if (isServer()) {
+  const entity = engine.addEntity()
+  Transform.create(entity, { position: Vector3.create(10, 5, 10) })
+  GltfContainer.create(entity, { src: 'assets/model.glb' })
+  protectServerEntity(entity, [Transform, GltfContainer])
+}
 ```
 
 ## Syncing Entities
 
+In an authoritative-server scene, **only the server calls `syncEntity()`** — guard with `isServer()`. The server creates the entity instance and clients get synced about it. This differs from serverless `multiplayer-sync`, where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors.
+
 ```typescript
-import { syncEntity } from '@dcl/sdk/network'
-syncEntity(entity, [Transform.componentId, GameState.componentId])
+import { isServer, syncEntity } from '@dcl/sdk/network'
+
+if (isServer()) {
+  syncEntity(entity, [Transform.componentId, GameState.componentId], 1)
+}
 ```
 
 ## Messages

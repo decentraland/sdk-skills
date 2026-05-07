@@ -19,7 +19,7 @@ Use `isServer()` from `@dcl/sdk/network` to branch logic in a single codebase. S
 
 ## Synced Components with Validation
 
-Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. Guard calls with `isServer()` — on the client the call is a no-op. Incoming values include `senderAddress` (wallet address of sender; equals `AUTH_SERVER_PEER_ID` when sent by server). Always compare addresses with `.toLowerCase()`.
+Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. **Always guard `validateBeforeChange()` (and any helper that wraps it, like `protectServerEntity()`) inside an `isServer()` block** — these calls only have meaning on the server, and calling them on a client produces errors. Incoming values include `senderAddress` (wallet address of sender; equals `AUTH_SERVER_PEER_ID` when sent by server). Always compare addresses with `.toLowerCase()`.
 
 ### Validation Patterns
 
@@ -32,7 +32,7 @@ Use `isPreview()` from `@dcl/sdk/network` to relax validation during local devel
 
 **Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`.
 
-After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`.
+After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`. **In an authoritative-server scene, only the server should call `syncEntity()`** — wrap the call in `if (isServer())`. The server creates and shares the entity instance; all clients receive the sync. This is different from the `multiplayer-sync` pattern (serverless), where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors, and avoiding client-side calls also removes the need to worry about entity-id consistency across peers.
 
 ## Messages
 
