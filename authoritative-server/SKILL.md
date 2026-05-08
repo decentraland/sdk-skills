@@ -1,6 +1,6 @@
 ---
 name: authoritative-server
-description: Build multiplayer Decentraland scenes with a headless authoritative server. Covers isServer() branching, registerMessages() for client-server communication, validateBeforeChange() for server-only state, Storage (world and player persistence), EnvVar (environment variables), and project structure. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
+description: Build multiplayer Decentraland scenes with a headless authoritative server. Covers isServer() branching, registerMessages() for client-server communication, validateBeforeChange() for server-only state, Storage (scene-wide and per-player persistence), EnvVar (environment variables), and project structure. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
 ---
 
 # Authoritative Server Pattern
@@ -61,8 +61,8 @@ Read actual server-verified positions via `engine.getEntitiesWith(PlayerIdentity
 
 Persist data across server restarts. **Server-only** — guard with `isServer()`. Import from `@dcl/sdk/server`.
 
-- **World Storage** (global): `Storage.world.set/get/delete(key)`
-- **Player Storage** (per-player): `Storage.player.set/get/delete(address, key)`
+- **Scene Storage** (global, shared across all players): `Storage.set/get/delete(key)` — top-level methods on `Storage`
+- **Player Storage** (per-player, scoped by wallet address): `Storage.player.set/get/delete(address, key)`
 
 Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objects. Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
 
