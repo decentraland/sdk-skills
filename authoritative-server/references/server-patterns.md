@@ -167,23 +167,25 @@ Because `validateBeforeChange` blocks client writes, clients can only read the s
 
 ## Storage Patterns
 
-### World Storage (Global Data)
+### Scene Storage (Global Data, shared across all players)
+
+`Storage.set/get/delete` are top-level methods on `Storage` — there is no `Storage.world` namespace.
 
 ```typescript
 import { Storage } from '@dcl/sdk/server'
 
 // Save leaderboard
-await Storage.world.set('leaderboard', JSON.stringify([
+await Storage.set('leaderboard', JSON.stringify([
   { name: 'Alice', score: 100 },
   { name: 'Bob', score: 85 }
 ]))
 
 // Load leaderboard
-const data = await Storage.world.get<string>('leaderboard')
+const data = await Storage.get<string>('leaderboard')
 const leaderboard = data ? JSON.parse(data) : []
 
 // Delete
-await Storage.world.delete('leaderboard')
+await Storage.delete('leaderboard')
 ```
 
 ### Player Storage (Per-Player Data)

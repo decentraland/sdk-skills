@@ -37,11 +37,17 @@ export async function main() {
 
 ### Pattern 1 — Server-only writes (strictest)
 ```typescript
+import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
+// `Score` is a custom synced component defined in shared/schemas.ts
+
 Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)
 ```
 
 ### Pattern 2 — Validate the value itself
 ```typescript
+import { Transform } from '@dcl/sdk/ecs'
+import { isServer } from '@dcl/sdk/network'
+
 if (isServer()) {
   Transform.validateBeforeChange(entity, (value) => {
     return value.position.y > 0
@@ -51,6 +57,10 @@ if (isServer()) {
 
 ### Pattern 3 — Proximity validation (anti-cheat)
 ```typescript
+import { engine, PlayerIdentityData, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+import { isServer } from '@dcl/sdk/network'
+
 if (isServer()) {
   Transform.validateBeforeChange(pickableEntity, (value) => {
     for (const [playerEntity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
@@ -113,7 +123,8 @@ GameState.validateBeforeChange((value) => {
 ## Built-in Components (Per-Entity Validation)
 
 ```typescript
-import { Entity, Transform, GltfContainer } from '@dcl/sdk/ecs'
+import { engine, Entity, Transform, GltfContainer } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
 import { isServer } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 
@@ -244,16 +255,22 @@ engine.addSystem(() => {
 
 ## Storage
 
-### World Storage (Global)
+`Storage.set/get/delete` are top-level methods on `Storage` for scene-wide (global) values — there is no `Storage.world` namespace. `Storage.player.set/get/delete` is scoped by wallet address. Storage only accepts strings — `JSON.stringify()`/`JSON.parse()` for objects, `String()`/`parseInt()` for numbers. **Server-only** — guard with `isServer()`.
+
+### Scene Storage (Global, shared across all players)
 ```typescript
-await Storage.world.set('leaderboard', JSON.stringify(leaderboardData))
-const data = await Storage.world.get<string>('leaderboard')
+import { Storage } from '@dcl/sdk/server'
+
+await Storage.set('leaderboard', JSON.stringify(leaderboardData))
+const data = await Storage.get<string>('leaderboard')
 if (data) { const leaderboard = JSON.parse(data) }
-await Storage.world.delete('oldKey')
+await Storage.delete('oldKey')
 ```
 
-### Player Storage (Per-Player)
+### Player Storage (Per-Player, scoped by wallet address)
 ```typescript
+import { Storage } from '@dcl/sdk/server'
+
 await Storage.player.set(playerAddress, 'highScore', String(score))
 const saved = await Storage.player.get<string>(playerAddress, 'highScore')
 const highScore = saved ? parseInt(saved) : 0
