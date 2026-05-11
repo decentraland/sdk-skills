@@ -19,18 +19,20 @@ Use `isServer()` from `@dcl/sdk/network` to branch logic in a single codebase. S
 
 ## Synced Components with Validation
 
-Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. **Always guard `validateBeforeChange()` (and any helper that wraps it, like `protectServerEntity()`) inside an `isServer()` block** — these calls only have meaning on the server, and calling them on a client produces errors. Incoming values include `senderAddress` (wallet address of sender; equals `AUTH_SERVER_PEER_ID` when sent by server). Always compare addresses with `.toLowerCase()`.
+Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. **Always guard `validateBeforeChange()` (and any helper that wraps it, like `protectServerEntity()`) inside an `isServer()` block** — both overloads (per-entity and global no-entity) only have meaning on the server, and calling either on a client produces errors. This applies even to global custom-component validators in shared files: define the component at module scope, but place the `validateBeforeChange()` call inside an `isServer()` guard (e.g. inside `main()` or inside an `if (isServer()) { ... }` block in `shared/schemas.ts`).
+
+The validator callback receives `{ entity, currentValue, newValue, senderAddress, createdBy }`. Read component fields from `value.newValue.<field>` (NOT `value.<field>` — that field does not exist). `currentValue` is the pre-change value (`undefined` if component was not present). `newValue` is `undefined` when the component is being deleted. `senderAddress` is the wallet address of the sender; equals `AUTH_SERVER_PEER_ID` when sent by the server. Always compare addresses with `.toLowerCase()`.
 
 ### Validation Patterns
 
 - **Pattern 1 — Server-only writes** (strictest): `Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)`
-- **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `position.y > 0`)
+- **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `value.newValue.position.y > 0`)
 - **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`
-- **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/sdk/server` to restrict to admins
+- **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api` to restrict to admins
 
-Use `isPreview()` from `@dcl/sdk/network` to relax validation during local development.
+Use `isPreview()` from `@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils` (sync, no args, returns `boolean`) to relax validation during local development. The deep `dist/...` import path is the only working one — the package has no top-level re-export.
 
-**Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`.
+**Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`. Both forms must be wrapped in `isServer()`.
 
 After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`. **In an authoritative-server scene, only the server should call `syncEntity()`** — wrap the call in `if (isServer())`. The server creates and shares the entity instance; all clients receive the sync. This is different from the `multiplayer-sync` pattern (serverless), where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors, and avoiding client-side calls also removes the need to worry about entity-id consistency across peers.
 
@@ -68,7 +70,7 @@ Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objec
 
 ## Environment Variables
 
-Configure values without hardcoding. **Server-only**. `EnvVar.get('KEY')` from `@dcl/sdk/server`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → Environment tab. Env vars are the right place for secrets (API keys, private keys) since server code never reaches the player.
+Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → Environment tab. Env vars are the right place for secrets (API keys, private keys) since server code never reaches the player.
 
 ## Recommended Project Structure
 

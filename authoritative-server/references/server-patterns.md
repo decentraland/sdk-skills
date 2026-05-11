@@ -39,27 +39,34 @@ export async function main() {
 
 ### Shared Schemas (shared/schemas.ts)
 
+The component definition itself is shared (both server and client need its `componentId`/type), but `validateBeforeChange()` calls must run **only on the server**. Calling them on the client produces errors. Wrap them in `isServer()`.
+
 ```typescript
 import { engine, Schemas, Entity } from '@dcl/sdk/ecs'
+import { isServer } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 
-// Custom synced component
+// Custom synced component — definition runs on both sides
 export const GameState = engine.defineComponent('game:State', {
   phase: Schemas.String,
   score: Schemas.Int,
   timeRemaining: Schemas.Int
 })
 
-// Global validation — only server can modify
-GameState.validateBeforeChange((value) => {
-  return value.senderAddress === AUTH_SERVER_PEER_ID
-})
+// Server-only: register the validator inside an isServer() guard.
+// The callback receives { entity, currentValue, newValue, senderAddress, createdBy }.
+if (isServer()) {
+  GameState.validateBeforeChange((value) => {
+    return value.senderAddress === AUTH_SERVER_PEER_ID
+  })
+}
 
 // For built-in components, use per-entity validation
 type ComponentWithValidation = {
   validateBeforeChange: (entity: Entity, cb: (value: { senderAddress: string }) => boolean) => void
 }
 
+// Helper. Must only be invoked from inside isServer() — see server.ts.
 export function protectServerEntity(entity: Entity, components: ComponentWithValidation[]) {
   for (const component of components) {
     component.validateBeforeChange(entity, (value) => {
@@ -230,10 +237,12 @@ npx sdk-commands storage player clear --confirm
 
 ## Environment Variables
 
+`EnvVar.get(key: string): Promise<string>` — always resolves to a string, returns `''` (empty string) when the variable isn't set or the fetch fails. Never `undefined`. The `|| 'fallback'` pattern works correctly because `'' || 'x'` evaluates to `'x'`.
+
 ```typescript
 import { EnvVar } from '@dcl/sdk/server'
 
-// Read with defaults
+// Read with defaults — empty string from a missing var triggers the fallback
 const maxPlayers = parseInt((await EnvVar.get('MAX_PLAYERS')) || '4')
 const gameDuration = parseInt((await EnvVar.get('GAME_DURATION')) || '300')
 const debugMode = ((await EnvVar.get('DEBUG')) || 'false') === 'true'
