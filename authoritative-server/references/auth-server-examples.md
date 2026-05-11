@@ -50,7 +50,9 @@ import { isServer } from '@dcl/sdk/network'
 
 if (isServer()) {
   Transform.validateBeforeChange(entity, (value) => {
-    return value.position.y > 0
+    // value: { entity, currentValue, newValue, senderAddress, createdBy }
+    // newValue is undefined when the component is being deleted
+    return !!value.newValue && value.newValue.position.y > 0
   })
 }
 ```
@@ -79,14 +81,20 @@ if (isServer()) {
 
 ### Pattern 4 — Admin-only writes
 ```typescript
-import { isServer, isPreview } from '@dcl/sdk/network'
-import { getSceneAdmins } from '@dcl/sdk/server'
+import { isServer } from '@dcl/sdk/network'
+// isPreview and getSceneAdmins are NOT exported from @dcl/sdk. The only working
+// import paths are the deep dist paths below (the asset-packs package has no
+// exports field and no top-level re-export).
+import { isPreview } from '@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils'
+import { getSceneAdmins } from '@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api'
 
 if (isServer()) {
   let adminAddresses = new Set<string>()
 
   async function updateAdminAddresses() {
     if (isPreview()) return
+    // Go-style tuple: [error, response]. Response shape:
+    //   { id: string; name: string; admin: string; active: string; canBeRemoved: boolean }[]
     const [error, response] = await getSceneAdmins()
     if (error) {
       adminAddresses = new Set()
@@ -103,21 +111,33 @@ if (isServer()) {
 }
 ```
 
+`isPreview()`: sync, no args, returns `boolean`. Reads a cached realm fetch — call from server code after the SDK has started (e.g. inside `main()`/`initServer()`, not at module top level).
+
+`getSceneAdmins()`: async, no args, returns `Promise<[error: string | null, response: SceneAdminResponse[] | null]>`. The `admin` field on each row is the lowercased wallet address (always normalize with `.toLowerCase()` anyway).
+
 ## Custom Components (Global Validation)
+
+The component itself is defined at module scope so both server and client can import its `componentId` / type. **But the `validateBeforeChange()` call must be wrapped in `isServer()`** — both the per-entity and the no-entity (global) overloads produce errors on the client. Put the validate call inside `main()`/`initServer()` or inside an `if (isServer()) { ... }` block in the shared file.
 
 ```typescript
 import { engine, Schemas } from '@dcl/sdk/ecs'
+import { isServer } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 
+// Shared: component definition itself runs on both sides
 export const GameState = engine.defineComponent('game:State', {
   phase: Schemas.String,
-  score: Schemas.Number,
-  timeRemaining: Schemas.Number,
+  score: Schemas.Int,
+  timeRemaining: Schemas.Int,
 })
 
-GameState.validateBeforeChange((value) => {
-  return value.senderAddress === AUTH_SERVER_PEER_ID
-})
+// Server-only: register the validator inside an isServer() guard
+if (isServer()) {
+  GameState.validateBeforeChange((value) => {
+    // value: { entity, currentValue, newValue, senderAddress, createdBy }
+    return value.senderAddress === AUTH_SERVER_PEER_ID
+  })
+}
 ```
 
 ## Built-in Components (Per-Entity Validation)
@@ -128,6 +148,9 @@ import { Vector3 } from '@dcl/sdk/math'
 import { isServer } from '@dcl/sdk/network'
 import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
 
+// Minimal structural type used by the helper below. The real callback receives
+// { entity, currentValue, newValue, senderAddress, createdBy } — this helper
+// only reads senderAddress so it widens to just that field.
 type ComponentWithValidation = {
   validateBeforeChange: (
     entity: Entity,
@@ -294,6 +317,8 @@ npx sdk-commands storage player clear --confirm
 ```
 
 ## Environment Variables
+
+`EnvVar.get(key: string): Promise<string>` — always resolves to a string. Returns `''` (empty string) when the variable isn't set or the fetch fails; never returns `undefined`. The `|| 'fallback'` pattern still works because `'' || 'x'` evaluates to `'x'`.
 
 ```typescript
 import { EnvVar } from '@dcl/sdk/server'
