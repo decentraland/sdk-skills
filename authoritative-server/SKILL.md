@@ -11,7 +11,7 @@ Build multiplayer Decentraland scenes where a **headless server** controls game 
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Optionally add `logsPermissions` in scene.json to list wallet addresses that can see server logs. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 
@@ -104,7 +104,7 @@ Client and server always move together (paired by hash). Existing players keep t
 
 - **Log prefixes**: Use `[SERVER]` and `[CLIENT]` in `console.log()`
 - **Local multi-player**: Click Preview a second time in Creator Hub, or open `decentraland://realm=http://127.0.0.1:8000&local-scene=true&debug=true`
-- **Production logs**: `npx sdk-commands sdk-server-logs` (optionally `--world WORLD_NAME.dcl.eth`)
+- **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
 - **Storage inspection**: Check local JSON file or [decentraland.org/storage](https://decentraland.org/storage)
 - **Timers**: `setTimeout`/`setInterval` available via polyfill. Prefer `engine.addSystem()` with dt accumulator

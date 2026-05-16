@@ -272,5 +272,27 @@ npx sdk-commands storage env delete OLD_VAR
 }
 ```
 
-- `logsPermissions` — wallet addresses that can see `console.log()` from the server
+- `logsPermissions` — root-level array of wallet addresses authorized to read production server logs. Without it, server logs are hidden in production **even from the scene owner**.
 - `worldConfiguration.name` — only needed when deploying to a World (not required for Genesis City LAND)
+
+## Production Logs
+
+Stream live `console.log()` output from the deployed server to diagnose issues without redeploying.
+
+```bash
+# Genesis City LAND
+npx sdk-commands sdk-server-logs
+
+# World (manually specify when not auto-detected)
+npx sdk-commands sdk-server-logs --world WORLD_NAME.dcl.eth
+```
+
+Flow:
+1. Add the wallet address(es) to `logsPermissions` in `scene.json` and deploy.
+2. Run the command. It prompts to sign a message with a wallet listed in `logsPermissions`.
+3. After signing, server logs stream to the terminal in real time.
+
+Gotchas:
+- The signing wallet must already appear in the **deployed** `scene.json`. Updating `logsPermissions` requires a redeploy.
+- `--world` is the only documented flag; use it when the command cannot infer the world name from the current project.
+- Only server-side `console.log()` is streamed — client logs are not.
