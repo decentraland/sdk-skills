@@ -237,7 +237,7 @@ Use this pattern for any asset that should be ready before a game phase begins, 
 For scenes with many 3D models (e.g. a furnished multi-room building), avoid rendering everything at once. Use trigger areas to load and unload content as the player moves through the scene:
 
 ```typescript
-import { engine, Transform, GltfContainer, TriggerArea, TriggerAction } from '@dcl/sdk/ecs'
+import { engine, Transform, GltfContainer, TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
 
 // Keep furniture hidden initially
@@ -245,11 +245,19 @@ let furnitureLoaded = false
 
 // When player enters the building, spawn interior furniture
 const trigger = engine.addEntity()
-Transform.create(trigger, { position: Vector3.create(8, 1, 8) })
-TriggerArea.create(trigger, {
-  area: { box: Vector3.create(3, 3, 3) },
-  onEnter: [{ type: TriggerAction.TA_CUSTOM, customId: 'load-interior' }],
-  onExit: [{ type: TriggerAction.TA_CUSTOM, customId: 'unload-interior' }],
+Transform.create(trigger, {
+  position: Vector3.create(8, 1, 8),
+  scale: Vector3.create(3, 3, 3)
+})
+TriggerArea.setBox(trigger, ColliderLayer.CL_PLAYER)
+
+triggerAreaEventsSystem.onTriggerEnter(trigger, () => {
+  if (!furnitureLoaded) loadInterior()
+  furnitureLoaded = true
+})
+triggerAreaEventsSystem.onTriggerExit(trigger, () => {
+  if (furnitureLoaded) unloadInterior()
+  furnitureLoaded = false
 })
 ```
 

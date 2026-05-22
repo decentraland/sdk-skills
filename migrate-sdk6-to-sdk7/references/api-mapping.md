@@ -306,6 +306,105 @@ engine.addSystem(() => {
 
 See [[advanced-input]] for the full polling API.
 
+## Click interception across entities (key/tool acting on a target)
+
+SDK6 items like keys, magnets, or inventory tools subscribed to `Input.instance.subscribe('BUTTON_DOWN', ActionButton.POINTER, true, …)` to **intercept clicks globally**, walk up the entity hierarchy of the hit result, and fire their own behavior if the click target matched a registered target name (e.g. a key clicked on its target chest).
+
+SDK7 has no global pointer subscriber that returns a hit result. `pointerEventsSystem.onPointerDown` is per-entity only. To preserve the SDK6 "tool intercepts clicks on its target" pattern:
+
+1. The intercepting item (key) registers itself in a small in-memory registry keyed by **target entity name**, with `{ isEquipped: () => boolean, use: () => void }`.
+2. The target entity (chest) consults the registry inside its own `pointerEventsSystem.onPointerDown` callback — calling the registered `use()` if the predicate returns true, falling back to its own default behavior otherwise.
+
+```typescript
+// key registry (shared between key.ts and target items like chest.ts)
+type Entry = { isEquipped: () => boolean; use: () => void }
+const keysByTarget = new Map<string, Entry>()
+
+export function registerKey(target: string, e: Entry) { keysByTarget.set(target, e) }
+export function tryUseKeyOn(target: string): boolean {
+  const e = keysByTarget.get(target)
+  if (e && e.isEquipped()) { e.use(); return true }
+  return false
+}
+
+// in key.ts on spawn:
+registerKey('chestPirates', { isEquipped: () => equipped, use: () => { unequip(); dispatch(onUse) } })
+
+// in chest.ts pointer handler:
+pointerEventsSystem.onPointerDown({ entity: door, opts: {...} }, () => {
+  if (!tryUseKeyOn('chestPirates')) dispatch(onClick) // "you need a key"
+})
+```
+
+**Why a registry rather than two `pointerEventsSystem.onPointerDown` registrations on the same entity:** the last `onPointerDown` call wins and overwrites the previous handler. Two items both calling `onPointerDown` on the same target entity will silently leave only one handler attached.
+
+## Trigger areas (player-entry regions)
+
+SDK6 had **no native trigger area component**. The community `@dcl/ecs-scene-utils` library ("the Utils library") provided this with a custom helper that ran a per-frame system checking the local player's position against a box/sphere region. SDK7 has a **native** `TriggerArea` component — do NOT port the Utils polling code; replace the pattern entirely.
+
+```typescript
+// SDK6 — community Utils library (one common shape; varied between versions)
+import * as utils from '@dcl/ecs-scene-utils'
+
+entity.addComponent(
+  new utils.TriggerComponent(
+    new utils.TriggerBoxShape(new Vector3(4, 4, 4), new Vector3(0, 0, 0)),
+    {
+      onCameraEnter: () => { /* local player entered */ },
+      onCameraExit:  () => { /* local player exited */ }
+    }
+  )
+)
+
+// SDK7 — native component
+import { engine, Transform, TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+const area = engine.addEntity()
+Transform.create(area, {
+  position: Vector3.create(8, 0, 8),
+  scale: Vector3.create(4, 4, 4)        // box dimensions come from Transform.scale
+})
+TriggerArea.setBox(area)                 // or TriggerArea.setSphere(area)
+
+triggerAreaEventsSystem.onTriggerEnter(area, (result) => {
+  if (result.trigger?.entity !== engine.PlayerEntity) return   // local-player guard — see parity note
+  /* local player entered */
+})
+triggerAreaEventsSystem.onTriggerExit(area, (result) => {
+  if (result.trigger?.entity !== engine.PlayerEntity) return
+  /* local player exited */
+})
+```
+
+| SDK6 (Utils library)                                                                | SDK7 (native) |
+|-------------------------------------------------------------------------------------|---------------|
+| `import * as utils from '@dcl/ecs-scene-utils'`                                     | `import { TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'` |
+| `new utils.TriggerBoxShape(size, offset)`                                           | `TriggerArea.setBox(entity)` — size driven by `Transform.scale`; offset by `Transform.position` |
+| `new utils.TriggerSphereShape(radius, offset)`                                      | `TriggerArea.setSphere(entity)` — radius driven by `Transform.scale` |
+| `new utils.TriggerComponent(shape, { onCameraEnter, onCameraExit })`                | `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` + `.onTriggerExit(entity, cb)` |
+| (no continuous "while inside" callback — had to add a per-frame system)             | `triggerAreaEventsSystem.onTriggerStay(entity, cb)` — fires every frame an entity is inside |
+| Custom per-frame system polling `Camera.instance.position` against the region       | Replace entirely. Do NOT port the polling logic — the native component handles it. |
+| Utils library implicitly only ever detected the local player                        | Native `TriggerArea` defaults to `ColliderLayer.CL_PLAYER`. **Behavioral note below.** |
+
+**Behavior parity — local player only (important):**
+
+The Utils library trigger only ever fired for the **current local player** — there was no concept of detecting other avatars inside the region. The native SDK7 `TriggerArea` defaults to the `CL_PLAYER` layer, which fires for ANY player on that layer — local OR remote. The guard inside the handler is the documented way to preserve "local-player-only" behavior:
+
+```typescript
+if (result.trigger?.entity !== engine.PlayerEntity) return
+```
+
+`engine.PlayerEntity` is the **local** player. **Important — the field naming is counterintuitive**: use `result.trigger?.entity` (nested field — the entity that entered the volume), NOT `result.triggeredEntity` (top-level — despite its name, this is the trigger area's own entity). Comparing `result.triggeredEntity` to `engine.PlayerEntity` is always true and the guard never fires.
+
+**Other gotchas when porting:**
+
+- The Utils library box/sphere shape took an explicit `size` and `offset`. In SDK7 the dimensions come from `Transform.scale` and the position from `Transform.position` on the same entity — don't pass dimensions to `setBox`/`setSphere`.
+- The second argument to `TriggerArea.setBox(entity, layerMask)` is a `ColliderLayer` bitmask, NOT a size. Leave it off to keep the default `CL_PLAYER` behavior.
+- `triggerAreaEventsSystem.onTriggerEnter` registers a handler once — register at scene setup, NOT inside a system update or you'll re-register every frame.
+
+See [[add-interactivity]] for the full TriggerArea reference and [[player-physics]] for examples of the `engine.PlayerEntity` guard in trigger callbacks.
+
 ## Camera & Player
 
 | SDK6 | SDK7 |
@@ -364,10 +463,37 @@ const Hud = () => (
   </UiEntity>
 )
 
-ReactEcsRenderer.setUiRenderer(Hud)
+// Always pass a virtual canvas size — see "UI sizing" below
+ReactEcsRenderer.setUiRenderer(Hud, { virtualWidth: 1920, virtualHeight: 1080 })
 ```
 
 UI migrations almost always need a from-scratch rewrite. See [[build-ui]].
+
+### UI sizing — virtual canvas (critical for ports)
+
+| SDK6 | SDK7 |
+|------|------|
+| UI sizes/positions are raw pixels against a **fixed** screen size (e.g. `width = 200`, `positionX = -350`) | UI lays out in raw screen pixels too, **but the real screen size varies per user** — so absolute pixel layouts drift between displays |
+| No virtual canvas concept | `ReactEcsRenderer.setUiRenderer(ui, { virtualWidth, virtualHeight })` defines a virtual coordinate space; the engine scales it to the real screen |
+
+Without `virtualWidth` / `virtualHeight`, the engine lays out in raw screen pixels and an SDK6 UI ported verbatim will render at a different relative size on every machine. **Setting a virtual canvas makes existing SDK6 pixel values behave as coordinates inside that virtual space**, so layouts scale predictably.
+
+```ts
+ReactEcsRenderer.setUiRenderer(uiRoot, { virtualWidth: 1920, virtualHeight: 1080 })
+```
+
+Picking the right size:
+
+- Open the SDK6 source (the legacy ECS reference is https://github.com/decentraland/ecs) and read the `UICanvas`/`UIImage`/`UIText` setup to see what pixel grid the original UI was authored against.
+- Pass those numbers as `virtualWidth` / `virtualHeight`. `1920x1080` is a reasonable default and matches what `dcl-ui-toolkit` and most community examples assume, but if the SDK6 scene targeted a different resolution (e.g. `1280x720`), use those instead so existing pixel coordinates land in the same place.
+- Only one `setUiRenderer` call per scene — pass the virtual size there, not on individual elements. See [[build-ui]] for the full default-rule guidance.
+
+Signature reference (verified against [[build-ui]] skill docs):
+
+```ts
+ReactEcsRenderer.setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
+type UiRendererOptions = { virtualWidth: number; virtualHeight: number }
+```
 
 ## Logging
 

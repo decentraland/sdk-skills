@@ -35,8 +35,8 @@ All components are imported from `@dcl/sdk/ecs`.
 | **InputModifier** | `mode` | Modify input behavior for the entity. |
 | **Raycast** | `direction`, `maxDistance`, `queryType`, `continuous` | Cast rays for collision detection. |
 | **RaycastResult** | Read-only | Results of a raycast (hits, distances). |
-| **TriggerArea** | `area: { box }`, `layerMask` | Define trigger volumes that detect player entry. |
-| **TriggerAreaResult** | Read-only | Which entities are inside the trigger. |
+| **TriggerArea** | `mesh?: TriggerAreaMeshType` (TAMT_BOX/TAMT_SPHERE), `collisionMask?: number` (default `CL_PLAYER`) | Volume that detects entities matching the mask. Size/pose come from the entity's `Transform`. Use `TriggerArea.setBox(entity)` / `TriggerArea.setSphere(entity)` and subscribe via `triggerAreaEventsSystem.onTriggerEnter/onTriggerExit/onTriggerStay`. |
+| **TriggerAreaResult** | Read-only — CRDT result component | Underlying result component for `TriggerArea`. Don't read directly — use `triggerAreaEventsSystem` callbacks (`PBTriggerAreaResult`: `triggeredEntity`, `triggeredEntityPosition`, `triggeredEntityRotation`, `eventType`, `timestamp`, nested `trigger: { entity, layers, position, rotation, scale }`). |
 
 ## Animation & Movement
 
