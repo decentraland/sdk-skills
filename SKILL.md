@@ -129,6 +129,9 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
+### SDK6 → SDK7 Migration
+**Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
+
 ---
 
 ## Shared References
