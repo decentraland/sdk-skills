@@ -113,7 +113,29 @@ Read every source file. Build a list of:
 - Replace the old `tsconfig.json` with the standard SDK7 one (`target: ES2020`, `module: ESNext`, `jsx: react-jsx`, `strict: true`).
 - Add `"runtimeVersion": "7"` to `scene.json`. **Do NOT modify `main`** unless the user asks.
 
-### 3. Create `src/index.ts` with an exported `main()`
+### 3. Reorganize asset folders under `assets/`
+
+SDK6 scenes commonly kept assets in **top-level folders at the project root**: `models/`, `images/`, `audio/` (or `sounds/`), `textures/`, `videos/`. SDK7 + Creator Hub expects assets under a top-level **`assets/`** folder so the visual editor can index them. Do this move as a discrete step BEFORE porting any code — that way the path rewrites in later steps can target the final locations directly.
+
+1. **Identify** every top-level asset folder in the SDK6 project. Common SDK6 names: `models/`, `images/`, `audio/`, `sounds/`, `textures/`, `videos/`.
+2. **Create** the new structure under `assets/` using the **capitalized category** convention used elsewhere in these skills (see [[create-scene]], [[add-3d-models]], [[audio-video]]):
+   - `models/` → `assets/Models/`
+   - `images/` → `assets/Images/`
+   - `audio/` or `sounds/` → `assets/Audio/`
+   - `videos/` → `assets/Videos/`
+   - `textures/` → `assets/Images/` (textures are images; consolidate unless the user wants a separate folder)
+3. **Move** files into the new structure. Do NOT leave duplicate copies — delete the old top-level folders once the move is complete. Dual copies cause Creator Hub to index stale paths and inflate scene size on deploy.
+4. **Rewrite every code reference** to the moved paths. Grep the entire source tree for the old folder names and update each hit:
+   - `GltfContainer.create(e, { src: 'models/chair.glb' })` → `... { src: 'assets/Models/chair.glb' }`
+   - `AudioSource.create(e, { audioClipUrl: 'sounds/click.mp3' })` → `... 'assets/Audio/click.mp3'`
+   - `Material.Texture.Common({ src: 'textures/logo.png' })` → `... 'assets/Images/logo.png'`
+   - React-ECS `<UiEntity uiBackground={{ texture: { src: 'images/icon.png' } }} />` → `... 'assets/Images/icon.png'`
+   - Any string literal mentioning the old folder name anywhere in code, JSON, or `.composite` files.
+5. **Verify** by grepping the project for the old folder names — there should be zero remaining references. Then check Creator Hub: open the scene, the asset tree should populate from `assets/`.
+
+**Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these when the user imports assets through the UI), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type — don't fragment.
+
+### 4. Create `src/index.ts` with an exported `main()`
 
 SDK7 scenes start from a top-level exported `main()` function. The convention is to put most code in another file (e.g. `src/game.ts`) and have `index.ts` just call into it:
 
@@ -124,32 +146,32 @@ export function main() {
 }
 ```
 
-### 4. Port components first
+### 5. Port components first
 
 Convert each `@Component` class to `engine.defineComponent(name, schema, defaults)`. **Flatten nested types** — `Schemas` does not support arbitrary classes, but does support `Schemas.Vector3`, `Schemas.Quaternion`, primitives, arrays, and nested `Schemas.Map(...)`. A `Vector2` field in SDK6 typically becomes two scalar fields (`posX`, `posY`) in SDK7 — see the 2048 example in `{baseDir}/references/migration-example.md`.
 
-### 5. Port systems
+### 6. Port systems
 
 Each `class X implements ISystem { update(dt) {...} }` becomes a free function. Replace `engine.getComponentGroup(A, B).entities` iteration with `for (const [entity, a, b] of engine.getEntitiesWith(A, B))`. Inside the loop, use `.getMutable(entity)` only when writing.
 
-### 6. Port the entity/component setup (the bulk of `game.ts`)
+### 7. Port the entity/component setup (the bulk of `game.ts`)
 
-For each `new Entity()` block, replace with `engine.addEntity()` and a series of `Component.create(entity, ...)` calls. Convert `setParent` to a `parent` field on the Transform.
+For each `new Entity()` block, replace with `engine.addEntity()` and a series of `Component.create(entity, ...)` calls. Convert `setParent` to a `parent` field on the Transform. Use the new `assets/Models/...`, `assets/Audio/...`, `assets/Images/...` paths established in step 3 for every `src` / `audioClipUrl` / `texture.src`.
 
-### 7. Port input/pointer handlers
+### 8. Port input/pointer handlers
 
 - Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`. Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`). See [[add-interactivity]].
 - Global key subscriptions (`Input.instance.subscribe`) → use `inputSystem.isTriggered(InputAction.IA_X, PointerEventType.PET_DOWN)` inside a system. See [[advanced-input]].
 
-### 8. Port animations
+### 9. Port animations
 
 `new Animator()` + `new AnimationState('clip')` + `animator.addClip(...)` becomes a single `Animator.create(entity, { states: [{ clip, playing, loop }] })`. Play with `Animator.playSingleAnimation(entity, 'clip')`. Stop all with `Animator.stopAllAnimations(entity)`. See [[animations-tweens]].
 
-### 9. Port sounds
+### 10. Port sounds
 
 `new AudioClip(url)` + `entity.addComponent(new AudioSource(clip))` becomes `AudioSource.create(entity, { audioClipUrl: url, playing: false, ... })`. Play by toggling `AudioSource.getMutable(entity).playing = true`. See [[audio-video]].
 
-### 10. Verify and test
+### 11. Verify and test
 
 - Run `npm install` to fetch the new SDK.
 - Run `sdk-commands start` (or `npm start`) and check the in-world result.
@@ -171,6 +193,7 @@ For each `new Entity()` block, replace with `engine.addEntity()` and a series of
 - **`@dcl/ecs-scene-utils` trigger areas (the "Utils library") AND hand-rolled per-frame AABB checks**: do NOT port the custom per-frame position-checking system, and do NOT recreate it from scratch in SDK7. SDK6 had no native trigger area, so the community Utils library (and many scenes' bespoke code) polled `Camera.instance.position` against a box/sphere region every frame and fired `onCameraEnter` / `onCameraExit`. SDK7 has a **native** `TriggerArea` component (`@dcl/sdk/ecs`) — replace the entire pattern with `TriggerArea.setBox(entity)` (or `.setSphere`) + `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` / `.onTriggerExit` / `.onTriggerStay`. Size comes from `Transform.scale`, position from `Transform.position`, and the parent chain is respected — so triggers parented to a rotated/offset scene root Just Work without manual coordinate transforms. **Behavior parity**: the Utils library only ever fired for the local player; native `TriggerArea` defaults to `ColliderLayer.CL_PLAYER`, which fires for ANY player on that layer. The correct guard for local-player-only behavior is `if (result.trigger?.entity !== engine.PlayerEntity) return` (NOT `result.triggeredEntity` — despite the confusing name, `triggeredEntity` is the trigger area's own entity, so comparing it to the player is always true and the guard never fires). See the "Trigger areas" section of `{baseDir}/references/api-mapping.md` and [[add-interactivity]] for the full component reference.
 - **SDK6 "intercepting tool" smart-items** (keys, magnets, inventory items that act on a clicked target via `Input.instance.subscribe('BUTTON_DOWN', ActionButton.POINTER, true, …)` + entity-hierarchy walking) have no direct SDK7 equivalent. `pointerEventsSystem.onPointerDown` is per-entity only — there is no global hit-result subscriber. The migration pattern is a small registry keyed by target entity name; the target's own `pointerEventsSystem.onPointerDown` consults the registry before falling back to its default behavior. See `{baseDir}/references/api-mapping.md#click-interception-across-entities-keytool-acting-on-a-target`.
 - **Don't change `scene.json` `main` field**: leave it at whatever path the SDK6 project used (typically `bin/game.js`).
+- **Top-level asset folders (`models/`, `images/`, `audio/`, `sounds/`, `textures/`, `videos/`) must be moved under `assets/`**: SDK6 scenes typically place assets at the project root. SDK7 + Creator Hub expects them under a top-level `assets/` folder (the visual editor only indexes that directory). The migration agent must (1) create `assets/Models/`, `assets/Images/`, `assets/Audio/`, `assets/Videos/` (capitalized — matches the convention used in [[create-scene]], [[add-3d-models]], [[audio-video]]); (2) move each source file across; (3) grep the entire codebase for the **old** folder names and update every `GltfContainer.create({src: 'models/...'})`, `AudioSource.create({audioClipUrl: 'sounds/...'})`, `Material.Texture.Common({src: 'textures/...'})`, React-ECS `uiBackground.texture.src`, and any path string in `.composite` files; (4) delete the empty old folders — do NOT leave dual copies (deploy will bundle both, doubling scene size, and Creator Hub will index stale paths). If the scene already has `assets/scene/Models/` or `assets/asset-packs/` (Creator Hub legacy / asset-pack layouts), reuse those paths instead of creating a parallel `assets/Models/`. This is step 3 of the migration workflow above — do the reorganization before porting code so path rewrites land in one pass.
 - **The compiled `bin/` output**: SDK6 produced `bin/game.js` via `build-ecs`. SDK7 produces `bin/index.js` by default with `sdk-commands build`. If `scene.json` says `bin/game.js`, you must either change the SDK7 build output path or update the `main` field — and per the rule above, the user should confirm before changing `main`. [UNVERIFIED behavior — confirm with the user how their toolchain is set up before making this change.]
 - **`Vector3.GetAngleBetweenVectors`, `Vector3.Up()` etc.**: many SDK6 Vector3 helpers existed as static methods. SDK7 keeps most under `@dcl/sdk/math` but capitalization changed (e.g. `Vector3.Lerp` → `Vector3.lerp`). Grep for `Vector3.` after migration and verify each call against the math module.
 - **`log()` is not exported in SDK7**: replace with `console.log()`.

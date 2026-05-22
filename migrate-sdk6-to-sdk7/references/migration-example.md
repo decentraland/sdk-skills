@@ -11,6 +11,7 @@ This is a worked example of porting a real SDK6 scene to SDK7. Snippets are mini
 | `package.json` with `decentraland-ecs` | `package.json` with `@dcl/sdk` |
 | `tsconfig.json` extending `decentraland-ecs/types/tsconfig.json` | Standalone `tsconfig.json` with `target: ES2020`, `module: ESNext`, `strict: true`, `jsx: react-jsx` |
 | `scene.json` (no `runtimeVersion`) | `scene.json` with `"runtimeVersion": "7"` added — `main` left as `bin/game.js` |
+| Top-level `models/`, `images/`, `sounds/` (or `audio/`), `textures/`, `videos/` folders at the project root | `assets/Models/`, `assets/Images/`, `assets/Audio/`, `assets/Videos/` — Creator Hub indexes under `assets/`. See "Asset paths" in `api-mapping.md`. Old top-level folders must be deleted after the move; every `src` / `audioClipUrl` / `texture.src` string in code and `.composite` files must be rewritten to the new path. |
 
 ## Components
 
@@ -214,7 +215,7 @@ engine.addEntity(island)
 ```typescript
 const island = engine.addEntity()
 GltfContainer.create(island, {
-  src: 'models/Island.gltf',
+  src: 'assets/Models/Island.gltf',
   visibleMeshesCollisionMask: 3
 })
 Transform.create(island, {
@@ -229,6 +230,7 @@ Key changes:
 - `GLTFShape` → `GltfContainer` (renamed)
 - `Quaternion.Euler` → `Quaternion.fromEulerDegrees`
 - Explicit collision mask required if you want clicks/physics (SDK6 had `withCollisions: true` by default)
+- **Asset path moved**: SDK6 `models/Island.gltf` → SDK7 `assets/Models/Island.gltf`. See "Asset paths" in `api-mapping.md` and step 3 of the migration workflow.
 
 ### Parented entity
 
@@ -250,7 +252,7 @@ Transform.create(map, {
   rotation: Quaternion.fromEulerDegrees(0, 180, 0),
   scale: Vector3.create(2, 2, 2)
 })
-GltfContainer.create(map, { src: 'models/Map.gltf' })
+GltfContainer.create(map, { src: 'assets/Models/Map.gltf' })
 ```
 
 The parent relationship is established by setting `parent` in the child's Transform.
