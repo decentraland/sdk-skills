@@ -306,6 +306,38 @@ engine.addSystem(() => {
 
 See [[advanced-input]] for the full polling API.
 
+## Click interception across entities (key/tool acting on a target)
+
+SDK6 items like keys, magnets, or inventory tools subscribed to `Input.instance.subscribe('BUTTON_DOWN', ActionButton.POINTER, true, …)` to **intercept clicks globally**, walk up the entity hierarchy of the hit result, and fire their own behavior if the click target matched a registered target name (e.g. a key clicked on its target chest).
+
+SDK7 has no global pointer subscriber that returns a hit result. `pointerEventsSystem.onPointerDown` is per-entity only. To preserve the SDK6 "tool intercepts clicks on its target" pattern:
+
+1. The intercepting item (key) registers itself in a small in-memory registry keyed by **target entity name**, with `{ isEquipped: () => boolean, use: () => void }`.
+2. The target entity (chest) consults the registry inside its own `pointerEventsSystem.onPointerDown` callback — calling the registered `use()` if the predicate returns true, falling back to its own default behavior otherwise.
+
+```typescript
+// key registry (shared between key.ts and target items like chest.ts)
+type Entry = { isEquipped: () => boolean; use: () => void }
+const keysByTarget = new Map<string, Entry>()
+
+export function registerKey(target: string, e: Entry) { keysByTarget.set(target, e) }
+export function tryUseKeyOn(target: string): boolean {
+  const e = keysByTarget.get(target)
+  if (e && e.isEquipped()) { e.use(); return true }
+  return false
+}
+
+// in key.ts on spawn:
+registerKey('chestPirates', { isEquipped: () => equipped, use: () => { unequip(); dispatch(onUse) } })
+
+// in chest.ts pointer handler:
+pointerEventsSystem.onPointerDown({ entity: door, opts: {...} }, () => {
+  if (!tryUseKeyOn('chestPirates')) dispatch(onClick) // "you need a key"
+})
+```
+
+**Why a registry rather than two `pointerEventsSystem.onPointerDown` registrations on the same entity:** the last `onPointerDown` call wins and overwrites the previous handler. Two items both calling `onPointerDown` on the same target entity will silently leave only one handler attached.
+
 ## Trigger areas (player-entry regions)
 
 SDK6 had **no native trigger area component**. The community `@dcl/ecs-scene-utils` library ("the Utils library") provided this with a custom helper that ran a per-frame system checking the local player's position against a box/sphere region. SDK7 has a **native** `TriggerArea` component — do NOT port the Utils polling code; replace the pattern entirely.
@@ -336,11 +368,11 @@ Transform.create(area, {
 TriggerArea.setBox(area)                 // or TriggerArea.setSphere(area)
 
 triggerAreaEventsSystem.onTriggerEnter(area, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return   // local-player guard — see parity note
+  if (result.triggeredEntity !== engine.PlayerEntity) return   // local-player guard — see parity note
   /* local player entered */
 })
 triggerAreaEventsSystem.onTriggerExit(area, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
+  if (result.triggeredEntity !== engine.PlayerEntity) return
   /* local player exited */
 })
 ```
@@ -357,13 +389,13 @@ triggerAreaEventsSystem.onTriggerExit(area, (result) => {
 
 **Behavior parity — local player only (important):**
 
-The Utils library trigger only ever fired for the **current local player** — there was no concept of detecting other avatars inside the region. The native SDK7 `TriggerArea` defaults to the `CL_PLAYER` layer, but the established convention across SDK7 scenes (see [[add-interactivity]] and [[player-physics]]) is to guard inside the handler:
+The Utils library trigger only ever fired for the **current local player** — there was no concept of detecting other avatars inside the region. The native SDK7 `TriggerArea` defaults to the `CL_PLAYER` layer, which fires for ANY player on that layer — local OR remote. The guard inside the handler is the documented way to preserve "local-player-only" behavior:
 
 ```typescript
-if (result.trigger?.entity !== engine.PlayerEntity) return
+if (result.triggeredEntity !== engine.PlayerEntity) return
 ```
 
-`engine.PlayerEntity` is the **local** player. This guard is the documented way to preserve "local-player-only" behavior and matches the SDK6 Utils semantics. [UNVERIFIED] No dedicated "local player only" flag was found on `TriggerArea` in the skill docs — always apply the `engine.PlayerEntity` guard when porting Utils trigger code.
+`engine.PlayerEntity` is the **local** player. **Important**: use `result.triggeredEntity` (top-level field — the entity that entered the volume), NOT `result.trigger?.entity` (nested — the trigger area's own entity). Comparing `result.trigger.entity` to `engine.PlayerEntity` is always true and the guard never fires.
 
 **Other gotchas when porting:**
 

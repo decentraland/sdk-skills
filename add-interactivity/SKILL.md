@@ -127,9 +127,53 @@ For the system-based approach (combining pointer + proximity on the same entity)
 
 ## Trigger Areas (Proximity Detection)
 
-Detect when the player enters, exits, or stays inside an area using `TriggerArea.setBox(entity)` or `TriggerArea.setSphere(entity)`. Size the area via `Transform.scale`. Register callbacks with `triggerAreaEventsSystem.onTriggerEnter()`, `.onTriggerExit()`, `.onTriggerStay()`.
+Native ECS component for detecting when an entity enters a region. Prefer this over hand-rolled "check player position every frame" systems and over the older `@dcl-sdk/utils` `triggers.addTrigger()` helper — they exist as fallbacks but `TriggerArea` is the standard SDK7 primitive ([ADR-258](https://github.com/decentraland/adr/blob/2b30a5e2b4f359a7c22a68fb827db282f6e5f887/content/ADR-258-trigger-areas.md)).
 
-By default, trigger areas react to the player layer. Use `ColliderLayer` to restrict which entities activate the area.
+**The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
+
+**Minimal example — box that detects the local player:**
+```typescript
+import {
+  engine,
+  Transform,
+  TriggerArea,
+  triggerAreaEventsSystem,
+  ColliderLayer
+} from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+const zone = engine.addEntity()
+Transform.create(zone, {
+  position: Vector3.create(8, 1, 8),
+  scale: Vector3.create(4, 2, 4) // 4m × 2m × 4m box
+})
+TriggerArea.setBox(zone, ColliderLayer.CL_PLAYER)
+
+triggerAreaEventsSystem.onTriggerEnter(zone, (result) => {
+  if (result.triggeredEntity !== engine.PlayerEntity) return // local player only
+  console.log('player entered')
+})
+triggerAreaEventsSystem.onTriggerExit(zone, () => {
+  console.log('player left')
+})
+```
+
+**Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale` (radius taken from `scale.x`).
+
+**Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (or an array) to react to physics or custom layers.
+
+**Callbacks:**
+- `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` — fires once on entry
+- `triggerAreaEventsSystem.onTriggerStay(entity, cb)` — fires every tick while inside (SDK-synthesized from the ENTER/EXIT state machine)
+- `triggerAreaEventsSystem.onTriggerExit(entity, cb)` — fires once on exit
+- Detach with `removeOnTriggerEnter/Stay/Exit(entity)`
+
+**Callback shape — common gotcha:**
+The callback receives a `PBTriggerAreaResult`. `result.triggeredEntity` is the entity that entered (compare with `engine.PlayerEntity` to filter to the local player). `result.trigger.entity` is the trigger area itself — comparing it to the player is always false. See `{baseDir}/references/input-reference.md#trigger-area-callback-fields`.
+
+**Multiplayer note:** With `CL_PLAYER`, the trigger fires for every player that enters — remote players included. Always guard physics/UI side-effects with `if (result.triggeredEntity !== engine.PlayerEntity) return`.
+
+**Underlying components:** `TriggerArea` (config) and `TriggerAreaResult` (CRDT result). You normally don't read `TriggerAreaResult` directly — use the events system.
 
 ---
 

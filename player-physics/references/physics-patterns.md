@@ -26,7 +26,7 @@ MeshRenderer.setBox(launchPad)
 TriggerArea.setBox(launchPad, ColliderLayer.CL_PLAYER)
 
 triggerAreaEventsSystem.onTriggerEnter(launchPad, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
+  if (result.triggeredEntity !== engine.PlayerEntity) return
   Physics.applyImpulseToPlayer(Vector3.create(0, 50, 0))
 })
 ```
@@ -76,12 +76,12 @@ MeshRenderer.setBox(windTunnel)
 TriggerArea.setBox(windTunnel, ColliderLayer.CL_PLAYER)
 
 triggerAreaEventsSystem.onTriggerEnter(windTunnel, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
+  if (result.triggeredEntity !== engine.PlayerEntity) return
   Physics.applyForceToPlayer(windTunnel, Vector3.create(15, 0, 0))
 })
 
 triggerAreaEventsSystem.onTriggerExit(windTunnel, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
+  if (result.triggeredEntity !== engine.PlayerEntity) return
   Physics.removeForceFromPlayer(windTunnel)
 })
 ```

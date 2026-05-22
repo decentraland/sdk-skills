@@ -355,12 +355,20 @@ console.log("World ray direction:", pointerInfo.worldRayDirection);
 
 ## Trigger Area Callback Fields
 
-The trigger area event callback provides:
+The trigger area event callback receives a `DeepReadonlyObject<PBTriggerAreaResult>`:
 
-- `triggeredEntity` — the entity that activated the area
-- `eventType` — ENTER, EXIT, or STAY
-- `trigger.entity` — the trigger area entity
-- `trigger.layer` — the collider layer
-- `trigger.position` — position of the triggered entity
-- `trigger.rotation` — rotation of the triggered entity
-- `trigger.scale` — scale of the triggered entity
+**Top-level — the entity that entered/exited the volume:**
+- `triggeredEntity` — Entity that activated the area (compare against `engine.PlayerEntity` to filter to local player)
+- `triggeredEntityPosition` — World position of the entity that triggered
+- `triggeredEntityRotation` — World rotation of the entity that triggered
+- `eventType` — `TAET_ENTER` (0), `TAET_STAY` (1), or `TAET_EXIT` (2)
+- `timestamp` — Tick timestamp
+
+**Nested `trigger: { ... }` — the trigger area itself:**
+- `trigger.entity` — The trigger area's entity (NOT the player — comparing this to `engine.PlayerEntity` is always false)
+- `trigger.layers` — The collider layers the area listens for
+- `trigger.position` — World position of the trigger area
+- `trigger.rotation` — World rotation of the trigger area
+- `trigger.scale` — World scale of the trigger area
+
+> **Common mistake:** Filtering with `result.trigger.entity !== engine.PlayerEntity` is always true (different entities) and the guard never fires. Use `result.triggeredEntity !== engine.PlayerEntity` to detect the local player.
