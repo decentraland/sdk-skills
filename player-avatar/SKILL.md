@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), fetch avatar appearance for ANY wallet address (catalyst /lambdas/profile endpoint, for off-scene users like parcel owners or NFT holders), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, off-scene avatar data, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), fetch avatar appearance for ANY wallet address (catalyst /lambdas/profile endpoint, for off-scene users like parcel owners or NFT holders), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points for cosmetics, OR parent to engine.CameraEntity for aim-sensitive held items like guns/reticles/flashlights that need to track camera pitch, OR parent to engine.PlayerEntity for yaw-only body-fixed items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, off-scene avatar data, emotes, wearables, attaching items to players (cosmetic items vs held gameplay items), or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -131,13 +131,73 @@ AvatarAttach.create(hat, {
 })
 ```
 
+> **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
+
+### Held items vs cosmetic items — `AvatarAttach` vs parenting to `engine.CameraEntity` / `engine.PlayerEntity`
+
+SDK7 gives you three distinct mechanisms for "an entity that follows the player". They are not interchangeable — picking the wrong one is the single most common mistake when porting "held item" patterns from SDK6, and the most common subtle failure is parenting an aim-sensitive item (gun, reticle, flashlight) to `engine.PlayerEntity` and discovering the item does not track camera pitch when the player looks up or down.
+
+**Default for any aim-sensitive held item: `Transform.parent = engine.CameraEntity`.** Use `engine.PlayerEntity` only when you specifically want yaw-only / no-pitch behavior (a body-fixed item the player carries but never aims with).
+
+| Goal | Use | Tracks | Reason |
+|------|-----|--------|--------|
+| **Aim-sensitive held item** — gun, aiming reticle, flashlight, anything pointed by looking around. **Recommended default for held gameplay items.** | `Transform.parent = engine.CameraEntity` (plus local position offset for "in front of and below" the camera) | Camera yaw **+ pitch** | Follows the camera's full transform, so the item points where the player is looking — including up/down. This is the SDK7 analogue of SDK6's `Attachable.FIRST_PERSON_CAMERA`. Aim stable (no animation jitter). |
+| **Yaw-only / body-fixed item** — a held shield the player doesn't aim, a static torch, a fixed-position carry item that should stay level regardless of where the player looks. | `Transform.parent = engine.PlayerEntity` (plus local offset for hand-height / forward distance) | Player root: feet position + body **yaw only** (no pitch) | Follows the player's root transform. Stable (no animation), but stays level when the player looks up/down — wrong default for guns/aim items, correct for items meant to ride the body orientation only. |
+| **Cosmetic item** — hat, halo, backpack, name plate, glow effect, torch visible to other players riding the avatar. | `AvatarAttach` with an `anchorPointId` (e.g. `AAPT_HEAD`, `AAPT_SPINE`, `AAPT_LEFT_HAND`) | The actual animated bone | Item moves naturally with idle bob, walk cycle, and gestures — visually correct for cosmetics attached to the body. **Not for aim** — animation jitter makes aim-sensitive items unusable. |
+
+**Why `engine.CameraEntity` is the right default for aim-sensitive items:** `engine.PlayerEntity` only tracks the player's root (foot position + body yaw). Body yaw is NOT camera pitch — when the player tilts the camera up to aim at a flying target, the player root rotation does not change, so a gun parented to `PlayerEntity` stays flat and the muzzle doesn't track the look direction. Parenting to `engine.CameraEntity` inherits both yaw and pitch, so the gun aims where the camera looks. This matches the SDK6 `Attachable.FIRST_PERSON_CAMERA` behavior creators expect when porting.
+
+**Why bone anchors break aim:** anchor points like `AAPT_RIGHT_HAND`, `AAPT_SPINE`, `AAPT_HEAD` are positions on the animated avatar skeleton. Every frame the engine pulls the bone's current world transform — which includes the procedural idle bob and any active animation clip. An entity parented there inherits all of that motion. For a weapon, this reads as jitter and makes aiming feel uncontrollable.
+
+#### Example — gun held in first person (aim follows camera pitch)
+
+```typescript
+import { engine, Transform, GltfContainer, CameraModeArea, CameraType } from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+const gun = engine.addEntity()
+GltfContainer.create(gun, { src: 'assets/Models/blaster.glb' })
+Transform.create(gun, {
+	parent: engine.CameraEntity,           // gun follows camera (yaw + pitch) — aim tracks where you look
+	position: Vector3.create(0.25, -0.2, 0.5), // right, down, forward of camera
+	rotation: Quaternion.fromEulerDegrees(0, 0, 0),
+	scale: Vector3.One(),
+})
+```
+
+If the user does NOT want the item to track pitch (e.g. a held torch that should stay level, not point up when looking up), swap `engine.CameraEntity` for `engine.PlayerEntity`. **Do not pick `PlayerEntity` for a gun** — the result is a flat-pointing weapon that ignores look direction.
+
+**Pair with `CameraModeArea` or a forced camera mode when equipping a held gun**, so the player is in first-person while aiming. See [[camera-control]].
+
+#### Anti-pattern (what NOT to do for a held weapon)
+
+```typescript
+// WRONG — gun jitters with every idle/walk/gesture animation frame
+AvatarAttach.create(gun, {
+	anchorPointId: AvatarAnchorPointType.AAPT_RIGHT_HAND,
+})
+```
+
+This **looks** like the right SDK7 way to "put a gun in the avatar's hand" because the API name reads that way — but the hand bone is animated, so the gun is unaimable in practice. Use parenting instead.
+
+```typescript
+// SUBTLY WRONG for a gun — looks correct in hip-fire, fails the moment the player aims up
+Transform.create(gun, { parent: engine.PlayerEntity, position: ... })
+```
+
+`engine.PlayerEntity` inherits body yaw but NOT camera pitch. The gun stays flat when the player looks up to aim at a high target. Use `engine.CameraEntity` instead for any aim-sensitive item. `PlayerEntity` is correct only for body-fixed items that should stay level regardless of where the camera points (e.g. a carried lantern, a non-aimed shield).
+
+#### SDK6 porting note
+
+In SDK7 you have a choice that didn't exist in SDK6. SDK6's `Attachable.FIRST_PERSON_CAMERA` / `Attachable.AVATAR` mapped to coarse follow modes only. If you are porting a held item from an SDK6 scene that used `Attachable.FIRST_PERSON_CAMERA`, the SDK7 equivalent is **parenting to `engine.CameraEntity`** (NOT `AvatarAttach` to a hand anchor, and NOT `engine.PlayerEntity` — `PlayerEntity` loses camera pitch). See [[migrate-sdk6-to-sdk7]].
+
 ### Anchor Points
 
 ```typescript
 AvatarAnchorPointType.AAPT_NAME_TAG // Above the head
 AvatarAnchorPointType.AAPT_RIGHT_HAND // Right hand
 AvatarAnchorPointType.AAPT_LEFT_HAND // Left hand
-AvatarAnchorPointType.AAPT_POSITION // Avatar root position
+AvatarAnchorPointType.AAPT_POSITION // [DEPRECATED] Avatar root position — protocol recommends parenting to `engine.PlayerEntity` (body-fixed) or `engine.CameraEntity` (aim-sensitive) instead
 AvatarAnchorPointType.AAPT_HEAD
 AvatarAnchorPointType.AAPT_NECK
 AvatarAnchorPointType.AAPT_SPINE
@@ -162,6 +222,8 @@ AvatarAnchorPointType.AAPT_RIGHT_FOOT
 AvatarAnchorPointType.AAPT_RIGHT_TOE_BASE
 AvatarAnchorPointType.AAPT_NAME_TAG
 ```
+
+**Anchor points inherit bone animation.** Bone-targeted anchors (`AAPT_RIGHT_HAND`, `AAPT_SPINE`, `AAPT_HEAD`, etc.) follow the **animated** skeleton — idle bob, walk cycle, and gesture animations all propagate to the attached entity. This is correct for cosmetic items (hats, halos, backpacks) and **wrong** for gameplay items where aim stability matters (guns, reticles). For aim-sensitive items parent to `engine.CameraEntity` (yaw + pitch — the default for guns/reticles/flashlights); for yaw-only body-fixed items parent to `engine.PlayerEntity`. See "Held items vs cosmetic items" above.
 
 ### Attach to a Specific Player
 
