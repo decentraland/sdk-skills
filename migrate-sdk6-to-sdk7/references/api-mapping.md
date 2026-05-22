@@ -30,6 +30,34 @@ import {
 import { Vector3, Quaternion, Color3, Color4, Scalar } from '@dcl/sdk/math'
 ```
 
+## Asset paths (folder reorganization)
+
+SDK6 scenes typically keep assets at the project root (`models/`, `images/`, `audio/`, `sounds/`, `textures/`, `videos/`). SDK7 + Creator Hub expects assets under a top-level `assets/` folder. Move them BEFORE porting code, then rewrite every reference in one pass.
+
+| SDK6 (project-root)         | SDK7 (under `assets/`)                                             |
+|-----------------------------|--------------------------------------------------------------------|
+| `models/foo.glb`            | `assets/Models/foo.glb`                                            |
+| `images/icon.png`           | `assets/Images/icon.png`                                           |
+| `textures/logo.png`         | `assets/Images/logo.png` (textures are images; consolidate)        |
+| `audio/click.mp3` / `sounds/click.mp3` | `assets/Audio/click.mp3`                                |
+| `videos/intro.mp4`          | `assets/Videos/intro.mp4`                                          |
+
+Code-reference rewrites that must follow the move:
+
+| SDK6 reference                                                  | SDK7 reference                                                                |
+|-----------------------------------------------------------------|-------------------------------------------------------------------------------|
+| `new GLTFShape('models/foo.glb')`                               | `GltfContainer.create(e, { src: 'assets/Models/foo.glb' })`                   |
+| `new AudioClip('sounds/click.mp3')`                             | `AudioSource.create(e, { audioClipUrl: 'assets/Audio/click.mp3', ... })`      |
+| `new Texture('textures/logo.png')`                              | `Material.Texture.Common({ src: 'assets/Images/logo.png' })`                  |
+| `new UIImage(parent, new Texture('images/icon.png'))`           | React-ECS: `uiBackground={{ texture: { src: 'assets/Images/icon.png' } }}`    |
+| Any path literal in `.composite` files                          | Update to the new `assets/...` path                                           |
+
+**Rules**:
+- Use **capitalized** category folders (`Models`, `Images`, `Audio`, `Videos`) — matches the convention used by [[create-scene]], [[add-3d-models]], and [[audio-video]] for fresh SDK7 work.
+- **Reuse existing layout if present.** If the project already has `assets/scene/Models/` (Creator Hub legacy layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub UI imports), keep using those exact paths — don't create a parallel `assets/Models/`.
+- **Never leave dual copies.** Delete the old top-level folders once the move is done. Dual copies bloat deploy size and cause Creator Hub to index stale paths.
+- **Grep before declaring done.** Search the entire repo (including `.composite`, `.json`, `.ts`, `.tsx` files) for each old folder name (`models/`, `sounds/`, etc.) — there should be zero remaining references.
+
 ## Entities
 
 | SDK6 | SDK7 |
