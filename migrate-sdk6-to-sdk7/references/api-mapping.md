@@ -268,6 +268,10 @@ const open = Animator.getClip(entity, 'Open') // returns the state object
 // then mutate the Animator with getMutable to flip `playing`
 ```
 
+**A clip must be in `states[]` when calling `playSingleAnimation` programmatically.** Unlike SDK6's `Animator.getClip(name)`, which auto-created the clip on first use, `Animator.playSingleAnimation(entity, clipName)` returns `false` and does nothing if `clipName` is not already in `Animator.states` (verified — `@dcl/ecs/dist-cjs/components/extended/Animator.js` lines 35-46). This is the path porters typically hit, because they author the Animator in code. Walk every `playAnimation` / `getClip` call in the SDK6 source and collect the full set of clip names per entity before writing `states`. For a port-friendly shim that lazily pushes missing states, see the wrapper in [[animations-tweens]] (PITFALL section). This rule does **not** apply to Animators authored by the Creator Hub Inspector (whose composite already lists every GLB clip in `states[]`) or by asset packs / smart items (which ship populated).
+
+Also: if a GLTF model has animation clips and the entity has **no** `Animator` component, `GltfContainer` autoplays one clip from the .glb on its own — this is the same mechanism that lets clip-less Inspector scenes animate without explicit registration. SDK6 stayed in bind pose by default, so porting an SDK6 scene that simply omitted `Animator` will produce models that spawn playing an arbitrary clip (observed: `die` autoplaying on ghosts with no Animator). If you want a specific default, attach an `Animator.create` with the intended clip set to `playing: true`. If you also want to switch clips at runtime via `playSingleAnimation`, list every clip you'll switch to in `states[]` per the rule above.
+
 See [[animations-tweens]] for full details. Note: `AnimationState` is gone — clips are configured inside `Animator.states[]`.
 
 ## Pointer events / clicks
@@ -443,6 +447,28 @@ See [[add-interactivity]] for the full TriggerArea reference and [[player-physic
 | `Camera.instance.feetPosition` (player feet) | `Transform.get(engine.PlayerEntity).position` |
 | `Camera.instance.worldPosition` | Read on `engine.CameraEntity` Transform — already world-space if no parent |
 
+### Attaching items to the player
+
+SDK6 had two coarse "follow" options for items meant to ride along with the player. SDK7 splits these into three distinct paths, picked by **what kind of item** it is. Use the table to pick the right destination — bone-level `AvatarAttach` is **not** the universal SDK7 replacement for SDK6 `Attachable`, and `engine.PlayerEntity` is **not** the universal replacement for `Attachable.FIRST_PERSON_CAMERA` (it loses camera pitch — see anti-patterns below).
+
+| Parent / mechanism | Tracks | Use for | SDK6 origin |
+|--------------------|--------|---------|-------------|
+| `Transform.parent = engine.CameraEntity` (plus local `position` offset for "in front of and below" the camera) | Camera **yaw + pitch** (aim follows look direction) | **Aim-sensitive held items — recommended default for guns, aiming reticles, flashlights, anything the player should be able to point by looking around.** | Direct SDK7 equivalent of `entity.setParent(Attachable.FIRST_PERSON_CAMERA)`. |
+| `Transform.parent = engine.PlayerEntity` (plus local `position` offset for hand-height / forward distance) | Player root: feet + body **yaw only**, **no pitch**, no animation | **Body-fixed items that should stay level regardless of where the camera points** — held shield not used for aim, static carried torch, non-aimed inventory carried at hip-level. Wrong default for guns/aim items. | SDK7 equivalent of `entity.setParent(Attachable.AVATAR)`. |
+| `AvatarAttach.create(e, { anchorPointId: AAPT_RIGHT_HAND \| AAPT_HEAD \| AAPT_SPINE \| ... })` | The actual animated bone (idle bob, walk cycle, gestures all propagate) | **Cosmetic items** that should ride the avatar animation: hats, halos, backpacks, name plates, torches visible to other players. **NOT for gameplay aim.** | No SDK6 equivalent — bone-level attachment is new in SDK7. |
+
+| SDK6 | SDK7 (porting target) |
+|------|----------------------|
+| `entity.setParent(Attachable.FIRST_PERSON_CAMERA)` | `Transform.getMutable(e).parent = engine.CameraEntity` (or `parent` in `Transform.create`) + local `position` offset |
+| `entity.setParent(Attachable.AVATAR)` | `Transform.getMutable(e).parent = engine.PlayerEntity` + local `position` offset |
+
+**Anti-patterns (common SDK6 → SDK7 porting mistakes):**
+
+- Replacing `Attachable.FIRST_PERSON_CAMERA` with `AvatarAttach({ anchorPointId: AAPT_RIGHT_HAND })`. The API name reads like the right SDK7 way to "put it in the avatar's hand", but `AAPT_RIGHT_HAND` is a bone on the animated skeleton — the attached entity inherits idle bob, walk cycle, and any active gesture animation, so a gun jitters every frame and is unaimable. Use parenting (`Transform.parent`) for held items; reserve `AvatarAttach` for cosmetics.
+- Replacing `Attachable.FIRST_PERSON_CAMERA` with `Transform.parent = engine.PlayerEntity`. This is the **most common subtle failure** when porting held gameplay items: it looks correct for hip-fire (the gun follows yaw with the body), but the moment the player tilts the camera up to aim at a high target the gun stays flat — `PlayerEntity` inherits body yaw only, not camera pitch. For any aim-sensitive item, parent to `engine.CameraEntity` instead. Reserve `PlayerEntity` for items that should explicitly stay level regardless of look direction.
+
+See [[player-avatar]] for the full "Held items vs cosmetic items" comparison and a worked gun example, and [[camera-control]] for camera-mode forcing when equipping a held weapon.
+
 See [[camera-control]] and [[player-avatar]].
 
 ## Audio
@@ -475,6 +501,51 @@ AudioSource.getMutable(entity).playing = true
 | Streaming via `AudioStream` (URL) | `AudioStream.create(e, { url, playing, volume })` |
 
 See [[audio-video]].
+
+## Timers / delays
+
+SDK6 scenes commonly used `Delay` / `ExpireIn` / `Interval` from the community `decentraland-ecs-utils` library (later renamed `@dcl-sdk/utils`) for one-shot delays and repeating callbacks. Many scenes also created a dedicated "timer entity" just to host the `Delay` component.
+
+**SDK7 has these built in as globals.** The QuickJS scene runtime declares JS-standard `setTimeout`, `clearTimeout`, `setInterval`, `clearInterval` in `@dcl/js-runtime/index.d.ts` — no import needed:
+
+```ts
+declare function setTimeout(callback: () => void, ms: number): number
+declare function clearTimeout(timerId: number): void
+declare function setInterval(callback: () => void, ms: number): number
+declare function clearInterval(timerId: number): void
+```
+
+```typescript
+// SDK6 (community Utils library)
+import * as utils from '@dcl/ecs-scene-utils' // or 'decentraland-ecs-utils' / '@dcl-sdk/utils'
+
+const timerEntity = new Entity()
+engine.addEntity(timerEntity)
+timerEntity.addComponent(new utils.Delay(2000, () => {
+  // fires once, 2 seconds later
+}))
+
+// SDK7 — no import, no entity needed
+const id = setTimeout(() => {
+  // fires once, 2 seconds later
+}, 2000)
+// clearTimeout(id) to cancel
+```
+
+| SDK6 (community Utils library)                                  | SDK7 (global, JS-standard)                                                              |
+|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `import * as utils from '@dcl/ecs-scene-utils'` (or `decentraland-ecs-utils` / `@dcl-sdk/utils`) | (no import — `setTimeout` / `setInterval` are globals)                |
+| `entity.addComponent(new utils.Delay(ms, cb))`                  | `setTimeout(cb, ms)` — **note argument order flip**: `(callback, ms)`, NOT `(ms, callback)` |
+| `entity.addComponent(new utils.ExpireIn(ms))` (removes entity)  | `setTimeout(() => engine.removeEntity(entity), ms)`                                     |
+| `entity.addComponent(new utils.Interval(ms, cb))`               | `setInterval(cb, ms)` — same `(callback, ms)` order                                     |
+| "Timer entity" created just to host a `Delay` component         | Delete the entity entirely — `setTimeout` doesn't need an entity                        |
+| Custom per-frame `timerSystem` that accumulates `dt` to fire delayed callbacks | Delete the system — use `setTimeout` / `setInterval` directly                  |
+
+**Critical migration rule — argument order**: SDK6 `Delay(ms, cb)` puts the duration first; JS-standard `setTimeout(cb, ms)` puts the callback first. Do NOT write a custom `setSceneTimeout(ms, cb)` helper that preserves the SDK6 order — it's a known footgun. Use the global directly with the JS order.
+
+**Alternative: `timers` named export.** `@dcl/sdk/ecs` also exports a `timers` object with `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` methods bound to the default engine — functionally equivalent to the globals. Prefer the globals for brevity. For a custom engine instance, use `createTimers(engineInstance)` to get an engine-scoped `Timers` object.
+
+See [[scene-runtime]] (Timers section) for the full reference.
 
 ## UI
 
