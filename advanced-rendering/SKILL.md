@@ -51,6 +51,8 @@ BillboardMode.BM_NONE   // No billboard rotation
 
 - Prefer `BM_Y` over `BM_ALL` for most use cases — it looks more natural and is cheaper to render.
 - `BM_ALL` is useful for particles or effects that should always directly face the camera.
+- **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
+- **Porting note**: SDK6 → SDK7 ports occasionally show a billboarded model facing **away** from the camera that was correct under SDK6. The two SDKs appear to disagree on which face the billboard points at the camera. Same fix — rotate the displayed model 180° on Y. See [[migrate-sdk6-to-sdk7]] (Common Pitfalls) for context.
 
 ## TextShape (3D Text)
 
