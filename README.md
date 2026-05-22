@@ -46,6 +46,7 @@ npx skills add decentraland/sdk-skills --all
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
+| `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
