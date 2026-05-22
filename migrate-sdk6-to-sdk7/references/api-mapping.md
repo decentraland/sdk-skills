@@ -368,11 +368,11 @@ Transform.create(area, {
 TriggerArea.setBox(area)                 // or TriggerArea.setSphere(area)
 
 triggerAreaEventsSystem.onTriggerEnter(area, (result) => {
-  if (result.triggeredEntity !== engine.PlayerEntity) return   // local-player guard — see parity note
+  if (result.trigger?.entity !== engine.PlayerEntity) return   // local-player guard — see parity note
   /* local player entered */
 })
 triggerAreaEventsSystem.onTriggerExit(area, (result) => {
-  if (result.triggeredEntity !== engine.PlayerEntity) return
+  if (result.trigger?.entity !== engine.PlayerEntity) return
   /* local player exited */
 })
 ```
@@ -392,10 +392,10 @@ triggerAreaEventsSystem.onTriggerExit(area, (result) => {
 The Utils library trigger only ever fired for the **current local player** — there was no concept of detecting other avatars inside the region. The native SDK7 `TriggerArea` defaults to the `CL_PLAYER` layer, which fires for ANY player on that layer — local OR remote. The guard inside the handler is the documented way to preserve "local-player-only" behavior:
 
 ```typescript
-if (result.triggeredEntity !== engine.PlayerEntity) return
+if (result.trigger?.entity !== engine.PlayerEntity) return
 ```
 
-`engine.PlayerEntity` is the **local** player. **Important**: use `result.triggeredEntity` (top-level field — the entity that entered the volume), NOT `result.trigger?.entity` (nested — the trigger area's own entity). Comparing `result.trigger.entity` to `engine.PlayerEntity` is always true and the guard never fires.
+`engine.PlayerEntity` is the **local** player. **Important — the field naming is counterintuitive**: use `result.trigger?.entity` (nested field — the entity that entered the volume), NOT `result.triggeredEntity` (top-level — despite its name, this is the trigger area's own entity). Comparing `result.triggeredEntity` to `engine.PlayerEntity` is always true and the guard never fires.
 
 **Other gotchas when porting:**
 

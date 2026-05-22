@@ -355,20 +355,20 @@ console.log("World ray direction:", pointerInfo.worldRayDirection);
 
 ## Trigger Area Callback Fields
 
-The trigger area event callback receives a `DeepReadonlyObject<PBTriggerAreaResult>`:
+The trigger area event callback receives a `DeepReadonlyObject<PBTriggerAreaResult>`. The naming is counterintuitive — `triggeredEntity` sounds like "the entity that did the triggering" but actually refers to the trigger area itself ("the entity whose trigger area was activated"). Use the table below to keep them straight.
 
-**Top-level — the entity that entered/exited the volume:**
-- `triggeredEntity` — Entity that activated the area (compare against `engine.PlayerEntity` to filter to local player)
-- `triggeredEntityPosition` — World position of the entity that triggered
-- `triggeredEntityRotation` — World rotation of the entity that triggered
+**Top-level — the trigger area itself (the entity whose volume was activated):**
+- `triggeredEntity` — The trigger area's own entity. Comparing this to `engine.PlayerEntity` is always true and the guard never fires — do NOT use this for the local-player check.
+- `triggeredEntityPosition` — World position of the trigger area entity
+- `triggeredEntityRotation` — World rotation of the trigger area entity
 - `eventType` — `TAET_ENTER` (0), `TAET_STAY` (1), or `TAET_EXIT` (2)
 - `timestamp` — Tick timestamp
 
-**Nested `trigger: { ... }` — the trigger area itself:**
-- `trigger.entity` — The trigger area's entity (NOT the player — comparing this to `engine.PlayerEntity` is always false)
+**Nested `trigger: { ... }` — the entity that entered/exited the volume:**
+- `trigger.entity` — The entity that entered the area (compare against `engine.PlayerEntity` to filter to local player)
 - `trigger.layers` — The collider layers the area listens for
-- `trigger.position` — World position of the trigger area
-- `trigger.rotation` — World rotation of the trigger area
-- `trigger.scale` — World scale of the trigger area
+- `trigger.position` — World position of the entity that entered
+- `trigger.rotation` — World rotation of the entity that entered
+- `trigger.scale` — World scale of the entity that entered
 
-> **Common mistake:** Filtering with `result.trigger.entity !== engine.PlayerEntity` is always true (different entities) and the guard never fires. Use `result.triggeredEntity !== engine.PlayerEntity` to detect the local player.
+> **Common mistake:** Filtering with `result.triggeredEntity !== engine.PlayerEntity` is always true (the trigger area entity is never the player entity) and the guard never fires. Use `result.trigger?.entity !== engine.PlayerEntity` to detect the local player.

@@ -150,7 +150,7 @@ Transform.create(zone, {
 TriggerArea.setBox(zone, ColliderLayer.CL_PLAYER)
 
 triggerAreaEventsSystem.onTriggerEnter(zone, (result) => {
-  if (result.triggeredEntity !== engine.PlayerEntity) return // local player only
+  if (result.trigger?.entity !== engine.PlayerEntity) return // local player only
   console.log('player entered')
 })
 triggerAreaEventsSystem.onTriggerExit(zone, () => {
@@ -169,9 +169,9 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 - Detach with `removeOnTriggerEnter/Stay/Exit(entity)`
 
 **Callback shape — common gotcha:**
-The callback receives a `PBTriggerAreaResult`. `result.triggeredEntity` is the entity that entered (compare with `engine.PlayerEntity` to filter to the local player). `result.trigger.entity` is the trigger area itself — comparing it to the player is always false. See `{baseDir}/references/input-reference.md#trigger-area-callback-fields`.
+The callback receives a `PBTriggerAreaResult`. `result.trigger?.entity` is the entity that entered (compare with `engine.PlayerEntity` to filter to the local player). `result.triggeredEntity` is the trigger area itself — comparing it to the player is always true and the guard never fires. The naming is genuinely counterintuitive — `triggeredEntity` sounds like "the entity that did the triggering" but actually means "the entity whose trigger area was activated". See `{baseDir}/references/input-reference.md#trigger-area-callback-fields`.
 
-**Multiplayer note:** With `CL_PLAYER`, the trigger fires for every player that enters — remote players included. Always guard physics/UI side-effects with `if (result.triggeredEntity !== engine.PlayerEntity) return`.
+**Multiplayer note:** With `CL_PLAYER`, the trigger fires for every player that enters — remote players included. Always guard physics/UI side-effects with `if (result.trigger?.entity !== engine.PlayerEntity) return`.
 
 **Underlying components:** `TriggerArea` (config) and `TriggerAreaResult` (CRDT result). You normally don't read `TriggerAreaResult` directly — use the events system.
 

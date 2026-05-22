@@ -84,7 +84,7 @@ Convert local direction to world space with `Transform.localToWorldDirection(ent
 - Use `applyImpulseToPlayer` for one-off events (jump pads, explosions, hits)
 - Use `applyForceToPlayer` + `removeForceFromPlayer` with trigger zones for areas (wind tunnels, conveyor belts)
 - Use `KnockbackFalloff.LINEAR` for most area effects — it feels natural and predictable
-- Always check `result.triggeredEntity !== engine.PlayerEntity` in trigger callbacks to only affect the local player (the trigger fires for any player that enters when the mask includes `CL_PLAYER` — without this guard, a remote player walking into the volume would cause the local client to apply physics to itself)
+- Always check `result.trigger?.entity !== engine.PlayerEntity` in trigger callbacks to only affect the local player (the trigger fires for any player that enters when the mask includes `CL_PLAYER` — without this guard, a remote player walking into the volume would cause the local client to apply physics to itself). Note: `result.triggeredEntity` is the trigger area's own entity, NOT the entity that entered — comparing it to `PlayerEntity` is always true and the guard never fires.
 - A negative knockback magnitude creates a pull/gravity well effect
 - Multiple forces from different entities stack independently
 
