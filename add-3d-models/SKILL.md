@@ -51,6 +51,18 @@ If `assets/scene/main.composite` already contains `inspector::Nodes` (the user h
 
 See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact arrays to append to. Don't skip this when adding 3D models to an existing scene.
 
+## RULE: Parenting a model to the player — pick by item type
+
+When a `GltfContainer` entity needs to follow the player (held weapon, aiming reticle, cosmetic backpack, halo, torch), there are three SDK7 mechanisms and they are NOT interchangeable. **Default for aim-sensitive items: parent to `engine.CameraEntity`** — this is the most common porting mistake when coming from SDK6.
+
+- **Aim-sensitive held item** (gun, aiming reticle, flashlight — anything the player should be able to point by looking around) → `Transform.create(entity, { parent: engine.CameraEntity, position: ..., ... })`. Follows camera yaw **+ pitch**, so the item points where the player is looking. This is the SDK7 analogue of SDK6's `Attachable.FIRST_PERSON_CAMERA`. **Recommended default for held gameplay items.**
+- **Yaw-only / body-fixed item** (held shield not used for aim, static carried torch, non-aimed inventory item) → `Transform.create(entity, { parent: engine.PlayerEntity, position: ..., ... })`. Follows feet + body yaw only — no pitch, no animation. Wrong default for guns: a weapon parented to `PlayerEntity` stays flat when the player looks up to aim.
+- **Cosmetic item** (hat, halo, backpack, name plate, decorative torch visible to other players) → `AvatarAttach.create(entity, { anchorPointId: AAPT_HEAD | AAPT_SPINE | AAPT_LEFT_HAND | ... })`. Follows the animated bone — the item visually moves with idle bob, walk cycle, and gestures. **Not for aim** (animation jitter makes aim-sensitive items unusable).
+
+Using a bone anchor like `AAPT_RIGHT_HAND` for a gun **looks** correct ("put the gun in the hand") but the hand bone is animated — the gun jitters every frame and is unaimable. This is a porting trap when coming from SDK6's `Attachable.FIRST_PERSON_CAMERA` pattern; the correct SDK7 mapping is `engine.CameraEntity`, NOT `AvatarAttach` and NOT `engine.PlayerEntity` (which loses pitch).
+
+See [[player-avatar]] (Held items vs cosmetic items) for the full comparison and a worked gun example. For SDK6 porting context, see [[migrate-sdk6-to-sdk7]].
+
 ## RULE: Always check for animations
 
 Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has animations**, always add an `Animator` component. Without it the engine silently loops the first clip forever. **If no animations**, omit `Animator`.
