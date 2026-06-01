@@ -39,13 +39,10 @@ addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): voi
 Canonical snippet (use this verbatim unless the user specifies otherwise):
 
 ```tsx
-import { ReactEcsRenderer } from "@dcl/sdk/react-ecs";
+import { ReactEcsRenderer } from '@dcl/sdk/react-ecs'
 
 export function setupUi() {
-  ReactEcsRenderer.setUiRenderer(MyUI, {
-    virtualWidth: 1920,
-    virtualHeight: 1080,
-  });
+  ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })
 }
 ```
 
@@ -95,11 +92,11 @@ Install with `npm install dcl-ui-toolkit`. Register with `ReactEcsRenderer.setUi
 
 | Problem                                                        | Cause                                                                                                                | Solution                                                                                                                                     |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI not rendering / invisible / nothing on screen (most common) | `setupUi()` is not called from `main()` in `src/index.ts` — the SDK template ships with `// setupUi()` commented out | Uncomment / add the `setupUi()` call inside `main()`. Always check this first.                                                               |
+| UI not rendering / invisible / nothing on screen (most common) | `setupUi()` is not called from `main()` in `src/index.ts` — users sometimes remove or comment out this call | Add the `setupUi()` call inside `main()`. Always check this first.                                                                           |
 | UI not rendering even though `setupUi()` is called             | `ReactEcsRenderer.setUiRenderer(...)` missing from `setupUi()` itself                                                | Add `ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })`                                                      |
 | UI blank on first frames, sometimes appears later              | Root component returns `null` (or falsy) on first render with no fallback                                            | Render a placeholder or hidden root instead of returning `null`                                                                              |
 | Multiple UIs fighting                                          | More than one `setUiRenderer` call                                                                                   | Only call `setUiRenderer` once — combine all UI into a single root component, or use `addUiRenderer` with separate owner entities            |
-| Absolute-positioned children laid out unexpectedly             | Root `<UiEntity>` has no `width`/`height` (convention is `'100%'`/`'100%'`)                                          | Add `uiTransform={{ width: '100%', height: '100%' }}` to the root. Convention, not a proven requirement — see "Convention" section near top. |
+| Absolute-positioned children laid out unexpectedly             | Root `<UiEntity>` has no `width`/`height` — without a full-canvas root, some absolute-positioned children may not render | Add `uiTransform={{ width: '100%', height: '100%' }}` to the root — see "Convention" section below for empirical evidence.                   |
 | UI elements overlapping                                        | Missing `flexDirection` or wrong layout                                                                              | Set `flexDirection: 'column'` on the parent container                                                                                        |
 | Button clicks not registering                                  | Missing `onMouseDown` handler                                                                                        | Add `onMouseDown={() => { ... }}` to the Button or UiEntity                                                                                  |
 | JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
@@ -109,7 +106,7 @@ Install with `npm install dcl-ui-toolkit`. Register with `ReactEcsRenderer.setUi
 
 When a user reports the UI is not rendering, work through this list before any speculation about layout or sizing:
 
-1. **`setupUi()` is not called from `main()` in `src/index.ts`.** This is the most common cause by a wide margin. The SDK template ships with `// setupUi()` commented out — if nothing else changed, this is almost always the bug. Open `src/index.ts` and confirm `setupUi()` (or whatever name the project uses) is uncommented and called inside `main()`.
+1. **`setupUi()` is not called from `main()` in `src/index.ts`.** This is the most common cause by a wide margin. Users sometimes remove or comment out this call during development. Open `src/index.ts` and confirm `setupUi()` (or whatever name the project uses) is present and called inside `main()`.
 2. **`ReactEcsRenderer.setUiRenderer(...)` is missing from `setupUi()` itself.** Open the UI module and confirm the renderer is registered.
 3. **The renderer function returns `null` (or a falsy value) on first render with no fallback.** A guard like `if (!data) return null` at the top of the root component will produce a blank screen until `data` is populated. Render a placeholder or a hidden root instead so the renderer has something to mount.
 4. **`tsconfig.json` JSX settings are missing or wrong.** The SDK template ships with the right settings — a common mistake is editing them. If JSX errors appear at compile time, the file extension may be `.ts` instead of `.tsx`.
@@ -117,12 +114,13 @@ When a user reports the UI is not rendering, work through this list before any s
 
 Only after the above are confirmed should layout-level causes (sizing, `display: 'none'`, off-screen positioning, color-on-color) be considered.
 
-## Convention: root `<UiEntity>` should set `width: '100%', height: '100%'`
+## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`
 
-Every working scene surveyed in the Decentraland scene library sets `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer`. Treat this as the default.
+Every working scene surveyed in the Decentraland scene library sets `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer`. Always do this.
 
-Rationale (convention-level, **mechanism not empirically verified**):
+Rationale (**empirically verified** — tested in-engine June 2026):
 
+- Without a full-canvas root, absolute-positioned children using `position: { top, right }` may fail to render entirely. In testing, a root with no explicit `width`/`height` caused a `top-right` positioned child to disappear while a `bottom-left` child rendered correctly. Adding `width: '100%', height: '100%'` to the root fixed the issue.
 - A full-canvas root gives absolute-positioned children (`positionType: 'absolute'` with `position: { top, left, ... }`) a known, full-screen positioning context. This matches the implicit assumption most HUD code makes.
 - It avoids edge-case layout surprises with Yoga's default sizing for unspecified `width`/`height`.
 

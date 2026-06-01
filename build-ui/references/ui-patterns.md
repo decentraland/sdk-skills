@@ -2,7 +2,7 @@
 
 ## Conventions for every example below
 
-- **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is a safe-default convention used by every shipped scene; it gives absolute-positioned children a full-canvas positioning context. It is not proven to be required — see the "Convention: root `<UiEntity>` should set..." section in `build-ui/SKILL.md`.
+- **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is required for reliable absolute positioning — without it, some children (e.g. `position: { top, right }`) may not render. See the "Convention" section in `build-ui/SKILL.md` for details.
 - All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default.
 
 ## Setup
@@ -12,7 +12,7 @@
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 
 const MyUI = () => (
-  // Convention: root sets width/height to fill the canvas (every shipped scene does this).
+  // Required: root must fill the canvas for absolute positioning to work reliably.
   <UiEntity
     uiTransform={{
       width: '100%',
