@@ -79,6 +79,63 @@ The "you have to pre-register" issue only bites the **author-in-code + `playSing
 
 Related: if a `GltfContainer` model spawns playing the _wrong_ clip (e.g. a death pose on what should be an idling NPC), the entity has no `Animator` and the renderer picked a clip you didn't intend. Add an `Animator.create` with the desired default clip set to `playing: true` to take control.
 
+### BEST PRACTICE: Short-circuit clip-switch helpers called from per-frame callers
+
+**Scope:** this applies when you write your own clip-switch helper that mutates `Animator.states` directly (`s.playing`, `s.loop`, `s.shouldReset`) and that helper is invoked from a per-frame caller (an `engine.addSystem` update, an `inputSystem`/raycast callback that fires every tick, or any code path that runs each frame). The most common reason to write such a helper is porting an SDK6 scene that used lazy clip registration or `noLoop + revertToIdle` semantics ([[migrate-sdk6-to-sdk7]]).
+
+**Why it matters.** A naive helper looks like this:
+
+```ts
+function playClip(entity: Entity, name: string, loop: boolean) {
+  const a = Animator.getMutableOrNull(entity);
+  if (!a) return;
+  for (const s of a.states) {
+    if (s.clip === name) {
+      s.playing = true;
+      s.loop = loop;
+      s.shouldReset = true; // <-- rewritten every tick if helper is called per-frame
+    } else {
+      s.playing = false;
+    }
+  }
+}
+```
+
+Called every frame, this calls `Animator.getMutableOrNull()` each tick, which marks the entity dirty in the CRDT layer. The ECS then serializes the component to bytes and compares against the last-sent snapshot (`lww-element-set-component-definition.ts`). Since the values are identical frame-to-frame, the CRDT suppression layer silently drops the update — the animation will NOT freeze. However, the per-frame serialization and byte comparison is unnecessary overhead that should be avoided.
+
+**Note on `Animator.playSingleAnimation`.** Verified against `@dcl/ecs/src/components/extended/Animator.ts`: `playSingleAnimation` is NOT idempotent — it writes `playing=false, shouldReset=true` on every state in a loop, then `playing=true, shouldReset=<arg>` on the target. Calling it per-frame triggers the same unnecessary serialization overhead. Prefer to call `playSingleAnimation` from one-shot transitions (`onPointerDown`, state-machine edges) rather than from a system tick.
+
+**Fix — track the last-applied clip and short-circuit:**
+
+```ts
+type Anim = { entity: Entity; lastClip?: string };
+
+function playClip(a: Anim, name: string, loop: boolean) {
+  if (a.lastClip === name) return; // already applied — skip redundant serialization
+  const an = Animator.getMutableOrNull(a.entity);
+  if (!an) return;
+  for (const s of an.states) {
+    if (s.clip === name) {
+      s.playing = true;
+      s.loop = loop;
+      s.shouldReset = true;
+    } else {
+      s.playing = false;
+    }
+  }
+  a.lastClip = name;
+}
+```
+
+The short-circuit avoids calling `getMutableOrNull()` on unchanged frames, eliminating the per-frame serialization overhead. The CRDT delta is only sent on actual clip transitions.
+
+**SDK6-port subtlety — `noLoop + revertToIdle`.** An SDK6-style helper that takes `(clipName, noLoop, durationSec)` and schedules a `setTimeout` to revert to an idle clip must:
+
+- On a same-clip re-call (e.g. the player holds the beam and "Hit" keeps being requested every frame), **only refresh the timer** (clear + reschedule) so the clip keeps replaying for as long as input is held. Do not re-mutate `Animator.states`.
+- When the revert-to-idle timer fires, **clear `lastClip` before re-calling the helper with the idle clip** — otherwise the short-circuit prevents the idle from being applied if `lastClip` already equals the idle name from a prior tick.
+
+**When to prefer `Animator.playSingleAnimation`.** It's the canonical write: pauses all other states in one pass and accepts a `resetCursor` argument (defaults to `true`). It's not idempotent — but it's the right call site when the trigger is a one-shot event. The custom-helper pattern only exists when porting SDK6 code that needs lazy clip registration (see the previous PITFALL) or `noLoop + revertToIdle` semantics.
+
 ## Tweens (Code-Based Animation)
 
 Animate entity properties smoothly over time. Create with `Tween.create(entity, { mode: Tween.Mode.Move/Rotate/Scale({start, end}), duration, easingFunction })`. Duration is in **milliseconds**. An entity can only have one Tween component at a time.
@@ -125,6 +182,7 @@ For complex animations, create a system with `engine.addSystem((dt) => { ... })`
 | GLTF animation not playing                          | Wrong clip name                                                                                                                                                          | Check exact clip names (case-sensitive) in a viewer                                                                                                                                                                |
 | `playSingleAnimation` does nothing, returns `false` | Clip name not in `Animator.states` for an Animator you built in code                                                                                                     | Add the clip to `states[]` at `Animator.create` time, or use the lazy-add wrapper above. Only applies when you authored the Animator programmatically — Inspector / asset-pack Animators are already pre-populated |
 | Model autoplays an unexpected animation on spawn    | No `Animator` component — `GltfContainer` autoplays one clip from the .glb (the same mechanism that lets clip-less Inspector scenes animate without manual registration) | Add `Animator.create` with the intended default clip set to `playing: true` to take control                                                                                                                        |
+| Unnecessary per-frame serialization overhead        | Clip-switch helper calls `getMutableOrNull` every tick with identical values (custom helper or `playSingleAnimation` called from a system / per-frame input callback)     | Track the last-applied clip and short-circuit when unchanged, or only call the helper on state transitions — see "Short-circuit clip-switch helpers" best practice above                                           |
 | Animator has no effect                              | Missing `GltfContainer`                                                                                                                                                  | `Animator` only works on entities with a loaded GLTF model                                                                                                                                                         |
 | Tween doesn't move                                  | Same start and end                                                                                                                                                       | Verify values differ in `Tween.Mode.Move()`                                                                                                                                                                        |
 | Tween plays once then stops                         | No loop                                                                                                                                                                  | Add `TweenSequence` with `loop: TweenLoop.TL_YOYO`                                                                                                                                                                 |
