@@ -245,6 +245,104 @@ engine.addSystem(() => {
 })
 ```
 
+### Server Liveness Heartbeat
+
+`isStateSyncronized()` only confirms the CRDT room is connected — the room can be replaying a stale snapshot while the auth server is still cold-booting (or hasn't booted at all because this client is the first to arrive). Detect actual server liveness with a heartbeat the server pulses into a synced component, and on the client track the **time *you* observed the value change**, not the value itself. That sidesteps clock skew and prevents a stale snapshot from a previous server run from reading as alive.
+
+```typescript
+// shared/schemas.ts — add a heartbeat field to a state component
+export const MatchState = engine.defineComponent('myscene::MatchState', {
+  // ...other fields...
+  serverHeartbeatAt: Schemas.Int64  // Int64 — Date.now() is 13 digits
+})
+```
+
+```typescript
+// server/matchLoop.ts — pulse the heartbeat from a system
+import { isServer } from '@dcl/sdk/network'
+
+const HEARTBEAT_MS = 2000
+let lastHeartbeatAt = 0
+let stateEntity: Entity | null = null
+
+export function initMatchState(): void {
+  stateEntity = engine.addEntity()
+  // Publish a heartbeat immediately so the first client connecting after a
+  // cold start can detect liveness without waiting a full interval.
+  MatchState.create(stateEntity, { /* ...fields..., */ serverHeartbeatAt: Date.now() })
+  syncEntity(stateEntity, [MatchState.componentId])
+}
+
+export function matchLoopSystem(): void {
+  if (!isServer() || stateEntity === null) return
+  const now = Date.now()
+  if (now - lastHeartbeatAt < HEARTBEAT_MS) return
+  lastHeartbeatAt = now
+  MatchState.getMutable(stateEntity).serverHeartbeatAt = now
+}
+```
+
+```typescript
+// client/serverReadiness.ts — probe liveness from the client
+import { engine } from '@dcl/sdk/ecs'
+import { isStateSyncronized } from '@dcl/sdk/network'
+import { MatchState } from '../shared/schemas'
+
+const HEARTBEAT_FRESHNESS_MS = 6000  // ~3× the server interval
+
+let lastSeenValue = 0
+let lastSeenAtClient = 0
+
+export function isServerAlive(): boolean {
+  if (!isStateSyncronized()) return false
+  for (const [, data] of engine.getEntitiesWith(MatchState)) {
+    if (data.serverHeartbeatAt !== lastSeenValue) {
+      lastSeenValue = data.serverHeartbeatAt
+      lastSeenAtClient = Date.now()
+    }
+    break
+  }
+  if (lastSeenAtClient === 0) return false  // never observed a tick yet
+  return Date.now() - lastSeenAtClient < HEARTBEAT_FRESHNESS_MS
+}
+```
+
+### Handling the Two Failure Modes at the UI Layer
+
+Room-not-synced and server-not-alive look similar but need different UX:
+
+- **Room not synced** (~1 s during scene load, always resolves) — buffer the action and fire it from a retry system.
+- **Server not alive** (up to ~15 s on cold start, may not resolve at all if the player abandons) — surface a popup; silent buffering feels like a broken click. Auto-clear the popup when a heartbeat finally lands.
+
+```typescript
+// client/joinAction.ts
+import { isServerAlive } from './serverReadiness'
+
+let pendingAction: 'join' | 'leave' | null = null
+let serverNotReadyWarning = false
+
+export function isServerNotReadyWarningVisible() { return serverNotReadyWarning }
+export function dismissServerNotReadyWarning() { serverNotReadyWarning = false }
+
+export function sendJoin(): void {
+  if (!isServerAlive()) {
+    serverNotReadyWarning = true   // tell the player; don't buffer silently
+    return
+  }
+  pendingAction = 'join'  // retry system flushes once isStateSyncronized()
+}
+
+function joinActionRetrySystem(): void {
+  // Auto-clear the popup the moment the server comes back online so a
+  // player who waited isn't left staring at a stale dialog.
+  if (serverNotReadyWarning && isServerAlive()) serverNotReadyWarning = false
+  if (pendingAction === null || !isStateSyncronized()) return
+  room.send(pendingAction === 'join' ? 'requestJoin' : 'leaveGame', { /* ... */ })
+  pendingAction = null
+}
+engine.addSystem(joinActionRetrySystem)
+```
+
 ## Schema Types Reference
 
 ```typescript
