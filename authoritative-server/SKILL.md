@@ -94,7 +94,13 @@ Every component change sends the **entire** component data. Prefer atomic compon
 
 ## Server Lifecycle
 
-Server is **only active while at least one player is in the scene**. Code must tolerate cold starts — use retry logic on initial client requests and rely on `Storage` to restore state.
+The server is **only active while at least one player is in the scene**. After the last player leaves it stays up for roughly two minutes, then shuts down. The next visit cold-starts a fresh instance, which takes **~15 seconds in production**. Local preview launches the server instantly — which is exactly why server-readiness bugs almost always escape into production unnoticed. Always test the "no players have been here for a while" path against a real deploy.
+
+**`isStateSyncronized()` is not a server-readiness check.** It only confirms the CRDT room transport is connected. The room's CRDT snapshot can hold state persisted from a *previous* server run, so a fresh client may see "valid" state while the server is still booting — or while it never wakes up at all because this client is the only one and the platform hasn't started one yet. Messages sent in that window are silently lost and the scene wedges waiting for a server response that will never come.
+
+The reliable pattern is a **server heartbeat**: the server writes `Date.now()` to a synced component field every ~2 s; the client tracks the **client-side time at which it observed the value last change** (not the server's timestamp) and treats the server as alive only if a tick has been observed within ~3× the interval. Tracking client-observed time, not the heartbeat value, means a stale snapshot from a long-gone server run does not read as live, and clock skew between server and client is irrelevant. Publish the first heartbeat *inside* the server's state-init function so the first client to connect doesn't have to wait a full interval.
+
+Distinguish two failure modes at the UI layer — they look similar but behave very differently. Room-not-synced is transient (~1 s during scene load): buffer the action and auto-fire it from a retry system. Server-not-alive can last 15 s or more on a cold start and may never resolve: surface a "server waking up" popup rather than silently buffering, and auto-dismiss it the moment a heartbeat lands so a player who waited isn't left staring at a stale dialog. See `{baseDir}/references/auth-server-examples.md` → Server Liveness Heartbeat for a full implementation.
 
 ## Version Control of Deploys
 
