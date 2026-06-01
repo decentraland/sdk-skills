@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (global setTimeout/clearTimeout/setInterval/clearInterval — JS-standard, no import needed), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assertComponentValue, assertEntitiesCount). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assertComponentValue, assertEntitiesCount). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -160,29 +160,32 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
 
 ## Timers
 
-The SDK7 QuickJS runtime exposes the JavaScript-standard `setTimeout`, `clearTimeout`, `setInterval`, and `clearInterval` as **globals** — no import is needed. They are declared in `@dcl/js-runtime/index.d.ts`:
-
-```ts
-declare function setTimeout(callback: () => void, ms: number): number;
-declare function clearTimeout(timerId: number): void;
-declare function setInterval(callback: () => void, ms: number): number;
-declare function clearInterval(timerId: number): void;
-```
+**Always use the engine-bound `timers` object from `@dcl/sdk/ecs`.** Do NOT use the native JS `setTimeout` / `setInterval` globals. Although the QuickJS runtime exposes JS-standard `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` as globals (declared in `@dcl/js-runtime/index.d.ts`), calling them in a Decentraland scene may appear to work but can introduce subtle problems — they are not bound to the scene's engine. Use `timers.setTimeout` instead.
 
 ```typescript
-// No import needed — these are globals in the scene runtime
-const timeoutId = setTimeout(() => console.log("delayed"), 2000);
-clearTimeout(timeoutId);
+import { timers } from "@dcl/sdk/ecs";
 
-const intervalId = setInterval(() => console.log("tick"), 1000);
-clearInterval(intervalId);
+const timeoutId = timers.setTimeout(() => console.log("delayed"), 2000);
+timers.clearTimeout(timeoutId);
+
+const intervalId = timers.setInterval(() => console.log("tick"), 1000);
+timers.clearInterval(intervalId);
 ```
 
-**Argument order is the JS standard `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+The signatures match the JS-standard timers:
 
-**Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The runtime already ships these. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
+```ts
+timers.setTimeout(callback: () => void, ms: number): number
+timers.clearTimeout(timerId: number): void
+timers.setInterval(callback: () => void, ms: number): number
+timers.clearInterval(timerId: number): void
+```
 
-There is also an engine-bound named export `timers` from `@dcl/sdk/ecs` with the same four methods (`import { timers } from '@dcl/sdk/ecs'`). It is bound to the default engine and is functionally equivalent to the globals — prefer the globals for brevity. For a custom engine instance, use `createTimers(engineInstance)` from `@dcl/sdk/ecs` to get a `Timers` object scoped to that engine.
+**Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+
+**Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The SDK already ships `timers`. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
+
+For a custom engine instance, use `createTimers(engineInstance)` from `@dcl/sdk/ecs` to get a `Timers` object scoped to that engine.
 
 **System-based timers** (recommended for game logic — synchronized with the frame loop):
 

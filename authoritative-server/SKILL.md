@@ -113,13 +113,13 @@ Client and server always move together (paired by hash). Existing players keep t
 - **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
 - **Storage inspection**: Check local JSON file or [decentraland.org/storage](https://decentraland.org/storage)
-- **Timers**: `setTimeout`/`setInterval` available via polyfill. Prefer `engine.addSystem()` with dt accumulator
+- **Timers**: use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` — never the native JS globals. Prefer `engine.addSystem()` with dt accumulator for game logic
 - **Entity sync**: Verify `syncEntity(entity, [componentIds])` with correct `.componentId` values
 
 ## Important Notes
 
 - **SDK branch (MANDATORY)**: Requires `@dcl/sdk@auth-server`, not standard `@dcl/sdk`
-- **No Node.js APIs**: QuickJS sandbox — no `fs`, `http`, etc. `setTimeout`/`setInterval` supported
+- **No Node.js APIs**: QuickJS sandbox — no `fs`, `http`, etc. For delays, use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` (not the native JS globals)
 - **Single codebase**: Both server and client run the same entry point, branched with `isServer()`
 - **Server sleeps when empty**: Code defensively with retry logic and `Storage` for persistence
 - For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill
