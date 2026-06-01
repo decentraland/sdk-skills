@@ -506,13 +506,15 @@ See [[audio-video]].
 
 SDK6 scenes commonly used `Delay` / `ExpireIn` / `Interval` from the community `decentraland-ecs-utils` library (later renamed `@dcl-sdk/utils`) for one-shot delays and repeating callbacks. Many scenes also created a dedicated "timer entity" just to host the `Delay` component.
 
-**SDK7 has these built in as globals.** The QuickJS scene runtime declares JS-standard `setTimeout`, `clearTimeout`, `setInterval`, `clearInterval` in `@dcl/js-runtime/index.d.ts` — no import needed:
+**SDK7 ships an engine-bound `timers` object on `@dcl/sdk/ecs`.** Use it for all delays and intervals in a Decentraland scene:
 
 ```ts
-declare function setTimeout(callback: () => void, ms: number): number
-declare function clearTimeout(timerId: number): void
-declare function setInterval(callback: () => void, ms: number): number
-declare function clearInterval(timerId: number): void
+import { timers } from '@dcl/sdk/ecs'
+
+timers.setTimeout(callback: () => void, ms: number): number
+timers.clearTimeout(timerId: number): void
+timers.setInterval(callback: () => void, ms: number): number
+timers.clearInterval(timerId: number): void
 ```
 
 ```typescript
@@ -525,25 +527,27 @@ timerEntity.addComponent(new utils.Delay(2000, () => {
   // fires once, 2 seconds later
 }))
 
-// SDK7 — no import, no entity needed
-const id = setTimeout(() => {
+// SDK7 — no entity needed
+import { timers } from '@dcl/sdk/ecs'
+
+const id = timers.setTimeout(() => {
   // fires once, 2 seconds later
 }, 2000)
-// clearTimeout(id) to cancel
+// timers.clearTimeout(id) to cancel
 ```
 
-| SDK6 (community Utils library)                                  | SDK7 (global, JS-standard)                                                              |
+| SDK6 (community Utils library)                                  | SDK7 (`timers` from `@dcl/sdk/ecs`)                                                     |
 |-----------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| `import * as utils from '@dcl/ecs-scene-utils'` (or `decentraland-ecs-utils` / `@dcl-sdk/utils`) | (no import — `setTimeout` / `setInterval` are globals)                |
-| `entity.addComponent(new utils.Delay(ms, cb))`                  | `setTimeout(cb, ms)` — **note argument order flip**: `(callback, ms)`, NOT `(ms, callback)` |
-| `entity.addComponent(new utils.ExpireIn(ms))` (removes entity)  | `setTimeout(() => engine.removeEntity(entity), ms)`                                     |
-| `entity.addComponent(new utils.Interval(ms, cb))`               | `setInterval(cb, ms)` — same `(callback, ms)` order                                     |
-| "Timer entity" created just to host a `Delay` component         | Delete the entity entirely — `setTimeout` doesn't need an entity                        |
-| Custom per-frame `timerSystem` that accumulates `dt` to fire delayed callbacks | Delete the system — use `setTimeout` / `setInterval` directly                  |
+| `import * as utils from '@dcl/ecs-scene-utils'` (or `decentraland-ecs-utils` / `@dcl-sdk/utils`) | `import { timers } from '@dcl/sdk/ecs'`                              |
+| `entity.addComponent(new utils.Delay(ms, cb))`                  | `timers.setTimeout(cb, ms)` — **note argument order flip**: `(callback, ms)`, NOT `(ms, callback)` |
+| `entity.addComponent(new utils.ExpireIn(ms))` (removes entity)  | `timers.setTimeout(() => engine.removeEntity(entity), ms)`                              |
+| `entity.addComponent(new utils.Interval(ms, cb))`               | `timers.setInterval(cb, ms)` — same `(callback, ms)` order                              |
+| "Timer entity" created just to host a `Delay` component         | Delete the entity entirely — `timers.setTimeout` doesn't need an entity                 |
+| Custom per-frame `timerSystem` that accumulates `dt` to fire delayed callbacks | Delete the system — use `timers.setTimeout` / `timers.setInterval` directly      |
 
-**Critical migration rule — argument order**: SDK6 `Delay(ms, cb)` puts the duration first; JS-standard `setTimeout(cb, ms)` puts the callback first. Do NOT write a custom `setSceneTimeout(ms, cb)` helper that preserves the SDK6 order — it's a known footgun. Use the global directly with the JS order.
+**Critical migration rule — argument order**: SDK6 `Delay(ms, cb)` puts the duration first; JS-standard `timers.setTimeout(cb, ms)` puts the callback first. Do NOT write a custom `setSceneTimeout(ms, cb)` helper that preserves the SDK6 order — it's a known footgun.
 
-**Alternative: `timers` named export.** `@dcl/sdk/ecs` also exports a `timers` object with `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` methods bound to the default engine — functionally equivalent to the globals. Prefer the globals for brevity. For a custom engine instance, use `createTimers(engineInstance)` to get an engine-scoped `Timers` object.
+**Do NOT use the native JS `setTimeout` / `setInterval` globals.** The QuickJS runtime exposes them (declared as globals in `@dcl/js-runtime/index.d.ts`), and they may appear to work, but they are not bound to the scene engine and can introduce subtle problems. Always go through the `timers` named export. For a custom engine instance, use `createTimers(engineInstance)` to get an engine-scoped `Timers` object.
 
 See [[scene-runtime]] (Timers section) for the full reference.
 

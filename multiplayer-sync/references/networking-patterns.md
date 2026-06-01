@@ -32,6 +32,8 @@ executeTask(async () => {
 ### Reconnection with Exponential Backoff
 
 ```typescript
+import { executeTask, timers } from '@dcl/sdk/ecs'
+
 executeTask(async () => {
 	let ws: WebSocket | null = null
 	let reconnectAttempts = 0
@@ -48,7 +50,7 @@ executeTask(async () => {
 		ws.onclose = () => {
 			if (reconnectAttempts < maxReconnectAttempts) {
 				reconnectAttempts++
-				setTimeout(connect, 1000 * reconnectAttempts) // exponential backoff
+				timers.setTimeout(connect, 1000 * reconnectAttempts) // exponential backoff
 			}
 		}
 
@@ -66,12 +68,14 @@ executeTask(async () => {
 Send periodic pings to keep the connection alive:
 
 ```typescript
+import { timers } from '@dcl/sdk/ecs'
+
 ws.onopen = () => {
-	const heartbeat = setInterval(() => {
+	const heartbeat = timers.setInterval(() => {
 		if (ws?.readyState === WebSocket.OPEN) {
 			ws.send(JSON.stringify({ type: 'ping' }))
 		} else {
-			clearInterval(heartbeat)
+			timers.clearInterval(heartbeat)
 		}
 	}, 30000) // every 30 seconds
 }
