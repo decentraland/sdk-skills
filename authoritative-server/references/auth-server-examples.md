@@ -349,7 +349,7 @@ engine.addSystem(joinActionRetrySystem)
 Schemas.String          // "hello"
 Schemas.Int             // 42
 Schemas.Float           // 3.14
-Schemas.Bool            // true / false
+Schemas.Boolean         // true / false  (NOT Schemas.Bool)
 Schemas.Int64           // Date.now() / 13+ digit numbers
 Schemas.Vector3
 Schemas.Quaternion
