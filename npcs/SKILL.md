@@ -57,6 +57,28 @@ For full dialogue scripting, movement paths, state machines, and all config opti
 - Opening dialogs on an entity not created via `createNPC` requires `addDialog(entity)` and a minimal `npcDataComponent.set(entity, ...)` — see reference for the full setup.
 - Speech bubbles need `createDialogBubble(entity)` before `talkBubble`. Bubbles do not render question buttons; questions are HUD-only.
 
+- **`createDialogWindow()` crashes the dialog UI unless you also set `npcDataComponent`.** Symptom: `"Cannot read properties of undefined (reading 'theme')"` when the window opens. Why (verified against `dcl-npc-toolkit/dist`): `createDialogWindow(portrait, sound)` only calls `addDialog(...)` (sets `npcDialogComponent`); it does NOT set `npcDataComponent`. `openDialogWindow` then sets `activeNPC`, the `npcDialogComponent` guard (`isActiveNpcSet()`) passes, and `getTheme()` reaches `npcDataComponent.get(activeNPC).theme` — undefined on a standalone window. NPCs built with `create()`/`createNPC` have `npcDataComponent` set, so they never hit this. **Fix — after `createDialogWindow`, set `npcDataComponent` with a valid theme and the minimal fields:**
+
+  ```typescript
+  import { createDialogWindow } from 'dcl-npc-toolkit'
+  import { npcDataComponent } from 'dcl-npc-toolkit/dist/npc'
+  import { lightTheme } from 'dcl-npc-toolkit/dist/ui'
+
+  const window = createDialogWindow(portrait, sound)
+  npcDataComponent.set(window, {
+    introduced: false, inCooldown: false, coolDownDuration: 5,
+    faceUser: undefined, walkingSpeed: 2, walkingAnim: undefined,
+    pathData: undefined, currentPathData: [], manualStop: false,
+    pathIndex: 0, state: 'standing', idleAnim: 'Idle', hasBubble: false,
+    turnSpeed: 2, theme: lightTheme, bubbleXOffset: 0, bubbleYOffset: 0,
+    lastPlayedAnim: 'Idle', volume: 0.5,
+  })
+  ```
+
+- **`faceUser: true` — do NOT parent a fixed-world object to a `faceUser` NPC.** Why (verified — `dcl-npc-toolkit/dist/faceUserSystem.js`): `faceUser` rewrites the NPC entity's `Transform.rotation` every frame (via `TrackUserFlag` + `faceUserSystem`) to look at the player. Any child placed at a local offset inherits that rotation and **orbits** the NPC as the player moves, landing in unintended places (behind a door, occluded, unclickable). Fix: spawn such objects **unparented at a computed world position** (derive a stable world spot from a non-rotating reference like a door, plus the NPC's position). The same caveat applies to any entity whose Transform you rotate every frame.
+
+- **dcl-npc-toolkit must be statically imported from the entry point.** The toolkit calls `engine.defineComponent(...)` at module-load time. `engine.defineComponent` throws `"Engine is already sealed. No components can be added at this stage"` if it runs after the engine seals (verified — `@dcl/ecs/dist/engine/index.js`). A dynamic `await import('./client-setup')` defers that registration past the seal point. So any module that imports the toolkit must be reached via a **static** `import` from `index.ts` — not loaded later via `await import()`. In an authoritative-server scene, keep the client setup (which imports the toolkit) static and dynamically import only the server-only branch. See [[authoritative-server]].
+
 ---
 
 ## Approach 2 — AvatarShape (Decentraland avatar look)
