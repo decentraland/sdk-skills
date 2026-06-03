@@ -183,6 +183,14 @@ For each `new Entity()` block, replace with `engine.addEntity()` and a series of
 ## Common Pitfalls
 
 - **Mutating a `.get()` result**: `Transform.get(entity).position.x = 5` is silently a no-op. Use `Transform.getMutable(entity).position.x = 5`.
+- **Passing explicit `rotation: undefined` / `scale: undefined` to `Transform.create` crashes the serializer**: symptom is `"Cannot read properties of undefined (reading 'x')"` at serialization. Why (verified — `@dcl/ecs/dist/components/manual/Transform.js`): `Transform.create` runs the value through `TransformSchema.extend`, which spreads `...value` AFTER its defaults, so an explicit `undefined` field overrides the default identity rotation / unit scale and is stored as `undefined`; the binary `serialize` then reads `value.rotation.x` and throws. This bites when a port builds a Transform from a partial object that may carry `undefined` fields (e.g. `Transform.create(e, { position, rotation: maybeRot, scale: maybeScale })`). **Fix — omit the field entirely instead of passing `undefined`** so the schema applies its default:
+  ```typescript
+  const out: Partial<TransformType> = { position }
+  if (rotation) out.rotation = rotation
+  if (scale) out.scale = scale
+  if (parent !== undefined) out.parent = parent
+  Transform.create(entity, out)
+  ```
 - **Forgetting the schema**: `engine.defineComponent` REQUIRES a schema. SDK6 class fields with no type cannot be auto-inferred.
 - **Component methods**: SDK6 components frequently had a `reset()` or constructor logic. These MUST be moved to free functions in SDK7 — components are pure data.
 - **Vector2 fields**: `Schemas` does NOT have `Schemas.Vector2`. [UNVERIFIED — confirm by reading the Schemas object exports.] Flatten to two `Schemas.Number` fields, or use `Schemas.Map({ x: Schemas.Number, y: Schemas.Number })`.

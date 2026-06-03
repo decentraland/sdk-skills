@@ -65,7 +65,66 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Remove with `.removeOnPointerDown(entity)` etc.
 
+### PITFALL: never (re-)register a pointer handler from inside its own callback
+
+Calling `onPointerDown` / `removeOnPointerDown` (or the on/remove variants for Up / Hover) for an entity **from within that entity's own pointer callback** makes the same click fire the handler multiple times (observed: 3 fires from one click, as a state machine re-registered on each fire).
+
+**Why** (verified — `@dcl/ecs/dist/systems/events.js`): the `EventSystem` iterates a per-entity `Map` of handlers each frame. `onPointerDown` does `removeEvent(entity, EventType.Down)` then `getEvent(entity).set(EventType.Down, …)`, which re-inserts the `Down` key into that same `Map`. Re-inserting a key during the `Map`'s own `for…of` iteration causes it to be visited again in the same pass, and `inputSystem.getInputCommand(...)` still returns the same buffered down command → the callback re-fires.
+
+**Fix — to change hover text dynamically, mutate the existing `PointerEvents` component in place instead of re-registering:**
+
+```typescript
+import { PointerEvents } from '@dcl/sdk/ecs'
+
+function setHoverText(entity: Entity, hoverText: string) {
+  const pe = PointerEvents.getMutableOrNull(entity)
+  if (!pe) return
+  for (const entry of pe.pointerEvents) {
+    if (entry.eventInfo) entry.eventInfo.hoverText = hoverText
+  }
+}
+```
+
+Register the handler exactly once (e.g. at entity creation); never re-call it from a click/hover callback or from a per-frame system.
+
 **Important: Colliders Required** — Pointer events only work on entities with a collider using the `ColliderLayer.CL_POINTER` layer. Use `MeshCollider.setBox(entity)` for invisible colliders, or set `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` on `GltfContainer`.
+
+### GltfContainer clickability — which mask to use (and the skinned-mesh exception)
+
+`GltfContainer` defaults (verified — `@dcl/ecs` `gltf_container.gen.d.ts`):
+
+- `visibleMeshesCollisionMask` default: **`0`** (visible meshes are NOT clickable/collidable by default)
+- `invisibleMeshesCollisionMask` default: **`CL_POINTER | CL_PHYSICS`** (the GLB's `*_collider` meshes get both layers)
+
+Pick by how the model is authored:
+
+| Model | To make it clickable |
+|---|---|
+| Has a `_collider` mesh | Already on `CL_POINTER` via the invisible default. To split layers, set `invisibleMeshesCollisionMask` explicitly and keep `visibleMeshesCollisionMask: 0`. |
+| Static mesh, NO `_collider` | Set `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` — the visible mesh becomes the click target. |
+| **Skinned / armature-rigged** (NPCs, characters, ghosts), NO `_collider` | `visibleMeshesCollisionMask` does **not** make it clickable. Add an explicit invisible child collider (below). |
+
+**PITFALL: a skinned/rigged GLB is not made pointer-clickable by `visibleMeshesCollisionMask`.** Observed in an SDK7 scene: an NPC/ghost GLB with no `_collider` mesh and `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` did not receive pointer events. SDK6's `GLTFShape` made a visible mesh clickable regardless of rigging; in SDK7 the visible-mesh mask did not raycast the skinned/animated visible mesh for pointer events in this case. (This is observed renderer behavior — the exact rigging conditions are not documented in the protocol; verify per-model.)
+
+**Fix — add an invisible box collider on `CL_POINTER`, parented to the entity so it tracks movement, and register the handler on the collider:**
+
+```typescript
+import { engine, MeshCollider, ColliderLayer, pointerEventsSystem, InputAction, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+// `npc` is the rigged GLB entity (with GltfContainer + Animator).
+const clicker = engine.addEntity()
+// scale to the avatar bounds; parent so it follows the NPC as it moves
+Transform.create(clicker, { position: Vector3.create(0, 0.45, 0), scale: Vector3.create(2, 2.9, 2), parent: npc })
+MeshCollider.setBox(clicker, ColliderLayer.CL_POINTER)
+
+pointerEventsSystem.onPointerDown(
+  { entity: clicker, opts: { button: InputAction.IA_PRIMARY, hoverText: 'Talk', showFeedback: true } },
+  () => { /* handle click */ }
+)
+```
+
+The `GltfContainer` itself can keep `visibleMeshesCollisionMask: 0`. For an AvatarShape NPC (no mesh collider at all), the same child-collider approach applies — see [[npcs]] Option A.
 
 ### All Input Actions
 

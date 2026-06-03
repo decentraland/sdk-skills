@@ -79,6 +79,26 @@ The "you have to pre-register" issue only bites the **author-in-code + `playSing
 
 Related: if a `GltfContainer` model spawns playing the _wrong_ clip (e.g. a death pose on what should be an idling NPC), the entity has no `Animator` and the renderer picked a clip you didn't intend. Add an `Animator.create` with the desired default clip set to `playing: true` to take control.
 
+### Resting an animated model at its FIRST frame (start-closed doors / graves / lids)
+
+A common SDK6 → SDK7 port problem: a door/grave/coffin GLB whose "closed" pose is **frame 0** of its open/trigger clip. Under SDK7 the renderer auto-plays a clip on load and holds its final frame, so the model spawns **open** instead of closed.
+
+**Verified fix (user-confirmed in-world):** keep a state actively `playing: true` but frozen with `speed: 0` and `loop: false`, so it holds frame 0 — the closed/rest pose — while still being a controlled, actively-playing state:
+
+```typescript
+// Hold `clip` at its first frame (closed pose), under your control.
+export function holdFirstFrame(entity: Entity, clip: string) {
+  if (!Animator.has(entity)) Animator.create(entity, { states: [] })
+  const a = Animator.getMutable(entity)
+  if (!a.states.some((s) => s.clip === clip)) a.states = [...a.states, { clip }]
+  Animator.stopAllAnimations(entity)
+  const state = Animator.getClipOrNull(entity, clip)
+  if (state) { state.playing = true; state.loop = false; state.speed = 0 }
+}
+```
+
+Then, to open, set the same clip to `speed: 1, playing: true` (a normal `playSingleAnimation` / `playClip` call); to close, play the reverse/close clip. This is the observed behavior + working fix; the precise internals of which clip the renderer auto-plays are not documented in the SDK — treat it as renderer behavior and verify per model.
+
 ### BEST PRACTICE: Short-circuit clip-switch helpers called from per-frame callers
 
 **Scope:** this applies when you write your own clip-switch helper that mutates `Animator.states` directly (`s.playing`, `s.loop`, `s.shouldReset`) and that helper is invoked from a per-frame caller (an `engine.addSystem` update, an `inputSystem`/raycast callback that fires every tick, or any code path that runs each frame). The most common reason to write such a helper is porting an SDK6 scene that used lazy clip registration or `noLoop + revertToIdle` semantics ([[migrate-sdk6-to-sdk7]]).
@@ -182,6 +202,7 @@ For complex animations, create a system with `engine.addSystem((dt) => { ... })`
 | GLTF animation not playing                          | Wrong clip name                                                                                                                                                          | Check exact clip names (case-sensitive) in a viewer                                                                                                                                                                |
 | `playSingleAnimation` does nothing, returns `false` | Clip name not in `Animator.states` for an Animator you built in code                                                                                                     | Add the clip to `states[]` at `Animator.create` time, or use the lazy-add wrapper above. Only applies when you authored the Animator programmatically — Inspector / asset-pack Animators are already pre-populated |
 | Model autoplays an unexpected animation on spawn    | No `Animator` component — `GltfContainer` autoplays one clip from the .glb (the same mechanism that lets clip-less Inspector scenes animate without manual registration) | Add `Animator.create` with the intended default clip set to `playing: true` to take control                                                                                                                        |
+| Door/grave/lid spawns OPEN instead of closed        | The renderer auto-plays the clip and holds its final (open) frame; the model's closed pose is frame 0 of that clip                                                       | Hold frame 0 with a `playing: true, speed: 0, loop: false` state — see "Resting an animated model at its FIRST frame" above                                                                                          |
 | Unnecessary per-frame serialization overhead        | Clip-switch helper calls `getMutableOrNull` every tick with identical values (custom helper or `playSingleAnimation` called from a system / per-frame input callback)     | Track the last-applied clip and short-circuit when unchanged, or only call the helper on state transitions — see "Short-circuit clip-switch helpers" best practice above                                           |
 | Animator has no effect                              | Missing `GltfContainer`                                                                                                                                                  | `Animator` only works on entities with a loaded GLTF model                                                                                                                                                         |
 | Tween doesn't move                                  | Same start and end                                                                                                                                                       | Verify values differ in `Tween.Mode.Move()`                                                                                                                                                                        |

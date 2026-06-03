@@ -132,6 +132,38 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into
 />
 ```
 
+## ScreenInsetArea (Mobile Hardware-Safe Region)
+
+Wraps children so they stay inside the device's hardware-reserved margins — notch, status bar, home indicator, rounded corners. Mobile-only effect: on desktop the insets are `(0,0,0,0)`, so the wrapper has no effect and is safe to leave in cross-platform UI. Reacts automatically to insets reported by the device (rotation, system bars appearing/hiding).
+
+The component sets its own `positionType: 'absolute'` and `position` from the device insets — those two fields in `uiTransform` are reserved and ignored. All other `uiTransform`, `uiBackground`, and event props are forwarded normally.
+
+```tsx
+import ReactEcs, { ReactEcsRenderer, UiEntity, ScreenInsetArea } from '@dcl/sdk/react-ecs'
+import { Color4 } from '@dcl/sdk/math'
+
+export function setupUi() {
+  ReactEcsRenderer.setUiRenderer(() => (
+    <ScreenInsetArea
+      uiTransform={{
+        // positionType and position are reserved — any values here are ignored
+        padding: 10,
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}
+    >
+      {/* A child sized 100%×100% fills the safe area exactly */}
+      <UiEntity
+        uiTransform={{ width: '100%', height: '100%' }}
+        uiBackground={{ color: Color4.create(0, 0, 0, 0.5) }}
+      />
+    </ScreenInsetArea>
+  ), { virtualWidth: 1920, virtualHeight: 1080 })
+}
+```
+
+**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls (joystick, chat, profile, interaction button) — keep those clear manually by placing UI away from the left side, top-right, and bottom-right of the canvas on mobile.
+
 ## Layout Patterns
 
 ### Health Bar

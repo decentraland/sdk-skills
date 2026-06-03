@@ -51,7 +51,9 @@ Clients must wait for `isStateSyncronized()` (note SDK typo) to return `true` be
 
 ### Schema Types Reference
 
-`Schemas.String`, `.Int`, `.Float`, `.Bool`, `.Int64` (for `Date.now()` / 13+ digit numbers), `.Vector3`, `.Quaternion`, `.Entity`, `.Array(Schemas.String)`, `.Optional(Schemas.String)`, `.Map({ name: Schemas.String, hp: Schemas.Int })`.
+`Schemas.String`, `.Int`, `.Float`, `.Boolean`, `.Int64` (for `Date.now()` / 13+ digit numbers), `.Vector3`, `.Quaternion`, `.Entity`, `.Array(Schemas.String)`, `.Optional(Schemas.String)`, `.Map({ name: Schemas.String, hp: Schemas.Int })`.
+
+> The boolean schema is **`Schemas.Boolean`**, not `Schemas.Bool` (verified — `@dcl/ecs` `schemas/index.d.ts` exposes `Schemas.Boolean`; the internal class is named `Bool` but is not exposed under that name on the `Schemas` namespace).
 
 **Use `Schemas.Int64` for timestamps** — `Schemas.Number` corrupts large numbers (13+ digits).
 
