@@ -58,6 +58,8 @@ export function setupUi() {
 
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
 
+**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). On mobile, it positions itself absolutely using the insets the device reports. On desktop the insets are `(0,0,0,0)`, so it's a no-op — safe to leave in cross-platform UI. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. Wrap any mobile-sensitive HUD in it; a child sized `width: '100%', height: '100%'` fills the safe area exactly. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — those still need to be avoided manually; use both together.
+
 ## Adding Independent UI Renderers (addUiRenderer)
 
 Use `ReactEcsRenderer.addUiRenderer(ownerEntity, MyWidget, { virtualWidth: 1920, virtualHeight: 1080 })` to render a UI module independently without replacing the main UI. Useful for smart items or modular scene components. Remove with `ReactEcsRenderer.removeUiRenderer(owner)`. If the owner entity is destroyed, the UI is removed automatically.
@@ -134,6 +136,6 @@ Rationale (**empirically verified** — tested in-engine June 2026):
 - Only one `ReactEcsRenderer.setUiRenderer()` call per scene — combine all UI into one root component, or use `addUiRenderer()` with separate owner entities
 - Always pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer`/`addUiRenderer` by default (see "DEFAULT RULE" above) — only change if the user explicitly asks
 - **Desktop:** Avoid placing UI elements on the leftmost ~25% of the screen (reserved for chat, map, platform UI)
-- **Mobile:** Avoid placing UI elements in non-safe zones (notch, status bar, home indicator)
+- **Mobile:** Avoid placing UI in zones reserved by Decentraland's system HUD (joystick on the left, chat/profile/camera on the top-right, interaction button on the bottom-right). For hardware-reserved margins (notch, status bar, home indicator, rounded corners), wrap UI in `<ScreenInsetArea>` — see Core Components above. UI designed for desktop typically needs sizes scaled ~3× for mobile readability.
 
 For full code examples, implementation patterns, and dcl-ui-toolkit widget reference, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`.
