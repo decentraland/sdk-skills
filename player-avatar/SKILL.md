@@ -249,10 +249,17 @@ triggerEmote({ predefinedEmote: 'clap' })
 
 ### Custom Scene Emotes
 
+> ⚠️ **CRITICAL FILE NAMING REQUIREMENT:** The emote `.glb` file **MUST** end with `_emote.glb` (case-insensitive). This is **not** optional and **not** just a convention — the runtime rejects files that don't match this suffix.
+>
+> **Why this matters:** Scenes with incorrectly named emote files often **work fine in `npm run start` preview** but **silently fail in production** once deployed. Preview is more permissive; the deployed runtime is strict. Always rename the file on disk (e.g. `SnowballThrow.glb` → `SnowballThrow_emote.glb`) before deploying.
+>
+> Valid: `wave_emote.glb`, `Snowball_Throw_emote.glb`, `dance_EMOTE.GLB`
+> Invalid: `wave.glb`, `emote_wave.glb`, `wave_emote_v2.glb`
+
 ```typescript
 import { triggerSceneEmote } from '~system/RestrictedActions'
 
-// Play a custom emote animation (file must end with _emote.glb)
+// File MUST end with _emote.glb — rename it on disk if it doesn't
 triggerSceneEmote({
 	src: 'animations/Snowball_Throw_emote.glb',
 	loop: false,
@@ -263,7 +270,7 @@ triggerSceneEmote({
 
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
-- Custom emote files must have the `_emote.glb` suffix
+- Custom emote files **must** end with the `_emote.glb` suffix (case-insensitive) — scenes that ignore this may work in preview but break once deployed
 
 ## NPC Avatars
 
@@ -453,7 +460,7 @@ Beyond the commonly used anchor points, the full list includes:
 - Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame
 - Use `getPlayer()` to check `isGuest` before attempting wallet-dependent features
 - `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves
-- Custom emote files must use the `_emote.glb` naming convention
+- Custom emote files **must** be named with the `_emote.glb` suffix (case-insensitive) — without it, `triggerSceneEmote` may work in `npm run start` preview but silently fail in the deployed scene. Rename the file on disk, don't just rename the reference.
 - Use `AvatarModifierArea` with `AMT_HIDE_AVATARS` for private rooms or single-player puzzle areas
 - Add `excludeIds` to modifier areas when you want specific players (like the scene owner) to remain visible
 - **Never mutate the player's Transform** (`Transform.getMutable`, `Transform.createOrReplace`, direct `.position` / `.rotation` assignment on `engine.PlayerEntity`) — the engine silently ignores it. Code compiles and runs but the avatar does not move. Use `movePlayerTo` for teleports/slides, or `Physics.*` (skill: `player-physics`) for forces (lift, knockback, push, wind).

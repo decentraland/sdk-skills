@@ -72,12 +72,17 @@ triggerEmote({ predefinedEmote: 'wave' })
 
 ### triggerSceneEmote
 
-Play a custom emote from a .glb file (must end with `_emote.glb`):
+Play a custom emote from a `.glb` file.
+
+> ⚠️ **The file MUST end with `_emote.glb`** (case-insensitive). This is a hard runtime requirement — files without this suffix often work in `npm run start` preview but **silently fail in production** once the scene is deployed. Rename the file on disk, not just the string passed to `src`.
 
 ```typescript
 import { triggerSceneEmote } from '~system/RestrictedActions'
 triggerSceneEmote({ src: 'animations/custom_emote.glb', loop: false })
 ```
+
+Valid filenames: `wave_emote.glb`, `Snowball_Throw_emote.glb`, `dance_EMOTE.GLB`
+Invalid: `wave.glb`, `emote_wave.glb`, `wave_emote_v2.glb`
 
 ### openExternalUrl
 
