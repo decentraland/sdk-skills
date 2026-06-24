@@ -7,6 +7,18 @@ description: Writing .ts script files for the Creator Hub Script component — s
 
 This document explains how to write `.tsx` files that are used inside a **Script component** on an entity in a Creator Hub scene. These scripts run as self-contained classes attached to individual entities.
 
+## Where script files must live
+
+Script files referenced by a Script component MUST live **inside the `assets/` folder** — use `assets/scripts/` (e.g. `assets/scripts/MyScript.ts`). Do NOT place them in a root-level `scripts/` folder.
+
+Why: the scene's `tsconfig.json` only includes `src/**/*` and `assets/**/*`:
+
+```json
+"include": ["src/**/*.ts", "src/**/*.tsx", "assets/**/*.ts", "assets/**/*.tsx"]
+```
+
+A file in a root-level `scripts/` folder falls outside these globs, so the TypeScript type checker (and the build's type-check step) won't cover it. The Script component's `path` field is resolved relative to the project root, so it must match the real file location — e.g. `"path": "assets/scripts/SitChair.ts"`.
+
 ## Script structure
 
 Every script is a single exported class with:
@@ -211,19 +223,20 @@ import {
   getScriptInstancesByPath
 } from '~sdk/script-utils'
 
-callScriptMethod(entity, 'scripts/Padlock.ts', 'solve', 123)
+callScriptMethod(entity, 'assets/scripts/Padlock.ts', 'solve', 123)
 
-const instance = getScriptInstance(entity, 'scripts/Padlock.ts')
+const instance = getScriptInstance(entity, 'assets/scripts/Padlock.ts')
 const allOnEntity = getAllScriptInstances(entity)
-const allByPath = getScriptInstancesByPath('scripts/Padlock.ts')
+const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
 
 ## Key rules summary
 
-1. Never remove `public src: string` and `public entity: Entity` from the constructor.
-2. Use `this.src + '/filename'` for any bundled asset paths.
-3. Do not pass child entities of the same custom item as `Entity` constructor parameters — find them by name at runtime instead.
-4. Use `@action()` on methods you want to expose as triggerable actions.
-5. Use `ActionCallback` for parameters that should let users wire up editor actions.
-6. Add `@param` JSDoc comments before the constructor for UI tooltips.
-7. Manually include any code-only assets (sounds, textures) in the custom item folder.
+1. Place script files under `assets/` (use `assets/scripts/`), never in a root-level `scripts/` folder — the scene's `tsconfig.json` only type-checks `src/**/*` and `assets/**/*`. The Script component `path` must match (e.g. `assets/scripts/MyScript.ts`).
+2. Never remove `public src: string` and `public entity: Entity` from the constructor.
+3. Use `this.src + '/filename'` for any bundled asset paths.
+4. Do not pass child entities of the same custom item as `Entity` constructor parameters — find them by name at runtime instead.
+5. Use `@action()` on methods you want to expose as triggerable actions.
+6. Use `ActionCallback` for parameters that should let users wire up editor actions.
+7. Add `@param` JSDoc comments before the constructor for UI tooltips.
+8. Manually include any code-only assets (sounds, textures) in the custom item folder.
