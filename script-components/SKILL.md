@@ -128,7 +128,14 @@ start() {
 
 Do **not** pass entities that belong to the same custom item as `Entity` input parameters. Entity IDs are not stable across scenes — an entity ID that is valid in your development scene may not exist in a user's scene.
 
-Instead, find child entities at runtime by iterating over the entity hierarchy and matching by name:
+Instead, find child entities at runtime by iterating over the entity hierarchy and matching their `Name` component value with a **substring** match (e.g. `.startsWith(...)` or `.includes(...)`).
+
+**Best practice: match a substring of the child's name, not an exact name, and not a per-instance constructor parameter.** When a user duplicates a smart item or drops multiple copies into a scene, the Creator Hub editor auto-numbers the duplicated child entities — e.g. `"Sit Spot"`, `"Sit Spot 2"`, `"Sit Spot 3"`, … A substring match (`name.includes('Sit Spot')`) finds the matching child in every copy automatically, with zero per-instance configuration.
+
+- **Exact-name match** fails on every duplicate after the first, because their names are auto-suffixed.
+- **A constructor `string`/`Entity` parameter for the child name** forces the user to manually rename or rewire each copy, which defeats the purpose of a reusable scripted item.
+
+The example below uses `.startsWith('Needle')` — a substring-style match — for exactly this reason.
 
 ```ts
 import { engine, Entity, Transform, Name } from '@dcl/sdk/ecs'
@@ -154,7 +161,7 @@ export class ClapMeter {
 }
 ```
 
-This pattern keeps the script portable: as long as the child entities have the expected names, it works in any scene.
+This pattern keeps the script portable: as long as the child entities have names containing the expected substring, it works in any scene and across any number of duplicated copies.
 
 ## Defining actions (`@action`)
 
@@ -235,7 +242,7 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 1. Place script files under `assets/` (use `assets/scripts/`), never in a root-level `scripts/` folder — the scene's `tsconfig.json` only type-checks `src/**/*` and `assets/**/*`. The Script component `path` must match (e.g. `assets/scripts/MyScript.ts`).
 2. Never remove `public src: string` and `public entity: Entity` from the constructor.
 3. Use `this.src + '/filename'` for any bundled asset paths.
-4. Do not pass child entities of the same custom item as `Entity` constructor parameters — find them by name at runtime instead.
+4. Do not pass child entities of the same custom item as `Entity` constructor parameters, and do not require a per-instance name parameter — find them at runtime by matching a **substring** of their `Name` value (e.g. `.includes('Sit Spot')`), so duplicated/auto-numbered copies (`"Sit Spot 2"`, `"Sit Spot 3"`, …) all work with zero configuration.
 5. Use `@action()` on methods you want to expose as triggerable actions.
 6. Use `ActionCallback` for parameters that should let users wire up editor actions.
 7. Add `@param` JSDoc comments before the constructor for UI tooltips.
