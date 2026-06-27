@@ -228,6 +228,57 @@ Transform.getMutable(door).rotation = Quaternion.fromEulerDegrees(0, 90, 0)
 - **Authoritative server (WebSocket):** Server validates and broadcasts state. Use for competitive games, economies, or anti-cheat.
 - **Hybrid:** Use `syncEntity` for world objects, WebSocket for game logic validation.
 
+### syncEntity identity: stable IDs vs auto IDs
+
+How `syncEntity` assigns network identity (verified against `@dcl/sdk/network/entities.js`):
+
+- `syncEntity(entity, componentIds)` — **auto/runtime ID.** Network identity = the creating peer's `profile.networkId` + that peer's **local engine entity number**. The engine RECYCLES local entity numbers after `removeEntity`, so this identity is per-peer and reused over time.
+- `syncEntity(entity, componentIds, MY_ENUM_ID)` — **stable ID.** Pins `networkId = 0`, `entityId = MY_ENUM_ID`. Identical across all clients and across re-creations.
+
+**Failure mode (auto ID + short-lived singleton).** A singleton synced entity that is destroyed and recreated repeatedly (e.g. once per round/phase) with an auto ID is fragile over real network comms — latency, message reordering, server cold-starts. It works flawlessly in local preview because preview uses a single in-process transport with no loss. On a remote client the short-lived runtime entity can fail to reconcile and stay absent/invisible for that client for its entire lifetime; there is no later resync that re-creates it. Long-lived persistent runtime entities tolerate this because they reconcile eventually.
+
+Symptom signature:
+- The entity's component data never appears on remote clients (anything reading it — UI, visuals — shows defaults).
+- A separately-created **persistent** synced entity in the same scene syncs fine.
+- Never reproduces in single-process local preview.
+
+**Best practice.** For any singleton or small fixed set of well-known synced entities (a global game/match-state entity, a single shared cursor/placeholder, etc.), assign each a STABLE explicit sync ID via the third arg, drawn from a central reserved `enum`. Reserve auto IDs only for genuinely dynamic, many-instance, create-and-forget entities (and note even those can be fragile if short-lived + frequently recreated).
+
+```typescript
+enum SyncId {
+	GAME_STATE = 1,
+	SHARED_CURSOR = 2,
+}
+
+function spawnGameState() {
+	const e = engine.addEntity()
+	GameState.create(e, defaults)
+	syncEntity(e, [GameState.componentId], SyncId.GAME_STATE) // stable across recreations
+}
+```
+
+**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (verified in `@dcl/ecs` engine `removeEntity`: it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
+
+```typescript
+// Recreate on a later tick, not the same frame as removeEntity
+engine.removeEntity(gameState)
+let pending = true
+engine.addSystem(() => {
+	if (!pending) return
+	pending = false
+	spawnGameState() // safe: prior NetworkEntity has flushed
+})
+```
+
+### Client-side prediction for tool/editor-style input
+
+When a client drives a synced entity through client→server messages and then waits for the round-tripped sync to render the result, the local user sees laggy/blind feedback (and nothing at all if the synced entity isn't reconciling). Standard fix — **optimistic local prediction + authoritative reconcile**:
+
+- For the entity's OWN controlling client: render from a LOCAL prediction that mirrors the server's mutation logic exactly (seeded from the same defaults), applied immediately on input.
+- For all other clients: render purely from the synced entity.
+
+This keeps the acting player's feedback instant while the authoritative state still arrives via sync for everyone.
+
 ### Multiplayer Testing
 
 Open multiple browser windows to test multiplayer locally:
