@@ -72,6 +72,8 @@ syncEntity(
 
 Predefined entities (with a sync ID) persist after the creating player leaves. Player-created entities (no sync ID) are removed when the player disconnects.
 
+> **Best practice — always give singletons a stable sync ID.** Auto IDs derive identity from the creating peer + its local engine entity number (which the engine recycles). A singleton synced entity that is destroyed and recreated repeatedly with an auto ID is fragile over real network comms: it may fail to reconcile on remote clients (they see only default component data) even though it works perfectly in local single-process preview. Assign any singleton or small fixed set of well-known synced entities a STABLE explicit sync ID from a reserved enum. Reserve auto IDs for genuinely dynamic, many-instance, create-and-forget entities. Also: never `removeEntity` a fixed-ID synced entity and recreate it with the same ID in the SAME frame — the internal `NetworkEntity` survives until a later CRDT flush, so recreating immediately throws `id provided is already in use`; defer the re-spawn to a later tick. See `{baseDir}/references/networking-patterns.md` (syncEntity identity section) for the full failure-mode signature, fix, and the optimistic-prediction companion pattern.
+
 ### Auto-Generated IDs (Player-Spawned Entities)
 
 Entities created at runtime by players do not need an explicit sync ID:
