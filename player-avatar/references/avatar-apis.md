@@ -28,7 +28,7 @@ AvatarShape.create(entity, {
 	expressionTriggerTimestamp: 0, // When expression was triggered
 	talking: false, // Mouth animation
 	emotes: [], // Custom emote URNs
-	show_only_wearables: false, // Mannequin mode (show wearables without body)
+	showOnlyWearables: false, // Mannequin mode (show wearables without body)
 })
 ```
 
@@ -72,7 +72,7 @@ AvatarShape.create(entity, {
 	id: 'mannequin-1',
 	name: 'Display',
 	wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
-	show_only_wearables: true,
+	showOnlyWearables: true,
 })
 ```
 
@@ -198,14 +198,19 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 ```typescript
 AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in area
 AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking avatars for profiles
-AvatarModifierType.AMT_DISABLE_JUMPING // Prevent jumping in area
 ```
+
+To disable jumping in an area, use the `InputModifier` component's `disableJump` flag (covered in the advanced-input skill), not an `AvatarModifierType`.
 
 ## AvatarLocomotionSettings
 
 ```typescript
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
-	runSpeed: 8, // Default ~6 m/s
-	jumpHeight: 3, // Default ~1.5m
+	walkSpeed: 1.5, // Default 1.5 m/s (Control key on desktop)
+	jogSpeed: 8, // Default 8 m/s (the default movement)
+	runSpeed: 14, // Default 10 m/s (Shift key on desktop)
+	jumpHeight: 3, // Default 1 m
+	runJumpHeight: 4, // Default 1.5 m
+	hardLandingCooldown: 0.75, // Default 0.75 s before moving again after a high fall
 })
 ```

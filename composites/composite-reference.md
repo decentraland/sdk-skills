@@ -39,7 +39,7 @@ The rules in this document have **two modes** that you must distinguish before t
 
 When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes SDK build error: `"inspector::Nodes is not defined and there is no schema to define it"`
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (see the Troubleshooting section for the exact wording, which differs between current and older SDK versions)
 - **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
@@ -178,14 +178,7 @@ console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFix
 "
 ```
 
-**Known measured bounding boxes** (half-extents from origin):
-
-| Model           | –X   | +X   | –Z    | +Z   | Safe minimum origin    |
-| --------------- | ---- | ---- | ----- | ---- | ---------------------- |
-| Tree_01_Art.glb | 8.16 | 7.78 | 11.34 | 0.76 | x≥9, z≥12              |
-| Tree_02_Art.glb | 6.56 | 6.23 | 11.41 | 0.36 | x≥7, z≥12              |
-| Column_Art.glb  | 0.82 | 0.82 | 0.82  | 0.82 | any x/z with 1m margin |
-| Wall01_Art.glb  | 2.18 | 2.16 | 0.05  | 0.05 | x≥3, z≥1               |
+**Measure per model — don't guess or hard-code.** Extents vary wildly: running the script above on a typical tree often reveals ~11 m of reach in one horizontal direction from the origin (safe minimum origin z≥12), while a column reaches under 1 m in every direction. Always compute the box for the specific GLB you're placing.
 
 **Rule:** For every GLB model, compute:
 
@@ -332,6 +325,8 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 - `2` = CL_PHYSICS (player physics, walls, floors)
 - `3` = CL_POINTER + CL_PHYSICS (both)
 
+**Default:** if `collisionMask` is omitted it defaults to `3` (CL_POINTER | CL_PHYSICS) — a bare `MeshCollider` is already clickable and solid. Set it explicitly only to narrow the behavior (e.g. `2` for a wall that shouldn't intercept clicks), not to enable colliders.
+
 ### core::Material
 
 **PBR material:**
@@ -419,6 +414,27 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 	}
 }
 ```
+
+### core::AudioStream
+
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+
+```json
+{
+	"name": "core::AudioStream",
+	"data": {
+		"512": {
+			"json": {
+				"url": "https://example.com/stream.mp3",
+				"playing": true,
+				"volume": 1
+			}
+		}
+	}
+}
+```
+
+Non-spatial by default. Set `"spatial": true` (optionally with `spatialMinDistance` / `spatialMaxDistance`) to position the stream in 3D at the entity.
 
 ### core::VideoPlayer
 
@@ -672,15 +688,11 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core, and require installing the `asset-packs` library in the project. Do not add any of these unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. On current SDK versions the build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required; older SDK versions require `@dcl/asset-packs` to be a project dependency. Either way, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 
-**NOTE (authoring-from-scratch mode):** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata-*` in a fresh composite. The Creator Hub creates these automatically when opening the scene. Including them in a fresh file causes the SDK build to fail.
-
-**NOTE (edit mode):** If `inspector::Nodes` and `inspector::SceneMetadata-*` are ALREADY present (the user has opened/saved the scene in the Creator Hub), keep them and update `inspector::Nodes` whenever you add a new entity — see "Editing an existing composite (edit mode)" above. Do not delete or strip them.
-
-These components only exist on the RootEntity (ID 0).
+These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 
@@ -793,7 +805,7 @@ Before writing a fresh composite, verify:
 - [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
-- [ ] The project must have the `@dcl/asset-packs` library as a dependency to be able to use a composite file
+- [ ] A composite using only core components needs no extra library. If it contains `asset-packs::*` components, older SDKs require `@dcl/asset-packs` as a project dependency; current SDKs fall back to the copy bundled inside `@dcl/inspector`
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
@@ -826,5 +838,5 @@ npx sdk-commands build
 
 The build must pass with zero errors. If it fails, the composite is invalid. Common errors:
 
-- `"X is not defined and there is no schema to define it"` → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
+- `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts

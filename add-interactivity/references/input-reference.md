@@ -330,7 +330,7 @@ Modify how avatars appear or behave in a region:
 import { AvatarModifierArea, AvatarModifierType } from "@dcl/sdk/ecs";
 
 AvatarModifierArea.create(entity, {
-  area: { box: Vector3.create(4, 3, 4) },
+  area: Vector3.create(4, 3, 4),
   modifiers: [AvatarModifierType.AMT_HIDE_AVATARS],
   excludeIds: ["0x123...abc"], // Optional
 });
@@ -338,7 +338,8 @@ AvatarModifierArea.create(entity, {
 // Available modifiers:
 // AMT_HIDE_AVATARS      — Hide all avatars in the area
 // AMT_DISABLE_PASSPORTS — Disable clicking on avatars to see profiles
-// AMT_DISABLE_JUMPING   — Prevent jumping in the area
+// To disable jumping in an area, use InputModifier's `disableJump` flag
+// (covered in the advanced-input skill), not an AvatarModifierType.
 ```
 
 ## Cursor State

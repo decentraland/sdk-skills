@@ -104,10 +104,11 @@ VirtualCamera.create(cinematicCam, {
 	},
 })
 
-// Activate the virtual camera
-MainCamera.getMutable(engine.CameraEntity).virtualCameraEntity = cinematicCam
+// Activate the virtual camera (createOrReplace on first activation:
+// getMutable throws if MainCamera doesn't exist yet)
+MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematicCam })
 
-// Return to normal camera
+// Return to normal camera (component now exists, so getMutable is safe)
 MainCamera.getMutable(engine.CameraEntity).virtualCameraEntity = undefined
 ```
 
@@ -134,7 +135,7 @@ VirtualCamera.create(cinematicCam, {
 })
 
 // Activate
-MainCamera.getMutable(engine.CameraEntity).virtualCameraEntity = cinematicCam
+MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematicCam })
 ```
 
 ## Tracking Camera Position
@@ -177,7 +178,7 @@ When a player's camera moves in 3rd person mode, the camera might be blocked by 
 ```ts
 // NO CAMERA GOING THROUGH THE WALL
 // default (both pointer and physics use the invisible geometry)
-GLTFContainer.create(myEntity, {
+GltfContainer.create(myEntity, {
 	src: '/models/myModel.gltf',
 })
 

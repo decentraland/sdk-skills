@@ -56,7 +56,7 @@ TypeScript (`src/index.ts`) is ONLY for:
 
 ## CRITICAL RULE — Editing an existing composite
 
-Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes` (root entity `0`'s `children` array AND its own top-level entry) and given a `core-schema::Name` entry, or the entity will render in-world but be **invisible in the Creator Hub entity tree** (un-selectable in the editor). See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
+Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
 
 ---
 
@@ -158,7 +158,7 @@ These reference files are used across multiple skills. Load them when you need d
 ### Components Reference
 
 **Reference: `{baseDir}/references/components-reference.md`**
-Full ECS component API: all fields, types, and defaults for every SDK7 component.
+Quick-reference of key fields, types, and defaults for the SDK7 components you'll commonly use. For a component's complete field list, consult its dedicated skill or the SDK typings.
 
 ### Entity Validation Rules
 

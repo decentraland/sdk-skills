@@ -25,21 +25,24 @@ npm i dcl-npc-toolkit
 
 **Basic usage:**
 ```typescript
-import { createNPC, Dialog } from 'dcl-npc-toolkit'
+import * as npc from 'dcl-npc-toolkit'
 import { Vector3, Quaternion } from '@dcl/sdk/math'
 
-const npcEntity = createNPC(
+const dialogs: npc.Dialog[] = [{ text: 'Hello there!', isEndOfDialog: true }]
+
+const npcEntity = npc.create(
   { position: Vector3.create(8, 0, 8), rotation: Quaternion.fromEulerDegrees(0, 180, 0) },
-  'models/guard.glb',
-  (entity) => {
-    // called when player clicks the NPC
-    startDialogue(entity)
-  },
   {
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/guard.glb' },
     idleAnim: 'Idle',
     walkingAnim: 'Walk',
     hoverText: 'Talk',
     onlyExternalTrigger: false,
+    onActivate: () => {
+      // called when player activates the NPC
+      npc.talk(npcEntity, dialogs)
+    },
   }
 )
 ```
@@ -131,7 +134,7 @@ AvatarShape.create(mannequin, {
   id: 'mannequin-1',
   name: 'Display',
   wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
-  show_only_wearables: true,
+  showOnlyWearables: true,
 })
 ```
 
