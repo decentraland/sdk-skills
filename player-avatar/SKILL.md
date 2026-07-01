@@ -123,7 +123,7 @@ import {
 
 const hat = engine.addEntity()
 GltfContainer.create(hat, { src: 'models/hat.glb' })
-Transform.crete(hat, {})
+Transform.create(hat, {})
 
 // Attach to the local player's avatar
 AvatarAttach.create(hat, {
@@ -296,7 +296,7 @@ Transform.create(modifierArea, {
 })
 
 AvatarModifierArea.create(modifierArea, {
-	area: { box: Vector3.create(4, 3, 4) },
+	area: Vector3.create(4, 3, 4),
 	modifiers: [AvatarModifierType.AMT_HIDE_AVATARS],
 	excludeIds: ['0x123...abc'], // Optional: exclude specific players
 })
@@ -318,10 +318,12 @@ import { engine, AvatarLocomotionSettings } from '@dcl/sdk/ecs'
 
 // Modify run speed and jump height
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
-	runSpeed: 8, // default is ~6
-	jumpHeight: 3, // default is ~1.5
+	runSpeed: 14, // default is 10
+	jumpHeight: 3, // default is 1
 })
 ```
+
+All fields (with defaults): `walkSpeed` (1.5 m/s), `jogSpeed` (8 m/s — the default movement), `runSpeed` (10 m/s), `jumpHeight` (1 m), `runJumpHeight` (1.5 m), `hardLandingCooldown` (0.75 s).
 
 ## Restrict Locomotion (InputModifier)
 
