@@ -17,12 +17,12 @@ All components are imported from `@dcl/sdk/ecs`.
 | **Material** | Static methods: `setPbrMaterial({ albedoColor, metallic, roughness, texture })`, `setBasicMaterial()` | PBR or unlit material for meshes. |
 | **GltfContainer** | `src: string`, `visibleMeshesCollisionMask?`, `invisibleMeshesCollisionMask?` | Loads a .glb/.gltf 3D model file. |
 | **GltfContainerLoadingState** | `currentState` | Read-only loading state for GLTF models. |
-| **GltfNodeModifiers** | `nodes: Array<{ path, visibleMeshes, invisibleMeshes }>` | Modify visibility of specific nodes in GLTF. |
+| **GltfNodeModifiers** | `modifiers: Array<{ path: string, castShadows?: boolean, material?: PBMaterial }>` | Override the material and/or shadow-casting of specific nodes inside a loaded GLTF, addressed by hierarchy `path`. |
 | **Billboard** | `billboardMode: BillboardMode` | Makes entity always face the camera. |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
-| **NftShape** | `src: string (urn)`, `style?` | Display an NFT artwork frame. |
+| **NftShape** | `urn: string`, `style?: NftFrameType`, `color?: Color3` | Display an NFT artwork frame. The NFT is identified by `urn`. |
 | **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
-| **LightSource** | `type`, `color`, `intensity`, `range`, `innerAngle`, `outerAngle`, `shadows` | Add point, spot, or directional lights. |
+| **LightSource** | `type` (`{ $case: 'point' \| 'spot' }`; `innerAngle`/`outerAngle` live inside the `spot` variant), `color?`, `intensity?` (16000), `range?` (-1 = auto), `shadow?: boolean` (false) | Add point or spot lights (no directional type). Set via `LightSource.create(e, { type: LightSource.Type.Spot({ innerAngle, outerAngle }), shadow: true })`. |
 | **ParticleSystem** | `rate`, `maxParticles`, `lifetime`, `gravity`, `shape`, `initialColor`, `colorOverTime`, `initialSize`, `texture`, `blendMode`, `loop`, `spriteSheet` | Emit particles (fire, smoke, sparks, snow). Many fields — see the `particle-system` skill for the full list, enums, and presets. Unity explorer only. |
 
 ## Interaction & Input
@@ -65,9 +65,9 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **PlayerIdentityData** | `address: string`, `isGuest: boolean` | Player's wallet address and guest status. |
 | **AvatarShape** | `id: string`, `name: string`, `bodyShape`, `wearables`, `emotes` | Render an avatar (for NPCs). |
-| **AvatarBase** | `skinColor`, `eyeColor`, `hairColor`, `bodyShapeUrn` | Base avatar appearance. |
+| **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
-| **AvatarModifierArea** | `area`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area (hide, freeze). |
+| **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS`, `AMT_DISABLE_PASSPORTS`. |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Trigger avatar emotes. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
 | **AvatarLocomotionSettings** | `walkSpeed?` (1.5), `jogSpeed?` (8), `runSpeed?` (10), `jumpHeight?` (1), `runJumpHeight?` (1.5), `hardLandingCooldown?` (0.75) | Override the player's movement speeds and jump heights (m/s and m). Apply to `engine.PlayerEntity`. Numbers in parentheses are defaults. |
@@ -78,12 +78,12 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **CameraMode** | `mode: CameraType` | Read-only current camera mode. `CameraType`: `CT_FIRST_PERSON` (0), `CT_THIRD_PERSON` (1), `CT_CINEMATIC` (2 — reported while a `VirtualCamera` drives the view). |
 | **CameraModeArea** | `area`, `mode` | Force camera mode in an area. |
-| **MainCamera** | Read-only | Access main camera position/rotation. |
+| **MainCamera** | `virtualCameraEntity?: Entity` | Activate a `VirtualCamera` by setting this to its entity (use `MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity })`); clear it to return control. Read the live camera pose from `Transform.get(engine.CameraEntity)`. |
 | **VirtualCamera** | `lookAtEntity?`, `defaultTransition` | Create cinematic camera angles. |
 
 ## UI Components (React-ECS)
 
-Imported from `@dcl/sdk/react-ecs`:
+These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally don't set them directly — build screen-space UI with the React-ECS **JSX widgets** `UiEntity`, `Label`, `Button`, `Input`, `Dropdown` (imported from `@dcl/sdk/react-ecs`), whose props map onto these components. See the `build-ui` skill. The `onSubmit` / `onChange` below are JSX handler props on those widgets, not data fields of the underlying component.
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
@@ -102,8 +102,8 @@ Imported from `@dcl/sdk/react-ecs`:
 |-----------|-----------|-------------|
 | **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber` | Engine timing information. |
 | **RealmInfo** | Read-only: `realmName`, `networkId`, `baseUrl` | Current realm/server info. |
-| **SkyboxTime** | `time` | Control the time of day (skybox). |
-| **AssetLoad** | `src`, `type` | Request loading of external assets. |
+| **SkyboxTime** | `fixedTime: number`, `transitionMode?: TransitionMode` | Fix the time of day (seconds since 00:00; 43200 = noon, 86400 = full day). |
+| **AssetLoad** | `assets: string[]` | Pre-request loading of asset files (paths). Loading state is reported separately via `AssetLoadLoadingState`. |
 | **AssetLoadLoadingState** | Read-only | Loading state of external assets. |
 | **MapPin** | `position: Vector2`, `iconSize: number`, `title: string`, `description: string`, `texture?: TextureUnion` | Place a marker on the world/mini-map at parcel coordinates. |
 
