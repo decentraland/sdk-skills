@@ -278,9 +278,9 @@ Configure where and how players enter the scene:
 
 **Base parcel:** Always set `scene.base` to the southwest (lowest x,y) corner parcel.
 
-**Boundaries per parcel:** 16m x 16m x 20m height. A 2x2 scene spans 32m x 32m.
+**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit applies to the whole scene and grows with parcel count: `log2(n+1) × 20` meters (1 parcel = 20m, 2x2 = ~46m, 3x3 = ~66m).
 
-**Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See `agent-behaviors.md` in `overview/`.
+**Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See the "Agent Behavioral Guidelines" section in the `sdk-scenes` skill (`{baseDir}/../sdk-scenes/SKILL.md`).
 
 ## 5. Post-Creation Steps
 
