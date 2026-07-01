@@ -50,7 +50,7 @@ export function setupUi() {
 
 **UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, padding, margin, display, overflow), `uiBackground` (color, texture, textureMode, textureSlices, uvs). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
 
-**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`.
+**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. No glyph-outline prop — see **Text Legibility** below for giving text a contrasting border.
 
 **Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `uiTransform`.
 
@@ -59,6 +59,36 @@ export function setupUi() {
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
 
 **ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). On mobile, it positions itself absolutely using the insets the device reports. On desktop the insets are `(0,0,0,0)`, so it's a no-op — safe to leave in cross-platform UI. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. Wrap any mobile-sensitive HUD in it; a child sized `width: '100%', height: '100%'` fills the safe area exactly. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — those still need to be avoided manually; use both together.
+
+## Text Legibility (Contrasting Border)
+
+**Always make UI text readable against any background.** Unless the user says otherwise, don't rely on `color` alone — screen backgrounds and lighting vary, and mobile screens are used in bright conditions.
+
+Unlike `TextShape` (which has `outlineColor`/`outlineWidth`), **`uiText`/`Label` has no glyph-outline property.** Its only fields are `value`, `color`, `fontSize`, `font`, `textAlign`, and `textWrap`. Achieve contrast one of two ways:
+
+- **Contrasting panel (preferred, cheapest).** Put the `Label` on a `UiEntity` with a semi-opaque `uiBackground` in a color that contrasts the text (e.g. white text on `Color4.create(0, 0, 0, 0.6)`). One extra element, always legible.
+- **True glyph outline (layered offsets).** Render the same text several times in the border color, each offset by 1–2px, behind the main label. Use for large/hero text where a background panel is undesirable:
+
+```tsx
+function OutlinedLabel({ value, fontSize = 24 }: { value: string; fontSize?: number }) {
+  const w = 2 // outline thickness in px
+  const offsets = [[-w, -w], [w, -w], [-w, w], [w, w], [0, -w], [0, w], [-w, 0], [w, 0]]
+  return (
+    <UiEntity uiTransform={{ positionType: 'relative', width: 'auto', height: 'auto' }}>
+      {offsets.map(([x, y], i) => (
+        <Label
+          key={i}
+          value={value}
+          fontSize={fontSize}
+          color={Color4.Black()} // border color — contrasts the text color
+          uiTransform={{ positionType: 'absolute', position: { left: x, top: y } }}
+        />
+      ))}
+      <Label value={value} fontSize={fontSize} color={Color4.White()} />
+    </UiEntity>
+  )
+}
+```
 
 ## Adding Independent UI Renderers (addUiRenderer)
 
@@ -102,7 +132,7 @@ Install with `npm install dcl-ui-toolkit`. Register with `ReactEcsRenderer.setUi
 | UI elements overlapping                                        | Missing `flexDirection` or wrong layout                                                                              | Set `flexDirection: 'column'` on the parent container                                                                                        |
 | Button clicks not registering                                  | Missing `onMouseDown` handler                                                                                        | Add `onMouseDown={() => { ... }}` to the Button or UiEntity                                                                                  |
 | JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
-| Text not visible                                               | Text color matches background                                                                                        | Set contrasting `color` on Label or `uiText`                                                                                                 |
+| Text not visible / hard to read on varying backgrounds        | Text color matches background; `uiText`/`Label` has no glyph outline                                                 | Set contrasting `color`, and add a contrasting border via a semi-opaque `uiBackground` panel or layered offsets — see **Text Legibility**    |
 
 ## Diagnosing "UI not showing" — check these first, in order
 

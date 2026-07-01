@@ -75,6 +75,8 @@ TextShape.create(label, {
 })
 ```
 
+**Always give text a thin contrasting outline.** Unless the user specifies otherwise, every `TextShape` should set `outlineColor` (a color that contrasts with `textColor` — e.g. black outline on white text) and a small `outlineWidth` (≈`0.1`, values are relative to font size). Scene backgrounds vary with lighting, terrain, and time of day, and mobile screens are viewed in bright conditions — a stroke keeps the text legible against any background. Fields: `outlineWidth` (`number`, default `0`) and `outlineColor` (`Color3`; a `Color4` such as `Color4.Black()` also works, its alpha is ignored).
+
 ### Text Alignment Options
 
 ```typescript

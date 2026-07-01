@@ -21,7 +21,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **Billboard** | `billboardMode: BillboardMode` | Makes entity always face the camera. |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
 | **NftShape** | `src: string (urn)`, `style?` | Display an NFT artwork frame. |
-| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font` | Render 3D text in the scene. |
+| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `outlineColor?: Color3`, `outlineWidth?: number`, `font?: Font` | Render 3D text in the scene. Always set a contrasting `outlineColor` + small `outlineWidth` (≈`0.1`) so text stays legible on any background. |
 | **LightSource** | `type`, `color`, `intensity`, `range`, `innerAngle`, `outerAngle`, `shadows` | Add point, spot, or directional lights. |
 
 ## Interaction & Input

@@ -88,6 +88,8 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
+**Legibility:** `Label`/`uiText` has no glyph-outline property. To keep text readable on any background (recommended by default), place it on a contrasting semi-opaque `uiBackground` panel, or layer offset copies for a true outline. See the **Text Legibility** section in `build-ui/SKILL.md`.
+
 ## Button
 
 ```tsx
