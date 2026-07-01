@@ -62,7 +62,7 @@ Skills are markdown files that give AI coding assistants the context they need t
 
 ## Contributing
 
-The source of truth for these skills is maintained in the [decentraland/docs](https://github.com/decentraland/docs) repository under the `skills/` directory. To contribute improvements, please open a PR there.
+The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
 
 ## License
 
