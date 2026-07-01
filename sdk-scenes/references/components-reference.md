@@ -43,7 +43,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
 | **Animator** | `states: Array<{ clip, playing, loop, speed, weight }>` | Play animations embedded in GLTF models. |
-| **Tween** | `mode: { move, rotate, scale }`, `duration`, `easingFunction`, `currentTime` | Animate entity properties over time. |
+| **Tween** | `mode`, `duration`, `easingFunction`, `currentTime`, `playing?` | Animate entity properties over time. `mode` is a discriminated union: `move`, `rotate`, `scale`, `textureMove`, `moveRotateScale`, plus the endless variants `moveContinuous`, `rotateContinuous`, `textureMoveContinuous` (these loop forever — take a speed rather than a `duration`). |
 | **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. |
 | **TweenState** | Read-only | Current state of a tween. |
 
@@ -52,10 +52,10 @@ All components are imported from `@dcl/sdk/ecs`.
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
 | **AudioSource** | `audioClipUrl: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `pitch: number` | Play audio clips (.mp3, .ogg, .wav). |
-| **AudioStream** | `url: string`, `playing: boolean`, `volume: number` | Stream audio from a URL. |
+| **AudioStream** | `url: string`, `playing: boolean`, `volume: number`, `spatial?: boolean`, `spatialMinDistance?: number`, `spatialMaxDistance?: number` | Stream audio from a URL. Non-spatial by default; set `spatial: true` to position it in 3D space at the entity. |
 | **AudioEvent** | Read-only | Audio playback events. |
 | **AudioAnalysis** | `mode: PBAudioAnalysisMode`, `amplitudeGain?`, `bandsGain?`; output: `amplitude`, `band0..band7` | Real-time amplitude + 8-band frequency data from `AudioSource`/`AudioStream`/`VideoPlayer`. Use `AudioAnalysis.createAudioAnalysis(entity)` then `readIntoView`. Unity explorer only. |
-| **VideoPlayer** | `src: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `playbackRate: number` | Play video on a surface. Requires `Material` with video texture. |
+| **VideoPlayer** | `src: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `playbackRate: number`, `position?: number`, `spatial?: boolean`, `spatialMinDistance?: number`, `spatialMaxDistance?: number` | Play video on a surface. Requires `Material` with video texture. `position` seeks (seconds); audio is non-spatial unless `spatial: true`. |
 | **VideoEvent** | Read-only | Video playback events. |
 
 ## Player & Avatar

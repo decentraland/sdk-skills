@@ -211,7 +211,7 @@ All valid `scene.json` fields:
 
 Valid values for the `tags` array:
 
-`"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`
+`"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
 
 ### Required Permissions
 

@@ -39,7 +39,7 @@ The rules in this document have **two modes** that you must distinguish before t
 
 When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes SDK build error: `"inspector::Nodes is not defined and there is no schema to define it"`
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (see the Troubleshooting section for the exact wording, which differs between current and older SDK versions)
 - **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
@@ -672,7 +672,7 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core, and require installing the `asset-packs` library in the project. Do not add any of these unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. On current SDK versions the build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required; older SDK versions require `@dcl/asset-packs` to be a project dependency. Either way, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 
@@ -793,7 +793,7 @@ Before writing a fresh composite, verify:
 - [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
-- [ ] The project must have the `@dcl/asset-packs` library as a dependency to be able to use a composite file
+- [ ] A composite using only core components needs no extra library. If it contains `asset-packs::*` components, older SDKs require `@dcl/asset-packs` as a project dependency; current SDKs fall back to the copy bundled inside `@dcl/inspector`
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
@@ -826,5 +826,5 @@ npx sdk-commands build
 
 The build must pass with zero errors. If it fails, the composite is invalid. Common errors:
 
-- `"X is not defined and there is no schema to define it"` → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
+- `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts
