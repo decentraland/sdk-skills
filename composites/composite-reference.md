@@ -325,6 +325,8 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 - `2` = CL_PHYSICS (player physics, walls, floors)
 - `3` = CL_POINTER + CL_PHYSICS (both)
 
+**Default:** if `collisionMask` is omitted it defaults to `3` (CL_POINTER | CL_PHYSICS) — a bare `MeshCollider` is already clickable and solid. Set it explicitly only to narrow the behavior (e.g. `2` for a wall that shouldn't intercept clicks), not to enable colliders.
+
 ### core::Material
 
 **PBR material:**
@@ -412,6 +414,27 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 	}
 }
 ```
+
+### core::AudioStream
+
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+
+```json
+{
+	"name": "core::AudioStream",
+	"data": {
+		"512": {
+			"json": {
+				"url": "https://example.com/stream.mp3",
+				"playing": true,
+				"volume": 1
+			}
+		}
+	}
+}
+```
+
+Non-spatial by default. Set `"spatial": true` (optionally with `spatialMinDistance` / `spatialMaxDistance`) to position the stream in 3D at the entity.
 
 ### core::VideoPlayer
 

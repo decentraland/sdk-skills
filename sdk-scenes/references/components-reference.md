@@ -21,8 +21,9 @@ All components are imported from `@dcl/sdk/ecs`.
 | **Billboard** | `billboardMode: BillboardMode` | Makes entity always face the camera. |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
 | **NftShape** | `src: string (urn)`, `style?` | Display an NFT artwork frame. |
-| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font` | Render 3D text in the scene. |
+| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
 | **LightSource** | `type`, `color`, `intensity`, `range`, `innerAngle`, `outerAngle`, `shadows` | Add point, spot, or directional lights. |
+| **ParticleSystem** | `rate`, `maxParticles`, `lifetime`, `gravity`, `shape`, `initialColor`, `colorOverTime`, `initialSize`, `texture`, `blendMode`, `loop`, `spriteSheet` | Emit particles (fire, smoke, sparks, snow). Many fields — see the `particle-system` skill for the full list, enums, and presets. Unity explorer only. |
 
 ## Interaction & Input
 
@@ -69,12 +70,13 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarModifierArea** | `area`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area (hide, freeze). |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Trigger avatar emotes. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
+| **AvatarLocomotionSettings** | `walkSpeed?` (1.5), `jogSpeed?` (8), `runSpeed?` (10), `jumpHeight?` (1), `runJumpHeight?` (1.5), `hardLandingCooldown?` (0.75) | Override the player's movement speeds and jump heights (m/s and m). Apply to `engine.PlayerEntity`. Numbers in parentheses are defaults. |
 
 ## Camera
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **CameraMode** | `mode: CameraType` | Set camera to first-person or third-person. |
+| **CameraMode** | `mode: CameraType` | Read-only current camera mode. `CameraType`: `CT_FIRST_PERSON` (0), `CT_THIRD_PERSON` (1), `CT_CINEMATIC` (2 — reported while a `VirtualCamera` drives the view). |
 | **CameraModeArea** | `area`, `mode` | Force camera mode in an area. |
 | **MainCamera** | Read-only | Access main camera position/rotation. |
 | **VirtualCamera** | `lookAtEntity?`, `defaultTransition` | Create cinematic camera angles. |
@@ -103,6 +105,35 @@ Imported from `@dcl/sdk/react-ecs`:
 | **SkyboxTime** | `time` | Control the time of day (skybox). |
 | **AssetLoad** | `src`, `type` | Request loading of external assets. |
 | **AssetLoadLoadingState** | Read-only | Loading state of external assets. |
+| **MapPin** | `position: Vector2`, `iconSize: number`, `title: string`, `description: string`, `texture?: TextureUnion` | Place a marker on the world/mini-map at parcel coordinates. |
+
+## Physics (player forces)
+
+Raw force components — most scenes should use the `Physics.*` helper functions (see the `player-physics` skill) rather than writing these directly.
+
+| Component | Key Fields | Description |
+|-----------|-----------|-------------|
+| **PhysicsCombinedForce** | `vector: Vector3` | Continuous force applied to the player each frame. |
+| **PhysicsCombinedImpulse** | `vector: Vector3`, `eventId: number` | One-shot impulse applied to the player. |
+
+## Multiplayer / Networking (from `@dcl/sdk/network`)
+
+Usually managed via the `syncEntity()` / `parentEntity()` helpers — see the `multiplayer-sync` skill. Rarely read directly.
+
+| Component | Key Fields | Description |
+|-----------|-----------|-------------|
+| **SyncComponents** | `componentIds: number[]` | Marks which components on an entity are synced across peers. Set by `syncEntity()`. |
+| **NetworkEntity** | `networkId: number`, `entityId: Entity` | Stable network identity of a synced entity. |
+| **NetworkParent** | `networkId: number`, `entityId: Entity` | Network-stable parent link for synced hierarchies. Set by `parentEntity()`. |
+
+## Core-schema (composite / editor)
+
+Imported from `@dcl/sdk/ecs`; in a `.composite` they appear as `core-schema::Name` / `core-schema::Tags`.
+
+| Component | Key Fields | Description |
+|-----------|-----------|-------------|
+| **Name** | `value: string` | Human-readable entity name. Required for `engine.getEntityOrNullByName()` lookups and for the Creator Hub entity tree. |
+| **Tags** | `tags: string[]` | Group entities under shared tags; fetch with `engine.getEntitiesByTag()`. `Tags.add()` / `Tags.remove()` at runtime. |
 
 ## Math Types (from `@dcl/sdk/math`)
 
