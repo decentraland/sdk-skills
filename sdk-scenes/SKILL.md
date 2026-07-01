@@ -158,7 +158,7 @@ These reference files are used across multiple skills. Load them when you need d
 ### Components Reference
 
 **Reference: `{baseDir}/references/components-reference.md`**
-Full ECS component API: all fields, types, and defaults for every SDK7 component.
+Quick-reference of key fields, types, and defaults for the SDK7 components you'll commonly use. For a component's complete field list, consult its dedicated skill or the SDK typings.
 
 ### Entity Validation Rules
 
