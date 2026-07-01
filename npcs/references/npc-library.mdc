@@ -11,8 +11,10 @@ npm i dcl-npc-toolkit
 Then import the toolkit in your code:
 
 ```typescript
-import { createNPC, Dialog } from 'dcl-npc-toolkit'
+import * as npc from 'dcl-npc-toolkit'
 ```
+
+The toolkit's `Dialog` type is available as `npc.Dialog`.
 
 Then you can use the toolkit to create NPCs.
 
@@ -59,20 +61,23 @@ Transform.create(randomNPC, {
 
 ### Create NPC with toolkit (GLB + dialog)
 ```typescript
+import * as npc from 'dcl-npc-toolkit'
+
 // Use the toolkit to instantiate an NPC from a GLB with a simple dialog and activation callback
-const guide = createNPC(
+const guideDialog: npc.Dialog[] = [{ text: 'Welcome!', isEndOfDialog: true }]
+
+const guide = npc.create(
   {
     position: { x: 8, y: 0, z: 8 },
     rotation: { x: 0, y: 0, z: 0, w: 1 },
     scale: { x: 1, y: 1, z: 1 }
   },
   {
-    type: 'custom',
-    model: 'models/guide.glb',
-    dialog: [{ text: "Welcome!", isEndOfDialog: true } as Dialog],
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/guide.glb' },
     onActivate: () => {
-      // Called on click; open dialog or run logic
-      console.log('Guide activated')
+      // Called on activation; open the dialog via talk()
+      npc.talk(guide, guideDialog)
     }
   }
 )
@@ -206,18 +211,21 @@ triggerAreaEventsSystem.onTriggerExit(npcEntity, () => {
 
 ### Simple Text Dialogue
 ```typescript
+import * as npc from 'dcl-npc-toolkit'
+
 // Create a talking NPC using the toolkit's Dialog[]
-const greeter = createNPC(
+const greeterDialog: npc.Dialog[] = [
+  { text: "Hello! I'm your guide. How can I help you today?", isEndOfDialog: true }
+]
+
+const greeter = npc.create(
   { position: { x: 8, y: 0, z: 8 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
   {
-    type: 'custom',
-    model: 'models/greeter.glb',
-    dialog: [
-      { text: "Hello! I'm your guide. How can I help you today?", isEndOfDialog: true } as Dialog
-    ],
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/greeter.glb' },
     onActivate: () => {
-      // Optional extra behavior when clicked
-      console.log('Greeter activated')
+      // Open the dialog via talk() when activated
+      npc.talk(greeter, greeterDialog)
     }
   }
 )
@@ -225,27 +233,33 @@ const greeter = createNPC(
 
 ### Multi-Choice Dialogue
 ```typescript
-// Create an NPC with a multi-choice dialog flow via toolkit Dialog[]
-const questGiver = createNPC(
+import * as npc from 'dcl-npc-toolkit'
+
+// A multi-choice dialog flow using toolkit Dialog[]
+const questGiverDialog: npc.Dialog[] = [
+  {
+    text: 'Welcome, traveler! What do you seek?',
+    isQuestion: true,
+    // Keep button labels short (~15 chars). Longer labels are visually truncated.
+    buttons: [
+      { label: 'About this place', goToDialog: 1 },
+      { label: 'Give me a quest', goToDialog: 2 },
+      { label: 'Goodbye', goToDialog: 3 }
+    ]
+  },
+  { text: 'These lands are rich with secrets and stories.', isEndOfDialog: true },
+  { text: 'Take this task and return victorious!', isEndOfDialog: true },
+  { text: 'Safe travels!', isEndOfDialog: true }
+]
+
+const questGiver = npc.create(
   { position: { x: 10, y: 0, z: 10 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
   {
-    type: 'custom',
-    model: 'models/quest_giver.glb',
-    dialog: [
-      {
-        text: 'Welcome, traveler! What do you seek?',
-        isQuestion: true,
-        // Keep button labels short (~15 chars). Longer labels are visually truncated.
-        buttons: [
-          { label: 'About this place', goToDialog: 1 },
-          { label: 'Give me a quest', goToDialog: 2 },
-          { label: 'Goodbye', goToDialog: 3 }
-        ]
-      } as unknown as Dialog,
-      { text: 'These lands are rich with secrets and stories.', isEndOfDialog: true } as Dialog,
-      { text: 'Take this task and return victorious!', isEndOfDialog: true } as Dialog,
-      { text: 'Safe travels!', isEndOfDialog: true } as Dialog
-    ]
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/quest_giver.glb' },
+    onActivate: () => {
+      npc.talk(questGiver, questGiverDialog)
+    }
   }
 )
 ```
@@ -367,9 +381,13 @@ Common symptoms and fixes:
 ```typescript
 function createPatrollingNPC() {
   // Create NPC via toolkit (handles walk/idle animations)
-  const patrollingNPC = createNPC(
+  const patrollingNPC = npc.create(
     { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
-    { type: 'custom', model: 'models/guard.glb' }
+    {
+      type: npc.NPCType.CUSTOM,
+      model: { src: 'models/guard.glb' },
+      onActivate: () => {}
+    }
   )
   
   // Define patrol path
@@ -404,9 +422,13 @@ function createPatrollingNPC() {
 ```typescript
 function createFollowingNPC() {
   // Create NPC via toolkit
-  const followingNPC = createNPC(
+  const followingNPC = npc.create(
     { position: { x: 2, y: 0, z: 2 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
-    { type: 'custom', model: 'models/companion.glb' }
+    {
+      type: npc.NPCType.CUSTOM,
+      model: { src: 'models/companion.glb' },
+      onActivate: () => {}
+    }
   )
   
   // System to make NPC follow player (read player via engine.PlayerEntity)
@@ -444,17 +466,17 @@ function createFollowingNPC() {
 // The toolkit tracks basic interaction state and dialog progression internally.
 // Prefer defining behavior via createNPC options and Dialog[] rather than custom components.
 
-const merchant = createNPC(
+const merchantDialog: npc.Dialog[] = [
+  { text: 'Welcome to my shop!', isEndOfDialog: true }
+]
+
+const merchant = npc.create(
   { position: { x: 8, y: 0, z: 8 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
   {
-    type: 'custom',
-    model: 'models/merchant.glb',
-    dialog: [
-      { text: 'Welcome to my shop!', isEndOfDialog: true } as Dialog
-    ],
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/merchant.glb' },
     onActivate: () => {
-      // Optional: extra side effects on interaction
-      console.log('Merchant activated')
+      npc.talk(merchant, merchantDialog)
     }
   }
 )
@@ -463,12 +485,14 @@ const merchant = createNPC(
 ### Interaction flow
 ```typescript
 // Clicks are handled via the toolkit's onActivate; use TriggerArea for proximity prompts if needed.
-const helper = createNPC(
+const helperDialog: npc.Dialog[] = [{ text: 'Need assistance?', isEndOfDialog: true }]
+
+const helper = npc.create(
   { position: { x: 6, y: 0, z: 6 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
   {
-    type: 'custom', model: 'models/helper.glb',
-    dialog: [{ text: 'Need assistance?', isEndOfDialog: true } as Dialog],
-    onActivate: () => console.log('Helper clicked')
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/helper.glb' },
+    onActivate: () => npc.talk(helper, helperDialog)
   }
 )
 ```
@@ -530,21 +554,25 @@ messageBus.on('npc-interaction', (message) => {
 ```typescript
 function createAdvancedNPC() {
   // Multi-step dialog with branching via toolkit only
-  return createNPC(
+  const advancedDialog: npc.Dialog[] = [
+    { text: 'Hello traveler! I have a quest for you.', isQuestion: true, buttons: [
+      // Short labels — long labels get visually clipped (~15 char limit at default font).
+      { label: 'About the quest', goToDialog: 1 },
+      { label: 'Pass for now', goToDialog: 2 }
+    ] },
+    { text: 'Retrieve the ancient token from the ruins to the east.', isEndOfDialog: true },
+    { text: 'Come back if you change your mind!', isEndOfDialog: true }
+  ]
+
+  const advancedNPC = npc.create(
     { position: { x: 8, y: 0, z: 8 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
     {
-      type: 'custom', model: 'models/quest_giver.glb',
-      dialog: [
-        { text: 'Hello traveler! I have a quest for you.', isQuestion: true, buttons: [
-          // Short labels — long labels get visually clipped (~15 char limit at default font).
-          { label: 'About the quest', goToDialog: 1 },
-          { label: 'Pass for now', goToDialog: 2 }
-        ] } as unknown as Dialog,
-        { text: 'Retrieve the ancient token from the ruins to the east.', isEndOfDialog: true } as Dialog,
-        { text: 'Come back if you change your mind!', isEndOfDialog: true } as Dialog
-      ]
+      type: npc.NPCType.CUSTOM,
+      model: { src: 'models/quest_giver.glb' },
+      onActivate: () => npc.talk(advancedNPC, advancedDialog)
     }
   )
+  return advancedNPC
 }
 ```
 
@@ -649,35 +677,37 @@ function buyItem(item: ShopItem) {
 Track quest state externally and swap dialog arrays based on progress:
 
 ```typescript
+import * as npc from 'dcl-npc-toolkit'
+
 let questState: 'not_started' | 'in_progress' | 'completed' = 'not_started'
 
-const questDialogsNotStarted: Dialog[] = [
+const questDialogsNotStarted: npc.Dialog[] = [
   { text: 'I need someone brave. Will you help?', isQuestion: true, buttons: [
     { label: 'Accept quest', goToDialog: 1 },
     { label: 'Not now', goToDialog: 2 }
-  ]} as unknown as Dialog,
-  { text: 'Find the lost artifact in the cave to the north!', triggeredByNext: () => { questState = 'in_progress' }, isEndOfDialog: true } as Dialog,
-  { text: 'Come back when you are ready.', isEndOfDialog: true } as Dialog
+  ]},
+  { text: 'Find the lost artifact in the cave to the north!', triggeredByNext: () => { questState = 'in_progress' }, isEndOfDialog: true },
+  { text: 'Come back when you are ready.', isEndOfDialog: true }
 ]
 
-const questDialogsInProgress: Dialog[] = [
-  { text: 'Have you found the artifact yet? Keep looking!', isEndOfDialog: true } as Dialog
+const questDialogsInProgress: npc.Dialog[] = [
+  { text: 'Have you found the artifact yet? Keep looking!', isEndOfDialog: true }
 ]
 
-const questDialogsCompleted: Dialog[] = [
-  { text: 'You found it! You are a true hero. Here is your reward.', isEndOfDialog: true } as Dialog
+const questDialogsCompleted: npc.Dialog[] = [
+  { text: 'You found it! You are a true hero. Here is your reward.', isEndOfDialog: true }
 ]
 
-const questNPC = createNPC(
+const questNPC = npc.create(
   { position: { x: 10, y: 0, z: 10 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } },
   {
-    type: 'custom',
-    model: 'models/quest_giver.glb',
+    type: npc.NPCType.CUSTOM,
+    model: { src: 'models/quest_giver.glb' },
     onActivate: () => {
       let dialogs = questDialogsNotStarted
       if (questState === 'in_progress') dialogs = questDialogsInProgress
       if (questState === 'completed') dialogs = questDialogsCompleted
-      openDialogWindow(questNPC, dialogs, 0)
+      npc.openDialogWindow(questNPC, dialogs, 0)
     }
   }
 )
@@ -706,18 +736,17 @@ Options passed as the second argument to `createNPC`:
 
 | Option | Type | Description |
 |---|---|---|
-| `type` | `'custom'` | Use a custom GLB model. |
-| `model` | `string` | Path to the GLB model file (e.g. `'models/npc.glb'`). |
-| `dialog` | `Dialog[]` | Array of dialog steps for the NPC. |
-| `onActivate` | `() => void` | Callback when the NPC is clicked/activated. |
+| `type` | `NPCType` | `npc.NPCType.CUSTOM` for a GLB model (or `NPCType.AVATAR`). |
+| `model` | `string \| PBGltfContainer \| PBAvatarShape` | Path to the GLB model file (e.g. `'models/npc.glb'`) or a component value. |
+| `onActivate` | `(other: Entity) => void` | **Required.** Callback when the NPC is clicked/activated — open dialogue here via `npc.talk(...)`. There is no `dialog` create option. |
 | `faceUser` | `boolean` | NPC rotates to face the player during interaction. |
-| `cooldownDuration` | `number` | Seconds before NPC can be activated again. |
-| `onWalkAway` | `() => void` | Callback when the player walks away during dialog. |
+| `coolDownDuration` | `number` | Seconds before NPC can be activated again (default 5). |
+| `onWalkAway` | `(other: Entity) => void` | Callback when the player walks away during dialog. |
 | `idleAnim` | `string` | Name of the idle animation clip in the GLB. |
 | `walkingAnim` | `string` | Name of the walking animation clip in the GLB. |
-| `walkingSpeed` | `number` | Movement speed when following a path. |
-| `turnSpeed` | `number` | Rotation speed when turning to face the player. |
-| `hasBubble` | `boolean` | Enable world-space speech bubble instead of HUD dialog. |
+| `pathData` | `FollowPathData` | Path to walk; movement speed comes from `pathData.speed` (default 2) — there is no top-level `walkingSpeed` option. |
+| `turningSpeed` | `number` | Rotation speed when turning to face the player (default 2). |
+| `textBubble` | `boolean` | Enable world-space speech bubble instead of HUD dialog. |
 | `bubbleXOffset` | `number` | Horizontal offset for the speech bubble. |
 | `bubbleYOffset` | `number` | Vertical offset for the speech bubble. |
 
