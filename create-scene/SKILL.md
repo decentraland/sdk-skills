@@ -88,9 +88,9 @@ Update the `display` fields and parcels:
 
 Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format.
 
-> **Editing an existing scene? Read the "Editing an existing composite (edit mode)" section of the composite reference FIRST.** If the user has opened the scene in the Creator Hub at least once, `main.composite` will contain `inspector::Nodes`, `inspector::SceneMetadata-*`, etc. Adding new entities WITHOUT registering them in `inspector::Nodes` makes them invisible in the Creator Hub entity tree (they render in-world but cannot be selected/edited in the editor). The composite reference spells out exactly which arrays to update.
+> **Editing an existing scene? Read the "Editing an existing composite (edit mode)" section of the composite reference FIRST.** If the scene has been opened in the Creator Hub, `main.composite` already contains `inspector::*` components; adding new entities without registering them in `inspector::Nodes` leaves them rendering in-world but invisible and un-selectable in the Creator Hub entity tree. The reference spells out the exact procedure.
 
-Example — a box and a 3D model:
+Minimal example — a single named box. Components share entity IDs across their `data` maps, so all of entity `512`'s data lives under the `"512"` key:
 
 ```json
 {
@@ -106,47 +106,24 @@ Example — a box and a 3D model:
 						"rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
 						"parent": 0
 					}
-				},
-				"513": {
-					"json": {
-						"position": { "x": 4, "y": 0, "z": 4 },
-						"scale": { "x": 1, "y": 1, "z": 1 },
-						"rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
-						"parent": 0
-					}
 				}
 			}
 		},
 		{
 			"name": "core::MeshRenderer",
-			"data": {
-				"512": { "json": { "mesh": { "$case": "box", "box": {} } } }
-			}
-		},
-		{
-			"name": "core::GltfContainer",
-			"data": {
-				"513": {
-					"json": {
-						"src": "assets/asset-packs/tree_forest_01/Tree_Forest_01.glb",
-						"visibleMeshesCollisionMask": 0,
-						"invisibleMeshesCollisionMask": 3
-					}
-				}
-			}
+			"data": { "512": { "json": { "mesh": { "$case": "box", "box": {} } } } }
 		},
 		{
 			"name": "core-schema::Name",
-			"data": {
-				"512": { "json": { "value": "BlueCube" } },
-				"513": { "json": { "value": "Tree_1" } }
-			}
+			"data": { "512": { "json": { "value": "BlueCube" } } }
 		}
 	]
 }
 ```
 
-> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground. Never at a height below 0.
+For multi-entity scenes, GLB models with collision masks, tags, and the full component-grouping pattern, see `{baseDir}/../composites/composite-reference.md`.
+
+> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground.
 
 ### src/index.ts
 
@@ -163,7 +140,7 @@ import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {
-	// Fetch entity defined in the composite — never re-create it here
+	// Fetch an entity defined in the composite — never re-create it here
 	const cube = engine.getEntityOrNullByName(EntityNames.BlueCube)
 	if (cube) {
 		pointerEventsSystem.onPointerDown(
@@ -176,14 +153,10 @@ export function main() {
 			}
 		)
 	}
-
-	// Fetch all entities tagged "Tree" from the composite
-	const trees = engine.getEntitiesByTag('Tree')
-	for (const tree of trees) {
-		// apply behavior to every tree
-	}
 }
 ```
+
+To fetch groups of entities by tag (`engine.getEntitiesByTag`) or add/remove tags at runtime, see the "Referencing Composite Entities from Code" section of `{baseDir}/../composites/composite-reference.md`.
 
 > **When to create entities in TypeScript instead:** Only if the entity is truly dynamic — spawned in response to gameplay events, instanced multiple times at runtime, or its count/identity is not known at scene-authoring time.
 

@@ -178,14 +178,7 @@ console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFix
 "
 ```
 
-**Known measured bounding boxes** (half-extents from origin):
-
-| Model           | –X   | +X   | –Z    | +Z   | Safe minimum origin    |
-| --------------- | ---- | ---- | ----- | ---- | ---------------------- |
-| Tree_01_Art.glb | 8.16 | 7.78 | 11.34 | 0.76 | x≥9, z≥12              |
-| Tree_02_Art.glb | 6.56 | 6.23 | 11.41 | 0.36 | x≥7, z≥12              |
-| Column_Art.glb  | 0.82 | 0.82 | 0.82  | 0.82 | any x/z with 1m margin |
-| Wall01_Art.glb  | 2.18 | 2.16 | 0.05  | 0.05 | x≥3, z≥1               |
+**Measure per model — don't guess or hard-code.** Extents vary wildly: running the script above on a typical tree often reveals ~11 m of reach in one horizontal direction from the origin (safe minimum origin z≥12), while a column reaches under 1 m in every direction. Always compute the box for the specific GLB you're placing.
 
 **Rule:** For every GLB model, compute:
 
@@ -676,11 +669,7 @@ All components that start with `asset-packs::` or `inspector::` are non-core. On
 
 ### Root Entity components
 
-**NOTE (authoring-from-scratch mode):** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata-*` in a fresh composite. The Creator Hub creates these automatically when opening the scene. Including them in a fresh file causes the SDK build to fail.
-
-**NOTE (edit mode):** If `inspector::Nodes` and `inspector::SceneMetadata-*` are ALREADY present (the user has opened/saved the scene in the Creator Hub), keep them and update `inspector::Nodes` whenever you add a new entity — see "Editing an existing composite (edit mode)" above. Do not delete or strip them.
-
-These components only exist on the RootEntity (ID 0).
+These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
 
