@@ -4,26 +4,26 @@ AI coding skills for building [Decentraland](https://decentraland.org) scenes wi
 
 ## Quick Start
 
-Install everything with a single command — no flags needed:
+Install all skills with a single command:
 
 ```bash
-npx skills add decentraland/sdk-skills
+npx skills add decentraland/sdk-skills --all
 ```
 
-This installs the root skill which includes behavioral guidelines, the composite-first rule, an index of all topic skills, and references to all sub-skill documentation.
+This installs the `sdk-scenes` entry-point skill (behavioral guidelines, the composite-first rule, and an index of all topic skills) along with every individual topic skill it references.
 
 You can also install individual topic skills if you only need specific areas:
 
 ```bash
+npx skills add decentraland/sdk-skills --skill sdk-scenes
 npx skills add decentraland/sdk-skills --skill create-scene
 npx skills add decentraland/sdk-skills --skill add-3d-models
-npx skills add decentraland/sdk-skills --skill multiplayer-sync
 ```
 
-Or install all individual skills at once:
+Or run the command without flags to pick skills interactively:
 
 ```bash
-npx skills add decentraland/sdk-skills --all
+npx skills add decentraland/sdk-skills
 ```
 
 ## Available Skills
@@ -37,6 +37,7 @@ npx skills add decentraland/sdk-skills --all
 | `advanced-input` | System-level input polling and player movement control. |
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
+| `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
 | `authoritative-server` | Headless authoritative server for multiplayer. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
@@ -51,6 +52,7 @@ npx skills add decentraland/sdk-skills --all
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
+| `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |

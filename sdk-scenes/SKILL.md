@@ -84,6 +84,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `lighting-environment`** — Point/spot lights, shadows, `SkyboxTime` (day/night cycle), emissive materials.
 
+### Particle Systems
+
+**Skill: `particle-system`** — `ParticleSystem` component for fire, smoke, sparks, snow, rain, magic, fireworks. Emitter shapes (Point/Sphere/Cone/Box), continuous rate vs Burst emission, gravity, sprite-sheet animation, blend modes.
+
 ### Click & Proximity Interactivity
 
 **Skill: `add-interactivity`** — `pointerEventsSystem`, trigger areas, raycasting. For polling-based input see `advanced-input`.
@@ -115,6 +119,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Audio & Video
 
 **Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.
+
+### Audio Analysis (Reactive Visualizers)
+
+**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Unity-explorer only.
 
 ### Blockchain & NFTs
 
@@ -149,6 +157,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
+### SDK6 → SDK7 Migration
+
+**Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
+
 ---
 
 ## Shared References
@@ -178,7 +190,7 @@ The `.composite` JSON format for declaring initial scene entities. Includes `get
 ### Library References
 
 - **NPC Toolkit:** `{baseDir}/../npcs/references/npc-library.mdc` — GLB-based NPCs with dialogue, movement, state machines
-- **Crypto/MANA:** `{baseDir}/../nft-blockchain/references/crypto-library.mdc` — MANA operations, currency/NFT transactions, marketplace integration
+- **Blockchain/NFT patterns:** `{baseDir}/../nft-blockchain/references/blockchain-patterns.md` — NFT display, wallet checks, MANA operations, currency/NFT transactions, marketplace integration (dcl-crypto-toolkit)
 
 ---
 
