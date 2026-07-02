@@ -177,11 +177,23 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 
 - `Tween.setTextureMove(entity, start: Vector2, end: Vector2, duration, movementType?: TextureMovementType, easing?)` — `movementType` is the 5th param, easing 6th
 
-**Control**: `Tween.getMutable(entity).playing = false` (pause), `.currentTime = 0` (reset).
+**Control**: `Tween.getMutable(entity).playing = false` (pause), `.currentTime = 0` (reset). Toggle a running continuous tween by reading `Tween.getMutableOrNull(entity)` and flipping `.playing` (verified in `78,-4-tweens`). Remove a tween entirely with `Tween.deleteFrom(entity)`; `Tween.has(entity)` checks presence.
+
+**Retrigger / replace at runtime**: use `Tween.createOrReplace(entity, {...})` (and `TweenSequence.createOrReplace`) instead of `create` when the entity may already have a tween — e.g. a platform re-triggered while still moving. Pass `currentTime: 0` in the config to restart from the beginning in case it was mid-flight (verified in `77,-5-tweens-moving-platforms`).
+
+`Tween.Mode.MoveRotateScale({...})` and `setMoveRotateScale` accept a **partial** transform — supply only the axes you want (`position` / `rotation` / `scale`); at least one is required. Omitted axes are left unchanged (verified against SDK source + `78,-4-tweens`).
+
+**Texture movement type** (`setTextureMove` / `setTextureMoveContinuous`, and `Tween.Mode.TextureMove`): the `movementType` param is `TextureMovementType.TMT_OFFSET` (default, `=0` — scrolls the UV offset) or `TextureMovementType.TMT_TILING` (`=1` — animates the tiling). Import `TextureMovementType` from `@dcl/sdk/ecs`. The texture must use `wrapMode: TextureWrapMode.TWM_REPEAT` for continuous scrolling to tile seamlessly (verified in `0,3-texture-movement`, `78,-4-tweens`).
 
 ## Tween Sequences (Chained Animations)
 
-Chain with `TweenSequence.create(entity, { sequence: [...tweenConfigs], loop })`. Loop modes: `TweenLoop.TL_RESTART` (loop from start), `TweenLoop.TL_YOYO` (reverse at each end).
+Chain with `TweenSequence.create(entity, { sequence: [...tweenConfigs], loop })`. Loop modes: `TweenLoop.TL_RESTART` (`=0`, loop from start), `TweenLoop.TL_YOYO` (`=1`, reverse at each end).
+
+### PATTERN: empty sequence loops the base Tween
+
+`TweenSequence.create(entity, { sequence: [], loop: TweenLoop.TL_YOYO })` on an entity that already has a plain `Tween` makes **that base tween itself** loop/yoyo — no sequence steps needed. This is the idiomatic way to make a single `setMove`/`setRotate`/`setScale`/`setTextureMove` repeat forever (verified in `77,-5-tweens-moving-platforms`, `0,3-texture-movement`). Use `TL_YOYO` for back-and-forth (platform bobbing), `TL_RESTART` for a hard reset each cycle (scrolling texture, one-directional spin).
+
+For a multi-waypoint path, the base `Tween` is the first leg and `sequence[]` holds the remaining legs; each step's `start`/`end` must chain from the previous leg's end (verified in `77,-5-tweens-moving-platforms` platform4).
 
 ## Detecting Tween Completion
 
@@ -218,3 +230,13 @@ For complex animations, create a system with `engine.addSystem((dt) => { ... })`
 - For looping: use `TweenSequence` with `loop: TweenLoop.TL_RESTART`
 
 For full code examples (Animator setup, all tween types, sequences, helpers, texture scrolling), see `{baseDir}/references/animation-patterns.md`.
+
+## Example scenes
+
+Engine-team test scenes (ground-truth API usage):
+
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/73,-8-animator-tests-shark` — `Animator` with two states + `weight`; clicking cycles `playSingleAnimation('swim')` / `('bite')` and demonstrates concurrent blend by also setting `getClip('bite').playing = true`.
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/78,-4-tweens` — every finite mode (`setMove`/`setRotate`/`setScale`/`setTextureMove`/`setMoveRotateScale`), continuous modes, `createOrReplace`, `deleteFrom`, pause-toggle via `getMutableOrNull().playing`, and mixed-mode `TweenSequence`.
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-5-tweens-moving-platforms` — `Tween.setMove` + empty-sequence `TL_YOYO` for bobbing platforms, multi-waypoint path via `sequence[]`, and `createOrReplace` retrigger from a `TriggerArea`.
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,3-texture-movement` — `setTextureMove` with `TMT_OFFSET` vs `TMT_TILING`, empty-sequence loop/yoyo, `TWM_REPEAT` tiling.
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,0-move-to-test` — custom per-frame spin system (`Quaternion.multiply` + `fromAngleAxis(dt*speed, Up())`) marking entities with a `Spinner` component. (The `movePlayerTo` portion belongs to restricted-actions, not tweens.)
