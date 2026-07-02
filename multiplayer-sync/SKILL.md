@@ -1,6 +1,6 @@
 ---
 name: multiplayer-sync
-description: Peer-to-peer multiplayer in Decentraland using CRDT networking. syncEntity (auto-synced components), parentEntity for synced hierarchies, MessageBus and binary MessageBus (fire-and-forget events), custom component definition with Schemas (Int64, Enum, EnumNumber, OneOf, Optional), and connection state. Use when the user wants multiplayer, synced entities, shared world state, broadcast events, or player-to-player communication without a server. Do NOT use for server-authoritative multiplayer, anti-cheat, or persistent storage (see authoritative-server). Do NOT use for screen UI (see build-ui).
+description: Peer-to-peer multiplayer in Decentraland using CRDT networking. syncEntity (auto-synced components), parentEntity for synced hierarchies, MessageBus and binary MessageBus (fire-and-forget events), custom component definition with Schemas (Int64, EnumNumber, EnumString, Map, OneOf, Optional), and connection state. Use when the user wants multiplayer, synced entities, shared world state, broadcast events, or player-to-player communication without a server. Do NOT use for server-authoritative multiplayer, anti-cheat, or persistent storage (see authoritative-server). Do NOT use for screen UI (see build-ui).
 ---
 
 # Multiplayer Synchronization in Decentraland
@@ -145,10 +145,10 @@ Available schema types for custom components:
 | `Schemas.Color4`              | RGBA colors                 |
 | `Schemas.Entity`              | Entity reference            |
 | `Schemas.Array(innerType)`    | Array of values             |
-| `Schemas.Map(valueType)`      | Key-value maps              |
+| `Schemas.Map(spec, default?)` | Nested struct — `spec` is named fields (`{ x: Schemas.Int, ... }`), NOT a homogeneous key→value map |
 | `Schemas.Optional(innerType)` | Nullable values             |
-| `Schemas.Enum(enumType)`      | Enum values (string enums)  |
-| `Schemas.EnumNumber(enumType, default)` | Numeric enum with default value |
+| `Schemas.EnumNumber(enumObj, default)` | Numeric enum; `default` is required (e.g. `Schemas.EnumNumber(State, State.Lobby)`) |
+| `Schemas.EnumString(enumObj, default)` | String enum; `default` is required |
 | `Schemas.OneOf({ ... })`      | Discriminated union (`$case` + payload) |
 
 Example with the less common schema types:
