@@ -197,33 +197,37 @@ pointerEventsSystem.removeOnProximityLeave(myEntity);
 
 ### System-Based Proximity (PointerEvents Component)
 
-For the system-based approach, use `PET_PROXIMITY_ENTER` and `PET_PROXIMITY_LEAVE` in the `PointerEvents` component, and `InteractionType.IT_PROXIMITY` for proximity button presses:
+For the system-based approach, use `PET_PROXIMITY_ENTER` and `PET_PROXIMITY_LEAVE` in the `PointerEvents` component, and `InteractionType.PROXIMITY` for proximity button presses:
+
+> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`. For proximity range use `maxPlayerDistance` (measured from the avatar); `maxDistance` is the cursor ray range and does nothing for proximity events.
 
 ```typescript
-import { PointerEvents, PointerEventType, InputAction } from "@dcl/sdk/ecs";
+import { PointerEvents, PointerEventType, InteractionType, InputAction } from "@dcl/sdk/ecs";
 
 PointerEvents.create(myEntity, {
   pointerEvents: [
     {
       eventType: PointerEventType.PET_PROXIMITY_ENTER,
+      interactionType: InteractionType.PROXIMITY,
       eventInfo: {
         button: InputAction.IA_PRIMARY,
         hoverText: "Approach",
-        maxDistance: 5,
+        maxPlayerDistance: 5,
       },
     },
     {
       eventType: PointerEventType.PET_PROXIMITY_LEAVE,
+      interactionType: InteractionType.PROXIMITY,
       eventInfo: {
         button: InputAction.IA_PRIMARY,
-        maxDistance: 5,
+        maxPlayerDistance: 5,
       },
     },
   ],
 });
 ```
 
-Then read results in a system using `inputSystem.getInputCommand()` with `InteractionType.IT_PROXIMITY`.
+Then read results in a system using `inputSystem.getInputCommand()` with `InteractionType.PROXIMITY`.
 
 ### Example: Proximity Door
 
