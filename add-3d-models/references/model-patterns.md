@@ -229,3 +229,28 @@ engine.addSystem(() => {
   }
 })
 ```
+
+`LoadingState` values: `UNKNOWN`, `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR`, `NOT_FOUND` (missing file — distinct from `FINISHED_WITH_ERROR`, which is a corrupt/failed asset).
+
+## Preloading Assets (AssetLoad)
+
+`AssetLoad` starts loading a list of assets (GLB, textures, audio, video) before they are used, so they appear instantly when first referenced. `assetLoadLoadingStateSystem` reports per-asset load state via a callback.
+
+```typescript
+import { AssetLoad, LoadingState, assetLoadLoadingStateSystem } from '@dcl/sdk/ecs'
+
+const loader = engine.addEntity()
+AssetLoad.getOrCreateMutable(loader, {
+  assets: ['assets/scene/Models/chicken.glb', 'assets/scene/Images/Logo.png'],
+})
+
+// Optional: react to each asset's state change
+assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(loader, (state) => {
+  // state.asset is the path; state.currentState is a LoadingState
+  if (state.currentState === LoadingState.FINISHED) console.log('loaded', state.asset)
+})
+```
+
+- `assets` is a `string[]` of asset paths; you can push more paths onto a mutable `AssetLoad.assets` after creation to preload additional assets.
+- The callback fires once per asset per state transition; `state.asset` matches the path string exactly (useful for mapping back to an entity).
+- Preloading does not place anything in the world — you still create the `GltfContainer` / `Material` / `AudioSource` etc. when you actually want the asset shown.
