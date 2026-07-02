@@ -180,6 +180,16 @@ Material.setPbrMaterial(entity, {
 })
 ```
 
+### castShadows
+
+Both `setPbrMaterial` and `setBasicMaterial` accept `castShadows: boolean` (default `true`). Set `false` to stop a surface from casting shadows without changing its appearance:
+
+```typescript
+Material.setPbrMaterial(entity, { albedoColor: Color4.Green(), castShadows: false })
+```
+
+For disabling shadows on a specific node inside a GLTF model, use `GltfNodeModifiers` with `castShadows: false` instead (see below).
+
 ## GltfContainer Collision Masks
 
 Use collision masks to control which collision layers respond to the different mesh layers in a GLTF model. GLTF models have two mesh layers: visible meshes (what players see rendered), and invisible layers (collider meshes, named internally with _collider):
@@ -238,9 +248,11 @@ Set `propagateToChildren: true` on a `VisibilityComponent` to apply visibility t
 VisibilityComponent.create(parentEntity, { visible: false, propagateToChildren: true })
 ```
 
-Rules:
-- If a child has its **own** `VisibilityComponent`, that overrides what the parent propagates.
+Rules (verified against the `1,0-visibility-comp-propagation` test scene):
+- If a child has its **own** `VisibilityComponent`, that value wins regardless of what an ancestor propagates — even if the child's own `propagateToChildren` is `false`, the child stays at its own `visible` value and does not re-inherit the parent's.
 - If a child has **no** `VisibilityComponent`, it inherits from the nearest ancestor with `propagateToChildren: true`.
+- A child that overrides an invisible parent to `visible: true` can itself set `propagateToChildren: true` to force its own subtree visible again — propagation re-evaluates at each node that carries a `VisibilityComponent`.
+- Propagation follows the live `Transform.parent` hierarchy: re-parenting an entity at runtime changes which ancestor's propagated visibility applies to it.
 
 ### Per-Node Modifiers (GltfNodeModifiers)
 
@@ -281,6 +293,18 @@ GltfNodeModifiers.create(entity, {
 })
 ```
 
+**Modifier details** (from the `74,-8-gltfnodemodifier` test scene):
+
+- `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
+- `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
+- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
+- `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
+- One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
+- **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
+- Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
+
+Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
+
 
 ### Avatar Texture
 
@@ -316,7 +340,7 @@ Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirr
 
 ## Texture tweens
 
-You can use tweens to make a texture slide sideways or shrink or zoom in, this can be used to achieve very cool effects.
+You can use tweens to make a texture slide sideways or shrink or zoom in, this can be used to achieve very cool effects. Requires a `Material` with a texture whose `wrapMode` is `TWM_REPEAT`, and a `TweenSequence` component (even with an empty `sequence`) for the tween to loop.
 
 ```typescript
 Material.setPbrMaterial(myEntity, {
@@ -326,16 +350,30 @@ Material.setPbrMaterial(myEntity, {
 	}),
 })
 
-// move continuously
+// move continuously — (entity, direction, speed)
 Tween.setTextureMoveContinuous(myEntity, Vector2.create(0, 1), 1)
 ```
 
-You can also make a texture move once, lasting a specific duration
+You can also make a texture move once, lasting a specific duration:
 
 ```typescript
-// slide once, for 1 second
+// slide once, for 1 second — (entity, start, end, durationMs, movementType?, easing?)
 Tween.setTextureMove(myEntity, Vector2.create(0, 0), Vector2.create(0, 1), 1000)
 ```
+
+**Movement type**: both helpers take an optional `movementType: TextureMovementType` (defaults to `TMT_OFFSET`):
+- `TextureMovementType.TMT_OFFSET` — pans the texture across the surface (scrolling water, conveyor belts).
+- `TextureMovementType.TMT_TILING` — animates the tiling factor (zoom / density changes).
+
+```typescript
+import { TextureMovementType, TweenLoop, TweenSequence } from '@dcl/sdk/ecs'
+
+// animate tiling from 1x to 2x over 4s, then yoyo back
+Tween.setTextureMove(plane, Vector2.create(1, 1), Vector2.create(2, 2), 4000, TextureMovementType.TMT_TILING)
+TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_YOYO })
+```
+
+To loop, pair the tween with `TweenSequence.create(entity, { sequence: [], loop: TweenLoop.TL_RESTART | TL_YOYO })`.
 
 
 ## FlatMaterial Accessors
@@ -366,3 +404,12 @@ Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 
 - `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed
 - Combine Billboard + TextShape for floating name labels above NPCs or objects
 - Use VisibilityComponent for LOD systems instead of removing/re-adding entities
+
+## Example scenes
+
+Engine-team test scenes exercising these APIs against the real runtime:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier — `GltfNodeModifiers` overriding PBR/unlit materials, video textures, per-node colors and `castShadows` on specific GLTF nodes; `createOrReplace`/`deleteFrom`; wrong-path console-dump debug trick.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/1,0-visibility-comp-propagation — `VisibilityComponent` `propagateToChildren` across a parent/child/grandchild hierarchy with runtime re-parenting, covering every override combination.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,3-texture-movement — texture tweens via `Tween.setTextureMove` with `TextureMovementType.TMT_OFFSET` and `TMT_TILING`, paired with `TweenSequence` loops; also `Billboard` + `TextShape`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/52,-52-testing-gallery — PBR material sweeps (metallic/roughness/emissive/normal-map) and `GltfContainer` collision-mask combinations shown side by side.

@@ -79,12 +79,25 @@ Convert local direction to world space with `Transform.localToWorldDirection(ent
 | `Physics.applyRepulsionForceToPlayer(entity, pos, mag, radius)` | Continuous | Distance-based push from point |
 | `Transform.localToWorldDirection(entity, dir)` | Utility | Convert local direction to world space |
 
+## Trigger-zone collider layers — which player fires the trigger
+
+`Physics.*` always affects the **local** player. When you drive forces from a `TriggerArea`, the collider mask decides which avatars fire the callback (verified in test scene `5,5-collider-layers`):
+
+| Mask | Fires for |
+|------|-----------|
+| `ColliderLayer.CL_MAIN_PLAYER` | the **local** player only |
+| `ColliderLayer.CL_PLAYER` | **remote** avatars only (NOT the local player) |
+| `CL_PLAYER \| CL_MAIN_PLAYER` | both local and remote |
+| `ColliderLayer.CL_PHYSICS` | never fires for any avatar (targets scene mesh/walls, not characters) |
+
+**Prefer `CL_MAIN_PLAYER` for player-physics trigger zones.** Because the callback then only fires for the local player, you do not need a remote-vs-local guard, and the force is applied to the one avatar it can affect. A launch pad using `CL_PLAYER` alone will NOT fire for the local player (only for remote avatars), so it never launches the person standing on it — a common bug.
+
 ## Best Practices
 
 - Use `applyImpulseToPlayer` for one-off events (jump pads, explosions, hits)
 - Use `applyForceToPlayer` + `removeForceFromPlayer` with trigger zones for areas (wind tunnels, conveyor belts)
 - Use `KnockbackFalloff.LINEAR` for most area effects — it feels natural and predictable
-- Always check `result.trigger?.entity !== engine.PlayerEntity` in trigger callbacks to only affect the local player (the trigger fires for any player that enters when the mask includes `CL_PLAYER` — without this guard, a remote player walking into the volume would cause the local client to apply physics to itself). Note: `result.triggeredEntity` is the trigger area's own entity, NOT the entity that entered — comparing it to `PlayerEntity` is always true and the guard never fires.
+- Use `CL_MAIN_PLAYER` on physics trigger zones (see table above) so the callback fires only for the local player. `result.trigger?.entity` is the entity that entered; if you instead use `CL_PLAYER | CL_MAIN_PLAYER`, guard with `result.trigger?.entity === engine.PlayerEntity` to apply physics only when the local player is the one who entered. Note: `result.triggeredEntity` is the trigger area's OWN entity, not the entity that entered — comparing it to `PlayerEntity` never distinguishes the entrant.
 - A negative knockback magnitude creates a pull/gravity well effect
 - Multiple forces from different entities stack independently
 

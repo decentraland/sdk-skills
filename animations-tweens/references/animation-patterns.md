@@ -188,13 +188,74 @@ Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 
 ```typescript
 import { Vector2 } from '@dcl/sdk/math'
+import { TextureMovementType, TextureWrapMode } from '@dcl/sdk/ecs'
 
-// From UV (0,0) to (1,0) over 2 seconds
+// The material texture must use TWM_REPEAT for seamless tiling:
+// Material.Texture.Common({ src, wrapMode: TextureWrapMode.TWM_REPEAT, tiling, offset })
+
+// From UV (0,0) to (1,0) over 2 seconds. movementType defaults to TMT_OFFSET.
 Tween.setTextureMove(entity, Vector2.create(0, 0), Vector2.create(1, 0), 2000)
+
+// Animate the TILING instead of the offset (TMT_TILING).
+Tween.setTextureMove(
+  entity, Vector2.create(1, 1), Vector2.create(2, 2), 4000,
+  TextureMovementType.TMT_TILING
+)
 
 // Continuous scroll: 3rd arg is SPEED in UV units/sec (not a duration).
 // Scroll up the V axis at 0.5 UV/sec, forever.
 Tween.setTextureMoveContinuous(entity, Vector2.create(0, 1), 0.5)
+```
+
+`TextureMovementType.TMT_OFFSET = 0` (default) | `TMT_TILING = 1`. Signatures (verified against SDK source):
+`setTextureMove(entity, start, end, duration, movementType?, easingFunction?)` — movementType 5th, easing 6th.
+`setTextureMoveContinuous(entity, direction, speed, movementType?, duration?)` — movementType 4th, stop-after duration 5th.
+
+---
+
+## Loop a base Tween with an empty sequence
+
+An empty `TweenSequence` loops the entity's plain `Tween` — no steps needed. Idiomatic for a single move/rotate/scale/texture tween that should repeat forever.
+
+```typescript
+Tween.setMove(platform, Vector3.create(2, 1.5, 8), Vector3.create(2, 1.5, 10), 2000)
+TweenSequence.create(platform, { sequence: [], loop: TweenLoop.TL_YOYO }) // bob back and forth
+
+// One-directional repeat (e.g. scrolling texture): TL_RESTART
+Tween.setTextureMove(plane, Vector2.create(1, 1), Vector2.create(2, 2), 4000, TextureMovementType.TMT_TILING)
+TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_RESTART })
+```
+
+---
+
+## Retrigger / replace a running tween
+
+Use `createOrReplace` when the entity may already have a tween (e.g. re-triggered mid-motion). `currentTime: 0` restarts from the beginning.
+
+```typescript
+Tween.createOrReplace(platform, {
+  mode: Tween.Mode.Move({ start: posA, end: posB }),
+  duration: 2000,
+  easingFunction: EasingFunction.EF_LINEAR,
+  currentTime: 0 // in case it was already moving
+})
+TweenSequence.createOrReplace(platform, {
+  sequence: [
+    { mode: Tween.Mode.Move({ start: posB, end: posA }), duration: 2000, easingFunction: EasingFunction.EF_LINEAR }
+  ]
+}) // omit `loop` for a one-shot there-and-back
+```
+
+---
+
+## Pause / toggle / remove a continuous tween
+
+```typescript
+const comp = Tween.getMutableOrNull(entity)
+if (comp) { comp.playing = !comp.playing }   // toggle pause/resume
+else { Tween.setMoveContinuous(entity, Vector3.create(0, 1, 0), 1, 5000) } // first click: create
+
+if (Tween.has(entity)) Tween.deleteFrom(entity) // remove tween entirely (stops it)
 ```
 
 ---

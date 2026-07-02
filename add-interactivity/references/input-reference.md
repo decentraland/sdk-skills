@@ -18,6 +18,7 @@
 | Right             | D key             | `InputAction.IA_RIGHT`     |
 | Walk              | Control key       | `InputAction.IA_WALK`      |
 | Run               | Shift key         | `InputAction.IA_MODIFIER`  |
+| Any (wildcard)    | Any of the above  | `InputAction.IA_ANY`       |
 
 **Notes:**
 
@@ -296,8 +297,8 @@ pointerEventsSystem.onProximityDown(
 {
   direction: Vector3.Forward(),
   maxDistance: 16,
-  queryType: RaycastQueryType.RQT_HIT_FIRST,  // or RQT_QUERY_ALL
-  originOffset: Vector3.create(0, 0.5, 0),     // offset from entity origin
+  queryType: RaycastQueryType.RQT_HIT_FIRST,  // first hit (NOT necessarily closest); RQT_QUERY_ALL = all; RQT_NONE = skip
+  originOffset: Vector3.create(0, 0.5, 0),     // offset from entity world origin (parent chain applied)
   collisionMask: ColliderLayer.CL_PHYSICS | ColliderLayer.CL_CUSTOM1,
   continuous: false  // true = every frame, false = one-shot
 }

@@ -105,19 +105,16 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 "worldConfiguration": {
   "name": "my-name.dcl.eth",
   "skyboxConfig": {
-    "fixedTime": 43200,
-    "textures": ["textures/skybox.png"]
-  },
-  "miniMapConfig": {
-    "visible": true,
-    "dataImage": "images/minimap.png",
-    "estateImage": "images/estate.png"
+    "fixedTime": 43200
   },
   "placesConfig": {
     "optOut": false
   }
 }
 ```
+
+- `skyboxConfig.fixedTime` — verified against the engine test scenes and current docs.
+- `skyboxConfig.textures`, `miniMapConfig` (`visible`/`dataImage`/`estateImage`) — [UNVERIFIED: not present in the engine test scenes or the current scene-metadata docs; confirm against js-sdk-toolchain scene schema before relying on them].
 
 **`skyboxConfig.fixedTime` values:**
 
@@ -131,7 +128,9 @@ Values are seconds since midnight; a full day is `86400`.
 | `64800` | 6 PM (sunset) |
 | `86400` | Full day (maximum) |
 
-Omit `fixedTime` for a dynamic day/night cycle.
+Any value above `86400` is interpreted as midnight. Omit `fixedTime` for a dynamic day/night cycle.
+
+`worldConfiguration.skyboxConfig.fixedTime` is verified working in the engine test scenes, and takes precedence over a top-level `skyboxConfig.fixedTime` if both are present. See the **lighting-environment** skill for runtime control (the `SkyboxTime` component, which overrides either JSON value).
 
 ## Multi-Scene Worlds
 
@@ -163,6 +162,10 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 | "Scene too large" | World scenes have size limits even though parcels aren't constrained | Reduce asset sizes. Worlds still enforce file size and entity limits |
 | Deploy succeeds but world is empty | `main` field misconfigured | Ensure `main` is `"bin/index.js"` and code compiles |
 | World not showing on Places | Propagation delay | Wait a few minutes after deployment. If opted out via `placesConfig.optOut`, it won't appear |
+
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — a World scene setting a fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime`, and reading it back with `getSceneInformation`.
 
 > **Deploying to Genesis City instead?** See the **deploy-scene** skill.
 

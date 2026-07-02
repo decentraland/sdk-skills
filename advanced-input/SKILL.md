@@ -27,6 +27,20 @@ function checkPointerLock() {
 engine.addSystem(checkPointerLock)
 ```
 
+### Requesting / releasing pointer lock (writable)
+
+`PointerLock.isPointerLocked` is a plain writable boolean — a scene can request or release cursor capture by mutating it (verified: `31,20-pointer-lock-control` sets it from click handlers and a timed system):
+
+```typescript
+PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })
+// request lock (e.g. from a button)
+PointerLock.getMutable(engine.CameraEntity).isPointerLocked = true
+// release lock
+PointerLock.getMutable(engine.CameraEntity).isPointerLocked = false
+```
+
+PITFALL: `getMutable(engine.CameraEntity)` throws if `PointerLock` was never created on the camera. Call `PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })` once in `main()` before mutating. Writing `true` is a *request*; the client/player may still control actual capture (e.g. Esc unlocks).
+
 ### Pointer Lock Change Detection
 
 ```typescript
@@ -47,7 +61,7 @@ Get the cursor's screen position and the ray it casts into the 3D world:
 import { engine, PrimaryPointerInfo } from '@dcl/sdk/ecs'
 
 function readPointer() {
-  const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity)
+  const pointerInfo = PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity)
   console.log('Cursor position:', pointerInfo.screenCoordinates)
   console.log('Cursor delta:', pointerInfo.screenDelta)
   console.log('World ray direction:', pointerInfo.worldRayDirection)
@@ -55,6 +69,8 @@ function readPointer() {
 
 engine.addSystem(readPointer)
 ```
+
+PITFALL: every `PrimaryPointerInfo` field is optional (`screenCoordinates?`, `screenDelta?`, `worldRayDirection?`, `pointerType?`) — verified schema and `0,5-primary-cursor-info`, which guards each read (`pointerInfo.screenCoordinates?.x ?? -666`, `pointerInfo.worldRayDirection?.x.toFixed(2)`). Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and always null-check the fields. `worldRayDirection` feeds directly into a camera raycast direction (see the "spawn at cursor" pattern in that scene).
 
 ## Input Polling with inputSystem
 
@@ -80,6 +96,8 @@ function myInputSystem() {
 
 engine.addSystem(myInputSystem)
 ```
+
+Omit the entity argument to check globally (any entity / no target). Pass `InputAction.IA_ANY` to match any action — `getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` returns the command for whatever key was pressed, and `cmd.button` tells you which one (verified: `0,1-input-modifier`).
 
 Best practice: use the Tag component to mark all entities that share a same interaction, then iterate over them in a system.
 
@@ -148,7 +166,9 @@ engine.addSystem(globalInputSystem)
 | `IA_BACKWARD` | S key |
 | `IA_LEFT` | A key |
 | `IA_RIGHT` | D key |
-| `IA_WALK` | Shift key |
+| `IA_WALK` | Control key |
+| `IA_MODIFIER` | Shift key (run) |
+| `IA_ANY` | Matches any input action (wildcard — use with `getInputCommand`) |
 
 ## Event Types
 
@@ -171,9 +191,11 @@ InputModifier.create(engine.PlayerEntity, {
   mode: InputModifier.Mode.Standard({ disableAll: true })
 })
 
-// Restrict specific movement
+// Restrict specific movement (all flags optional; a false/omitted flag is ignored)
 InputModifier.createOrReplace(engine.PlayerEntity, {
   mode: InputModifier.Mode.Standard({
+    disableWalk: true,
+    disableJog: true,
     disableRun: true,
     disableJump: true,
     disableEmote: true,
@@ -185,6 +207,8 @@ InputModifier.createOrReplace(engine.PlayerEntity, {
 // Restore normal movement
 InputModifier.deleteFrom(engine.PlayerEntity)
 ```
+
+**Standard flags** (all optional booleans; verified `input_modifier.gen.d.ts`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent (both seen in test scenes).
 
 **Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer.
 
@@ -268,5 +292,15 @@ engine.addSystem(actionBarSystem)
 - Prefer `pointerEventsSystem.onPointerDown()` for simple entity clicks — use `inputSystem` for complex multi-key or polling patterns
 - InputModifier only works in the DCL 2.0 desktop client — test with the desktop client if your scene relies on it
 - WASD keys (`IA_FORWARD`, etc.) also control player movement — polling them reads the movement state but doesn't override it
+
+## Example scenes
+
+Engine-team test scenes exercising these APIs (ground truth):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier — InputModifier standard flags (incl. `disableWalk`/`disableJog`), `getInputCommand(IA_ANY, PET_DOWN)` to read whichever key was pressed.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/31,20-pointer-lock-control — writing `PointerLock.isPointerLocked` to request/release cursor capture; `PointerLock.onChange`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — reading `PrimaryPointerInfo` (screen coords/delta/worldRayDirection) each frame; feeding `worldRayDirection` into a camera raycast.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — WASD-driven controllable camera via `isPressed(IA_FORWARD/...)`; toggling InputModifier alongside a VirtualCamera.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — system-based per-entity click via `getEntitiesWith(Cube, PointerEvents)` + `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
 
 For basic pointer events and click handlers, see the `add-interactivity` skill.

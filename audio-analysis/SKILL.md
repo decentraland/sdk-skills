@@ -153,6 +153,10 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 No special scene permission is needed beyond what the underlying `AudioSource` / `AudioStream` / `VideoPlayer` already requires. Streamed audio still needs `ALLOW_MEDIA_HOSTNAMES` in `scene.json` for its hostname (see `audio-video` skill).
 
+## Example scenes
+
+- [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — engine-team test scene: `AudioSource` + `AudioAnalysis.createAudioAnalysis()` (defaults) on one entity, one `readIntoView` system feeding a shared view, then separate consumer systems driving 8 equalizer bars from `bands[i]` and a sphere from `amplitude`. Matches the canonical pattern documented above.
+
 ## Resources
 
 - `{baseDir}/references/audio-analysis-example.md` — full music visualizer scene from the SDK examples (audio source + amplitude pulse + 8-bar equalizer).

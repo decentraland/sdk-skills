@@ -185,12 +185,14 @@ texture: { src: 'assets/Images/flame-sheet.png' },
 spriteSheet: { tilesX: 4, tilesY: 3, framesPerSecond: 12 }   // 12 frames, plays at 12fps
 ```
 
-Test-scene examples use `4x3` (12 frames) and `1x20` (20-frame strip) sheets at 10–30 fps.
+Test-scene examples use `4x4` (16 frames, bat swarm @24fps), `4x3` (12 frames, fire/flame @10–12fps), and `1x20` (20-frame strip, bee @30fps) sheets.
 
 ## Simulation space (local vs world)
 
-- `PSS_LOCAL` (default) — particles move with the emitter. A moving emitter drags its particle cloud. Suits aura/halo effects on a moving entity.
-- `PSS_WORLD` — particles stay at their spawn position in world space. A moving emitter leaves a trail behind it. Required for proper trails when combined with `Tween` movement on the emitter.
+- `PSS_LOCAL` (default) — particles move with the emitter. A moving emitter drags its particle cloud along. Suits aura/halo effects on a moving entity.
+- `PSS_WORLD` — particles stay at their spawn position in world space, so a moving emitter leaves a trail behind it.
+
+For a Tween-driven emitter (verified in `0,7-particle-system`, "Moving Trail"): `PSS_LOCAL` keeps the cloud attached to the entity as it moves; switch to `PSS_WORLD` if you want the spawned particles to stay put and form a persistent trail. The test scene demonstrates the effect with `PSS_LOCAL` — pick the space by the look you want, not as a hard requirement.
 
 ## Texture field
 
@@ -225,5 +227,8 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 ## Resources
 
 - `{baseDir}/references/particle-presets.md` — 17 ready-to-use preset configurations from the SDK7 test scene (fire, magic, snowfall, vortex, fountain, swarms, sparks, rain, bursts, fireworks, campfire, trails).
-- Test scene: `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0%2C7-particle-system`
 - Live tuner: `ParticleLab.dcl.eth` (open with Decentraland client).
+
+## Example scenes
+
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,7-particle-system` — engine-team ground truth: all 17 presets above, every shape (Point/Sphere/Cone/Box), `PSB_ADD`/`PSB_ALPHA`, continuous `rate` vs `bursts` (one-shot + looping fireworks), `spriteSheet` (4×4/4×3/1×20), `limitVelocity`, `initialRotation`/`rotationOverTime` with `billboard: false`, `faceTravelDirection`, `additionalForce`, and a Tween-driven emitter demonstrating `simulationSpace`.

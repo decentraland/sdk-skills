@@ -190,15 +190,19 @@ Valid values for the `tags` array:
 
 Add to `requiredPermissions` when your scene uses these features:
 
-| Permission                          | When needed                             |
-| ----------------------------------- | --------------------------------------- |
-| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | Teleporting the player within the scene |
-| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | Playing avatar emotes                   |
-| `ALLOW_MEDIA_HOSTNAMES`             | Loading external video/audio streams    |
-| `USE_WEB3_API`                      | Blockchain interactions                 |
-| `USE_FETCH`                         | HTTP requests to external servers       |
-| `USE_WEBSOCKET`                     | WebSocket connections                   |
-| `OPEN_EXTERNAL_LINK`                | Opening URLs in the user's browser      |
+These are the exact 7 permission strings the runtime recognizes (the protocol enum names drop the `PI_` prefix):
+
+| Permission                          | When needed                                          |
+| ----------------------------------- | ---------------------------------------------------- |
+| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)        |
+| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`               |
+| `ALLOW_MEDIA_HOSTNAMES`             | Loading external video/audio streams                 |
+| `USE_WEB3_API`                      | Blockchain interactions                              |
+| `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)              |
+| `USE_WEBSOCKET`                     | WebSocket connections                                |
+| `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)         |
+
+> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The `66,6-signed-fetch` scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
 
 When using `ALLOW_MEDIA_HOSTNAMES`, also whitelist the domains:
 
@@ -271,8 +275,16 @@ After customizing the files:
 
 ## Important Notes
 
-- **Always validate entity positions against parcel bounds.** Each parcel is 16×16m. With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene — entities there are not rendered and no error is shown.**
+- **Always validate entity positions against parcel bounds.** Each parcel is 16×16m. With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene — entities there are not rendered and no error is shown.** The bound check applies to an entity's **world** position, so a child whose parent is moved out of bounds also disappears, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
 - Center of a single-parcel scene is (8, 0, 8) at ground level
 - Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them
 - The `main` field in scene.json MUST be `"bin/index.js"` — this is the compiled output path
 - The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them
+
+## Example scenes
+
+Engine-team test scenes illustrating `scene.json` configuration:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,90-scene-bounds-check — multi-parcel, non-rectangular parcel layout (`["5,90","5,89","6,89","6,88"]`); moves many entity types across the parcel/height boundary to show what the engine hides out of bounds.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `requiredPermissions` for `movePlayerTo` + emotes.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `featureToggles.portableExperiences: "enabled"` (see also the `disabled` and `hideUi` sibling scenes).

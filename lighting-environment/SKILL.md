@@ -34,6 +34,8 @@ LightSource.create(light, {
 })
 ```
 
+Defaults (from the protocol): `active` true, `color` white, `intensity` 16000 candela, `range` -1 (auto), `shadow` false. `color` is `Color3` (RGB, each 0–1).
+
 ## Spot Lights
 
 Emit a cone of light in a direction:
@@ -54,9 +56,12 @@ LightSource.create(spotlight, {
 })
 ```
 
-- `innerAngle` — full-brightness cone angle (degrees)
-- `outerAngle` — outer fade angle (degrees)
-- The light direction follows the entity's forward vector (set via Transform rotation)
+- `innerAngle` — full-brightness cone angle (degrees). Default `21.8`. Min `0`, max `179`.
+- `outerAngle` — outer fade angle (degrees). Default `30`. Max `179`.
+- `innerAngle` cannot exceed `outerAngle` — if it does, the engine clamps them to the same value.
+- The light direction follows the entity's forward vector (set via Transform rotation).
+- `type` is a discriminated union. To read/mutate spot params at runtime, narrow first:
+  `if (comp.type?.$case === 'spot') { comp.type.spot.innerAngle = 30 }`
 
 ## Shadows
 
@@ -70,7 +75,7 @@ LightSource.create(spotlight, {
 })
 ```
 
-Note: shadows are not available on point lights, only on spoit lights.
+Note: shadows are only rendered for spot lights, not point lights. `shadow` is a top-level boolean on the component (not inside `Spot`/`Point`).
 
 ### Shadow Mask Textures (Gobos)
 
@@ -83,6 +88,9 @@ maskedLight.shadowMaskTexture = Material.Texture.Common({
 })
 ```
 
+- Set `shadowMaskTexture = undefined` to remove the mask again.
+- The mask projects light shape (e.g. a window pattern) — simulating caustics/soft shadows. Used on spot lights.
+
 ## Toggling Lights
 
 ```typescript
@@ -93,27 +101,30 @@ lightData.active = !lightData.active
 
 ## Light Limits
 
-- Maximum **one active light per parcel** in the scene (16m x 16m). Scenes with multiple parcels can group lights close together.
-- The renderer auto-culls lights based on quality settings and proximity
-- Up to ~3 shadowed lights visible at once
-- Intensity is in candela — visible distance grows roughly with `sqrt(intensity)`
-- Depending on the player's quality settings, they may see as much as 10 lights rendered at the same time, or as little as 4. If the scene is trying to render more lights than this, only the closest ones to the player will be rendered.
+- A scene may **create** many lights (the engine test scene spawns ~9 across 2 parcels); the renderer decides how many render.
+- Depending on the player's quality settings, between ~4 and ~10 lights render at once. If the scene has more than that, only the closest lights to the player are rendered.
+- Up to ~3 shadow-casting lights render at once.
+- The renderer auto-culls lights based on quality settings and proximity.
+- Intensity is in **candela** (lumens/m² at 1m, i.e. lumens/4π). Default `16000`.
+- `range` default is `-1` → auto-computed as `intensity^0.25` (fourth root, in meters). Set an explicit `range` to override.
 
 ## SkyboxTime (Day/Night Cycle)
 
 ### Fixed Time in scene.json
 
-Set a permanent time of day without code:
+Set a permanent time of day without code. Two valid locations:
 
 ```json
-{
-  "skyboxConfig": {
-    "fixedTime": 43200
-  }
-}
+// Genesis City scene — top-level
+{ "skyboxConfig": { "fixedTime": 43200 } }
+
+// World — inside worldConfiguration
+{ "worldConfiguration": { "name": "my-name.dcl.eth", "skyboxConfig": { "fixedTime": 36000 } } }
 ```
 
 Time values (seconds since midnight, full day = 86400): 0 = midnight, 21600 = 6 AM, 43200 = noon, 64800 = 6 PM (dusk), 86400 = full day.
+
+**Precedence** (verified against the engine test scenes): `worldConfiguration.skyboxConfig.fixedTime` wins over top-level `skyboxConfig.fixedTime`; either JSON value is in turn overridden at runtime by a `SkyboxTime` component on `engine.RootEntity`.
 
 ### Read Current World Time
 
@@ -129,17 +140,23 @@ executeTask(async () => {
 ### Change Time Dynamically
 
 ```typescript
-import { engine, SkyboxTime } from '@dcl/sdk/ecs'
+import { engine, SkyboxTime, TransitionMode } from '@dcl/sdk/ecs'
 
-// Set time of day (must target root entity)
+// Set time of day (must target the root entity)
 SkyboxTime.create(engine.RootEntity, { fixedTime: 43200 })  // Noon
 
-// Change with transition direction (TransitionMode from the generated protobuf)
+// Change with transition direction
 SkyboxTime.createOrReplace(engine.RootEntity, {
   fixedTime: 64800,  // Dusk (6 PM)
-  transitionMode: 1  // TM_BACKWARD
+  transitionMode: TransitionMode.TM_BACKWARD  // TM_FORWARD (0, default) or TM_BACKWARD (1)
 })
+
+// Remove the component to hand control back to global/world time
+SkyboxTime.deleteFrom(engine.RootEntity)
 ```
+
+- `transitionMode` (optional) sets the animation direction when the time changes. Default `TM_FORWARD`.
+- The component must live on `engine.RootEntity`. Deleting it reverts to the scene.json/world time (or the global day/night cycle).
 
 ### Day/Night Cycle System
 
@@ -241,10 +258,26 @@ Constraints:
 
 ## Best Practices
 
-- Stay within the **one light per parcel** budget
+- Keep the number of *simultaneously visible* lights low (only ~4–10 render) — spread lights out so few are near the player at once
 - Use emissive materials for decorative glow that doesn't need to illuminate surroundings
 - Combine emissive materials with LightSource for realistic light fixtures (lamp = emissive mesh + point light)
 - Use spot lights with shadows for dramatic effects (stage lighting, flashlights)
-- Keep shadow count low (max ~3 sadow-casting lights visible) — disable `shadow` on lights that don't need it
+- Keep shadow count low (max ~3 shadow-casting lights visible) — disable `shadow` on lights that don't need it
 - Set `range` on lights to limit their influence and save performance
 - Use `SkyboxTime` for atmosphere — nighttime scenes with point lights create dramatic environments
+
+## Gotchas
+
+- `range` left unset (`-1`) is auto-derived from intensity as `intensity^0.25` — small intensities give surprisingly short range. Set `range` explicitly for predictable falloff.
+- `shadow` only affects spot lights; setting it on a point light has no effect.
+- Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
+- `SkyboxTime` on `RootEntity` overrides any scene.json `fixedTime`; `deleteFrom` reverts to it.
+
+## Example scenes
+
+Engine-team test scenes (real API, exercised against the engine):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,4-dynamic-lights — point & spot LightSource: toggle active, color, range, intensity, spot inner/outer angle at runtime, shadow-mask (gobo) swapping, and tweened light rotation.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.

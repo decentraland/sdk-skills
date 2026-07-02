@@ -44,7 +44,9 @@ const res = await signedFetch({
 const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 ```
 
-> **Permission**: External HTTP requires `"ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE"` or no special permission for plain fetch; `signedFetch` needs the player to have interacted with the scene.
+`signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
+
+> **Permission**: the nominal permission for external HTTP is `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets), declared in `scene.json` `requiredPermissions`. In practice plain/signed `fetch` to non-media hosts is not hard-blocked in preview/Worlds even without it (the `66,6-signed-fetch` test scene calls `signedFetch` with an empty `requiredPermissions`). Declare `USE_FETCH` anyway for correctness and forward-compat. `signedFetch` does not require prior player interaction — restricted actions do, `fetch`/`signedFetch` do not.
 
 ## WebSocket
 
@@ -134,8 +136,13 @@ import {
   setCommunicationsAdapter,
 } from "~system/RestrictedActions";
 
-// Move player within scene bounds
-movePlayerTo({ newRelativePosition: { x: 8, y: 0, z: 8 } });
+// Move player within scene bounds. Optional: cameraTarget (where the
+// CAMERA looks), avatarTarget (where the AVATAR faces — for rotating in
+// place), duration (seconds, for a smooth glide instead of a snap).
+movePlayerTo({
+  newRelativePosition: { x: 8, y: 0, z: 8 },
+  cameraTarget: { x: 8, y: 1, z: 12 },
+});
 
 // Teleport to coordinates in Genesis City
 teleportTo({ worldCoordinates: { x: 50, y: 70 } });
@@ -154,7 +161,9 @@ openNftDialog({
 // Copy text to clipboard
 copyToClipboard({ value: "Hello from Decentraland!" });
 
-// Change realm
+// Change realm. `message` is OPTIONAL: omit it to switch with no prompt,
+// include it to show the player a confirmation dialog first.
+changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
 changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
 ```
 
@@ -222,31 +231,35 @@ import { removeEntityWithChildren } from "@dcl/sdk/ecs";
 removeEntityWithChildren(engine, parentEntity);
 ```
 
-<!--
 ## Portable Experiences
 
-Scenes that persist across world navigation:
+Scenes that persist across world navigation. Import from `~system/PortableExperiences`.
 
 ```typescript
 import {
-	spawn,
-	kill,
-	exit,
-	getPortableExperiencesLoaded,
-} from '~system/PortableExperiences'
+  spawn,
+  kill,
+  exit,
+  getPortableExperiencesLoaded,
+} from "~system/PortableExperiences";
 
-// Spawn a portable experience by URN
-const result = await spawn({ urn: 'urn:decentraland:entity:bafk...' })
+// Spawn by ENS name (a deployed World) OR by pid. NOT by "urn".
+const result = await spawn({ ens: "boedo.dcl.eth" });
+// result: { pid, parentCid, name, ens }
+
+// Kill a running one by its pid (from the spawn response). NOT by urn.
+if (result.pid) await kill({ pid: result.pid });
 
 // List currently loaded portable experiences
-const loaded = await getPortableExperiencesLoaded({})
+const { loaded } = await getPortableExperiencesLoaded({});
 
-// Kill a specific portable experience
-await kill({ urn: 'urn:decentraland:entity:bafk...' })
+// Exit self (only if THIS scene IS a portable experience)
+await exit({});
+```
 
-// Exit self (if this scene IS a portable experience)
-await exit({})
-``` -->
+- `spawn({ ens?, pid? })` → `SpawnResponse { pid, parentCid, name, ens? }`. Field is `ens`/`pid`, **not `urn`**.
+- `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
+- The **host scene** must enable them in `scene.json`: `"featureToggles": { "portableExperiences": "enabled" }`. Values: `"enabled"` | `"disabled"` | `"hideUi"` (spawns PX but hides their UI). With `"disabled"`, `spawn()` is a no-op / rejected.
 
 ## Testing Framework
 
@@ -306,6 +319,16 @@ There is NO count assertion — count entities with `assertEquals(Array.from(eng
 - Check `realm.realmInfo?.isPreview` to detect preview mode and enable debug features
 - Use `readFile()` for data files (JSON configs, level data) deployed alongside the scene
 - `removeEntityWithChildren()` is essential when cleaning up complex entity hierarchies
-- Only `console.log()` is available for logging — `console.warn()` and `console.error()` are not supported
+- Logging: only `console.log()` and `console.error()` are declared in the runtime — `console.warn()`, `.info()`, `.debug()`, `.trace()` are NOT available
+
+## Example scenes
+
+Engine-team test scenes exercising these APIs against the real runtime:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body`, inspects the auto-added signed headers.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — every RestrictedAction via UI buttons: `movePlayerTo` (with `cameraTarget` and `avatarTarget`), `teleportTo`, `triggerEmote`, `triggerSceneEmote`, `openExternalUrl`, `openNftDialog`, `changeRealm` (with and without `message`).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `spawn({ ens })` / `kill({ pid })` from the spawn response; host `scene.json` has `portableExperiences: "enabled"`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
 For complete executeTask patterns, all RestrictedActions, realm detection, and portable experiences, see `{baseDir}/references/runtime-apis.md`.

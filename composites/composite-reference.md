@@ -6,6 +6,15 @@ It's best to load heavy assets through the composite, as they load faster. Asset
 
 This file must exist at `assets/scene/main.composite`.
 
+## main.composite vs main.crdt
+
+Two file forms carry initial-scene entity state; do not confuse them:
+
+- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. Edit this.
+- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
+
+The rest of this document describes the `main.composite` JSON format.
+
 ## Structure
 
 ```json
@@ -843,3 +852,7 @@ The build must pass with zero errors. If it fails, the composite is invalid. Com
 
 - `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts
+
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-2-main-crdt — ships a binary `main.crdt` at scene root defining static entities (1 primitive cube at entity `512` + 4 GltfContainers) present at `tickNumber === 1`. Scene code queries them by component (`engine.getEntitiesWith(MeshRenderer)` / `getEntitiesWith(GltfContainer)`) and rotates them, and a `@dcl/sdk/testing` test asserts the initial state. Demonstrates the compiled-`main.crdt` form of composite loading (see "main.composite vs main.crdt" above).

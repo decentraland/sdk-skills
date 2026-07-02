@@ -65,6 +65,14 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Remove with `.removeOnPointerDown(entity)` etc.
 
+### Feedback options: `showFeedback` gates `hoverText`
+
+Verified via `30,20-pointer-events-feedback`:
+
+- `showFeedback` (default `true`) — enables the hover UI. **`hoverText` only appears when `showFeedback` is true.** With `showFeedback: false`, no hover text shows regardless of `hoverText`.
+- `showHighlight` (default `true`) — the entity edge/outline highlight on hover. Independent of the text; requires `showFeedback` to be on to be visible.
+- With `showFeedback: true` and no/empty `hoverText`, the explorer shows its default action prompt (e.g. the button glyph) rather than nothing.
+
 ### PITFALL: never (re-)register a pointer handler from inside its own callback
 
 Calling `onPointerDown` / `removeOnPointerDown` (or the on/remove variants for Up / Hover) for an entity **from within that entity's own pointer callback** makes the same click fire the handler multiple times (observed: 3 fires from one click, as a state machine re-registered on each fire).
@@ -219,7 +227,9 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 
 **Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale` (radius taken from `scale.x`).
 
-**Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (or an array) to react to physics or custom layers.
+**Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (bitwise-OR them, e.g. `CL_PLAYER | CL_CUSTOM4`) to react to physics or custom layers.
+
+**Detecting non-player entities:** a `TriggerArea` fires for any entity whose own collider is on a layer the area listens for. To make a scene entity trip an area, give it a `MeshCollider`/`GltfContainer` collider on a matching custom layer and set the area's mask to include it (verified `75,-9-trigger-areas`: a `GltfContainer` with `visibleMeshesCollisionMask: ColliderLayer.CL_CUSTOM4` trips an area created with `TriggerArea.setBox(entity, ColliderLayer.CL_PLAYER | ColliderLayer.CL_CUSTOM4)`). You can also put a `TriggerArea` on a moving/falling entity to detect when *it* enters another volume.
 
 **Callbacks:**
 - `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` — fires once on entry
@@ -242,9 +252,13 @@ Four direction modes: local direction (relative to entity rotation), global dire
 
 **Callback-based** (recommended): `raycastSystem.registerLocalDirectionRaycast()`, `.registerGlobalDirectionRaycast()`, `.registerGlobalTargetRaycast()`, `.registerTargetEntityRaycast()`. Remove with `.removeRaycasterEntity()`.
 
-**Component-based**: Create `Raycast` component, read `RaycastResult` in a system. Set `continuous: false` for one-shot, `true` for per-frame.
+**Component-based**: Create `Raycast` component, read `RaycastResult` in a system. Set `continuous: false` for one-shot, `true` for per-frame. Fields (verified `77,-1-raycast-unit-tests`): `direction: { $case: 'localDirection'|'globalDirection'|'globalTarget'|'targetEntity', ... }`, `originOffset`, `maxDistance`, `queryType`, `continuous`, `timestamp`. `RaycastResult` (added a frame later) contains `globalOrigin`, a normalized `direction`, `hits[]`, `timestamp`, and `tickNumber`.
 
-**Camera raycast**: Use `engine.CameraEntity` as the entity to detect what the player is looking at.
+**Ray origin respects the world transform:** the ray starts at the entity's world position (parent chain applied) plus `originOffset`, so a raycast entity nested under moved/scaled parents casts from its resolved world pose. `localDirection` is rotated by the entity's world rotation; `globalDirection` ignores it.
+
+PITFALL: `RaycastQueryType.RQT_HIT_FIRST` picks the **first** hit in range, **not necessarily the closest** (verified enum doc). Use `RQT_QUERY_ALL` and sort by distance if you need the nearest. `RQT_NONE` skips the cast and returns empty hits.
+
+**Camera raycast**: Use `engine.CameraEntity` as the entity to detect what the player is looking at. To cast along the cursor (works locked or free), use `PrimaryPointerInfo.worldRayDirection` as the direction (see advanced-input).
 
 ---
 
@@ -269,5 +283,15 @@ Common pattern: track state in a module-level boolean, flip it in the click hand
 - For complex interactions, use a system with state tracking
 - Set `continuous: false` on raycasts unless you need per-frame results
 - Design for both desktop and mobile — mobile has no keyboard, rely on pointer and on-screen buttons
+
+## Example scenes
+
+Engine-team test scenes exercising these APIs (ground truth):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,2-proximity-interactions — `onProximityDown/Enter/Leave`, cursor vs proximity priority, declarative `PointerEvents` with two buttons, proximity door.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/30,20-pointer-events-feedback — `showFeedback`/`showHighlight`/`hoverText` combinations (hover text needs `showFeedback: true`).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/75,-9-trigger-areas — `TriggerArea.setBox/setSphere`, `onTriggerEnter/Stay/Exit`, `result.trigger?.entity`, custom collider-layer masks so non-player entities trip the area.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — declarative `PointerEvents` read in a system via `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-1-raycast-unit-tests — component-based `Raycast`/`RaycastResult` for all four direction modes, incl. origin under a transformed parent chain.
 
 For full code examples and implementation patterns, see `{baseDir}/references/interactivity-patterns.md`. For the input action reference table and declarative PointerEvents component, see `{baseDir}/references/input-reference.md`.

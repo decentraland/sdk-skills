@@ -138,6 +138,12 @@ VirtualCamera.create(cinematicCam, {
 MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematicCam })
 ```
 
+`lookAtEntity` can be `engine.PlayerEntity` to keep the camera aimed at the moving player (verified: `2,22-virtual-cameras`). To bake a fixed look direction into the camera's own rotation instead, use `Quaternion.fromLookAt(cameraPosition, targetPosition)` in the camera's `Transform`.
+
+`VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
+
+**Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`).
+
 ## Tracking Camera Position
 
 Poll camera position each frame for camera-triggered events:
@@ -258,11 +264,16 @@ engine.addSystem(followNpcCamera)
 
 > **Freezing player during cutscenes?** Combine VirtualCamera with `InputModifier` from the **advanced-input** skill to prevent player movement during cinematic sequences.
 
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — multiple VirtualCameras: static, `Speed`/`Time` transitions, `lookAtEntity: engine.PlayerEntity`, a Tween-driven moving camera, a WASD-controllable camera (driving the VirtualCamera Transform each frame), plus `CameraModeArea` and `AvatarModifierArea`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
+
 ## Best Practices
 
 - Only one VirtualCamera should be active at a time
 - Use `CameraModeArea` to force first-person in tight indoor spaces
 - Keep transition speeds between 0.5 and 3.0 for comfortable camera movement
-- Read camera state via `engine.CameraEntity` — never try to write to it directly
+- Read camera state via `engine.CameraEntity` — never write to `engine.CameraEntity`'s Transform directly
 - For look-at detection, combine camera position with raycasting (see `add-interactivity` skill)
-- Camera control is read-only outside of VirtualCamera and CameraModeArea — you cannot directly move the player's camera
+- You cannot move the player's real camera directly. To move a camera under scene control, drive the **Transform of an active VirtualCamera entity** each frame — while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
