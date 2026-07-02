@@ -10,8 +10,8 @@ Rules for validating entity component combinations. Apply to any entity in the s
 
 **If** an entity has `PointerEvents` **or** a trigger of type `on_input_action`/`on_click`, **then** it must have:
 
-- `MeshCollider` with `collisionMask` that includes `CL_POINTER` (bit 1, value ≥ 1), **or**
-- `GltfContainer` with `visibleMeshesCollisionMask` or `invisibleMeshesCollisionMask` that includes `CL_POINTER` (bit 1)
+- `MeshCollider` with `collisionMask` that includes `CL_POINTER` (value 1, i.e. `mask & 1 !== 0` — checking `≥ 1` is wrong: a mask of `CL_PHYSICS` (2) alone has no pointer bit). Note that an **unset** `collisionMask` defaults to `CL_POINTER | CL_PHYSICS` (3), so a bare `MeshCollider` passes; this rule only fails when a mask is explicitly set without the pointer bit, **or**
+- `GltfContainer` with `visibleMeshesCollisionMask` or `invisibleMeshesCollisionMask` that includes `CL_POINTER` (`mask & 1 !== 0`)
 
 Without a pointer-enabled collider, pointer events are silently ignored at runtime — clicks register nothing.
 
@@ -96,4 +96,4 @@ Within an `Actions` component, all `name` values must be unique. Duplicate names
 
 ### Rule 15: `text-shape-mutually-exclusive`
 
-**If** an entity has `TextShape`, **then** it must NOT have `MeshRenderer` or `GltfContainer`. These are mutually exclusive rendering components — only one shape renderer per entity is valid per the SDK.
+**If** an entity has `TextShape`, **then** it should NOT have `MeshRenderer` or `GltfContainer`. The SDK does not enforce this — it is an authoring convention. Combining them renders both shapes overlapping on the same Transform, which is almost never intended; put the text on a child entity when it should accompany a model or mesh.
