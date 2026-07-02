@@ -21,16 +21,18 @@ AudioSource.create(speaker, {
 
 ### Play/Stop/Toggle
 ```typescript
-// Play
-AudioSource.getMutable(speaker).playing = true
-
-// Stop
-AudioSource.getMutable(speaker).playing = false
+// Prefer the helpers — they retrigger reliably and reset the cursor by default.
+AudioSource.playSound(speaker, 'assets/Audio/music.mp3') // play from 0
+AudioSource.stopSound(speaker)                            // stop, reset to 0
 
 // Toggle
-const audio = AudioSource.getMutable(speaker)
-audio.playing = !audio.playing
+let playing = false
+playing = !playing
+if (playing) AudioSource.playSound(speaker, 'assets/Audio/music.mp3')
+else AudioSource.stopSound(speaker)
 ```
+
+Simple one-time volume/property tweaks on an already-playing clip are fine via `getMutable` (changing volume/loop/pitch keeps it playing). It's specifically *retriggering* `playing` that should go through `playSound`.
 
 ### Play on Click
 ```typescript
@@ -54,9 +56,9 @@ pointerEventsSystem.onPointerDown(
     opts: { button: InputAction.IA_POINTER, hoverText: 'Play sound' },
   },
   () => {
-    const audio = AudioSource.getMutable(audioEntity)
-    audio.playing = false
-    audio.playing = true
+    // playSound reliably retriggers from 0 on every click (createOrReplace under the hood).
+    // Do NOT hand-mutate getMutable().playing for retriggers — LWW-CRDT may dedup repeat clicks.
+    AudioSource.playSound(audioEntity, 'assets/Audio/click.mp3')
   }
 )
 ```

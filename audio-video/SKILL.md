@@ -40,11 +40,18 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Key fields: `audioClipUrl` (local file path), `playing` (boolean), `loop`, `volume` (0-1), `pitch` (playback speed). Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
-Control playback via `AudioSource.getMutable(entity).playing = true/false`. To replay from start, set `playing = false` then `playing = true`.
+**Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
+
+```typescript
+AudioSource.playSound(entity, 'assets/Audio/click.mp3') // retriggers from 0 every call
+AudioSource.stopSound(entity)                            // stops, resets cursor to 0
+```
+
+Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
 
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
@@ -108,5 +115,12 @@ External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scen
 - Use `.mp3` for music and `.ogg` for sound effects (smaller file sizes)
 - For live video streaming, use HLS (.m3u8) URLs when possible
 - If an audio file needs to be ready to play as the player interacts, use the `AssetLoad` component to pre-load the asset
+
+## Example scenes
+
+Engine-team test scenes exercised against the real explorer:
+
+- [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
+- [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
 
 For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.
