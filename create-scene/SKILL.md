@@ -166,7 +166,7 @@ All valid `scene.json` fields:
 
 | Field                      | Required    | Description                                                           |
 | -------------------------- | ----------- | --------------------------------------------------------------------- |
-| `ecs7`                     | Yes         | Must be `true` for SDK7                                               |
+| `ecs7`                     | Conventional | `true` in SDK7 scenes. Written by `init`; the build only validates `runtimeVersion`, but keep it for tooling compatibility |
 | `runtimeVersion`           | Yes         | Must be `"7"`                                                         |
 | `main`                     | Yes         | Must be `"bin/index.js"` — the compiled output path                   |
 | `display.title`            | Recommended | Scene name shown in the map and Places                                |
@@ -273,6 +273,6 @@ After customizing the files:
 
 - **Always validate entity positions against parcel bounds.** Each parcel is 16×16m. With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene — entities there are not rendered and no error is shown.**
 - Center of a single-parcel scene is (8, 0, 8) at ground level
-- Y axis is up, minimum Y=0 (ground)
+- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them
 - The `main` field in scene.json MUST be `"bin/index.js"` — this is the compiled output path
 - The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them
