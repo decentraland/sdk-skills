@@ -24,13 +24,15 @@ AvatarShape.create(entity, {
 	hairColor: { r: 0.92, g: 0.76, b: 0.62 }, // RGB 0-1
 	skinColor: { r: 0.94, g: 0.85, b: 0.6 }, // RGB 0-1
 	eyeColor: { r: 0.2, g: 0.4, b: 0.7 }, // RGB 0-1
-	expressionTriggerId: '', // Currently playing expression
-	expressionTriggerTimestamp: 0, // When expression was triggered
+	expressionTriggerId: '', // built-in emote name OR a scene-emote _emote.glb path
+	expressionTriggerTimestamp: 0, // Lamport timestamp; bump to replay the SAME id
 	talking: false, // Mouth animation
 	emotes: [], // Custom emote URNs
 	showOnlyWearables: false, // Mannequin mode (show wearables without body)
 })
 ```
+
+`expressionTriggerId` on an AvatarShape plays either a built-in emote (`'robot'`) or a custom scene emote by `.glb` path (`'animations/Snowball_Throw_emote.glb'`, same `_emote.glb` files as `triggerSceneEmote`). Confirmed in test scenes 4,21 and 4,22.
 
 ### Body Shape URNs
 
@@ -198,6 +200,7 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 ```typescript
 AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in area
 AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking avatars for profiles
+AvatarModifierType.AMT_HIDE_NAMETAGS // Hide name tags above avatars in area
 ```
 
 To disable jumping in an area, use the `InputModifier` component's `disableJump` flag (covered in the advanced-input skill), not an `AvatarModifierType`.
@@ -206,11 +209,15 @@ To disable jumping in an area, use the `InputModifier` component's `disableJump`
 
 ```typescript
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
-	walkSpeed: 1.5, // Default 1.5 m/s (Control key on desktop)
-	jogSpeed: 8, // Default 8 m/s (the default movement)
-	runSpeed: 14, // Default 10 m/s (Shift key on desktop)
-	jumpHeight: 3, // Default 1 m
-	runJumpHeight: 4, // Default 1.5 m
-	hardLandingCooldown: 0.75, // Default 0.75 s before moving again after a high fall
+	walkSpeed: 1.5, // Control key on desktop
+	jogSpeed: 8, // the default movement
+	runSpeed: 14, // Shift key on desktop
+	jumpHeight: 3,
+	runJumpHeight: 4,
+	hardLandingCooldown: 0.75, // seconds before moving again after a high fall
 })
 ```
+
+Protocol also defines `doubleJumpHeight`, `glidingSpeed`, and `glidingFallingSpeed` (all `float`, meters / m·s).
+
+`[UNVERIFIED: default values]` — the protocol proto marks all fields optional but documents no default numbers, and no test scene exercises this component. The commented default values previously in this doc are not confirmed against a primary source; treat them as approximate and verify in the running client before relying on exact figures.
