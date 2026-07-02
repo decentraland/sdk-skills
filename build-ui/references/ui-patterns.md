@@ -429,95 +429,85 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 
 ---
 
-## dcl-ui-toolkit (Pre-Built Widgets)
+## Common Widgets (From Scratch)
 
-### Setup
-```typescript
-import * as ui from 'dcl-ui-toolkit'
-import { ReactEcsRenderer } from '@dcl/sdk/react-ecs'
+Build widgets from React-ECS primitives — there is no pre-built widget library.
 
-// Register in main():
-ReactEcsRenderer.setUiRenderer(ui.render)
+- **Prompt / dialog / confirmation** → see the **Modal Dialog** pattern in `ui-components.md` (full-screen overlay + centered panel + `Button`s). Add a second `Button` for a two-option (accept/reject) prompt.
+- **Progress / health / fill bar** → see **Health Bar** above (nested `UiEntity`, inner sized `width: `${pct}%``).
 
-// To combine with your own React-ECS UI:
-// ReactEcsRenderer.setUiRenderer(() => [ui.render(), MyCustomUI()])
+### OK-Prompt Modal
+
+One-button confirmation. A two-button choice adds a second `Button` and an `onReject` handler.
+
+```tsx
+import { Color4 } from '@dcl/sdk/math'
+
+let promptOpen = false
+let promptText = ''
+let onPromptAccept = () => {}
+
+export function showPrompt(text: string, onAccept: () => void) {
+  promptText = text
+  onPromptAccept = onAccept
+  promptOpen = true
+}
+
+const OkPrompt = () => {
+  if (!promptOpen) return null
+  return (
+    <UiEntity
+      uiTransform={{ width: '100%', height: '100%', positionType: 'absolute', alignItems: 'center', justifyContent: 'center' }}
+      uiBackground={{ color: Color4.create(0, 0, 0, 0.5) }}
+    >
+      <UiEntity
+        uiTransform={{ width: 400, height: 200, flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: 20 }}
+        uiBackground={{ color: Color4.create(0.15, 0.15, 0.15, 1) }}
+      >
+        <Label value={promptText} fontSize={20} color={Color4.White()} textAlign="middle-center" uiTransform={{ width: '100%', height: 100 }} />
+        <Button
+          value="OK"
+          variant="primary"
+          uiTransform={{ width: 120, height: 40 }}
+          onMouseDown={() => { promptOpen = false; onPromptAccept() }}
+        />
+      </UiEntity>
+    </UiEntity>
+  )
+}
 ```
 
-### Simple Prompts
-```typescript
-// Single-button confirmation
-ui.displayOkPrompt({ title: 'Notice', text: 'Quest complete!', onAccept: () => {} })
+### Timed Announcement
 
-// Two-button choice
-ui.displayOptionPrompt({
-  title: 'Confirm',
-  text: 'Buy this item for 10 MANA?',
-  onAccept: () => { buyItem() },
-  onReject: () => {}
-})
+Centered flash message that clears itself after a delay. Uses `timers.setTimeout` from `@dcl/sdk/ecs` (not the native global).
 
-// Text input prompt
-ui.displayFillInPrompt({
-  title: 'Enter name',
-  placeholder: 'Type here...',
-  onAccept: (value) => { console.log('Name:', value) },
-  onReject: () => {}
-})
+```tsx
+import { timers } from '@dcl/sdk/ecs'
+import { Color4 } from '@dcl/sdk/math'
+
+let announcement = ''
+
+export function announce(text: string, seconds: number = 3) {
+  announcement = text
+  timers.setTimeout(() => { announcement = '' }, seconds * 1000)
+}
+
+const Announcement = () => {
+  if (!announcement) return null
+  return (
+    <UiEntity
+      uiTransform={{ width: '100%', height: '100%', positionType: 'absolute', alignItems: 'center', justifyContent: 'center' }}
+    >
+      {/* Dark backing panel keeps white text legible over any background */}
+      <UiEntity
+        uiTransform={{ padding: { top: 8, bottom: 8, left: 24, right: 24 } }}
+        uiBackground={{ color: Color4.create(0, 0, 0, 0.6) }}
+      >
+        <Label value={announcement} fontSize={40} color={Color4.White()} textAlign="middle-center" />
+      </UiEntity>
+    </UiEntity>
+  )
+}
 ```
 
-### CustomPrompt (Fully Configurable Dialog)
-```typescript
-const prompt = ui.createComponent(ui.CustomPrompt, { style: ui.PromptStyles.DARKSLANTED })
-// Styles: DARKSLANTED, LIGHTROUND, DARKROUND, LIGHTSLANTED
-
-prompt.addText({ value: 'Welcome!', color: Color4.Yellow(), size: 24 })
-prompt.addButton({ style: ui.ButtonStyles.E, text: 'Accept', onMouseDown: () => { prompt.hide() } })
-prompt.addButton({ style: ui.ButtonStyles.F, text: 'Decline', onMouseDown: () => { prompt.hide() } })
-// ButtonStyles: E, F, CLOSE, ROUNDGREEN, ROUNDWHITE, ROUNDRED, SQUAREGREEN, SQUAREWHITE, SQUARERED
-prompt.addCheckbox({ text: 'Don\'t show again', onCheck: () => {}, onUncheck: () => {} })
-prompt.addSwitch({ text: 'Enable notifications', onCheck: () => {}, onUncheck: () => {}, style: ui.PromptSwitchStyles.ROUNDGREEN })
-prompt.addTextBox({ placeholder: 'Enter text...', onChange: (value) => {} })
-prompt.addIcon({ image: 'images/icon.png', width: 64, height: 64 })
-
-prompt.show()   // show the prompt
-prompt.hide()   // hide the prompt
-```
-
-### HUD Elements
-```typescript
-// Flash announcement (center screen)
-ui.displayAnnouncement('Round starts in 3...', 3, { color: Color4.Red(), fontSize: 24 })
-
-// Numeric counter (top-left area)
-const counter = ui.createCounter({ value: 0, xOffset: 10, yOffset: 10 })
-counter.setValue(5)
-counter.increment()     // +1
-counter.decrement()     // -1
-counter.hide()
-counter.show()
-
-// Corner text label
-const label = ui.createCornerLabel({ value: 'Score: 0', xOffset: 10, yOffset: 50 })
-label.setValue('Score: 150')
-
-// Progress bar
-const bar = ui.createBar({
-  value: 50,            // 0-100
-  xOffset: 10, yOffset: 120,
-  width: 200, height: 20,
-  color: Color4.Green(),
-  backgroundColor: Color4.Gray()
-})
-bar.setValue(75)
-
-// Corner icon
-const icon = ui.createCornerIcon({ image: 'images/heart.png', xOffset: 10, yOffset: 200, width: 48, height: 48 })
-
-// Loading spinner
-const loading = ui.createLoadingIcon({ xOffset: 0, yOffset: 0 })
-loading.start()
-loading.stop()
-
-// Full-screen image flash
-const splashImg = ui.createLargeImage({ image: 'images/splash.jpg', xOffset: 0, yOffset: 0, width: 800, height: 600 })
-```
+Mount `OkPrompt` and `Announcement` as children of your root UI component so they overlay the rest of the HUD.

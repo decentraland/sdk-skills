@@ -1,6 +1,6 @@
 ---
 name: script-components
-description: Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, @action() decorators to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity).
+description: Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, @action JSDoc tags to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity).
 ---
 
 # Writing Script Components for Creator Hub
@@ -165,7 +165,9 @@ This pattern keeps the script portable: as long as the child entities have names
 
 ## Defining actions (`@action`)
 
-If your script has functions that could be useful to call from other items in the scene, mark them with the `@action` decorator. Then add an **Action** component to the entity and define a corresponding action. This lets other smart items (e.g. a button) pick and trigger this action.
+If your script has functions that could be useful to call from other items in the scene, mark them by adding a JSDoc comment block (`/** ... */`) with an `@action` tag directly before the method. Then add an **Action** component to the entity and define a corresponding action. This lets other smart items (e.g. a button) pick and trigger this action.
+
+An optional description line before the `@action` tag becomes the action's description shown in the Creator Hub UI.
 
 ```ts
 import { engine, Entity } from '@dcl/sdk/ecs'
@@ -178,14 +180,20 @@ export class TreasureChest {
     public entity: Entity,
   ) {}
 
-  @action()
+  /**
+   * Opens the chest
+   * @action
+   */
   open() {
     if (this.isOpen) return
     this.isOpen = true
     console.log('Chest opened!')
   }
 
-  @action()
+  /**
+   * Closes the chest
+   * @action
+   */
   close() {
     if (!this.isOpen) return
     this.isOpen = false
@@ -194,7 +202,7 @@ export class TreasureChest {
 }
 ```
 
-With the `@action` decorator, `open` and `close` become available in the Actions component dropdown and can be triggered by other smart items or scripts.
+With the `@action` JSDoc tag, `open` and `close` become available in the Actions component dropdown and can be triggered by other smart items or scripts.
 
 ## ActionCallback parameters
 
@@ -211,7 +219,9 @@ export class Padlock {
     public onUnlock: ActionCallback,
   ) {}
 
-  @action()
+  /**
+   * @action
+   */
   solve() {
     this.onUnlock()
   }
@@ -243,7 +253,7 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 2. Never remove `public src: string` and `public entity: Entity` from the constructor.
 3. Use `this.src + '/filename'` for any bundled asset paths.
 4. Do not pass child entities of the same custom item as `Entity` constructor parameters, and do not require a per-instance name parameter — find them at runtime by matching a **substring** of their `Name` value (e.g. `.includes('Sit Spot')`), so duplicated/auto-numbered copies (`"Sit Spot 2"`, `"Sit Spot 3"`, …) all work with zero configuration.
-5. Use `@action()` on methods you want to expose as triggerable actions.
+5. Mark methods you want to expose as triggerable actions with an `@action` tag inside a JSDoc comment block (`/** ... */`) directly before the method. NEVER use decorator syntax (`@action()` above the method): the Creator Hub parser has no decorators plugin, so a decorator makes parsing fail and ALL params and actions disappear from the UI.
 6. Use `ActionCallback` for parameters that should let users wire up editor actions.
 7. Add `@param` JSDoc comments before the constructor for UI tooltips.
 8. Manually include any code-only assets (sounds, textures) in the custom item folder.

@@ -81,32 +81,35 @@ For common blockchain operations, use `dcl-crypto-toolkit` instead of raw `eth-c
 npm install dcl-crypto-toolkit
 ```
 
+Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `mana`, `currency`, `nft`, `marketplace`, `services`, `wearable`, `contract`. There is NO top-level `crypto.signMessage`.
+
 **Capabilities:**
-- **MANA operations:** send, check balance, check/set allowance (`crypto.mana.*`)
+- **MANA operations:** send, check balance (`crypto.mana.send` / `.myBalance` / `.balance`)
 - **ERC20 tokens:** send, check balance, check/set allowance (`crypto.currency.*`)
-- **ERC721/NFT:** check ownership, transfer, approval management (`crypto.nft.*`)
-- **Marketplace:** buy orders, sell orders, cancel orders, check authorization (`crypto.marketplace.*`)
-- **Sign message:** sign arbitrary messages with player wallet (`crypto.signMessage()`)
+- **ERC721/NFT:** check tokens held (token gating), transfer, approval management (`crypto.nft.*`)
+- **Marketplace:** buy (`executeOrder`), sell (`createOrder`), cancel (`cancelOrder`), check authorization (`crypto.marketplace.*`)
+- **Sign message:** sign EIP-712 typed data with player wallet (`crypto.ethereum.signMessageAdvanced()`)
 
 ## Token Gating
 
-**By NFT ownership:** Check `crypto.nft.getBalance()` to verify the player owns a specific NFT, then grant or deny access.
+**By NFT ownership:** Use `crypto.nft.checkTokens(contractAddress, tokenIds?)` — returns whether the player holds tokens of that contract. Omit `tokenIds` to check any token of the contract. Grant or deny access on the result.
 
-**By ERC20 balance:** Check `crypto.mana.getBalance()` (or `crypto.currency.getBalance()` for other tokens) to gate access based on token holdings.
+**By MANA balance:** Check `crypto.mana.myBalance()` (or `crypto.currency.balance(contractAddress, address)` for other ERC20 tokens) to gate access based on holdings.
 
 ### Quick Decision Guide
 
 | Task | Use |
 |---|---|
 | Send MANA | `crypto.mana.send()` |
-| Check MANA balance | `crypto.mana.getBalance()` |
+| Check own MANA balance | `crypto.mana.myBalance()` |
+| Check any address's MANA balance | `crypto.mana.balance(address)` |
 | Send any ERC20 token | `crypto.currency.send()` |
-| Check ERC20 balance | `crypto.currency.getBalance()` |
+| Check ERC20 balance | `crypto.currency.balance(contract, address)` |
 | Transfer an NFT | `crypto.nft.transfer()` |
-| Check NFT ownership | `crypto.nft.getBalance()` |
-| Buy from marketplace | `crypto.marketplace.buyOrder()` |
-| List NFT for sale | `crypto.marketplace.sellOrder()` |
-| Sign a message | `crypto.signMessage()` |
+| Check NFT ownership / token gating | `crypto.nft.checkTokens()` |
+| Buy from marketplace | `crypto.marketplace.executeOrder()` |
+| List NFT for sale | `crypto.marketplace.createOrder()` |
+| Sign a message | `crypto.ethereum.signMessageAdvanced()` |
 | Custom smart contract | `eth-connect` (see above) |
 | Authenticated API call | `signedFetch` (see above) |
 
@@ -122,4 +125,4 @@ npm install dcl-crypto-toolkit
 - Test on Sepolia before deploying to mainnet
 - NFT URNs only work with Ethereum mainnet ERC-721 tokens
 
-For full code examples and implementation patterns, see '{baseDir}/references/blockchain-patterns.md'. For the dcl-crypto-toolkit library API, see '{baseDir}/references/crypto-library.mdc'.
+For full code examples and implementation patterns, including the dcl-crypto-toolkit library API, see '{baseDir}/references/blockchain-patterns.md'.

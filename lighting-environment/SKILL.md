@@ -108,12 +108,12 @@ Set a permanent time of day without code:
 ```json
 {
   "skyboxConfig": {
-    "fixedTime": 36000
+    "fixedTime": 43200
   }
 }
 ```
 
-Time values: 0 = midnight, 36000 = noon, 54000 = dusk, 72000 = midnight again.
+Time values (seconds since midnight, full day = 86400): 0 = midnight, 21600 = 6 AM, 43200 = noon, 64800 = 6 PM (dusk), 86400 = full day.
 
 ### Read Current World Time
 
@@ -132,11 +132,11 @@ executeTask(async () => {
 import { engine, SkyboxTime } from '@dcl/sdk/ecs'
 
 // Set time of day (must target root entity)
-SkyboxTime.create(engine.RootEntity, { fixedTime: 36000 })  // Noon
+SkyboxTime.create(engine.RootEntity, { fixedTime: 43200 })  // Noon
 
 // Change with transition direction (TransitionMode from the generated protobuf)
 SkyboxTime.createOrReplace(engine.RootEntity, {
-  fixedTime: 54000,  // Dusk
+  fixedTime: 64800,  // Dusk (6 PM)
   transitionMode: 1  // TM_BACKWARD
 })
 ```
@@ -144,11 +144,11 @@ SkyboxTime.createOrReplace(engine.RootEntity, {
 ### Day/Night Cycle System
 
 ```typescript
-let currentTime = 36000
+let currentTime = 43200
 const CYCLE_SPEED = 100  // Time units per second
 
 function dayNightCycle(dt: number) {
-  currentTime = (currentTime + CYCLE_SPEED * dt) % 72000
+  currentTime = (currentTime + CYCLE_SPEED * dt) % 86400
   SkyboxTime.createOrReplace(engine.RootEntity, {
     fixedTime: currentTime
   })
@@ -210,29 +210,32 @@ LightSource.create(bulb, {
 })
 ```
 
-### Shadow Types
+### Shadow Quality
 
-Control shadow quality per light. Shadow type is set inside the `Spot()` or `Point()` helper:
+`shadow` is a top-level optional boolean on the LightSource component (default `false`). There is no shadow-type enum — quality is automatic and distance-based. `Spot({...})` accepts only `innerAngle?` and `outerAngle?`.
 
 ```typescript
-import { LightSource, PBLightSource_ShadowType } from '@dcl/sdk/ecs'
+import { LightSource } from '@dcl/sdk/ecs'
 
-// Spot light with soft shadows
+// Spot light with shadows enabled
 LightSource.create(spotEntity, {
-  type: LightSource.Type.Spot({
-    innerAngle: 25,
-    outerAngle: 45,
-    shadow: PBLightSource_ShadowType.ST_SOFT
-  }),
-  shadow: true,
+  type: LightSource.Type.Spot({ innerAngle: 25, outerAngle: 45 }),
+  shadow: true,  // top-level boolean
   intensity: 800
 })
 ```
 
-Available shadow types:
-- `PBLightSource_ShadowType.ST_NONE` — no shadows (cheapest)
-- `PBLightSource_ShadowType.ST_HARD` — crisp shadows (medium cost)
-- `PBLightSource_ShadowType.ST_SOFT` — smooth, blurred shadows (most expensive)
+Constraints:
+- Shadows are only supported for **spot** lights; point lights do not cast shadows.
+- Max **3** shadow-casting lights rendered at a time.
+- Shadow quality/culling is automatic, based on the light's distance from the camera:
+
+| Distance from camera | Result |
+|----------------------|--------|
+| < 10 m | Soft shadows |
+| 10–20 m | Hard shadows |
+| 20–40 m | No shadows rendered |
+| > 40 m | Light itself is culled |
 
 > **Need advanced material effects?** See the **advanced-rendering** skill for metallic, roughness, transparency, texture maps, texture tweens, and texture modes.
 

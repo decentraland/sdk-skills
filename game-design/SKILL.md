@@ -31,7 +31,7 @@ For the full limits table across all parcel counts, see the **optimize-scene** s
 
 ## 4. Asset Preloading
 
-Use the `AssetLoad` component to pre-download large assets before rendering to avoid visible pop-in. Apply to any model over ~1 MB, any asset needed before a game phase starts, and any sound that plays in response to player interaction.
+Use the `AssetLoad` component to pre-load assets that aren't needed at scene startup so they display instantly when needed (e.g. things that appear later or on player interaction); don't use it for startup assets.
 
 For the implementation pattern, see the **optimize-scene** skill.
 

@@ -191,38 +191,40 @@ engine.removeSystem(systemFn)
 
 ## Asset Preloading (AssetLoad Component)
 
-For large assets that would cause visible pop-in, use `AssetLoad` to pre-download before rendering:
+Use `AssetLoad` to pre-load assets into memory ahead of time so they display instantly when needed. `PBAssetLoad` has a single field: `assets: string[]` — the list of asset paths to load. Commonly created on `engine.RootEntity`, but any entity works.
 
 ```typescript
 import {
 	engine,
 	AssetLoad,
+	AssetLoadLoadingState,
+	assetLoadLoadingStateSystem,
 	LoadingState,
-	GltfContainer,
-	Transform,
 } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
 
-// Create a preload entity at scene startup
-const preloadEntity = engine.addEntity()
-AssetLoad.create(preloadEntity, { src: 'models/large-model.glb' })
+// Queue assets to pre-load (e.g. at scene startup)
+AssetLoad.create(engine.RootEntity, {
+	assets: ['models/big.glb', 'sounds/win.mp3'],
+})
 
-// System to track loading progress
-function assetLoadingSystem(dt: number) {
-	for (const [entity] of engine.getEntitiesWith(AssetLoad)) {
-		const state = AssetLoad.get(entity)
-		if (state.loadingState === LoadingState.FINISHED) {
-			// Asset is cached — now safe to create the visible entity
-			GltfContainer.create(entity, { src: 'models/large-model.glb' })
-			Transform.create(entity, { position: Vector3.create(8, 0, 8) })
-			AssetLoad.deleteFrom(entity) // Remove preload component
+// Optional: react to loading state via the read-only AssetLoadLoadingState component
+assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
+	engine.RootEntity,
+	(event) => {
+		if (event.currentState === LoadingState.FINISHED) {
+			// Assets are now cached — create the visible entities that use them
+			assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(
+				engine.RootEntity,
+			)
 		}
-	}
-}
-engine.addSystem(assetLoadingSystem)
+	},
+)
 ```
 
-Use this pattern for any asset that should be ready before a game phase begins, or that may be needed any time based on player interaction. For example for the sound effect of pressing a button that is already available to the player.
+Caveats:
+
+- `AssetLoad` only **adds** assets to memory. Removing a path from the `assets` list does **not** free memory — there is no unload via `AssetLoad`.
+- If an asset is used immediately at scene startup, there is **no need** for `AssetLoad`. Only pre-load assets NOT required at startup — things that appear later or on player interaction.
 
 ## Loading Time Optimization
 
@@ -230,7 +232,7 @@ Use this pattern for any asset that should be ready before a game phase begins, 
 - Use compressed .glb files (Draco compression)
 - Minimize total asset size
 - Use CDN URLs for large shared assets when possible
-- Preload critical assets with `AssetLoad`, defer non-essential ones
+- Do NOT preload assets needed at scene startup; use `AssetLoad` to preload assets needed later (appear on interaction or in a later phase) so they display instantly
 
 ### Loading Areas for Large Scenes
 
@@ -277,7 +279,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Adding entities/components in a system without guards | Entity count explodes | Systems run every frame — always check before creating  |
 | Unbounded entity queries             | CPU spike                        | Filter with specific components, cache results           |
 | All detail loaded at all distances   | Triangle budget blown            | Implement LOD system                                     |
-| No asset preloading                  | Pop-in during gameplay           | Use AssetLoad for large models and audio                 |
+| No asset preloading                  | Pop-in during gameplay           | Use AssetLoad to preload assets needed later (not startup assets) |
 
 ## Scene Statistics Monitoring
 

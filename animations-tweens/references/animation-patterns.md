@@ -83,8 +83,9 @@ Tween.create(box, {
   easingFunction: EasingFunction.EF_LINEAR
 })
 
-// Continuous rotation:
-Tween.setRotateContinuous(myEntity, Quaternion.fromEulerDegrees(0, -1, 0), 700)
+// Continuous rotation: spin slowly around Y forever.
+// 3rd arg is SPEED (rotation/sec applied along the direction quaternion), not a duration.
+Tween.setRotateContinuous(myEntity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 ```
 
 ### Scale
@@ -167,12 +168,18 @@ Tween.setScale(entity,
 
 ## Continuous Tweens
 
-```typescript
-// Move by (0, 0, 1) every 2 seconds, forever
-Tween.setMoveContinuous(entity, Vector3.create(0, 0, 1), 2000)
+3rd arg is **speed** (units per second along the direction vector), NOT a duration.
+Optional final `duration` is a stop-after time in **milliseconds** (`0` / omitted = forever).
 
-// Rotate 90deg around Y every 2 seconds, forever
-Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 90, 0), 2000)
+```typescript
+// Move forward at 0.5 m/s, forever
+Tween.setMoveContinuous(entity, Vector3.Forward(), 0.5)
+
+// Move forward at 0.5 m/s, stop after 3 seconds
+Tween.setMoveContinuous(entity, Vector3.Forward(), 0.5, 3000)
+
+// Rotate slowly around Y, forever
+Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 ```
 
 ---
@@ -185,8 +192,9 @@ import { Vector2 } from '@dcl/sdk/math'
 // From UV (0,0) to (1,0) over 2 seconds
 Tween.setTextureMove(entity, Vector2.create(0, 0), Vector2.create(1, 0), 2000)
 
-// Continuous scroll
-Tween.setTextureMoveContinuous(entity, Vector2.create(0, 1), 2000)
+// Continuous scroll: 3rd arg is SPEED in UV units/sec (not a duration).
+// Scroll up the V axis at 0.5 UV/sec, forever.
+Tween.setTextureMoveContinuous(entity, Vector2.create(0, 1), 0.5)
 ```
 
 ---

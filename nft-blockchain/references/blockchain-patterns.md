@@ -186,31 +186,22 @@ openNftDialog({
 
 ## dcl-crypto-toolkit Examples
 
+Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `mana`, `currency`, `nft`, `marketplace`, `services`, `wearable`, `contract`. All calls are async; wrap in `executeTask`.
+
 ### MANA Operations
 
 ```typescript
 import * as crypto from 'dcl-crypto-toolkit'
 
 executeTask(async () => {
-  // Check own MANA balance
-  const myBalance = await crypto.mana.getBalance()
+  // Own MANA balance (number, in MANA)
+  const myBalance = await crypto.mana.myBalance()
 
-  // Check another address's MANA balance
-  const theirBalance = await crypto.mana.getBalance('0xSomeAddress')
+  // Another address's MANA balance
+  const theirBalance = await crypto.mana.balance('0xSomeAddress')
 
-  // Send MANA
-  await crypto.mana.send('0xRecipientAddress', 10, true) // true = wait for confirmation
-
-  // Check allowance
-  const isApproved = await crypto.mana.isApproved('0xSpenderAddress', 100)
-
-  // Set allowance
-  await crypto.currency.setApproval(
-    crypto.contract.mainnet.MANAToken,
-    '0xSpenderContract',
-    true,
-    '1000000000000000000000' // amount in wei (optional, defaults to max)
-  )
+  // Send MANA — send(toAddress, amount, waitConfirm = false)
+  await crypto.mana.send('0xRecipientAddress', 10, true)
 })
 ```
 
@@ -220,17 +211,17 @@ executeTask(async () => {
 executeTask(async () => {
   const tokenAddress = '0xTokenContractAddress'
 
-  // Send tokens
+  // Send tokens — send(contractAddress, toAddress, amount, waitConfirm = false)
   await crypto.currency.send(tokenAddress, '0xRecipient', 1000000000000000000, true)
 
-  // Check balance
-  const balance = await crypto.currency.getBalance(tokenAddress) // own balance
-  const theirBalance = await crypto.currency.getBalance(tokenAddress, '0xOtherAddress')
+  // Balance — balance(contractAddress, address); BOTH args required
+  const balance = await crypto.currency.balance(tokenAddress, '0xOwner')
 
-  // Check and set allowance
+  // Allowance / approval
   const allowance = await crypto.currency.allowance(tokenAddress, '0xOwner', '0xSpender')
-  await crypto.currency.setApproval(tokenAddress, '0xSpender', true)
   const approved = await crypto.currency.isApproved(tokenAddress, '0xOwner', '0xSpender')
+  // setApproval(contractAddress, spender, waitConfirm = false, amount?) — amount defaults to max
+  await crypto.currency.setApproval(tokenAddress, '0xSpender', true)
 })
 ```
 
@@ -239,17 +230,18 @@ executeTask(async () => {
 ```typescript
 executeTask(async () => {
   const contractAddress = '0xNFTContractAddress'
-  const tokenId = 123
 
-  // Check ownership
-  const balance = await crypto.nft.getBalance(contractAddress, tokenId)
-  const ownsNFT = balance > 0
+  // Does the player hold tokens of this contract? Token-gating primitive.
+  // checkTokens(contractAddress, tokenIds?) — omit tokenIds to check any token of the contract
+  const hasToken = await crypto.nft.checkTokens(contractAddress)
+  const hasSpecific = await crypto.nft.checkTokens(contractAddress, [123])
 
-  // Transfer NFT
-  await crypto.nft.transfer(contractAddress, '0xRecipient', tokenId, true)
+  // Transfer — transfer(contractAddress, toAddress, tokenId, waitConfirm?)
+  await crypto.nft.transfer(contractAddress, '0xRecipient', 123, true)
 
-  // Approval for all
+  // Operator approval
   const isApproved = await crypto.nft.isApprovedForAll(contractAddress, '0xHolder', '0xOperator')
+  // setApprovalForAll(contractAddress, operator, approved?, waitConfirm?)
   await crypto.nft.setApprovalForAll(contractAddress, '0xOperator', true, true)
 })
 ```
@@ -258,36 +250,63 @@ executeTask(async () => {
 
 ```typescript
 executeTask(async () => {
-  // Buy from marketplace
-  await crypto.marketplace.buyOrder('0xNFTAddress', 123, '1000000000000000000')
+  const nftAddress = '0xNFTAddress'
+  const price = '1000000000000000000' // wei
 
-  // Sell on marketplace
-  const isAuthorized = await crypto.marketplace.isAuthorized()
-  if (!isAuthorized) {
-    await crypto.nft.setApprovalForAll(
-      '0xNFTContractAddress',
-      crypto.contract.mainnet.Marketplace,
-      true, true
-    )
+  // Buy — executeOrder(nftAddress, assetId, price)
+  // Gate on authorization + balance first
+  if (await crypto.marketplace.isAuthorizedAndHasBalance(price)) {
+    await crypto.marketplace.executeOrder(nftAddress, 123, price)
   }
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
-  await crypto.marketplace.sellOrder('0xNFTAddress', 123, '1000000000000000000', expiresAt.toString())
+
+  // Sell — createOrder(nftAddress, assetId, price, expireAt = now + 30d)
+  if (!(await crypto.marketplace.isAuthorizedAll())) {
+    await crypto.nft.setApprovalForAll(nftAddress, crypto.contract.mainnet.Marketplace, true, true)
+  }
+  await crypto.marketplace.createOrder(nftAddress, 123, price)
 
   // Cancel a listing
-  await crypto.marketplace.cancelOrder('0xNFTAddress', 123)
-
-  // Check authorization status
-  const authorized = await crypto.marketplace.isAuthorized()
+  await crypto.marketplace.cancelOrder(nftAddress, 123)
 })
 ```
 
 ### Sign Message
 
+`crypto.ethereum.signMessageAdvanced` is the only signing export (EIP-712 typed data).
+
 ```typescript
 executeTask(async () => {
-  const signature = await crypto.signMessage('Hello Decentraland!')
-  console.log('Signature:', signature)
+  const signature = await crypto.ethereum.signMessageAdvanced(
+    messageToSign, // the data object to sign
+    messageName,   // primary type name
+    messageType,   // EIP-712 type definition
+    domainData     // EIP-712 domain
+  )
   // Send signature to your backend to verify the player's identity
+})
+```
+
+### Custom Contract
+
+`crypto.contract.getContract(contractAddress, abi)` — abi is REQUIRED. Constant address maps: `crypto.contract.mainnet` / `.ropsten` / `.kovan` / `.rinkeby` (infrastructure: MANAToken, Marketplace, LANDRegistry, EstateRegistry, ERC721Bid, DCLRegistrar; plus pre-2021 collection constants only).
+
+```typescript
+executeTask(async () => {
+  const contract = await crypto.contract.getContract(crypto.contract.mainnet.MANAToken, manaAbi)
+  const balance = await contract.balanceOf('0xOwner')
+})
+```
+
+### Wearable Data
+
+`crypto.wearable.getListOfWearables(filters)` — `filters` requires at least one of `collectionIds` / `wearableIds` / `textSearch`.
+
+```typescript
+executeTask(async () => {
+  const wearables = await crypto.wearable.getListOfWearables({
+    collectionIds: ['urn:decentraland:ethereum:collections-v1:mf_sammichgamer'],
+    textSearch: 'sammich',
+  })
 })
 ```
 
@@ -300,8 +319,8 @@ executeTask(async () => {
   const player = getPlayer()
   if (!player || player.isGuest) return
 
-  const balance = await crypto.nft.getBalance('0xYourNFTContract', 1)
-  if (balance > 0) {
+  // checkTokens returns whether the player holds a token of the contract
+  if (await crypto.nft.checkTokens('0xYourNFTContract')) {
     openGatedArea()
   } else {
     showAccessDenied()
@@ -309,11 +328,11 @@ executeTask(async () => {
 })
 ```
 
-### Gate by ERC20 Balance
+### Gate by MANA Balance
 
 ```typescript
 executeTask(async () => {
-  const manaBalance = await crypto.mana.getBalance()
+  const manaBalance = await crypto.mana.myBalance()
   if (manaBalance >= 100) {
     grantVIPAccess()
   }
@@ -335,7 +354,7 @@ function sendTip(amount: number) {
       const player = getPlayer()
       if (!player || player.isGuest) return
 
-      const balance = await crypto.mana.getBalance()
+      const balance = await crypto.mana.myBalance()
       if (balance < amount) { console.log('Insufficient MANA'); return }
 
       await crypto.mana.send(CREATOR_WALLET, amount, true)

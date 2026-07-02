@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assertComponentValue, assertEntitiesCount). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assert, assertComponentValue, deepCloseTo). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -257,7 +257,6 @@ import { test } from "@dcl/sdk/testing";
 import {
   assertComponentValue,
   assertEquals,
-  assertEntitiesCount,
 } from "@dcl/sdk/testing/assert";
 import { engine, Transform, MeshRenderer } from "@dcl/sdk/ecs";
 import { Vector3, Quaternion } from "@dcl/sdk/math";
@@ -280,21 +279,25 @@ test("transform is applied after one frame", function* () {
 test("five meshes are present", function* () {
   yield;
   assertEquals(1 + 1, 2, "basic math");
-  assertEntitiesCount(
-    engine.getEntitiesWith(MeshRenderer),
+  // No count assertion exists — count via getEntitiesWith + Array.from
+  assertEquals(
+    Array.from(engine.getEntitiesWith(MeshRenderer)).length,
     5,
     "should have 5 meshes"
   );
 });
 ```
 
-**Available assertions** (`@dcl/sdk/testing/assert`):
+**Available assertions** (`@dcl/sdk/testing/assert`) — exactly these four:
 
 - `assertEquals(actual, expected, message?)` — deep-equals check
+- `assert(condition, message?)` — truthiness check
 - `assertComponentValue(entity, Component, expected)` — full component value comparison
-- `assertEntitiesCount(iterable, count, message?)` — verifies `engine.getEntitiesWith(...)` returns the expected number of entities
+- `deepCloseTo(actual, expected, options?)` — deep numeric comparison with tolerance (for floats)
 
-**Running tests**: use `npx @dcl/sdk-commands test` (or the test runner from the Creator Hub). Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
+There is NO count assertion — count entities with `assertEquals(Array.from(engine.getEntitiesWith(Comp)).length, n)`.
+
+**Running tests**: there is no CLI test command (`npx @dcl/sdk-commands test` does not exist). Tests execute only when the hosting runtime exposes the `~system/Testing` module — CI test runners or test-enabled explorers. In a normal preview the test runner is a no-op that just logs, and it's guarded behind DEBUG in production builds. Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
 
 ## Best Practices
 

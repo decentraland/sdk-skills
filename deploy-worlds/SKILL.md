@@ -105,7 +105,7 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 "worldConfiguration": {
   "name": "my-name.dcl.eth",
   "skyboxConfig": {
-    "fixedTime": 36000,
+    "fixedTime": 43200,
     "textures": ["textures/skybox.png"]
   },
   "miniMapConfig": {
@@ -121,13 +121,15 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 
 **`skyboxConfig.fixedTime` values:**
 
+Values are seconds since midnight; a full day is `86400`.
+
 | Value | Time of day |
 |-------|------------|
 | `0` | Midnight |
-| `18000` | 6 AM (sunrise) |
-| `36000` | Noon |
-| `45000` | 6 PM (sunset) |
-| `50400` | Maximum |
+| `21600` | 6 AM (sunrise) |
+| `43200` | Noon |
+| `64800` | 6 PM (sunset) |
+| `86400` | Full day (maximum) |
 
 Omit `fixedTime` for a dynamic day/night cycle.
 
