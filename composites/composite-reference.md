@@ -694,7 +694,7 @@ All components that start with `asset-packs::` or `inspector::` are non-core. On
 
 These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
-If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
+If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 
 The `inspector::SceneMetadata` component in the composite must match `scene.json`:
 
@@ -747,7 +747,10 @@ export function main() {
 		)
 	}
 
-	// Strict variant — throws at compile time if name changes, no null check needed
+	// Strict variant — the <EntityNames> type parameter catches renames at
+	// COMPILE time only. At runtime it never throws: called before composite
+	// entities are instantiated it silently returns a null-ish Entity.
+	// Only safe inside main() or later, when the entity is guaranteed to exist.
 	const box = engine.getEntityByName<EntityNames>(EntityNames.MyBox)
 	console.log(Transform.get(box).position.x)
 }
@@ -802,7 +805,7 @@ Before writing a fresh composite, verify:
 - [ ] All positions within parcel bounds — bounds were calculated in **Step 0** from the actual `scene.json` parcel list. Every entity's X is in `[0, maxX]` and Z is in `[0, maxZ]`. Negative values and values above maxX/maxZ do not render. If the user requested a "large" scene but parcel count was not changed, all entities fit within the original bounds.
 - [ ] For every `GltfContainer` entity: checked whether the GLB contains animations (clip names embedded in the file). If it does, an `core::Animator` component is present on that entity. A model with animations but no Animator will silently loop its first clip with no way to control it.
 - [ ] For every `GltfContainer` entity: checked whether the GLB contains collision meshes (any mesh whose name includes the string `_collider`). If yes, `invisibleMeshesCollisionMask` is set to `3` (CL_POINTER + CL_PHYSICS) to activate them. If no built-in colliders, evaluated whether a `core::MeshCollider` box/sphere is needed to cover the model's rough shape (for walkable surfaces, walls, or clickable objects).
-- [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
+- [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data (it is the id allocator for those ids)
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
 - [ ] A composite using only core components needs no extra library. If it contains `asset-packs::*` components, older SDKs require `@dcl/asset-packs` as a project dependency; current SDKs fall back to the copy bundled inside `@dcl/inspector`
