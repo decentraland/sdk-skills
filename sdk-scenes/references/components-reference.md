@@ -32,7 +32,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **PointerEvents** | `pointerEvents: Array<{ eventType, eventInfo: { button, hoverText, maxDistance } }>` | Define clickable/hoverable areas. Use `pointerEventsSystem.onPointerDown()` helper. |
 | **PointerEventsResult** | Read-only | Results of pointer events (which button, hit point). |
 | **PointerLock** | `isPointerLocked: boolean` | Whether pointer is locked (first-person mode). |
-| **PrimaryPointerInfo** | Read-only | Position and entity of the primary pointer. |
+| **PrimaryPointerInfo** | Read-only: `pointerType`, `screenCoordinates`, `screenDelta`, `worldRayDirection` | Screen coordinates and world ray of the primary pointer. It has no entity field — get the hovered/hit entity from `PointerEventsResult` or a raycast. |
 | **InputModifier** | `mode` | Modify input behavior for the entity. |
 | **Raycast** | `direction`, `maxDistance`, `queryType`, `continuous` | Cast rays for collision detection. |
 | **RaycastResult** | Read-only | Results of a raycast (hits, distances). |
