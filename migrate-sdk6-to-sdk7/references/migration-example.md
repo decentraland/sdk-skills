@@ -318,12 +318,12 @@ TextShape.create(instructions, {
   text: 'Drag gems...',
   fontSize: 1,
   textColor: Color4.White(),
-  outlineWidth: 0.1,
-  outlineColor: Color4.Black()
+  shadowColor: Color3.Gray(),
+  shadowOffsetY: 1
 })
 ```
 
-- `shadowColor` / `shadowOffsetX/Y` from SDK6 have no direct SDK7 equivalent — use `outlineColor` + `outlineWidth` to achieve similar legibility.
+- `shadowColor` / `shadowBlur` / `shadowOffsetX` / `shadowOffsetY` all exist on SDK7 `TextShape` — map SDK6 shadow fields across directly (`shadowColor` is a `Color3`). SDK7 also adds `outlineWidth` / `outlineColor`, which are often preferred for text legibility on varying backgrounds.
 
 ## Animations
 
