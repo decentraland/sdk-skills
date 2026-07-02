@@ -234,6 +234,20 @@ AvatarAttach.create(hat, {
 })
 ```
 
+`avatarId` is the target player's wallet address. To attach to every player in the scene (including remote ones), iterate `engine.getEntitiesWith(PlayerIdentityData)` and read `player.address` for each — guard with a marker component so you attach only once per player:
+
+```typescript
+import { PlayerIdentityData } from '@dcl/sdk/ecs'
+
+engine.addSystem(() => {
+	for (const [entity, player] of engine.getEntitiesWith(PlayerIdentityData)) {
+		// player.address is the wallet address to pass as avatarId
+	}
+})
+```
+
+To attach the **local** player's own held item, get the address from `getPlayer()` / `await getPlayer()` (`.userId`). Omitting `avatarId` attaches to the local player. For multiplayer visibility of a held/attached item, sync the anchor entity's `AvatarAttach` component (see [[multiplayer-sync]]).
+
 ## Triggering Emotes
 
 ### Default Emotes
@@ -271,6 +285,29 @@ triggerSceneEmote({
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Custom emote files **must** end with the `_emote.glb` suffix (case-insensitive) — scenes that ignore this may work in preview but break once deployed
+- Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
+
+### Stopping an emote
+
+`stopEmote({})` from `~system/RestrictedActions` stops the local player's currently playing emote (built-in or scene emote). Useful to end a looping scene emote (`triggerSceneEmote({ src, loop: true })`) on demand — e.g. a "pick up / put down" toggle.
+
+```typescript
+import { stopEmote } from '~system/RestrictedActions'
+stopEmote({})
+```
+
+### [EXPERIMENTAL] Emote masks (upper-body / full-body)
+
+`triggerSceneEmote` and `stopEmote` accept a `mask` param (`AvatarEmoteMask` from `@dcl/sdk/ecs`) to restrict a looping emote to part of the body, letting the player keep walking while the upper body animates (e.g. carrying an object).
+
+```typescript
+import { AvatarEmoteMask } from '@dcl/sdk/ecs'
+triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarEmoteMask.AEM_UPPER_BODY })
+```
+
+Values: `AvatarEmoteMask.AEM_UPPER_BODY`, `AvatarEmoteMask.AEM_FULL_BODY`.
+
+`[EXPERIMENTAL]` — the `mask` field is **not in `protocol/main`** as of this writing. It is only available in an experimental SDK toolchain (`feat/avatar-masks-experimental`) / bleeding-edge commit builds. Do NOT rely on it in a scene targeting the released `@dcl/sdk`; verify it exists in the installed SDK before use. `[UNVERIFIED: not in released protocol — confirm before documenting as stable]`
 
 ## NPC Avatars
 
@@ -307,7 +344,10 @@ AvatarModifierArea.create(modifierArea, {
 ```typescript
 AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in the area
 AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking on avatars to see profiles
+AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the area
 ```
+
+`modifiers` is an array — combine several, e.g. `[AMT_HIDE_AVATARS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected; mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
 
 ## Avatar Locomotion Settings
 
@@ -323,7 +363,7 @@ AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
 })
 ```
 
-All fields (with defaults): `walkSpeed` (1.5 m/s), `jogSpeed` (8 m/s — the default movement), `runSpeed` (10 m/s), `jumpHeight` (1 m), `runJumpHeight` (1.5 m), `hardLandingCooldown` (0.75 s).
+Fields: `walkSpeed`, `jogSpeed` (the default movement speed), `runSpeed`, `jumpHeight`, `runJumpHeight`, `hardLandingCooldown` (seconds), plus `doubleJumpHeight`, `glidingSpeed`, `glidingFallingSpeed`. `[UNVERIFIED: default values]` — the protocol documents no defaults and no test scene exercises this; see `references/avatar-apis.md`.
 
 ## Restrict Locomotion (InputModifier)
 
@@ -343,9 +383,13 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 **Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, restrictions lift automatically when the player leaves scene bounds.
 
+**Standard-mode flags** (all boolean, on `InputModifier.Mode.Standard({...})`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`. Protocol also defines `disableDoubleJump` and `disableGliding`. Note `disableJog` is separate from `disableWalk`/`disableRun` — jog is the default movement speed, so disabling only walk+run still lets the player jog.
+
+The `mode` can be built two equivalent ways — the `InputModifier.Mode.Standard({...})` helper, or the raw discriminated union `{ $case: 'standard', standard: {...} }`.
+
 **Tip:** Combine with `triggerSceneEmote` — freeze the player during an animation, then remove InputModifier when it ends.
 
-For all available flags (`disableWalk`, `disableRun`, `disableJump`, etc.) and the cutscene pattern, see the **advanced-input** skill.
+For the cutscene pattern, see the **advanced-input** skill.
 
 ## Teleporting the Player
 
@@ -362,7 +406,10 @@ For all available flags (`disableWalk`, `disableRun`, `disableJump`, etc.) and t
 
 - The player must already be inside the scene's bounds for this to work
 - The target position must also be within the scene's bounds
-- During the transition the avatar passes through colliders
+- During the transition the avatar passes through colliders (verified: a `CL_PHYSICS` obstacle placed in the path is passed through)
+- Requires the `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` permission in `scene.json` `requiredPermissions`
+- All fields except `newRelativePosition` are optional — `cameraTarget` and `avatarTarget` may each be omitted or used independently
+- The target Y may be elevated (e.g. `y: 12`) to place the player on a raised platform, not just ground level
 
 ### Instant teleport
 
@@ -467,6 +514,18 @@ Beyond the commonly used anchor points, the full list includes:
 - Add `excludeIds` to modifier areas when you want specific players (like the scene owner) to remain visible
 - **Never mutate the player's Transform** (`Transform.getMutable`, `Transform.createOrReplace`, direct `.position` / `.rotation` assignment on `engine.PlayerEntity`) — the engine silently ignores it. Code compiles and runs but the avatar does not move. Use `movePlayerTo` for teleports/slides, or `Physics.*` (skill: `player-physics`) for forces (lift, knockback, push, wind).
 - `Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only
+
+## Example scenes
+
+Engine-team test scenes (exercised against the real engine):
+
+- [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
+- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, and `[EXPERIMENTAL]` `mask: AvatarEmoteMask.AEM_UPPER_BODY`.
+- [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
+- [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
+- [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
+- [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
+- [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — `[EXPERIMENTAL]` emote masks: looping upper-body scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Uses an experimental SDK branch — treat mask APIs as unreleased.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
