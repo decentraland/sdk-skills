@@ -167,15 +167,15 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 - `Tween.setScale(entity, start, end, duration, easing?)`
 - `Tween.setMoveRotateScale(entity, { position?, rotation?, scale?, duration })` — simultaneous
 
-**Continuous tweens** (loop forever by relative delta):
+**Continuous tweens** (move/rotate at a constant speed). Third arg is **speed** (units per second, applied along the direction vector), NOT a duration. Optional final arg `duration` is a stop-after time in **milliseconds** — `0` or omitted = runs forever:
 
-- `Tween.setMoveContinuous(entity, delta, cycleDuration)`
-- `Tween.setRotateContinuous(entity, deltaQuat, cycleDuration)`
+- `Tween.setMoveContinuous(entity, direction: Vector3, speed: number, duration?: number)` — speed in meters/sec
+- `Tween.setRotateContinuous(entity, direction: Quaternion, speed: number, duration?: number)` — speed in rotation/sec
+- `Tween.setTextureMoveContinuous(entity, direction: Vector2, speed: number, movementType?: TextureMovementType, duration?: number)` — speed in UV units/sec
 
 **Texture scrolling** (UV animation for waterfalls, conveyor belts):
 
-- `Tween.setTextureMove(entity, startUV, endUV, duration)`
-- `Tween.setTextureMoveContinuous(entity, deltaUV, cycleDuration)`
+- `Tween.setTextureMove(entity, start: Vector2, end: Vector2, duration, movementType?: TextureMovementType, easing?)` — `movementType` is the 5th param, easing 6th
 
 **Control**: `Tween.getMutable(entity).playing = false` (pause), `.currentTime = 0` (reset).
 
