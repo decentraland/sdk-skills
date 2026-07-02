@@ -345,6 +345,71 @@ engine.addSystem((dt: number) => {
 />
 ```
 
+### Opacity & Z-Index (verified in test scene 0,6-ui-zindex-and-opacity)
+
+`opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top.
+
+```tsx
+<UiEntity uiTransform={{ width: '100%', height: '100%', opacity: rootOpacity }}>
+  <UiEntity
+    uiTransform={{
+      width: 500, height: 200,
+      positionType: 'absolute', position: { top: '50%', left: '45%' },
+      margin: { top: -140, left: -250 },   // negative margins to center an absolute box
+      zIndex: redZIndex, opacity: redOpacity
+    }}
+    uiBackground={{ color: Color4.Red() }}
+  />
+</UiEntity>
+```
+
+### Textured Backgrounds with Tint (verified in test scene 70,-9)
+
+Setting `color` alongside a `texture` tints the image. `textureMode` controls scaling:
+
+```tsx
+// stretch tint — borders deform when the element is non-square
+<UiEntity uiTransform={{ width: '50%', height: 244 }}
+  uiBackground={{ color: tint, textureMode: 'stretch', texture: { src: 'img.png' } }} />
+
+// nine-slices — borders stay crisp while the center stretches
+<UiEntity uiTransform={{ width: 256, height: 256 }}
+  uiBackground={{ textureMode: 'nine-slices', texture: { src: 'img.png' },
+    textureSlices: { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 } }} />
+
+// center — texture drawn at native size, centered
+<UiEntity uiTransform={{ width: 300, height: 180 }}
+  uiBackground={{ textureMode: 'center', texture: { src: 'img.png' } }} />
+
+// avatar portrait — use avatarTexture instead of texture
+<UiEntity uiTransform={{ width: 200, height: 200 }}
+  uiBackground={{ textureMode: 'center', avatarTexture: { userId } }} />
+```
+
+### Stacked Panels via Array Return (verified in test scene 81,-3)
+
+The renderer function can return an array; later items render on top. Each panel is a full-canvas root, so they overlay.
+
+```tsx
+ReactEcsRenderer.setUiRenderer(() => [Panel4(), Panel3(), Panel2(), Panel1()],
+  { virtualWidth: 1920, virtualHeight: 1080 })
+```
+
+### Uncontrolled Input — Clear Trick (verified in test scene 81,-3)
+
+`Input` keeps its own text; it does not re-read `value` each frame. To clear it on submit, flash a sentinel for one frame:
+
+```tsx
+let clearInput = false
+function Panel() {
+  const inputValue = clearInput ? ' ' : ''
+  if (clearInput) clearInput = false
+  return <Input value={inputValue} onChange={(v) => { typed = v }}
+    onMouseDown={/* on submit */ undefined} />
+}
+// on submit: typed = ''; clearInput = true
+```
+
 ### Hover Events
 ```tsx
 <UiEntity

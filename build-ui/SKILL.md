@@ -28,6 +28,8 @@ Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRende
 
 Why: Without a virtual size, UI is laid out in raw screen pixels and renders inconsistently across different resolutions and aspect ratios — fonts, spacing, and absolute-positioned elements drift between displays. Setting a virtual screen size makes the engine scale the UI proportionally to a fixed reference frame, so layouts look the same on every screen. 1920x1080 is the safe default — it matches the most common displays and the assumption made by most community examples.
 
+The options argument is optional at the API level — `setUiRenderer(ui)` is valid, and several engine test scenes omit it. Passing it is still the default rule here; only omit it if the user explicitly wants raw-pixel layout.
+
 API (verified against `@dcl/react-ecs` 7.22.5, file `dist/system.d.ts`):
 
 ```ts
@@ -48,7 +50,12 @@ export function setupUi() {
 
 ## Core Components
 
-**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, padding, margin, display, overflow), `uiBackground` (color, texture, textureMode, textureSlices, uvs). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font, fontWeight). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+
+- `opacity` (number 0–1): fades the element. Set on the root to fade the whole UI; **cascades multiplicatively to children**.
+- `zIndex` (number, incl. negative): controls stacking order among sibling elements. Higher = on top. Does not cross parent boundaries.
+- `borderWidth` / `borderColor` (`Color4`) / `borderRadius`: also valid on `Button`, `Input`, `Dropdown` via their `uiTransform`.
+- `width`/`height` accept a number (px), `'50%'`, `'400px'`, or `'auto'`. `position`/`padding`/`margin` values accept the same string forms; `margin` also accepts a CSS shorthand string, e.g. `margin: '16px 0 8px 270px'`.
 
 **Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`.
 
@@ -78,6 +85,17 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **Hover events** — `onMouseEnter`/`onMouseLeave` on UiEntity
 - **Flex wrap** — `flexWrap: 'wrap'` for grid layouts
 - **Scrollable containers** — `overflow: 'scroll'` on a fixed-size parent to scroll through overflowing content (drag or mouse wheel). Use `overflow: 'hidden'` to clip overflow without scrolling. Use `flexGrow: 1` on scrollable entities to fill remaining space
+- **Texture tint** — set `color` alongside `texture` in `uiBackground` to tint the image (works with `stretch` and `nine-slices`)
+- **Multiple stacked layers** — the renderer function may return an array of elements, e.g. `setUiRenderer(() => [PanelA(), PanelB()])`; later items in the array render on top of earlier ones
+- **Opacity / z-index** — `opacity` and `zIndex` on `uiTransform` (see Core Components); root `opacity` fades the whole HUD
+
+## Gotchas (verified against engine test scenes)
+
+- **`Input` and `Dropdown` are uncontrolled.** `onChange`/`onSubmit` fire with the current value, but the field does not read back from the `value`/`selectedIndex` prop you pass each frame the way React does. To programmatically clear an `Input`, briefly set `value` to a non-empty sentinel (e.g. `' '`) for one frame, then back to `''`. Do not expect setting `value` to force the displayed text every frame.
+- **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
+- **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
+- **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
+- **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
 
 ## Common Widgets — Build From Scratch
 
@@ -116,7 +134,9 @@ Only after the above are confirmed should layout-level causes (sizing, `display:
 
 ## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`
 
-Every working scene surveyed in the Decentraland scene library sets `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer`. Always do this.
+Set `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer` whenever the UI uses absolute positioning. Do this by default.
+
+Note: this is required specifically so absolute-positioned children get a full-screen positioning context. Some engine test scenes that lay everything out with flow/`margin` (no absolute children) use a smaller root (e.g. `90%` or `50%`) and render fine — but a full-canvas root is the safe default and never hurts.
 
 Rationale (**empirically verified** — tested in-engine June 2026):
 
@@ -135,5 +155,16 @@ Rationale (**empirically verified** — tested in-engine June 2026):
 - Always pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer`/`addUiRenderer` by default (see "DEFAULT RULE" above) — only change if the user explicitly asks
 - **Desktop:** Avoid placing UI elements on the leftmost ~25% of the screen (reserved for chat, map, platform UI)
 - **Mobile:** Avoid placing UI in zones reserved by Decentraland's system HUD (joystick on the left, chat/profile/camera on the top-right, interaction button on the bottom-right). For hardware-reserved margins (notch, status bar, home indicator, rounded corners), wrap UI in `<ScreenInsetArea>` — see Core Components above. UI designed for desktop typically needs sizes scaled ~3× for mobile readability.
+
+## Example scenes
+
+Engine-team test scenes exercised against the real renderer (ground truth for the APIs above):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity — `zIndex` (incl. negative) and `opacity` on `uiTransform`, including root-level opacity cascade; buttons cycle values.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/70,-9-sdk7-ui-backgrounds — every `uiBackground` texture mode (`stretch`, `nine-slices`, `center`), color tinting over textures, `avatarTexture`, and `textureSlices`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-3-ui — `Label`/`Input`/`Dropdown`/`Button` end to end, `uiText` on `UiEntity`, `margin` CSS-shorthand strings, `'auto'` sizing, `UiCanvasInformation`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-3-ui-2 — array-return of stacked panels, `disabled` toggling, border props (`borderWidth`/`borderColor`/`borderRadius`) on Input/Dropdown/Button, uncontrolled-input clear trick, textured `Button` (nine-slices) vs. clickable `UiEntity`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
 
 For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`.
