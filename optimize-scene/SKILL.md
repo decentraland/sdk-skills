@@ -197,33 +197,35 @@ Use `AssetLoad` to pre-load assets into memory ahead of time so they display ins
 import {
 	engine,
 	AssetLoad,
-	AssetLoadLoadingState,
 	assetLoadLoadingStateSystem,
 	LoadingState,
 } from '@dcl/sdk/ecs'
 
-// Queue assets to pre-load (e.g. at scene startup)
-AssetLoad.create(engine.RootEntity, {
-	assets: ['models/big.glb', 'sounds/win.mp3'],
-})
+// Queue assets to pre-load (any entity works — commonly a dedicated cube/root).
+// AssetLoad.getOrCreateMutable lets you also PUSH more paths later:
+//   AssetLoad.getOrCreateMutable(entity, { assets: [...] }).assets.push(morePath)
+AssetLoad.create(entity, { assets: ['models/big.glb', 'sounds/win.mp3'] })
 
-// Optional: react to loading state via the read-only AssetLoadLoadingState component
+// React to loading state. The callback fires PER ASSET (once per path in the
+// list), receiving { asset, currentState } — NOT one batch-level event.
 assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
-	engine.RootEntity,
-	(event) => {
-		if (event.currentState === LoadingState.FINISHED) {
-			// Assets are now cached — create the visible entities that use them
-			assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(
-				engine.RootEntity,
-			)
+	entity,
+	(state: { asset: string; currentState: LoadingState }) => {
+		if (state.currentState === LoadingState.FINISHED) {
+			// state.asset finished loading and is now cached
 		}
 	},
 )
+// Stop listening: assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(entity)
 ```
+
+`LoadingState` members (from the test scene): `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR` (asset found but failed to load), `NOT_FOUND` (path does not exist), plus the default/unknown state. A missing/typo'd `src` resolves to `NOT_FOUND`, not a thrown error.
 
 Caveats:
 
+- The state callback is **per-asset**, keyed by the `asset` path string — dispatch on `state.asset` to update the right entity. There is no single "all finished" event; track completion yourself by counting per-asset `FINISHED`/error states.
 - `AssetLoad` only **adds** assets to memory. Removing a path from the `assets` list does **not** free memory — there is no unload via `AssetLoad`.
+- Preloading a path does **not** create/render anything — you still `getOrCreateMutable` the real component (`GltfContainer`, `AudioSource`, `VideoPlayer`, `Material` texture) on an entity to use it; the preload just makes that later use instant.
 - If an asset is used immediately at scene startup, there is **no need** for `AssetLoad`. Only pre-load assets NOT required at startup — things that appear later or on player interaction.
 
 ## Loading Time Optimization
@@ -315,6 +317,14 @@ When running the scene locally with `npm run start`:
 # Optimize a GLB with Draco compression
 npx @gltf-transform/cli optimize input.glb output.glb --compress draco
 ```
+
+## Example scenes
+
+Engine-team stress-test scenes (treat as ground truth for API shape):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,2-cube-wave-32x32 — ~961 primitive cubes in ONE parcel (far over the 200-entity soft limit), all `Transform.position.y` mutated every frame via a single `engine.getEntitiesWith(MeshRenderer)` query. Demonstrates that soft limits can be exceeded and that a per-frame query over hundreds of entities is the intended pattern (no pooling needed for a fixed static set — cubes are created once in `main()`, not per frame).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/73,-2-dbmonster — UI stress test: dozens of nested `<Label>` in a ReactEcs tree rebuilt every frame with `Math.random()` values. Demonstrates the UI render function re-runs each frame, so heavy per-frame allocation in `.tsx` is a real cost.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load — `AssetLoad` preloading with the per-asset `assetLoadLoadingStateSystem` state callback (mp3 / texture / video / glb, plus a deliberately missing path that resolves to `NOT_FOUND`).
 
 ## Cross-References
 
