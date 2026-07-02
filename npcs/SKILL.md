@@ -115,8 +115,11 @@ AvatarShape.create(npc, {
 
 **Notes:**
 - Always include eyebrows, mouth, and eyes wearables — the avatar won't render face features without them.
-- Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport).
+- `id` is required and must be unique per AvatarShape entity.
+- Set `name: ''` (empty string) to suppress the name tag above the NPC's head.
+- Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween.
 - Use `expressionTriggerTimestamp` as a Lamport timestamp to replay the same emote: first play = 0, second play = 1, etc.
+- **Clone the current player's look:** read `getPlayer()` and pass `userData.wearables` and `userData.emotes` straight into `AvatarShape.create`. `getPlayer()` may return null / empty emotes on the first frames — poll in a system until `userData.emotes.length > 0` before spawning (verified pattern in test scene 4,21).
 
 ### Playing expressions on an AvatarShape NPC
 
@@ -124,6 +127,10 @@ AvatarShape.create(npc, {
 AvatarShape.getMutable(npc).expressionTriggerId = 'wave'
 AvatarShape.getMutable(npc).expressionTriggerTimestamp = 1
 ```
+
+`expressionTriggerId` accepts either a **built-in emote name** (`'robot'`, `'wave'`, ...) OR a **scene-emote `.glb` path** (e.g. `'animations/Snowball_Throw_emote.glb'`) — the same `_emote.glb`-suffixed files used with `triggerSceneEmote`. This is how you play a custom emote on an NPC (there is no `triggerSceneEmote` equivalent for AvatarShape entities). To cycle through the player's own emotes, set `expressionTriggerId = userData.emotes[i]`.
+
+Note: replaying the **same** `expressionTriggerId` value back-to-back requires bumping `expressionTriggerTimestamp`; setting a **different** id each time replays without touching the timestamp.
 
 ### Mannequin mode (show wearables without a body)
 
@@ -153,7 +160,10 @@ Attach an invisible collider to the same entity so `pointerEventsSystem` can det
 ```typescript
 import { MeshCollider, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 
-// invisible cylinder collider roughly matching avatar size
+// invisible cylinder collider roughly matching avatar size.
+// Pointer clicks require the CL_POINTER collider layer; MeshCollider defaults to
+// all layers (which includes CL_POINTER), so an explicit layer is optional here.
+// If you set a layer, include ColliderLayer.CL_POINTER or clicks won't register.
 MeshCollider.setCylinder(npc)
 
 pointerEventsSystem.onPointerDown(
@@ -183,3 +193,16 @@ engine.addSystem(() => {
   }
 })
 ```
+
+---
+
+## Example scenes
+
+Engine-team test scenes for the `AvatarShape` approach (exercised against the real engine):
+
+- [4,20-avatar-shape](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,20-avatar-shape) — spawn AvatarShape NPCs with base-avatar wearables and with on-chain collection wearable URNs; `name: ''` to hide the name tag.
+- [4,19-avatar-shape-movement](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,19-avatar-shape-movement) — moving an AvatarShape by mutating its `Transform` (walks to target) and by `Tween`/`TweenSequence`; an `AvatarAttach` box on the NPC's hand via its `id`.
+- [4,21-avatar-shape-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,21-avatar-shape-emotes) — clone the local player onto an NPC using `getPlayer().wearables` / `.emotes`, then cycle emotes via `expressionTriggerId`.
+- [4,22-avatar-shape-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,22-avatar-shape-scene-emotes) — play custom scene emotes on an NPC by setting `expressionTriggerId` to an `_emote.glb` path.
+
+These are `AvatarShape`-only scenes; they do not use `dcl-npc-toolkit`.

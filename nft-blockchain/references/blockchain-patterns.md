@@ -66,6 +66,9 @@ executeTask(async () => {
 })
 ```
 
+> `response.body` is a **string** — parse it with `JSON.parse(response.body)` (there is no `.json()`). Check `response.ok` / `response.status` before parsing.
+> Example scene: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` GET to httpbin.org on click, then logs the returned request headers to confirm the signed identity headers were attached.
+
 ## Smart Contracts
 
 ### Setup (ABI + Instance)

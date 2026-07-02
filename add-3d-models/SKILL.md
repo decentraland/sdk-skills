@@ -45,6 +45,8 @@ Treat every model swap as fresh placement:
 
 This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...' })` while leaving Transform untouched) and to composite edits where only the `core::GltfContainer.data["<id>"].json.src` was modified.
 
+**Runtime swap mechanics**: to change a model in place, mutate the field directly — `GltfContainer.getMutable(entity).src = newSrc` — the engine reloads the GLB on the same entity. Other `GltfContainer` fields (e.g. `visibleMeshesCollisionMask`) can also be mutated live the same way. Reusing the Transform is only safe when the two models share the same native size and pivot; otherwise re-audit per the steps above.
+
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
 
 If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
@@ -136,3 +138,11 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 - Materials in models should use PBR for best results
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.
+
+## Example scenes
+
+Engine-team test scenes exercising these APIs against the real runtime:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/54,-55-Testing-3d-models — many GLB variants loaded via `GltfContainer` (draco, morph targets, rigged animation, external-dep models); note it uses the `models/` folder, not `assets/Models/`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,33-gltf-container-update — swapping a live model's `src` and mutating `visibleMeshesCollisionMask` via `GltfContainer.getMutable()` (Book↔Monster on click; ray-cast against `CL_CUSTOM1`).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load — preloading GLB/audio/texture/video with the `AssetLoad` component and per-asset load-state callbacks; also lazy-spawns a model with `GltfContainer.getOrCreateMutable()` on click.

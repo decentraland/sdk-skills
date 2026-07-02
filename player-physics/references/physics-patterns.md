@@ -23,10 +23,11 @@ import { Vector3 } from '@dcl/sdk/math'
 const launchPad = engine.addEntity()
 Transform.create(launchPad, { position: Vector3.create(8, 0, 8) })
 MeshRenderer.setBox(launchPad)
-TriggerArea.setBox(launchPad, ColliderLayer.CL_PLAYER)
+// CL_MAIN_PLAYER => fires only for the LOCAL player (the one Physics can affect).
+// Using CL_PLAYER here would fire for remote avatars only and never launch you.
+TriggerArea.setBox(launchPad, ColliderLayer.CL_MAIN_PLAYER)
 
 triggerAreaEventsSystem.onTriggerEnter(launchPad, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
   Physics.applyImpulseToPlayer(Vector3.create(0, 50, 0))
 })
 ```
@@ -73,15 +74,14 @@ Transform.create(windTunnel, {
   scale: Vector3.create(4, 3, 4),
 })
 MeshRenderer.setBox(windTunnel)
-TriggerArea.setBox(windTunnel, ColliderLayer.CL_PLAYER)
+// CL_MAIN_PLAYER => fires only for the local player, so no remote-vs-local guard needed.
+TriggerArea.setBox(windTunnel, ColliderLayer.CL_MAIN_PLAYER)
 
 triggerAreaEventsSystem.onTriggerEnter(windTunnel, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
   Physics.applyForceToPlayer(windTunnel, Vector3.create(15, 0, 0))
 })
 
 triggerAreaEventsSystem.onTriggerExit(windTunnel, (result) => {
-  if (result.trigger?.entity !== engine.PlayerEntity) return
   Physics.removeForceFromPlayer(windTunnel)
 })
 ```
@@ -131,3 +131,9 @@ import { Vector3 } from '@dcl/sdk/math'
 const worldDir = Transform.localToWorldDirection(myEntity, Vector3.create(0, 0, 1))
 Physics.applyImpulseToPlayer(worldDir, 20)
 ```
+
+## Example scenes
+
+No engine-team test scene exercises the `Physics.*` API directly. For the `TriggerArea` + `ColliderLayer` behavior these patterns depend on (which avatar fires a trigger, per-layer semantics), see:
+
+- [5,5-collider-layers](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,5-collider-layers) — `TriggerArea`, `Raycast`, `MeshCollider`, and `GltfContainer` across every `ColliderLayer`. Confirms `CL_MAIN_PLAYER` = local player, `CL_PLAYER` = remote avatars, `CL_PHYSICS` = scene mesh (never fires for avatars), `CL_POINTER` = cursor clicks; masks combine with `|`.

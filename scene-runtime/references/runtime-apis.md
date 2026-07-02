@@ -46,10 +46,14 @@ Move the player to a position within scene bounds:
 import { movePlayerTo } from '~system/RestrictedActions'
 
 movePlayerTo({
-	newRelativePosition: { x: 8, y: 0, z: 8 },
-	cameraTarget: { x: 8, y: 1, z: 12 }, // Optional: where camera looks
+	newRelativePosition: { x: 8, y: 0, z: 8 }, // required
+	cameraTarget: { x: 8, y: 1, z: 12 },       // optional: where the CAMERA looks
+	avatarTarget: { x: 8, y: 0, z: 12 },       // optional: where the AVATAR faces
+	duration: 2,                               // optional: seconds; glide instead of snap
 })
 ```
+
+Rotate the avatar in place by passing the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the `80,-4-restricted-actions` "Rotate Avatar" buttons).
 
 ### teleportTo
 
@@ -117,9 +121,12 @@ copyToClipboard({ value: 'Hello from Decentraland!' })
 
 Prompt the player to switch to a different realm:
 
+`message` is optional — omit it to switch with no prompt, include it to show a confirmation dialog.
+
 ```typescript
 import { changeRealm } from '~system/RestrictedActions'
-changeRealm({ realm: 'other-realm.dcl.eth', message: 'Join this realm?' })
+changeRealm({ realm: 'https://peer.decentraland.org' })                 // no prompt
+changeRealm({ realm: 'other-realm.dcl.eth', message: 'Join this realm?' }) // prompts
 ```
 
 ### setCommunicationsAdapter
@@ -195,9 +202,9 @@ executeTask(async () => {
 })
 ```
 
-<!-- ## Portable Experiences
+## Portable Experiences
 
-Scenes that persist across world navigation:
+Scenes that persist across world navigation. Import from `~system/PortableExperiences`.
 
 ```typescript
 import {
@@ -207,18 +214,29 @@ import {
 	getPortableExperiencesLoaded,
 } from '~system/PortableExperiences'
 
-// Spawn by URN
-const result = await spawn({ urn: 'urn:decentraland:entity:bafk...' })
+// Spawn by ENS (a deployed World) or by pid — NOT by "urn".
+const result = await spawn({ ens: 'boedo.dcl.eth' })
+// SpawnResponse: { pid, parentCid, name, ens? }
 
 // List loaded portable experiences
-const loaded = await getPortableExperiencesLoaded({})
+const { loaded } = await getPortableExperiencesLoaded({})
 
-// Kill a specific one
-await kill({ urn: 'urn:decentraland:entity:bafk...' })
+// Kill by pid (from the spawn response) — NOT by urn.
+if (result.pid) await kill({ pid: result.pid })
 
-// Exit self (if this IS a portable experience)
+// Exit self (only if this scene IS a portable experience)
 await exit({})
-``` -->
+```
+
+- Request/response keys are `ens` / `pid`, never `urn`.
+- `kill({ pid })` returns `{ status: boolean }`.
+- The host `scene.json` must set `"featureToggles": { "portableExperiences": "enabled" }` (or `"hideUi"`); `"disabled"` suppresses spawning.
+
+### Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `spawn`/`kill` wired to primary/secondary click; toggle `enabled`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — `portableExperiences: "disabled"` in `scene.json`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — `portableExperiences: "hideUi"` in `scene.json`.
 
 ## CommsAdapter
 

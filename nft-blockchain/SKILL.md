@@ -45,7 +45,12 @@ Use `getPlayer()` from `@dcl/sdk/src/players` to get the player's Ethereum addre
 
 ## Signed Requests
 
-Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a backend. It automatically includes a cryptographic signature proving the player's identity, which your backend can verify.
+Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a backend. It automatically injects signed identity headers (ADR-44) that your backend verifies — you do not build or pass them yourself.
+
+- Signature: `signedFetch({ url, init: { method?, headers?, body? } })`.
+- Response is `{ ok, status, statusText, headers, body }`; **`body` is a string** — call `JSON.parse(response.body)` (there is no `.json()`).
+- It does **not** require prior player interaction (unlike restricted actions).
+- Need only the signed headers for a library that does its own fetching? Use `getHeaders({ url, init? })` from the same module — it returns `{ headers }`.
 
 ## Smart Contract Interaction
 

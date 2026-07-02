@@ -356,6 +356,12 @@ For Decentraland Worlds that do not need multiplayer:
 
 > **Need server-side validation or anti-cheat?** See the **authoritative-server** skill for the headless server pattern.
 
+## Example scenes
+
+No serverless `syncEntity`/`MessageBus` reference scene is available in the engine-team test set yet. For contrast, the closest multiplayer scene is server-authoritative (use it to see how the authoritative pattern differs from the serverless one described here):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — **authoritative** (NOT serverless): only the server calls `syncEntity`, and synced components are locked with `validateBeforeChange` so clients can only read them and send messages. If you instead want any client to mutate shared state directly (the pattern this skill documents), each client calls `syncEntity` on its own and there is no `validateBeforeChange`. See the **authoritative-server** skill for that scene's full breakdown.
+
 ## Important Notes
 
 - **Entities must be explicitly synced** via `syncEntity(entity, [componentIds])` — pass the `componentId` of each component to sync

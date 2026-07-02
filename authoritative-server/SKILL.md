@@ -11,7 +11,7 @@ Build multiplayer Decentraland scenes where a **headless server** controls game 
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Set **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` to enable the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`). Optionally add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 
@@ -27,7 +27,7 @@ The validator callback receives `{ entity, currentValue, newValue, senderAddress
 
 - **Pattern 1 — Server-only writes** (strictest): `Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)`
 - **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `value.newValue.position.y > 0`)
-- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`
+- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`. **Coordinate-frame gotcha:** server-read player `Transform.position` is in **world** (parcel-absolute) metres, but scene entities are in **scene-local** metres. They only coincide when the base parcel is `(0,0)`. For any other base parcel, subtract the base offset before measuring distance: read `scene.base` (via `getSceneInformation()` from `~system/Runtime`), multiply the parcel coords by 16, and subtract from the player world position. Skipping this makes proximity checks silently wrong on deployed (non-origin) parcels while passing in a local preview at origin.
 - **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api` to restrict to admins
 
 Use `isPreview()` from `@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils` (sync, no args, returns `boolean`) to relax validation during local development. The deep `dist/...` import path is the only working one — the package has no top-level re-export.
@@ -39,6 +39,8 @@ After creating and protecting an entity, sync it with `syncEntity(entity, [Trans
 ## Messages
 
 Use `registerMessages()` for client-to-server and server-to-client communication. Define message schemas with `Schemas.Map(...)` — plain JS objects will fail binary serialization.
+
+**Module-load timing (critical):** `registerMessages()` defines a component internally, and `engine.defineComponent()` in `shared/schemas.ts` defines components too. Both MUST run during initial module load, before the engine seals. Reach them via **static** `import` (e.g. `import './shared/messages'` at the top of `index.ts`), NOT via a dynamic `import()` inside `main()` — a dynamic import runs after the seal and throws `Engine is already sealed`. Only server-only modules (those importing `@dcl/sdk/server`) should be dynamically imported inside the `isServer()` branch, and only if they define no components at module scope — this keeps `@dcl/sdk/server` out of the client bundle path.
 
 - Client sends: `room.send('playerJoin', { displayName: 'Alice' })`
 - Server sends to all: `room.send('gameEvent', { ... })`
@@ -125,5 +127,9 @@ Client and server always move together (paired by hash). Existing players keep t
 - **Single codebase**: Both server and client run the same entry point, branched with `isServer()`
 - **Server sleeps when empty**: Code defensively with retry logic and `Storage` for persistence
 - For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill
+
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — full end-to-end authoritative leaderboard. Clients send a `claimPoint` action (never a score); the headless server validates proximity to a "score orb" (with the world→scene-local coordinate offset), increments the score itself, persists per-player totals to `Storage`, and broadcasts a synced top-N `Leaderboard` component that all clients render. Shows: `authoritativeMultiplayer: true` in `scene.json`, `isServer()` branching, static-import of `registerMessages()`/`defineComponent()` for module-load timing, custom-component `validateBeforeChange` gated by `isServer()` (server-only writes via `AUTH_SERVER_PEER_ID`), server-only `syncEntity`, atomic components (heartbeat kept separate from the board), and the server-liveness heartbeat with client-observed-time tracking.
 
 For full code examples (validation patterns, messages, Storage, EnvVar, performance), see `{baseDir}/references/auth-server-examples.md`. For server setup patterns, see `{baseDir}/references/server-patterns.md`.
