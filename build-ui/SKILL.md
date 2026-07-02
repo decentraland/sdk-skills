@@ -26,7 +26,7 @@ Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRende
 
 **Whenever you generate UI code, you MUST pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer` and `addUiRenderer` by default — without waiting for the user to ask.** Only deviate if the user explicitly requests a different reference resolution.
 
-Why: Without a virtual size, UI is laid out in raw screen pixels and renders inconsistently across different resolutions and aspect ratios — fonts, spacing, and absolute-positioned elements drift between displays. Setting a virtual screen size makes the engine scale the UI proportionally to a fixed reference frame, so layouts look the same on every screen. 1920x1080 is the safe default — it matches the most common displays and matches the assumption made by `dcl-ui-toolkit` and most community examples.
+Why: Without a virtual size, UI is laid out in raw screen pixels and renders inconsistently across different resolutions and aspect ratios — fonts, spacing, and absolute-positioned elements drift between displays. Setting a virtual screen size makes the engine scale the UI proportionally to a fixed reference frame, so layouts look the same on every screen. 1920x1080 is the safe default — it matches the most common displays and the assumption made by most community examples.
 
 API (verified against `@dcl/react-ecs` 7.22.5, file `dist/system.d.ts`):
 
@@ -79,16 +79,14 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **Flex wrap** — `flexWrap: 'wrap'` for grid layouts
 - **Scrollable containers** — `overflow: 'scroll'` on a fixed-size parent to scroll through overflowing content (drag or mouse wheel). Use `overflow: 'hidden'` to clip overflow without scrolling. Use `flexGrow: 1` on scrollable entities to fill remaining space
 
-## dcl-ui-toolkit (Pre-Built Widgets)
+## Common Widgets — Build From Scratch
 
-Install with `npm install dcl-ui-toolkit`. Register with `ReactEcsRenderer.setUiRenderer(ui.render)` or combine: `ReactEcsRenderer.setUiRenderer(() => [ui.render(), MyCustomUI()])`.
+Build every widget from React-ECS primitives (`UiEntity`, `Label`, `Button`). There is no pre-built widget library to install.
 
-**When to use dcl-ui-toolkit vs React-ECS:**
-
-- Prompt/dialog? → `displayOkPrompt`, `displayOptionPrompt`, `CustomPrompt`
-- Health bar, score counter? → `createBar`, `createCounter`
-- Flash announcement? → `displayAnnouncement`
-- Custom panel, inventory, complex layout? → React-ECS directly
+- **Prompt / dialog / confirmation?** → full-screen overlay + centered panel + `Button`s. See the **Modal Dialog** pattern in `references/ui-components.md`.
+- **Health bar, progress bar, score?** → nested `UiEntity` with the inner one sized `width: `${pct}%``. See the **Health Bar** patterns in `references/ui-components.md` and `references/ui-patterns.md`; a score is a `Label` bound to a module-level variable.
+- **Flash announcement (timed, centered)?** → a centered `Label` gated on a module-level flag, cleared with `timers.setTimeout`. See **Timed Announcement** in `references/ui-patterns.md`.
+- **Custom panel, inventory, complex layout?** → React-ECS directly (see `references/ui-patterns.md`).
 
 ## Troubleshooting
 
@@ -138,4 +136,4 @@ Rationale (**empirically verified** — tested in-engine June 2026):
 - **Desktop:** Avoid placing UI elements on the leftmost ~25% of the screen (reserved for chat, map, platform UI)
 - **Mobile:** Avoid placing UI in zones reserved by Decentraland's system HUD (joystick on the left, chat/profile/camera on the top-right, interaction button on the bottom-right). For hardware-reserved margins (notch, status bar, home indicator, rounded corners), wrap UI in `<ScreenInsetArea>` — see Core Components above. UI designed for desktop typically needs sizes scaled ~3× for mobile readability.
 
-For full code examples, implementation patterns, and dcl-ui-toolkit widget reference, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`.
+For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`.

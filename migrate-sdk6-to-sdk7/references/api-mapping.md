@@ -123,7 +123,8 @@ export function resetGem(entity: Entity, val: number, x: number, y: number) {
 **Schemas available** (from `@dcl/sdk/ecs`):
 - Primitives: `Schemas.Boolean`, `.String`, `.Number`, `.Int`, `.Float`, `.Int64`, `.Byte`
 - Math: `Schemas.Vector3`, `.Quaternion`, `.Color3`, `.Color4`
-- Containers: `Schemas.Array(s)`, `.Map({...})`, `.Optional(s)`, `.Enum(EnumType)`, `.OneOf({...})`
+- Containers: `Schemas.Array(s)`, `.Map({...})`, `.Optional(s)`, `.OneOf({...})`
+- Enums: `Schemas.EnumString(enumObj, defaultValue)` / `Schemas.EnumNumber(enumObj, defaultValue)` — the default (second arg) is required. There is no bare `Schemas.Enum`.
 
 [UNVERIFIED] `Schemas.Vector2` — confirm by checking the `@dcl/sdk/ecs` Schemas export before using. The safe pattern is to flatten Vector2 fields into two `Schemas.Number` fields (e.g. `posX`, `posY`).
 
@@ -239,7 +240,7 @@ Material.setBasicMaterial(plane, {
 | `new TextShape('hello')` | `TextShape.create(e, { text: 'hello' })` |
 | `ts.fontSize = 1` | Field on the create payload: `TextShape.create(e, { fontSize: 1, ... })` |
 | `ts.color = Color3.White()` | `textColor: Color4.White()` (note rename: `color` → `textColor`) |
-| `ts.shadowColor = Color3.Gray()` / `ts.shadowOffsetX/Y` | [UNVERIFIED — confirm `TextShape` fields in `@dcl/sdk/ecs`. The closest SDK7 equivalents are `outlineColor` + `outlineWidth`.] |
+| `ts.shadowColor = Color3.Gray()` / `ts.shadowOffsetX/Y` | Same fields exist on SDK7 `TextShape`: `shadowColor` (`Color3`), `shadowBlur`, `shadowOffsetX`, `shadowOffsetY`. (`outlineWidth` / `outlineColor` are often preferred for legibility.) |
 | `ts.font` (string name) | `font: Font.F_SANS_SERIF` (enum) |
 
 ## Animations (model clips)
@@ -588,7 +589,7 @@ ReactEcsRenderer.setUiRenderer(uiRoot, { virtualWidth: 1920, virtualHeight: 1080
 Picking the right size:
 
 - Open the SDK6 source (the legacy ECS reference is https://github.com/decentraland/ecs) and read the `UICanvas`/`UIImage`/`UIText` setup to see what pixel grid the original UI was authored against.
-- Pass those numbers as `virtualWidth` / `virtualHeight`. `1920x1080` is a reasonable default and matches what `dcl-ui-toolkit` and most community examples assume, but if the SDK6 scene targeted a different resolution (e.g. `1280x720`), use those instead so existing pixel coordinates land in the same place.
+- Pass those numbers as `virtualWidth` / `virtualHeight`. `1920x1080` is a reasonable default and matches what most community examples assume, but if the SDK6 scene targeted a different resolution (e.g. `1280x720`), use those instead so existing pixel coordinates land in the same place.
 - Only one `setUiRenderer` call per scene — pass the virtual size there, not on individual elements. See [[build-ui]] for the full default-rule guidance.
 
 Signature reference (verified against [[build-ui]] skill docs):
