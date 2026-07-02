@@ -273,10 +273,9 @@ const questGiver = npc.create(
 | `isQuestion` | `boolean` | If true, shows button choices instead of auto-advancing. |
 | `buttons` | `ButtonData[]` | Choice buttons shown when `isQuestion` is true. See ButtonData fields below. |
 | `typeSpeed` | `number` | Speed of the typewriter text effect (characters per second). |
-| `ifPressE` | `number` | Dialog index to jump to if player presses E. |
-| `ifPressF` | `number` | Dialog index to jump to if player presses F. |
 | `triggeredByNext` | `() => void` | Callback executed when this dialog step is reached. |
-| `goToDialog` | `number` | Auto-jump to this dialog index (for non-question steps). |
+
+Note: `goToDialog` is a **ButtonData** field only (see below) — it does not exist at the Dialog step level. There are no `ifPressE` / `ifPressF` fields.
 
 ### ButtonData fields
 
@@ -304,11 +303,11 @@ Button labels in the NPC dialog UI are rendered with `textWrap: 'nowrap'` inside
 - If a longer label is unavoidable, lower `fontSize` (e.g. `12`) and/or set an explicit `size` on the button to widen it. There is no SDK-enforced maximum length — only visual clipping.
 - This affects only the UI dialog (HUD); speech bubbles do not show buttons.
 
-**Type casting note:** When using `isQuestion` with `buttons`, cast the object as `as unknown as Dialog` because the toolkit's type definition may not include the buttons field directly. For simple text-only steps, use `as Dialog`.
+**Type note:** `buttons?: ButtonData[]` is part of the `Dialog` type. No cast (`as unknown as Dialog` / `as Dialog`) is needed when using `isQuestion` with `buttons`.
 
 ### Toolkit Dialog UI vs Bubble UI (SDK7)
 
-When opening dialogs on an EXISTING entity (not created via `createNPC`), the toolkit expects internal per-NPC data to exist. Otherwise, UI helpers (e.g., `getTheme`, `displayDialog`) may crash.
+When opening dialogs on an EXISTING entity (not created via `npc.create`), the toolkit expects internal per-NPC data to exist. Otherwise, UI helpers (e.g., `getTheme`, `displayDialog`) may crash.
 
 - UI Dialog (React HUD)
   1) Mount the toolkit UI once in your scene UI. Always pass `{ virtualWidth: 1920, virtualHeight: 1080 }` as the second argument to `ReactEcsRenderer.setUiRenderer` so dialog layouts the toolkit ships are positioned against a known reference resolution:
@@ -340,7 +339,7 @@ When opening dialogs on an EXISTING entity (not created via `createNPC`), the to
       currentPathData: [],
       manualStop: false,
       pathIndex: 0,
-      state: 'STANDING',
+      state: 'standing',
       idleAnim: 'Idle',
       hasBubble: false,
       turnSpeed: 2,
@@ -401,7 +400,9 @@ function createPatrollingNPC() {
   
   // Start walking animation via toolkit (handles walk/idle clips)
   // import * as npc from 'dcl-npc-toolkit'
-  npc.playAnimation(patrollingNPC, 'Walk', true)
+  // Signature: playAnimation(npc, animName, noLoop?, duration?)
+  // noLoop=true plays the clip ONCE; omit it (or pass false) for a looping walk cycle.
+  npc.playAnimation(patrollingNPC, 'Walk')
 
   // Patrol using Tween helpers; keep looping
   Tween.setMove(patrollingNPC, patrolPath[0], patrolPath[1], 4000, EasingFunction.EF_LINEAR)
@@ -464,7 +465,7 @@ function createFollowingNPC() {
 ### Toolkit-managed NPC state
 ```typescript
 // The toolkit tracks basic interaction state and dialog progression internally.
-// Prefer defining behavior via createNPC options and Dialog[] rather than custom components.
+// Prefer defining behavior via npc.create options and Dialog[] rather than custom components.
 
 const merchantDialog: npc.Dialog[] = [
   { text: 'Welcome to my shop!', isEndOfDialog: true }
@@ -720,19 +721,19 @@ Blocks a path and only lets the player pass after a dialog condition is met:
 ```typescript
 let hasAccess = false
 
-const guardDialogs: Dialog[] = [
+const guardDialogs: npc.Dialog[] = [
   { text: 'Halt! You cannot pass without the key.', isQuestion: true, buttons: [
     { label: 'I have the key', goToDialog: 1 },
     { label: 'I will find it', goToDialog: 2 }
-  ]} as unknown as Dialog,
-  { text: 'Very well, you may pass.', triggeredByNext: () => { hasAccess = true; removeBarrier() }, isEndOfDialog: true } as Dialog,
-  { text: 'Return when you have it.', isEndOfDialog: true } as Dialog
+  ]},
+  { text: 'Very well, you may pass.', triggeredByNext: () => { hasAccess = true; removeBarrier() }, isEndOfDialog: true },
+  { text: 'Return when you have it.', isEndOfDialog: true }
 ]
 ```
 
 ## NPC Configuration Options
 
-Options passed as the second argument to `createNPC`:
+Options passed as the second argument to `npc.create`:
 
 | Option | Type | Description |
 |---|---|---|
