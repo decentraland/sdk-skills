@@ -156,6 +156,6 @@ Re-applying `'slow'` before it expires refreshes the 2 s timer (no stacking to 2
 
 ## Multiplayer
 
-- **Local-only (most common):** each client computes effects on its own enemies. No sync needed if enemies are already local.
+- **Local-only:** each client computes effects on its own enemies. No sync needed if enemies are already local.
 - **Shared game:** add `StatusEffects.componentId` to the enemy's `syncEntity` call so all players see the same debuffs and tint. The parallel-array schema is CRDT-compatible; last-write-wins resolves concurrent applications. See **multiplayer-sync**.
 - **Effects on the player avatar** (e.g. a slow trap that reduces the local player's movement) require an `InputModifier` on `engine.PlayerEntity` rather than this component — you cannot tween the avatar's speed directly. See **advanced-input** and **player-physics**.

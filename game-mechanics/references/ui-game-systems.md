@@ -5,6 +5,7 @@ Menu- and card-driven game systems built entirely from React-ECS primitives (`Ui
 **Build everything from scratch with React-ECS.** There is no widget library to install — do not use or reference `dcl-ui-toolkit`. See **build-ui** for the React-ECS primitives, the `ReactEcsRenderer.setUiRenderer(...)` setup, and the module-level-state model (React hooks are unavailable; the UI re-renders every frame from module variables).
 
 **Text contrast is mandatory.** All game text sits over varying backgrounds (3D world, screenshots, other UI). Give it a contrast treatment so it stays legible:
+
 - **3D `TextShape`:** set `outlineWidth` (e.g. `0.15`) and a dark `outlineColor` (`Color3`).
 - **UI text:** place it on a solid/semi-opaque panel `uiBackground`, or layer a dark offset copy of the `Label` behind it as a drop shadow.
 

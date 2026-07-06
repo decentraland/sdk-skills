@@ -126,11 +126,11 @@ export function buyTower(economy: Economy, track: UpgradeLevel[]): Upgradable | 
 
 The right storage depends entirely on whether currency is shared and whether it matters:
 
-| Scope | Storage | When | Risk |
-|---|---|---|---|
-| **Per-player, local** | Module variable / component on this client only | Single-player-style defense where each visitor has their own board and gold | None — nothing shared. Client can trivially cheat its own display, but it affects no one else. |
-| **Shared, cooperative** | `syncEntity` on a currency component (see **multiplayer-sync**) | Co-op games where players share one treasury | Any client can write the synced value; a modified client can grant itself gold. Acceptable for casual co-op, not for rewards. |
-| **Validated / persistent** | Server owns the balance; clients request spends via `signedFetch`, server validates and responds; or an authoritative-server holds it | Competitive economies, real rewards (MANA, wearables, leaderboards), anything a cheater would exploit | Server is the source of truth; clients cannot fabricate balances. |
+| Scope                      | Storage                                                                                                                               | When                                                                                                  | Risk                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Per-player, local**      | Module variable / component on this client only                                                                                       | Single-player-style defense where each visitor has their own board and gold                           | None — nothing shared. Client can trivially cheat its own display, but it affects no one else.                                |
+| **Shared, cooperative**    | `syncEntity` on a currency component (see **multiplayer-sync**)                                                                       | Co-op games where players share one treasury                                                          | Any client can write the synced value; a modified client can grant itself gold. Acceptable for casual co-op, not for rewards. |
+| **Validated / persistent** | Server owns the balance; clients request spends via `signedFetch`, server validates and responds; or an authoritative-server holds it | Competitive economies, real rewards (MANA, wearables, leaderboards), anything a cheater would exploit | Server is the source of truth; clients cannot fabricate balances.                                                             |
 
 Rule of thumb: **if winning the currency has real value or affects other players, it must be server-validated.** Use `signedFetch` so the server can verify the player's wallet identity on each transaction (see **scene-runtime** and **authoritative-server**). Never trust a client-reported balance for anything that grants a real reward.
 
@@ -138,4 +138,4 @@ Rule of thumb: **if winning the currency has real value or affects other players
 
 ## Multiplayer note
 
-For a shared treasury, wrap `Economy`'s backing number in a synced custom component and reconcile with last-write-wins semantics (`syncEntity`). Because concurrent spends can race, prefer requesting spends through a single authority (elected host or server) rather than mutating a synced number from every client. See **multiplayer-sync** for serverless sync and **authoritative-server** for validated transactions.
+For a shared treasury, wrap `Economy`'s backing number in a synced custom component and reconcile with last-write-wins semantics (`syncEntity`). Because concurrent spends can race, prefer requesting spends through a single authority (server) rather than mutating a synced number from every client. See **authoritative-server** for validated transactions.

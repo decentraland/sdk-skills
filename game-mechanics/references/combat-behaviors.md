@@ -4,7 +4,7 @@ Composable enemy and turret behaviors built as custom components + systems: patr
 
 Two things drive combat targets in DCL:
 
-- **The player is the avatar.** To chase or attack the player, read `Transform.get(engine.PlayerEntity).position` — you do not spawn a player character. In a shared scene this is the *local* player's avatar; see the multiplayer note.
+- **The player is the avatar.** To chase or attack the player, read `Transform.get(engine.PlayerEntity).position` — you do not spawn a player character. In a shared scene this is the _local_ player's avatar; see the multiplayer note.
 - **Towers target enemies**, which you already track (see `{baseDir}/references/wave-spawner.md`).
 
 ---
@@ -240,7 +240,7 @@ The behavior systems (`patrolSystem`, `chaseSystem`, `meleeSystem`) can each ear
 
 ## Multiplayer
 
-- **`engine.PlayerEntity` is the local player.** Chase/melee systems targeting `engine.PlayerEntity` naturally target each client's own avatar. To make enemies target *any* player, iterate `Transform` of entities with `PlayerIdentityData` and pick the nearest (see **multiplayer-sync**).
+- **`engine.PlayerEntity` is the local player.** Chase/melee systems targeting `engine.PlayerEntity` naturally target each client's own avatar. To make enemies target _any_ player, iterate `Transform` of entities with `PlayerIdentityData` and pick the nearest (see **multiplayer-sync**).
 - **Shared enemies:** if all players must see the same enemies and damage, either run combat on one authority and `syncEntity` the enemy entities, or use an **authoritative-server**. Running full combat independently on every client will desync HP and deaths.
 - **Local-only horde:** each client runs its own enemies against its own avatar — simplest, and correct when players are not sharing the same fight.
 - **Knockback on the player:** apply via **player-physics** impulses; you cannot directly set the avatar's velocity through `Transform`.
