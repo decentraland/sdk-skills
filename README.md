@@ -46,6 +46,7 @@ npx skills add decentraland/sdk-skills
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
+| `game-mechanics` | Reusable game-mechanic systems — wave spawning, turn/grid, economy/upgrades, status effects, combat AI, UI game systems (quiz/cards/dialogue), game-feel feedback. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
@@ -61,6 +62,10 @@ npx skills add decentraland/sdk-skills
 ## What Are Skills?
 
 Skills are markdown files that give AI coding assistants the context they need to write correct code for specific frameworks and platforms. They're installed using the [Vercel Skills CLI](https://github.com/vercel/skills) and work with any AI tool that supports `.cursor/skills`, `.claude/skills`, or similar conventions.
+
+## Acknowledgments
+
+The `game-mechanics` skill's taxonomy of reusable game systems was inspired by the [OpenGame project](https://github.com/leigest519/OpenGame) (Apache-2.0). All code and text in this repository are original and Decentraland SDK7-native.
 
 ## Contributing
 
