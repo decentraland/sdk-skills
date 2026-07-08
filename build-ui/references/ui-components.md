@@ -70,8 +70,7 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into
     fontSize: 18,
     color: Color4.White(),
     textAlign: 'middle-center',
-    font: 'sans-serif',          // 'sans-serif' | 'serif' | 'monospace'
-    fontWeight: 'bold'           // 'normal' | 'bold'
+    font: 'sans-serif'           // 'sans-serif' | 'serif' | 'monospace'
   }}
 
   // Events

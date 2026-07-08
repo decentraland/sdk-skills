@@ -59,7 +59,7 @@ Both helpers return `false` if the entity has no `AudioSource`, so create the co
 
 Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
-Query state with `AudioStream.getAudioState(entity)` which returns a `MediaState` enum (`MS_PLAYING`, `MS_ERROR`, etc.).
+Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`.
 
 > **Before adding a streaming URL**: If not provided by the user, confirm the source first.
 

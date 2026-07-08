@@ -60,8 +60,7 @@ ws.onclose = () => console.log("disconnected");
 ## Scene & Realm Information
 
 ```typescript
-import { getSceneInformation, getRealm } from "~system/Runtime";
-import { getExplorerInformation } from "~system/EnvironmentApi";
+import { getSceneInformation, getRealm, getExplorerInformation } from "~system/Runtime";
 
 executeTask(async () => {
   // Scene info: URN, content mappings, metadata JSON, baseUrl

@@ -50,7 +50,7 @@ export function setupUi() {
 
 ## Core Components
 
-**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font, fontWeight). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
 
 - `opacity` (number 0–1): fades the element. Set on the root to fade the whole UI; **cascades multiplicatively to children**.
 - `zIndex` (number, incl. negative): controls stacking order among sibling elements. Higher = on top. Does not cross parent boundaries.
