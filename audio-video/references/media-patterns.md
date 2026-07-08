@@ -100,7 +100,8 @@ AudioStream.create(radio, {
 ```typescript
 import { AudioStream, MediaState } from '@dcl/sdk/ecs'
 
-const state = AudioStream.getAudioState(radio)
+// getAudioState returns PBAudioEvent | undefined ({ state, timestamp }), not a bare enum
+const state = AudioStream.getAudioState(radio)?.state
 if (state === MediaState.MS_PLAYING) {
   console.log('Stream is playing')
 } else if (state === MediaState.MS_ERROR) {
@@ -110,7 +111,7 @@ if (state === MediaState.MS_PLAYING) {
 // Monitor state changes in a system
 let lastState: MediaState | undefined = undefined
 engine.addSystem(() => {
-  const current = AudioStream.getAudioState(radio)
+  const current = AudioStream.getAudioState(radio)?.state
   if (lastState !== current) {
     console.log('Stream state changed:', current)
     lastState = current
