@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assert, assertComponentValue, deepCloseTo). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, system execution order & engine.addSystem priority (higher number runs earlier; default 100000), Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assert, assertComponentValue, deepCloseTo). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -118,6 +118,29 @@ engine.addSystem(() => {
   }
 });
 ```
+
+## System Execution Order & Priority
+
+`engine.addSystem(fn, priority?, name?)` runs `fn(dt)` every frame. The `priority` parameter controls **when** in the frame it runs relative to other systems.
+
+**HIGHER priority number = runs EARLIER in the frame.** Systems are sorted **descending** by priority (`sort((a, b) => b.priority - a.priority)` in `@dcl/ecs`). The SDK's own JSDoc states: *"a number with the priority, big number are called before smaller ones."*
+
+> **WARNING — counter-intuitive:** This is the OPPOSITE of Unity/Godot/many engines where a lower number runs first. In Decentraland SDK7, "make this run first" means giving it a **large** priority number, NOT `1`. A system with priority `1` runs almost LAST.
+
+Key numbers:
+
+- **Default priority is `100000`** (`SYSTEMS_REGULAR_PRIORITY = 100e3`). `engine.addSystem(fn)` with no priority uses this.
+- `@dcl/react-ecs` registers its UI renderer system at `100000` (and a UI-scale system at `100001`). So UI runs alongside/just before default-priority systems.
+- To run **before** all regular systems, pass a priority **above** `100000` (e.g. `engine.addSystem(fn, 1000000)`). To run **after** them, pass a priority **below** `100000` (e.g. `10`, or the default `0` used by scripts).
+
+```typescript
+engine.addSystem(earlySystem, 1000000);  // runs before regular systems
+engine.addSystem(regularSystem);          // priority 100000 (default)
+engine.addSystem(lateSystem, 10);         // runs after regular systems
+```
+
+- Physics libraries (e.g. cannon.js) stepped inside a system's `update(dt)` obey the same rule — there is no separate physics loop. Give the physics-stepping system a high priority if other systems must read post-step state the same frame.
+- Systems with the **same** priority currently run in insertion order, but the engine does not guarantee a stable tie-break (noted as a TODO in the source). Do not rely on ordering between equal-priority systems.
 
 ## Restricted Actions
 
