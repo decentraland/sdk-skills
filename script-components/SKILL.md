@@ -1,6 +1,6 @@
 ---
 name: script-components
-description: "Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, @action JSDoc tags to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity)."
+description: "Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, the Script component `priority` field and script execution order (defaults to 0 = runs last; higher number runs earlier; scripts sharing a priority share one system), @action JSDoc tags to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity)."
 ---
 
 # Writing Script Components for Creator Hub
@@ -25,7 +25,7 @@ Every script is a single exported class with:
 
 - A **constructor** that receives configurable parameters (exposed in the Creator Hub UI).
 - An optional **`start()`** method, called once when the scene loads.
-- An optional **`update(dt: number)`** method, called every frame.
+- An optional **`update(dt: number)`** method, called every frame (see "When scripts run" below for ordering — by default scripts update *after* all regular systems).
 
 The first two constructor parameters must always be `public src: string` and `public entity: Entity` — do not remove or reorder them.
 
@@ -49,6 +49,16 @@ export class MyScript {
   }
 }
 ```
+
+## When scripts run — the `priority` field (IMPORTANT)
+
+The Creator Hub Script component has a `priority` field (separate from constructor params — it's set in the component UI, not in your class). It **defaults to `0`**, and this has non-obvious consequences:
+
+- **Default priority `0` = scripts run LAST each frame.** At build time `@dcl/sdk-commands` groups all scripts by their `priority` value and registers ONE engine system per group via `engine.addSystem(updateLoop, Number(priority))`. Because engine systems run **highest-priority-first** (regular systems use `100000`, UI uses `100000`), priority `0` runs after everything else.
+- **All scripts sharing the same `priority` share ONE system callback** and run **sequentially** inside it. A single heavy script's `update()` therefore delays every other script in the same priority group that frame.
+- **To run a script's `update()` before regular systems**, raise its `priority` (e.g. `1000000`) in the Script component. This also gives it its own dedicated system. This is how you'd step a physics library (cannon.js) inside `update(dt)` ahead of systems that read the result — there is no separate physics loop.
+
+> Higher `priority` number = earlier execution — the OPPOSITE of the "priority 1 = first" assumption. See the `scene-runtime` skill's "System Execution Order & Priority" section for the underlying engine rule.
 
 ## Constructor parameters
 
@@ -257,3 +267,4 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 6. Use `ActionCallback` for parameters that should let users wire up editor actions.
 7. Add `@param` JSDoc comments before the constructor for UI tooltips.
 8. Manually include any code-only assets (sounds, textures) in the custom item folder.
+9. The Script component `priority` field defaults to `0`, which makes scripts run LAST each frame (after regular systems and UI). Higher number = earlier. Scripts sharing a `priority` share one system and run sequentially; raise `priority` (e.g. `1000000`) to run a script — or a physics step — before regular systems.
