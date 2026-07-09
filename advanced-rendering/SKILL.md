@@ -54,6 +54,26 @@ BillboardMode.BM_NONE   // No billboard rotation
 - **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
 - **Porting note**: SDK6 → SDK7 ports occasionally show a billboarded model facing **away** from the camera that was correct under SDK6. The two SDKs appear to disagree on which face the billboard points at the camera. Same fix — rotate the displayed model 180° on Y. See [[migrate-sdk6-to-sdk7]] (Common Pitfalls) for context.
 
+### Face another entity — `targetEntity`
+
+`Billboard` has an optional `targetEntity?: Entity` field. When set, the entity reorients to face **that target entity** instead of the camera.
+
+```typescript
+// Face a specific entity instead of the camera
+Billboard.create(card, { targetEntity: sphere })
+
+// Yaw-only tracking of a target (BM_Y respected while targeting)
+Billboard.create(card, { targetEntity: target, billboardMode: BillboardMode.BM_Y })
+
+// Retarget at runtime
+Billboard.getMutable(card).targetEntity = otherEntity
+```
+
+- **Unset (default)** → faces the main camera, exactly as before. `targetEntity` is fully backwards-compatible.
+- Setting `targetEntity` to the **camera reserved entity** (`engine.CameraEntity`, id `2`) is equivalent to leaving it unset.
+- `billboardMode` still applies: `BM_Y` with a `targetEntity` yaws to face the target on the Y axis only.
+- **Gotcha:** if the referenced target entity does not exist or is deleted, billboard reorientation is **disabled** (the entity freezes at its last orientation) until the target exists again.
+
 ## TextShape (3D Text)
 
 Render text directly in 3D space:

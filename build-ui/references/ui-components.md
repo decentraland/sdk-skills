@@ -201,6 +201,29 @@ export function setupUi() {
 
 **Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls (joystick, chat, profile, interaction button) — keep those clear manually by placing UI away from the left side, top-right, and bottom-right of the canvas on mobile.
 
+## InteractableArea (Client-UI-Safe Region)
+
+Wraps children so they stay inside the renderer-reported **interactable area** — the portion of the screen *not* covered by the client's own UI (minimap, chat window, and other platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children to it via absolute positioning.
+
+```tsx
+import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'
+
+export function setupUi() {
+  ReactEcsRenderer.setUiRenderer(() => (
+    <InteractableArea>
+      {/* A child sized 100%×100% fills the interactable area exactly */}
+      <UiEntity uiTransform={{ width: '100%', height: '100%' }} />
+    </InteractableArea>
+  ))
+}
+```
+
+- Types: `function InteractableArea(props: UiInteractableAreaProps)`; `UiInteractableAreaProps = Omit<EntityPropTypes, 'uiTransform'> & { uiTransform?: Omit<NonNullable<EntityPropTypes['uiTransform']>, 'positionType' | 'position'> }`. Import from `@dcl/sdk/react-ecs`.
+- The component owns `positionType: 'absolute'` and `position` (set from the reported insets) — any values you pass for those in `uiTransform` are **ignored**. All other `uiTransform`, `uiBackground`, and event props forward normally.
+- On the **Unity desktop client** the left ~25% of the screen is reserved for client UI, so children are placed within the remaining ~75%.
+- Falls back to zero insets (no-op) when `UiCanvasInformation` is unavailable.
+- **Distinct from `ScreenInsetArea`:** `InteractableArea` avoids the *client's* UI (minimap/chat/overlays); `ScreenInsetArea` avoids the *device's* hardware margins (notch/status bar). They read different sources and can be combined.
+
 ## Layout Patterns
 
 ### Health Bar

@@ -792,6 +792,38 @@ Tags.add(entity, 'Crystal')
 Tags.remove(entity, 'Crystal')
 ```
 
+## Spawning a Composite at Runtime
+
+A composite file (a self-contained `.composite`, or a Custom Item stored as `composite.json`) can be instantiated at runtime as many times as you like. Two steps: **load once** (async), then **spawn** (sync, repeatable).
+
+```ts
+import { engine } from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+const src = 'assets/barrel.composite'
+
+export async function spawnBarrel(position: Vector3) {
+  // 1. Load into memory. Async, idempotent — keyed by the `src` string, so
+  //    calling it again with the same path returns the already-loaded composite
+  //    (no re-read). Safe to call before every spawn.
+  await engine.getCompositeProvider().loadComposite(src)
+
+  // 2. Instantiate. Synchronous; returns the ROOT entity of the spawned tree.
+  //    The optional transform is applied to (replaces) the root's Transform only;
+  //    position/rotation/scale are each optional.
+  const root = engine.addEntityFromComposite(src, {
+    transform: { position, rotation: Quaternion.Identity(), scale: Vector3.One() }
+  })
+  return root
+}
+```
+
+- `engine.getCompositeProvider()` returns the scene's provider (already set up in a normal `@dcl/sdk` scene). `loadComposite(src)` reads the file into memory.
+- `engine.addEntityFromComposite(src, options?)` creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later.
+- **Errors:** `addEntityFromComposite` throws `Composite "<src>" not found.` if the composite was not loaded first (it is synchronous and cannot load on demand), and `CompositeProvider has not been set.` if no provider exists.
+- **Limitation — nested composites are not instantiated.** Loading does not recurse into composite references held by a spawned composite's entities. Keep spawned composites self-contained. (`main.composite`, the one composite bundled with the scene, is the exception — it may be referenced.)
+- Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
+
 ## Validation Checklist
 
 **Step 1 — Detect mode.** Scan the composite for `inspector::*`, `composite::root`, or `asset-packs::ActionTypes`. If any are present, you are in **edit mode** — use the edit-mode checklist below. Otherwise use the authoring-from-scratch checklist.

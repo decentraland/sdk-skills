@@ -286,6 +286,7 @@ triggerSceneEmote({
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Custom emote files **must** end with the `_emote.glb` suffix (case-insensitive) — scenes that ignore this may work in preview but break once deployed
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
+- `[UNVERIFIED — landing in an upcoming SDK release]` The protocol (verified in `restricted_actions.proto` on protocol `origin/main`) adds an optional emote **mask** that limits which bones the animation drives: `TriggerEmoteRequest.mask` and `TriggerSceneEmoteRequest.mask`, typed as the new shared enum `AvatarMask` with a single value `AM_UPPER_BODY = 0` (upper-body-only animation, e.g. play an emote while still walking). Intended usage: `triggerSceneEmote({ src: '...glb', loop: true, mask: AvatarMask.AM_UPPER_BODY })`. **Not yet exported by the released `@dcl/sdk`** — a repo-wide search of js-sdk-toolchain `origin/main` finds no `AvatarMask`/`AM_UPPER_BODY` (nor the earlier `AvatarEmoteMask`/`AEM_UPPER_BODY`) export. Do not rely on it until the SDK ships it; verify the exact enum name against the released `@dcl/sdk/ecs` at that time.
 
 ### Stopping an emote
 
