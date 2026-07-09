@@ -794,34 +794,37 @@ Tags.remove(entity, 'Crystal')
 
 ## Spawning a Composite at Runtime
 
-A composite file (a self-contained `.composite`, or a Custom Item stored as `composite.json`) can be instantiated at runtime as many times as you like. Two steps: **load once** (async), then **spawn** (sync, repeatable).
+A composite file (a self-contained `.composite`, or a Custom Item stored as `composite.json`) can be instantiated at runtime as many times as you like. Two steps: **load once** (async), then **instance** (sync, repeatable).
 
 ```ts
-import { engine } from '@dcl/sdk/ecs'
-import { Vector3, Quaternion } from '@dcl/sdk/math'
+import { engine, Composite, getCompositeProvider, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
 
 const src = 'assets/barrel.composite'
 
 export async function spawnBarrel(position: Vector3) {
-  // 1. Load into memory. Async, idempotent — keyed by the `src` string, so
-  //    calling it again with the same path returns the already-loaded composite
-  //    (no re-read). Safe to call before every spawn.
-  await engine.getCompositeProvider().loadComposite(src)
+  // Provider is registered automatically by @dcl/sdk at module load.
+  const provider = getCompositeProvider()!
 
-  // 2. Instantiate. Synchronous; returns the ROOT entity of the spawned tree.
-  //    The optional transform is applied to (replaces) the root's Transform only;
-  //    position/rotation/scale are each optional.
-  const root = engine.addEntityFromComposite(src, {
-    transform: { position, rotation: Quaternion.Identity(), scale: Vector3.One() }
-  })
+  // 1. Load into memory. Async, idempotent — cached by `src`, so calling it
+  //    again with the same path returns the already-loaded resource (no re-read).
+  const resource = await provider.loadComposite!(src)
+
+  // 2. Instance. Synchronous; returns the ROOT entity of the spawned tree.
+  const root = Composite.instance(engine, resource, provider)
+
+  // 3. Position it: set the root entity's Transform AFTER instancing
+  //    (there is no transform option on instance()).
+  Transform.createOrReplace(root, { position })
   return root
 }
 ```
 
-- `engine.getCompositeProvider()` returns the scene's provider (already set up in a normal `@dcl/sdk` scene). `loadComposite(src)` reads the file into memory.
-- `engine.addEntityFromComposite(src, options?)` creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later.
-- **Errors:** `addEntityFromComposite` throws `Composite "<src>" not found.` if the composite was not loaded first (it is synchronous and cannot load on demand), and `CompositeProvider has not been set.` if no provider exists.
-- **Limitation — nested composites are not instantiated.** Loading does not recurse into composite references held by a spawned composite's entities. Keep spawned composites self-contained. (`main.composite`, the one composite bundled with the scene, is the exception — it may be referenced.)
+- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. ⚠ An earlier API named `engine.addEntityFromComposite(src)` does NOT exist on current SDK main (it was replaced by `Composite.instance`) — do not use it even if older docs mention it.
+- `getCompositeProvider()` returns the scene's standard provider (`@dcl/sdk` registers it via `setCompositeProvider(engine, compositeProvider)` at module load; returns `null` only if that never ran). The provider offers `loadComposite(src): Promise<Composite.Resource>` — reads + caches the file via `~system/Runtime.readFile`, accepting JSON `.composite` and binary `.composite.bin` — and `getCompositeOrNull(src)`, the synchronous cache lookup.
+- `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
+- **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
+- JSON `.composite` decoding requires `TextDecoder`; in runtimes without it, `loadComposite` throws with a message suggesting `.composite.bin` or importing `@dcl/sdk/ethereum-provider` (installs the polyfill).
 - Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
 
 ## Validation Checklist
