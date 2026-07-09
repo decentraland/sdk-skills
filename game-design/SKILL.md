@@ -218,6 +218,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - **Core loop**: Race, fight, or outscore other players.
 - **DCL fit**: Moderate. Latency and input limitations constrain fast-paced action.
 - **Design tips**: Prefer turn-based or timing-based competition over twitch reflexes. Use server-authoritative state to prevent cheating. Keep rounds short (2-5 minutes).
+- **Anti-cheat architecture**: whenever scores or prizes are at stake, make the scene server-authoritative (see [[authoritative-server]]). Clients send **intent** messages only (e.g. `claimPoint`) — never a score; the server validates (proximity to the objective, permissions) and is the only writer of game state. The official leaderboard test scene is a complete end-to-end template of this design: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard
 
 ## 12. Spatial Design
 
@@ -244,7 +245,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 ### Engagement Patterns
 - **Daily rewards**: Offer small rewards for daily visits. Track visits via external server — DCL has no built-in daily tracking. Display streak counters in-scene.
-- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements).
+- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements). For persistent leaderboards and per-player progress, the built-in authoritative server's `Storage` persists across redeploys and server sleep, with a server-owned synced component all clients render — see [[authoritative-server]] for the full pattern and reference scene.
 - **Achievements**: Define clear milestones (first win, 100 collectibles, visited all rooms). Announce with sound and visual effects. Display achievement history in-scene (trophy room, wall of fame).
 
 ### Monetization Approaches
@@ -255,7 +256,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 ### Social Mechanics
 - **Cooperative tasks**: Design objectives requiring multiple players (two switches pressed simultaneously, etc.). Reward cooperation with shared benefits.
 - **Shared spaces**: Create common areas where players naturally congregate. Add ambient interactive objects that encourage casual interaction.
-- **Events**: Design scenes that can host scheduled events (concerts, competitions). Include a stage area with good sightlines. Provide event host controls (start/stop game, reset scene, broadcast messages).
+- **Events**: Design scenes that can host scheduled events (concerts, competitions). Include a stage area with good sightlines. Provide event host controls (start/stop game, reset scene, broadcast messages). Gate host/admin actions server-side with an admin allow-list checked against the server-verified sender ([[authoritative-server]] Pattern 4) — never trust a client-reported role.
 
 ## 14. Tutorial and Onboarding
 
@@ -284,6 +285,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 |---|---|---|
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
+| Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls |
 | Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs |
 | Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques |
 

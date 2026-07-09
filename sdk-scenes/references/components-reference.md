@@ -18,7 +18,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **GltfContainer** | `src: string`, `visibleMeshesCollisionMask?`, `invisibleMeshesCollisionMask?` | Loads a .glb/.gltf 3D model file. |
 | **GltfContainerLoadingState** | `currentState` | Read-only loading state for GLTF models. |
 | **GltfNodeModifiers** | `modifiers: Array<{ path: string, castShadows?: boolean, material?: PBMaterial }>` | Override the material and/or shadow-casting of specific nodes inside a loaded GLTF, addressed by hierarchy `path`. |
-| **Billboard** | `billboardMode: BillboardMode` | Makes entity always face the camera. |
+| **Billboard** | `billboardMode: BillboardMode`, `targetEntity?: Entity` | Makes entity face the camera (default) or, when `targetEntity` is set, that entity instead. Unset or `engine.CameraEntity` = faces camera. If the target is missing/deleted, reorientation freezes until it exists again. ⚠ `targetEntity` not yet live in the production explorer (client support ships ~mid-July 2026). |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
 | **NftShape** | `urn: string`, `style?: NftFrameType`, `color?: Color3` | Display an NFT artwork frame. The NFT is identified by `urn`. |
 | **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
@@ -67,10 +67,10 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarShape** | `id: string`, `name: string`, `bodyShape`, `wearables`, `emotes` | Render an avatar (for NPCs). |
 | **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
-| **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS`, `AMT_DISABLE_PASSPORTS`. |
+| **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Trigger avatar emotes. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
-| **AvatarLocomotionSettings** | `walkSpeed?` (1.5), `jogSpeed?` (8), `runSpeed?` (10), `jumpHeight?` (1), `runJumpHeight?` (1.5), `hardLandingCooldown?` (0.75) | Override the player's movement speeds and jump heights (m/s and m). Apply to `engine.PlayerEntity`. Numbers in parentheses are defaults. |
+| **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. `[UNVERIFIED: default values]` — the protocol documents no defaults; see `player-avatar/references/avatar-apis.md`. |
 
 ## Camera
 
