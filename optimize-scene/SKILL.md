@@ -111,8 +111,9 @@ MeshRenderer.setPlane(entity) // Very cheap
 
 ## Texture Optimization
 
-- **Dimensions must be power-of-two**: 256, 512, 1024, 2048
-- **Recommended sizes**: 512x512 for most objects, 1024x1024 max for hero pieces
+- **Dimensions must be power-of-two**: 256, 512, 1024
+- **Maximum is 1024x1024.** The asset-bundle-converter enforces `DESKTOP_MAX_TEXTURE_SIZE = 1024` (`AssetBundleConverter.cs` → `ReduceTextureSizeIfNeeded`): anything larger (e.g. 2048) is **downscaled to 1024 at conversion**, so authoring above 1024 wastes source size without visual benefit.
+- **Recommended sizes**: 512x512 for most objects, 1024x1024 for hero pieces
 - Use `.png` for UI/sprites with transparency
 - Use `.jpg` for photos and textures without transparency
 - Prefer compressed formats (WebP) over raw PNG where possible
@@ -135,10 +136,10 @@ Material.setPbrMaterial(entity2, {
 
 | Use Case                      | Recommended | Maximum   |
 | ----------------------------- | ----------- | --------- |
-| Scene objects (walls, floors) | 1024x1024   | 2048x2048 |
+| Scene objects (walls, floors) | 1024x1024   | 1024x1024 |
 | Props and furniture           | 512x512     | 1024x1024 |
 | UI elements / icons           | 256x256     | 512x512   |
-| Skybox / environment maps     | 1024x1024   | 2048x2048 |
+| Skybox / environment maps     | 1024x1024   | 1024x1024 |
 
 Textures do not need to be square — 512x1024 is valid as long as both dimensions are powers of two.
 
@@ -272,7 +273,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Pitfall                              | Symptom                          | Fix                                                      |
 | ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
 | Too many unique materials            | High draw calls, low FPS         | Merge into texture atlases, reuse materials              |
-| Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024/2048                 |
+| Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |

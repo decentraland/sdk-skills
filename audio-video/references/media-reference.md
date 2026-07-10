@@ -172,7 +172,7 @@ Material.setBasicMaterial(screen2, { texture: tex })
 
 ### Media Permissions in scene.json
 
-External audio/video URLs require permissions:
+`[LEGACY]` External audio/video URLs do **not** require any permission on current clients — no current client enforces `ALLOW_MEDIA_HOSTNAMES` (unity-explorer gates it behind the unset `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define; bevy-explorer has no enforcement). Only the retired web client enforced it. For legacy scenes that still declare it, the syntax is:
 
 ```json
 {
