@@ -7,9 +7,12 @@ description: NFT display and blockchain interaction in Decentraland. NftShape (f
 
 ## Display NFT Artwork
 
-Use `NftShape` to show any Ethereum ERC-721 NFT in a decorative picture frame. Provide the NFT URN and choose a frame style. The image is loaded automatically from the NFT's metadata.
+Use `NftShape` to show an NFT in a decorative picture frame. Provide the NFT URN and choose a frame style. The image is loaded automatically from the NFT's metadata (fetched through Decentraland's OpenSea proxy, `opensea.decentraland.org`) — any NFT that OpenSea supports can be displayed, across multiple chains.
 
-**NFT URN format:** `urn:decentraland:ethereum:erc721:<contractAddress>:<tokenId>` -- works with any ERC-721 on Ethereum mainnet.
+**NFT URN format:** `urn:decentraland:<chain>:<contractStandard>:<contractAddress>:<tokenId>`
+- Example: `urn:decentraland:ethereum:erc721:0x06012c8cf97bead5deae237070f9587f8e7a266d:558536`
+- `<chain>` supported values (forwarded verbatim to the OpenSea v2 API; unrecognized chains are rejected): `ethereum`, `matic`, `klaytn`, `bsc`, `arbitrum`, `arbitrum_nova`, `avalanche`, `optimism`, `solana`, `base`, `blast`, `zora`.
+- `<contractStandard>` is typically `erc721`. The image is served from the OpenSea response, so contracts OpenSea indexes as `erc1155` also resolve.
 
 ### Available Frame Styles
 
@@ -128,6 +131,6 @@ Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `ma
 - Use `signedFetch` for backend authentication instead of raw `fetch` -- it proves the player's identity
 - Read operations (view/pure functions) don't require gas; write operations prompt the user to sign
 - Test on Sepolia before deploying to mainnet
-- NFT URNs only work with Ethereum mainnet ERC-721 tokens
+- NFT URNs are not limited to Ethereum mainnet: the chain segment (e.g. `matic`, `base`, `optimism`) is forwarded to Decentraland's OpenSea proxy, so any OpenSea-indexed NFT on a supported chain works
 
 For full code examples and implementation patterns, including the dcl-crypto-toolkit library API, see '{baseDir}/references/blockchain-patterns.md'.

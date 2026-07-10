@@ -11,7 +11,7 @@ Build multiplayer Decentraland scenes where a **headless server** controls game 
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Set **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` to enable the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`). Optionally add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), but you do **not** add it manually: the `@dcl/sdk@auth-server` sdk-commands **auto-adds it on every build and preview** (`bundle.ts` writes `authoritativeMultiplayer: true` to `scene.json` via `ensureJsonKey`, only if absent — it also auto-adds a `server-logs` script to `package.json`). The rule is simply: **do not remove it.** Optionally add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 

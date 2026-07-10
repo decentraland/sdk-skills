@@ -16,7 +16,7 @@ npm install @dcl/js-runtime@auth-server
 }
 ```
 
-`authoritativeMultiplayer: true` (root-level) is what enables the headless server — without it `isServer()` never returns `true` and the scene runs as ordinary serverless CRDT. `logsPermissions` is optional (only needed to read production server logs).
+`authoritativeMultiplayer: true` (root-level) is what enables the headless server — without it `isServer()` never returns `true` and the scene runs as ordinary serverless CRDT. **It is auto-added**: the `@dcl/sdk@auth-server` sdk-commands writes it to `scene.json` on every build and preview (`bundle.ts` → `ensureJsonKey(..., 'authoritativeMultiplayer', true)`, only if absent), so you don't add it by hand — just don't remove it. `logsPermissions` is optional (only needed to read production server logs).
 
 `worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
 

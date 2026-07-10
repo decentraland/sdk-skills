@@ -84,7 +84,8 @@ Tween.create(box, {
 })
 
 // Continuous rotation: spin slowly around Y forever.
-// 3rd arg is SPEED (rotation/sec applied along the direction quaternion), not a duration.
+// 3rd arg is SPEED in DEGREES PER SECOND (here: 1 deg/sec, so a full turn takes 360s), not a duration.
+// The quaternion supplies only the rotation AXIS (its angle magnitude is ignored); negative speed reverses.
 Tween.setRotateContinuous(myEntity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 ```
 
@@ -168,7 +169,7 @@ Tween.setScale(entity,
 
 ## Continuous Tweens
 
-3rd arg is **speed** (units per second along the direction vector), NOT a duration.
+3rd arg is **speed**, NOT a duration. For move it is units/sec along the direction vector; for rotate it is **degrees/sec** and the quaternion supplies only the rotation axis (angle magnitude ignored — see SKILL.md).
 Optional final `duration` is a stop-after time in **milliseconds** (`0` / omitted = forever).
 
 ```typescript
@@ -178,7 +179,7 @@ Tween.setMoveContinuous(entity, Vector3.Forward(), 0.5)
 // Move forward at 0.5 m/s, stop after 3 seconds
 Tween.setMoveContinuous(entity, Vector3.Forward(), 0.5, 3000)
 
-// Rotate slowly around Y, forever
+// Rotate around Y at 1 deg/sec (full turn = 360s), forever
 Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 ```
 

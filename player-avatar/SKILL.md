@@ -357,14 +357,14 @@ Adjust the player's movement speed and jump height:
 ```typescript
 import { engine, AvatarLocomotionSettings } from '@dcl/sdk/ecs'
 
-// Modify run speed and jump height
+// Modify run speed and jump height (set only the fields you want to change)
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
 	runSpeed: 14, // default is 10
 	jumpHeight: 3, // default is 1
 })
 ```
 
-Fields: `walkSpeed`, `jogSpeed` (the default movement speed), `runSpeed`, `jumpHeight`, `runJumpHeight`, `hardLandingCooldown` (seconds), plus `doubleJumpHeight`, `glidingSpeed`, `glidingFallingSpeed`. `[UNVERIFIED: default values]` — the protocol documents no defaults and no test scene exercises this; see `references/avatar-apis.md`.
+Fields (all `float`, optional) with client defaults — verified against unity-explorer `origin/main` `CharacterControllerSettings.asset`: `walkSpeed` (1.5), `jogSpeed` (8, the default movement speed), `runSpeed` (10), `jumpHeight` (1), `runJumpHeight` (1.5), `doubleJumpHeight` (2), `glidingSpeed` (6), `glidingFallingSpeed` (1), `hardLandingCooldown` (0.75s). See `references/avatar-apis.md`.
 
 ## Restrict Locomotion (InputModifier)
 

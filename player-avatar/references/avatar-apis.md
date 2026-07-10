@@ -208,16 +208,30 @@ To disable jumping in an area, use the `InputModifier` component's `disableJump`
 ## AvatarLocomotionSettings
 
 ```typescript
+// Values shown are the CLIENT DEFAULTS — set only the fields you want to change.
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
 	walkSpeed: 1.5, // Control key on desktop
-	jogSpeed: 8, // the default movement
-	runSpeed: 14, // Shift key on desktop
-	jumpHeight: 3,
-	runJumpHeight: 4,
+	jogSpeed: 8, // the default movement speed
+	runSpeed: 10, // Shift key on desktop
+	jumpHeight: 1,
+	runJumpHeight: 1.5,
+	doubleJumpHeight: 2,
+	glidingSpeed: 6,
+	glidingFallingSpeed: 1,
 	hardLandingCooldown: 0.75, // seconds before moving again after a high fall
 })
 ```
 
-Protocol also defines `doubleJumpHeight`, `glidingSpeed`, and `glidingFallingSpeed` (all `float`, meters / m·s).
+All fields are `float`; each is optional (omit to keep the client default). Default values (verified against unity-explorer `origin/main` `Explorer/Assets/DCL/Character/CharacterMotion/Settings/CharacterControllerSettings.asset`):
 
-`[UNVERIFIED: default values]` — the protocol proto marks all fields optional but documents no default numbers, and no test scene exercises this component. The commented default values previously in this doc are not confirmed against a primary source; treat them as approximate and verify in the running client before relying on exact figures.
+| Field                 | Default | Source field in .asset |
+| --------------------- | ------- | ---------------------- |
+| `walkSpeed`           | `1.5`   | `WalkSpeed`            |
+| `jogSpeed`            | `8`     | `JogSpeed`             |
+| `runSpeed`            | `10`    | `RunSpeed`             |
+| `jumpHeight`          | `1`     | `JogJumpHeight`        |
+| `runJumpHeight`       | `1.5`   | `RunJumpHeight`        |
+| `doubleJumpHeight`    | `2`     | `AirJumpHeight`        |
+| `glidingSpeed`        | `6`     | `GlideSpeed`           |
+| `glidingFallingSpeed` | `1`     | `GlideMaxGravity`      |
+| `hardLandingCooldown` | `0.75`  | `LongFallStunTime`     |

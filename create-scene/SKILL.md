@@ -196,7 +196,7 @@ These are the exact 7 permission strings the runtime recognizes (the protocol en
 | ----------------------------------- | ---------------------------------------------------- |
 | `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)        |
 | `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`               |
-| `ALLOW_MEDIA_HOSTNAMES`             | Loading external video/audio streams                 |
+| `ALLOW_MEDIA_HOSTNAMES` `[LEGACY]`  | External video/audio streams — **not required** (see below) |
 | `USE_WEB3_API`                      | Blockchain interactions                              |
 | `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)              |
 | `USE_WEBSOCKET`                     | WebSocket connections                                |
@@ -204,7 +204,7 @@ These are the exact 7 permission strings the runtime recognizes (the protocol en
 
 > **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The `66,6-signed-fetch` scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
 
-When using `ALLOW_MEDIA_HOSTNAMES`, also whitelist the domains:
+`[LEGACY]` `ALLOW_MEDIA_HOSTNAMES` and `allowedMediaHostnames` are **not required** — do not add them for new scenes. The permission string still exists in `@dcl/schemas`, but no current client enforces it: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, which is set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all. Only the retired web client enforced it. Current clients play external media without it. If a legacy scene still declares it, whitelist the domains as follows:
 
 ```json
 "requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],

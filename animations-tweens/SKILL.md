@@ -170,7 +170,7 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 **Continuous tweens** (move/rotate at a constant speed). Third arg is **speed** (units per second, applied along the direction vector), NOT a duration. Optional final arg `duration` is a stop-after time in **milliseconds** — `0` or omitted = runs forever:
 
 - `Tween.setMoveContinuous(entity, direction: Vector3, speed: number, duration?: number)` — speed in meters/sec
-- `Tween.setRotateContinuous(entity, direction: Quaternion, speed: number, duration?: number)` — speed in rotation/sec
+- `Tween.setRotateContinuous(entity, direction: Quaternion, speed: number, duration?: number)` — `speed` is **degrees per second** (a full 360° revolution takes `360/speed` seconds). The `direction` quaternion contributes only its rotation **axis** (its imaginary `x,y,z` part, sign preserved); its rotation **angle/magnitude is ignored** — `Quaternion.fromEulerDegrees(0, 45, 0)` and `(0, 90, 0)` both spin around +Y, only `speed` sets the rate. Negative `speed` reverses direction.
 - `Tween.setTextureMoveContinuous(entity, direction: Vector2, speed: number, movementType?: TextureMovementType, duration?: number)` — speed in UV units/sec
 
 **Texture scrolling** (UV animation for waterfalls, conveyor belts):

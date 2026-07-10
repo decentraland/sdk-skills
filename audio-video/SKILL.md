@@ -97,7 +97,7 @@ For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStre
 
 ## Permission for External Media
 
-External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scene.json with specific hostnames listed in `allowedMediaHostnames`.
+`[LEGACY]` External audio/video URLs do **not** require the `ALLOW_MEDIA_HOSTNAMES` permission. The permission and its `allowedMediaHostnames` list still exist in `@dcl/schemas`, but no current client enforces them — unity-explorer's hostname check is gated behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define (set in no build config, so `SceneData.TryGetMediaUrl` just does a URL syntax check), and bevy-explorer has no enforcement. Only the retired web client enforced it. Do not add it for new scenes; current clients play external media without it.
 
 ## Video Limits & Tips
 
