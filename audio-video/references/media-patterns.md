@@ -326,6 +326,8 @@ engine.addSystem(() => {
 
 ## Permission for External Media
 
+`[LEGACY]` Not required — no current client enforces `ALLOW_MEDIA_HOSTNAMES`. For legacy scenes that still declare it:
+
 ```json
 {
   "requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
