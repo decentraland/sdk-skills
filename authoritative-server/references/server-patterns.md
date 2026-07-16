@@ -172,6 +172,73 @@ function reconcileState() {
 
 Because `validateBeforeChange` blocks client writes, clients can only read the state and send messages. The server is the single source of truth.
 
+## Per-Player Synced Entities
+
+Pattern for one server-created synced entity per connected player (per-player score, hold time, wallet, etc.). Three rules, each learned from a production failure on a long-running headless server:
+
+1. **Never derive an explicit sync id from the player's address** (e.g. `hash(address) % 100000`). An explicit sync id makes the network identity *global* — `(networkId: 0, entityId: <id>)` — with a hard collision check that throws `syncEntity failed because the id provided is already in use`. A hashed per-player id collides both across players (birthday bound: ~50% chance of a collision by ~370 distinct addresses in a 100k range) and when the *same* player reconnects before their previous entity is cleaned up. Omit the id — auto-allocation is `(networkId: <this peer>, entityId: <unique local entity>)`, unique by construction — and store the player's address in a component field (`playerId`). All lookups match on that field, never on the network id. Reserve explicit enum ids for fixed singletons (game state, flag, leaderboard).
+2. **Validate cached entity handles before reuse.** Long-running servers recycle entity slots, so a `Map<address, Entity>` can end up pointing at an entity whose component is gone. Reusing it blindly makes `getMutable()` throw `[mutable] Component <name> for <id> not found` on every frame — and any round-end/cleanup logic that touches the entity goes down with it.
+3. **Never adopt reserved-range entities from component scans.** Scene-created entities always have entity *number* ≥ 512 (`entity & 0xffff` — the upper bits are the version). Numbers below 512 are reserved/avatar-range slots owned by the runtime: caching one hands out a handle that goes stale when the host recycles the slot, and calling `engine.removeEntity()` on one can delete an avatar entity.
+
+```typescript
+// server/players.ts
+import { engine, Entity } from '@dcl/sdk/ecs'
+import { syncEntity } from '@dcl/sdk/network'
+import { PlayerScore } from '../shared/schemas'  // has a `playerId: Schemas.String` field
+
+const playerEntities = new Map<string, Entity>()
+const RESERVED_ENTITY_LIMIT = 512
+
+export function getOrCreatePlayerEntity(address: string): Entity {
+  const key = address.toLowerCase()
+  const cached = playerEntities.get(key)
+
+  // Rule 2: only reuse the cached entity if it STILL carries the component.
+  if (cached !== undefined && PlayerScore.getOrNull(cached) !== null) return cached
+  if (cached !== undefined) {
+    playerEntities.delete(key)
+    try { engine.removeEntity(cached) } catch { /* already gone */ }
+  }
+
+  const entity = engine.addEntity()
+  PlayerScore.create(entity, { playerId: key, score: 0 })
+  // Rule 1: NO explicit sync id — auto-allocate; identity lives in `playerId`.
+  syncEntity(entity, [PlayerScore.componentId])
+  playerEntities.set(key, entity)
+  return entity
+}
+
+// After a server restart, the CRDT snapshot may already contain per-player
+// entities from the previous run. Re-adopt them by scanning for the component
+// and keying on the playerId FIELD (never the network id), removing duplicates.
+export function reconcilePlayerEntities(): void {
+  for (const [entity, data] of engine.getEntitiesWith(PlayerScore)) {
+    // Rule 3: never adopt or remove a reserved/avatar-range entity.
+    if (((entity as number) & 0xffff) < RESERVED_ENTITY_LIMIT) continue
+    const key = data.playerId.toLowerCase()
+    const existing = playerEntities.get(key)
+    if (existing === undefined) {
+      playerEntities.set(key, entity)
+    } else if (existing !== entity) {
+      engine.removeEntity(entity)  // duplicate from a previous run
+    }
+  }
+}
+```
+
+In per-frame systems, prefer `getMutableOrNull` + guard over `getMutable` so a transient stale handle skips one tick instead of throwing every frame:
+
+```typescript
+export function scoreSystem(dt: number): void {
+  for (const key of activePlayers) {
+    const entity = getOrCreatePlayerEntity(key)
+    const mutable = PlayerScore.getMutableOrNull(entity)
+    if (!mutable) continue  // stale this tick — getOrCreate self-heals next call
+    mutable.score += computeDelta(key, dt)
+  }
+}
+```
+
 ## Storage Patterns
 
 ### Scene Storage (Global Data, shared across all players)
