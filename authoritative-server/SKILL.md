@@ -17,6 +17,8 @@ You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-run
 
 Use `isServer()` from `@dcl/sdk/network` to branch logic in a single codebase. Server runs headlessly (no rendering) and has access to all player positions via `PlayerIdentityData`.
 
+For **shared/library code** that resolves the role itself via the low-level `isServer()` from `~system/EngineApi` (async, unlike the sync `@dcl/sdk/network` helper), use the defensive idiom: resolve the role once at startup, have systems return early while it is still unknown, keep client-only features permanently off on the server, and treat a *failed* query as **client** — so a real client never loses functionality if the query errors.
+
 ## Synced Components with Validation
 
 Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. **Always guard `validateBeforeChange()` (and any helper that wraps it, like `protectServerEntity()`) inside an `isServer()` block** — both overloads (per-entity and global no-entity) only have meaning on the server, and calling either on a client produces errors. This applies even to global custom-component validators in shared files: define the component at module scope, but place the `validateBeforeChange()` call inside an `isServer()` guard (e.g. inside `main()` or inside an `if (isServer()) { ... }` block in `shared/schemas.ts`).
@@ -50,6 +52,8 @@ Use `registerMessages()` for client-to-server and server-to-client communication
 Clients must wait for `isStateSyncronized()` (note SDK typo) to return `true` before sending messages.
 
 **IMPORTANT — message size limit**: Never send messages larger than **13 KB**. The transport will silently drop any message that exceeds this limit. Split large payloads into smaller chunks if needed.
+
+**`MessageBus` is client-only.** `MessageBus` (from `@dcl/sdk/message-bus`) subscribes to the legacy `EngineApi.subscribe('comms')` event, which the headless server runtime does not implement — on the server it fails with `RemoteError: not implemented`. Because module-scope code runs on both sides, never construct one at module scope (`const bus = new MessageBus()`) in an authoritative-server scene; construct it only inside the client branch (`if (!isServer())`). It remains fine client-side for transient client-to-client effects, but the server can neither send nor receive on it — all client↔server communication must go through `registerMessages()` + `room`.
 
 ### Schema Types Reference
 
@@ -115,6 +119,7 @@ Client and server always move together (paired by hash). Existing players keep t
 - **Log prefixes**: Use `[SERVER]` and `[CLIENT]` in `console.log()`
 - **Local multi-player**: Click Preview a second time in Creator Hub, or open `decentraland://realm=http://127.0.0.1:8000&local-scene=true&debug=true`
 - **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- **Server-log noise signatures**: two recurring errors in *server* logs both mean client-only code is running in the server branch. `RemoteError: not implemented` on `EngineApi.subscribe('comms')` → a `MessageBus` was constructed on the server (see Messages). `400 Invalid metadata content` from `comms-gatekeeper.decentraland.org` → server code called a client-context platform API via `signedFetch`. Neither crashes the server, but the repeating noise buries real server logs — gate the offending code behind `!isServer()`.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
 - **Storage inspection**: Check local JSON file or [decentraland.org/storage](https://decentraland.org/storage)
 - **Timers**: use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` — never the native JS globals. Prefer `engine.addSystem()` with dt accumulator for game logic
