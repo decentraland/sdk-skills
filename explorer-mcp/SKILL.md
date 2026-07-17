@@ -18,7 +18,7 @@ Deeper reference, loaded only when the task reaches it:
 
 ## Setup (once per session)
 
-0. **Load the SDK skills.** This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the `sdk-skills` skill set, and parts of the API (e.g. native `TriggerArea`) are newer than training data. Try to load it: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). If it cannot be loaded, **MANDATORY — ask the user**: install `sdk-skills` (from https://github.com/decentraland/sdk-skills)? Recommend installing. If YES, ask at which level — scene-local or global — and run the matching command:
+0. **Load the SDK skills.** This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the other topic skills of the same `decentraland/sdk-skills` package this skill ships from (entry point `sdk-scenes`, plus `create-scene`, `add-3d-models`, etc.), and parts of the API (e.g. native `TriggerArea`) are newer than training data. Try to load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). If they cannot be loaded — e.g. only `explorer-mcp` itself was installed, not the whole package — **MANDATORY — ask the user**: pull in the rest of the package's topic skills from that same source? Recommend it. If YES, ask at which level — scene-local or global — and run the matching command:
 
    ```bash
    npx skills add decentraland/sdk-skills --all       # scene-local (run inside the scene folder)
