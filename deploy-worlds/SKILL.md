@@ -56,6 +56,8 @@ npx @dcl/sdk-commands deploy --target-content https://worlds-content-server.dece
 
 This will prompt the user to sign the deployment with their wallet. Validations run automatically to allow or reject the scene.
 
+Files matched by `.dclignore` (at the project root) are excluded from the upload — keep working files like Blender sources, concept art, and markdown docs listed there so the World stays light. See the `.dclignore` section in the **deploy-scene** skill.
+
 ### Via Creator Hub
 
 1. Open the scene project in Creator Hub
@@ -159,7 +161,7 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 |-------|-------|----------|
 | "NAME not found" or "NAME not owned" | The wallet signing the deployment doesn't own the NAME/ENS in `worldConfiguration.name` | Verify NAME ownership at `https://builder.decentraland.org/names`. The wallet used for signing must own the exact NAME |
 | ENS resolution fails | ENS domain not registered or expired | Check ENS registration at `https://app.ens.domains` |
-| "Scene too large" | World scenes have size limits even though parcels aren't constrained | Reduce asset sizes. Worlds still enforce file size and entity limits |
+| "Scene too large" | World scenes have size limits even though parcels aren't constrained | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Worlds still enforce file size and entity limits |
 | Deploy succeeds but world is empty | `main` field misconfigured | Ensure `main` is `"bin/index.js"` and code compiles |
 | World not showing on Places | Propagation delay | Wait a few minutes after deployment. If opted out via `placesConfig.optOut`, it won't appear |
 
