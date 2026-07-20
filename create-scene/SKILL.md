@@ -281,6 +281,7 @@ After customizing the files:
 - Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them
 - The `main` field in scene.json MUST be `"bin/index.js"` — this is the compiled output path
 - The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them
+- **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill
 
 ## Example scenes
 

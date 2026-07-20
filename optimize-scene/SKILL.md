@@ -20,6 +20,8 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 
 **File limits:** 15 MB per parcel, 300 MB max total, 200 files per parcel, 50 MB max per individual file.
 
+File limits count only what is actually uploaded on deploy. Make sure `.dclignore` (at the project root) excludes all working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown docs — since these are often the bulk of a project's size and are never needed at runtime. See the `.dclignore` section in the **deploy-scene** skill.
+
 Important: Except for the MB size limits, all other limits can be exceeded. It's generally not recommended to go over them because of performance impact, but if a user tests their scene and determines that it's good enough, it should be ok to publish.
 
 ## Entity Count Optimization
@@ -278,6 +280,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |
 | Large uncompressed textures          | Slow loading, file size exceeded | Use WebP, reduce resolution, use atlases                 |
+| Working files uploaded on deploy     | "Scene too large" deploy error   | Add Blender/FBX sources, concept art, docs to `.dclignore` (see **deploy-scene**) |
 | Too many transparent materials       | Extra draw calls, sorting issues | Minimize transparency, use alpha cutoff instead of blend |
 | Adding entities/components in a system without guards | Entity count explodes | Systems run every frame — always check before creating  |
 | Unbounded entity queries             | CPU spike                        | Filter with specific components, cache results           |
