@@ -58,8 +58,6 @@ BillboardMode.BM_NONE   // No billboard rotation
 
 `Billboard` has an optional `targetEntity?: Entity` field. When set, the entity reorients to face **that target entity** instead of the camera.
 
-> ⚠ **Not yet in production** (as of 2026-07-09): `targetEntity` is in the SDK and protocol but the explorer (client) support ships in an upcoming release expected around mid-July 2026. Until then, setting it has no visible effect in the deployed client — the billboard keeps facing the camera. Safe to write (backwards-compatible), but don't rely on the behavior in production yet.
-
 ```typescript
 // Face a specific entity instead of the camera
 Billboard.create(card, { targetEntity: sphere })
@@ -75,6 +73,7 @@ Billboard.getMutable(card).targetEntity = otherEntity
 - Setting `targetEntity` to the **camera reserved entity** (`engine.CameraEntity`, id `2`) is equivalent to leaving it unset.
 - `billboardMode` still applies: `BM_Y` with a `targetEntity` yaws to face the target on the Y axis only.
 - **Gotcha:** if the referenced target entity does not exist or is deleted, billboard reorientation is **disabled** (the entity freezes at its last orientation) until the target exists again.
+- **Multiplayer:** a camera-facing billboard is computed locally per player (each player sees it facing themselves, nothing is synced). A `targetEntity` billboard instead faces the same way for **all** players, because the target's position is scene state. Use `targetEntity` when every player must see the same orientation.
 
 ## TextShape (3D Text)
 

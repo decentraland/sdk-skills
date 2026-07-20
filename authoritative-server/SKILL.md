@@ -72,9 +72,16 @@ Persist data across server restarts. **Server-only** — guard with `isServer()`
 
 Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objects. Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
 
+**Live storage web UI** ([decentraland.org/storage](https://decentraland.org/storage), also reachable from Creator Hub **Manage** → three dots next to a published place → **View Storage**). Three tabs — **Scene**, **Player**, **Environment**. Edits apply to the running scene **live, without republishing**:
+- **Scene** tab: view/edit/delete the shared variables (leaderboard, door state). Handy for tweaking live values, e.g. resetting a leaderboard.
+- **Player** tab: look up a player by wallet address or name and inspect/edit/clear their stored data. Main use is **support** — un-wedge a player stuck in a bad state (e.g. contradictory data from an older scene version) without redeploying.
+
 ## Environment Variables
 
-Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → Environment tab. Env vars are the right place for secrets (API keys, private keys) since server code never reaches the player.
+Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → **Environment** tab (or Creator Hub → Manage → three dots → **View Storage**).
+- **Right place for secrets** (private keys, reward/claim codes, API keys) — the values only ever exist on the server, never reach the client or the published scene code.
+- **Write-only in the UI**: you can add, overwrite, or delete a variable, but you **cannot read the current value back** (intentional, to protect secrets).
+- Also ideal for **live-tunable game parameters / feature flags** (match duration, max player count) you want to adjust on the running scene without republishing.
 
 ## Recommended Project Structure
 

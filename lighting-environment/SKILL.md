@@ -245,14 +245,16 @@ LightSource.create(spotEntity, {
 Constraints:
 - Shadows are only supported for **spot** lights; point lights do not cast shadows.
 - Max **3** shadow-casting lights rendered at a time.
-- Shadow quality/culling is automatic, based on the light's distance from the camera:
+- Shadow quality/culling is automatic, based on the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
 
-| Distance from camera | Result |
+| Distance from player | Result |
 |----------------------|--------|
-| < 10 m | Soft shadows |
-| 10–20 m | Hard shadows |
-| 20–40 m | No shadows rendered |
-| > 40 m | Light itself is culled |
+| < 10 m | Soft shadows (high quality) |
+| 10–20 m | Hard shadows (low quality) |
+| > 20 m | No shadows rendered |
+
+- The **light itself keeps illuminating** at much larger distances — it is only disabled when the player is more than **160 m away (10 parcels)**. This makes LightSource suitable for large-scale setups like stage lighting at live events, where most of the audience is far from the fixtures.
+- Lights only render while the player is standing **inside** the scene; outside, they are not rendered.
 
 > **Need advanced material effects?** See the **advanced-rendering** skill for metallic, roughness, transparency, texture maps, texture tweens, and texture modes.
 

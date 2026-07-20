@@ -216,8 +216,8 @@ AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
 	jumpHeight: 1,
 	runJumpHeight: 1.5,
 	doubleJumpHeight: 2,
-	glidingSpeed: 6,
-	glidingFallingSpeed: 1,
+	glidingSpeed: 6, // horizontal speed while gliding
+	glidingFallingSpeed: 1, // MAX descent speed while gliding — caps falling only, does not limit upward motion (e.g. lift from a continuous force)
 	hardLandingCooldown: 0.75, // seconds before moving again after a high fall
 })
 ```

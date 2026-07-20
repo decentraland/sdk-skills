@@ -92,6 +92,9 @@ engine.addSystem(lodSystem)
 ### Disable Unused Colliders
 Remove collision meshes from decorative objects that players never interact with. This reduces physics body count significantly.
 
+### Disable Landscape Terrain (Worlds)
+For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove the auto-generated grassland/trees/sea around the scene. Two payoffs: it frees rendering budget, and it lets you commit to a self-contained aesthetic (open water, space, void). Ignored in Genesis City. See the `create-scene` skill.
+
 ## 6. Input System Design
 
 | Input | Action | Notes |
@@ -239,6 +242,9 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 ### Parcel Transitions
 - If your scene spans multiple parcels, ensure smooth visual transitions.
 - Do not place critical interactive elements right at parcel boundaries (loading edge cases).
+
+### Vertical Traversal with Gliding
+- While a player glides, continuous scene forces are 1.5× stronger and their **upward** component can lift the glider (the falling-speed cap only limits descent). This enables traversal mechanics like thermal updrafts, wind corridors, and floating-island hops. One-shot impulses (launch pads, knockback) are unaffected by gliding. See the `player-physics` skill ("Forces while gliding").
 - Use open space at parcel edges as buffer zones.
 
 ## 13. Engagement and Monetization

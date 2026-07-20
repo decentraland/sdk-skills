@@ -179,6 +179,7 @@ All valid `scene.json` fields:
 | `allowedMediaHostnames`    | Optional    | Whitelisted domains for external media                                |
 | `featureToggles`           | Optional    | Enable/disable SDK features                                           |
 | `worldConfiguration`       | Optional    | For Worlds deployment (see **deploy-worlds** skill)                   |
+| `landscapeTerrain`         | Optional    | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
 
 ### Tags
 

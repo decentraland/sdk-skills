@@ -92,6 +92,13 @@ Convert local direction to world space with `Transform.localToWorldDirection(ent
 
 **Prefer `CL_MAIN_PLAYER` for player-physics trigger zones.** Because the callback then only fires for the local player, you do not need a remote-vs-local guard, and the force is applied to the one avatar it can affect. A launch pad using `CL_PLAYER` alone will NOT fire for the local player (only for remote avatars), so it never launches the person standing on it — a common bug.
 
+## Forces while gliding
+
+While the player is gliding (glider open), forces behave differently:
+- **Continuous forces** (`applyForceToPlayer`, `applyForceToPlayerForDuration`, `applyRepulsionForceToPlayer`) are **1.5× stronger** — the open glider catches the airflow, so wind zones/currents feel more responsive.
+- The **upward component** of a continuous force can **lift** a gliding player. `glidingFallingSpeed` (in `AvatarLocomotionSettings`) only caps *descent* speed; it does not cancel upward motion, so an angled or vertical current pushes the player along the full force direction. Enables thermal updrafts / wind corridors.
+- **One-shot impulses** (`applyImpulseToPlayer`, `applyKnockbackToPlayer`) are **NOT** affected by gliding — identical whether the glider is open or closed.
+
 ## Best Practices
 
 - Use `applyImpulseToPlayer` for one-off events (jump pads, explosions, hits)

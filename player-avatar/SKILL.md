@@ -286,7 +286,7 @@ triggerSceneEmote({
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Custom emote files **must** end with the `_emote.glb` suffix (case-insensitive) — scenes that ignore this may work in preview but break once deployed
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
-- `[UNVERIFIED — landing in an upcoming SDK release]` The protocol (verified in `restricted_actions.proto` on protocol `origin/main`) adds an optional emote **mask** that limits which bones the animation drives: `TriggerEmoteRequest.mask` and `TriggerSceneEmoteRequest.mask`, typed as the new shared enum `AvatarMask` with a single value `AM_UPPER_BODY = 0` (upper-body-only animation, e.g. play an emote while still walking). Intended usage: `triggerSceneEmote({ src: '...glb', loop: true, mask: AvatarMask.AM_UPPER_BODY })`. **Not yet exported by the released `@dcl/sdk`** — a repo-wide search of js-sdk-toolchain `origin/main` finds no `AvatarMask`/`AM_UPPER_BODY` (nor the earlier `AvatarEmoteMask`/`AEM_UPPER_BODY`) export. Do not rely on it until the SDK ships it; verify the exact enum name against the released `@dcl/sdk/ecs` at that time.
+- Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
 
 ### Stopping an emote
 
@@ -297,18 +297,20 @@ import { stopEmote } from '~system/RestrictedActions'
 stopEmote({})
 ```
 
-### [EXPERIMENTAL] Emote masks (upper-body / full-body)
+### Emote masks (upper-body only)
 
-`triggerSceneEmote` and `stopEmote` accept a `mask` param (`AvatarEmoteMask` from `@dcl/sdk/ecs`) to restrict a looping emote to part of the body, letting the player keep walking while the upper body animates (e.g. carrying an object).
+`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives. Use it to restrict a looping emote to the upper body so the player can keep walking around while the upper body animates (e.g. carrying/juggling an object).
 
 ```typescript
-import { AvatarEmoteMask } from '@dcl/sdk/ecs'
-triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarEmoteMask.AEM_UPPER_BODY })
+import { AvatarMask } from '@dcl/sdk/ecs'
+import { triggerSceneEmote } from '~system/RestrictedActions'
+
+triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarMask.AM_UPPER_BODY })
 ```
 
-Values: `AvatarEmoteMask.AEM_UPPER_BODY`, `AvatarEmoteMask.AEM_FULL_BODY`.
-
-`[EXPERIMENTAL]` — the `mask` field is **not in `protocol/main`** as of this writing. It is only available in an experimental SDK toolchain (`feat/avatar-masks-experimental`) / bleeding-edge commit builds. Do NOT rely on it in a scene targeting the released `@dcl/sdk`; verify it exists in the installed SDK before use. `[UNVERIFIED: not in released protocol — confirm before documenting as stable]`
+- Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
+- `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
+- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
 
@@ -365,6 +367,8 @@ AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
 ```
 
 Fields (all `float`, optional) with client defaults — verified against unity-explorer `origin/main` `CharacterControllerSettings.asset`: `walkSpeed` (1.5), `jogSpeed` (8, the default movement speed), `runSpeed` (10), `jumpHeight` (1), `runJumpHeight` (1.5), `doubleJumpHeight` (2), `glidingSpeed` (6), `glidingFallingSpeed` (1), `hardLandingCooldown` (0.75s). See `references/avatar-apis.md`.
+
+`glidingFallingSpeed` is a **max descent cap** — it limits how fast the player falls while gliding, but does not limit upward motion. While gliding, continuous scene forces are 1.5× stronger and can lift the player; see the `player-physics` skill ("Forces while gliding").
 
 ## Restrict Locomotion (InputModifier)
 
@@ -521,12 +525,12 @@ Beyond the commonly used anchor points, the full list includes:
 Engine-team test scenes (exercised against the real engine):
 
 - [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
-- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, and `[EXPERIMENTAL]` `mask: AvatarEmoteMask.AEM_UPPER_BODY`.
+- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, and `mask: AvatarMask.AM_UPPER_BODY`.
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
-- [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — `[EXPERIMENTAL]` emote masks: looping upper-body scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Uses an experimental SDK branch — treat mask APIs as unreleased.
+- [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
