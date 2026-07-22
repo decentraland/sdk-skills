@@ -1,4 +1,4 @@
-# Authoritative Server Patterns Reference
+# Multiplayer Server Patterns Reference
 
 ## Complete Server Setup
 

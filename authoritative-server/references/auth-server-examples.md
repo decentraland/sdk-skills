@@ -1,4 +1,4 @@
-# Authoritative Server Code Examples
+# Multiplayer Server Code Examples
 
 ## Setup
 
