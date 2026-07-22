@@ -216,6 +216,42 @@ const progress = saved ? JSON.parse(saved) : { level: 1, coins: 0, achievements:
 
 **Local dev storage location:** `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`
 
+### Storage is Limited — Persist at Checkpoints, Not on Every Change
+
+The storage service caps **in-flight requests at 40** and is **rate-limited**. Forcing too many concurrent requests saturates the queue and **silently drops** some of them — persisted state goes stale or is lost. Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints.
+
+**Anti-pattern — write per event/tick:**
+```typescript
+// BAD: one Storage.set per score change floods the queue
+room.onMessage('claimPoint', async (data, context) => {
+  scores[context.from] = (scores[context.from] ?? 0) + 1
+  await Storage.player.set(context.from, 'score', String(scores[context.from])) // fires every claim
+})
+```
+
+**Correct pattern — keep state in memory, persist at checkpoints / debounced:**
+```typescript
+// GOOD: mutate in-memory state on every event; persist only on meaningful checkpoints
+const scores: Record<string, number> = {}
+const dirty = new Set<string>()
+
+room.onMessage('claimPoint', (data, context) => {
+  scores[context.from] = (scores[context.from] ?? 0) + 1
+  dirty.add(context.from)               // mark for later flush, no Storage call here
+})
+
+// Debounced flush: run periodically (e.g. every ~30s via a dt-accumulator system),
+// and always flush the relevant key at real checkpoints (game over, player leaves).
+async function flush() {
+  for (const address of dirty) {
+    await Storage.player.set(address, 'score', String(scores[address]))
+  }
+  dirty.clear()
+}
+```
+
+Persist on: game over, player leaves, round end, or a periodic debounced save. Never persist on: every score change, every position update, every frame/tick.
+
 ### CLI: Scene Storage
 
 ```bash
@@ -234,6 +270,34 @@ npx sdk-commands storage player delete level --address 0x1234...
 npx sdk-commands storage player clear --address 0x1234... --confirm
 npx sdk-commands storage player clear --confirm
 ```
+
+## Server Resource Limits
+
+The headless server runs each scene in a sandboxed V8 isolate with hard resource/DoS caps. Design scenes to stay well under these — several are enforced by **silently dropping** data or by **terminating the isolate** (killing the server for everyone in the scene). Numbers below are defaults; a scene cannot raise them.
+
+Limits a scene creator can realistically hit and should design around:
+
+| Limit | Value | Enforcement on breach |
+|---|---|---|
+| Storage in-flight requests | **40** concurrent | excess requests silently dropped (persisted state stale/lost) |
+| Storage rate limit | rate-limited (service-side) | throttled/dropped when exceeded |
+| Isolate memory | **256 MB** ceiling | isolate disposed (server dies) |
+| Sync execution per turn | **10,000 ms** wall-clock | overrun terminates & disposes the isolate |
+| Async turn settle | **60,000 ms** | overrun terminates & disposes the isolate |
+| Inbound messages per peer | **300** per **1,000 ms** window | excess data frames dropped |
+| Inbound packet size | **131,072 bytes** (128 KB) per packet | oversized packet dropped entirely |
+| Concurrent `signedFetch` | **32** in-flight | additional fetches queue/block |
+| Fetch timeout / retries | **15,000 ms** per attempt, **2** attempts | fetch fails |
+| Scene→comms message | **30,000 bytes** max | (separate transport guidance: keep synced messages under 13 KB — see SKILL.md) |
+| Live entities | **100,000** max | — (very unlikely to hit) |
+
+Design implications:
+- **Storage**: keep working state in memory; persist only at checkpoints (see Storage Patterns above). Never `Storage.set` per event/tick.
+- **Memory**: in-memory state is the right place for working data, but it is not unbounded — 256 MB caps how much you can cache. Prune stale per-player state when players leave.
+- **CPU**: never run unbounded synchronous loops on the server; a single turn exceeding 10 s kills the isolate for all players. Spread heavy work across ticks with a dt-accumulator system.
+- **Messages**: throttle client→server sends; a peer exceeding 300 msgs/s has excess frames dropped (they are lost, not queued). Never send per-frame.
+
+Source: `decentraland/hammurabi-headless` Resource / DoS limits (isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The storage in-flight (40) and storage rate limit are enforced at the storage-service layer (authoritative, per Decentraland team), separate from the isolate host-call caps.
 
 ## Environment Variables
 
