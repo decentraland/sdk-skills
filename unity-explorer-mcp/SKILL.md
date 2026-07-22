@@ -1,10 +1,9 @@
 ---
-name: explorer-mcp
+name: unity-explorer-mcp
 description: Iterate on Decentraland SDK7 scenes against a running Explorer build through its MCP automation server — edit scene code, hot-reload, drive the camera and player, screenshot, and verify behavior end-to-end. Use this whenever building, testing, debugging, or visually verifying a local SDK7 scene in a running Explorer, whenever an `mcp__explorer__*` tool is available, or when the user asks to see, test, walk through, or screenshot a scene in-world.
-disable-model-invocation: true
 ---
 
-# Explorer MCP Scene Iteration
+# Unity Explorer MCP Scene Iteration
 
 Drive a running Decentraland Explorer build through its MCP automation server to build and test SDK7 scenes autonomously: edit the scene, watch it hot-reload, move the camera and player, take screenshots, and verify against what the code should produce.
 
@@ -16,9 +15,18 @@ Deeper reference, loaded only when the task reaches it:
 - [`reference/assets.md`](reference/assets.md) — before placing, downloading, converting, or exporting any 3D model
 - [`reference/visuals.md`](reference/visuals.md) — before tuning emissives/bloom, UI overlays, skybox time, or judging thin geometry
 
+## Pre-flight — confirm intent (MANDATORY, do this first)
+
+This skill can be auto-invoked, so it may have triggered without the user explicitly asking for it. Before doing anything else — before probing for a server, launching the Explorer, or editing the scene — **STOP and confirm with the user that they actually want to drive the scene through the Unity Explorer MCP server.** Ask a plain yes/no, e.g. *"Do you want to build/test this scene against a running Decentraland Explorer via the Unity Explorer MCP server? This will launch/connect to the Explorer and iterate in-world."*
+
+- If **YES** — continue to Setup below.
+- If **NO** — do not run any setup, launch, or MCP steps from this skill. Fall back to working on the scene without the Explorer (edit code, rely on the SDK topic skills and official docs), and let the user re-invoke this skill later if they change their mind.
+
+Skip this confirmation only when the user has already made the intent explicit in the current request (e.g. they asked to "test/see/walk through/screenshot the scene in-world", named the Explorer/MCP server directly, or an `mcp__explorer__*` tool call is clearly what they asked for). When in doubt, ask.
+
 ## Setup (once per session)
 
-0. **Load the SDK skills.** This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the other topic skills of the same `decentraland/sdk-skills` package this skill ships from (entry point `sdk-scenes`, plus `create-scene`, `add-3d-models`, etc.), and parts of the API (e.g. native `TriggerArea`) are newer than training data. Try to load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). If they cannot be loaded — e.g. only `explorer-mcp` itself was installed, not the whole package — **MANDATORY — ask the user**: pull in the rest of the package's topic skills from that same source? Recommend it. If YES, ask at which level — scene-local or global — and run the matching command:
+0. **Load the SDK skills.** This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the other topic skills of the same `decentraland/sdk-skills` package this skill ships from (entry point `sdk-scenes`, plus `create-scene`, `add-3d-models`, etc.), and parts of the API (e.g. native `TriggerArea`) are newer than training data. Try to load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). If they cannot be loaded — e.g. only `unity-explorer-mcp` itself was installed, not the whole package — **MANDATORY — ask the user**: pull in the rest of the package's topic skills from that same source? Recommend it. If YES, ask at which level — scene-local or global — and run the matching command:
 
    ```bash
    npx skills add decentraland/sdk-skills --all       # scene-local (run inside the scene folder)
