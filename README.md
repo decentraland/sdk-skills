@@ -39,7 +39,7 @@ npx skills add decentraland/sdk-skills
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
-| `authoritative-server` | Headless authoritative server for multiplayer. |
+| `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |

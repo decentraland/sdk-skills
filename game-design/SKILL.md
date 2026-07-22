@@ -251,7 +251,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 ### Engagement Patterns
 - **Daily rewards**: Offer small rewards for daily visits. Track visits via external server — DCL has no built-in daily tracking. Display streak counters in-scene.
-- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements). For persistent leaderboards and per-player progress, the built-in authoritative server's `Storage` persists across redeploys and server sleep, with a server-owned synced component all clients render — see [[authoritative-server]] for the full pattern and reference scene.
+- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements). For persistent leaderboards and per-player progress, the built-in Multiplayer Server's `Storage` persists across redeploys and server sleep, with a server-owned synced component all clients render — see [[authoritative-server]] for the full pattern and reference scene.
 - **Achievements**: Define clear milestones (first win, 100 collectibles, visited all rooms). Announce with sound and visual effects. Display achievement history in-scene (trophy room, wall of fame).
 
 ### Monetization Approaches

@@ -366,7 +366,7 @@ No serverless `syncEntity`/`MessageBus` reference scene is available in the engi
 
 - **Entities must be explicitly synced** via `syncEntity(entity, [componentIds])` — pass the `componentId` of each component to sync
 - **CRDT resolution**: If two players change the same component simultaneously, last-write-wins
-- **No server-side code**: Decentraland scenes run entirely client-side with CRDT sync (unless using the authoritative server)
+- **No server-side code**: Decentraland scenes run entirely client-side with CRDT sync (unless using the Multiplayer Server)
 - **Custom schemas must be deterministic**: Same component name = same schema across all clients
 - **Use `Schemas.Int64` for timestamps**: `Schemas.Number` corrupts large numbers (13+ digits). Always use `Schemas.Int64` for values like `Date.now()`
 - Any changes in the scene state done with `syncEntity` are not persisted. If all players leave the scene then the next player to come back will find the scene in its default state.
