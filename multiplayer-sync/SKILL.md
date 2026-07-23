@@ -1,6 +1,6 @@
 ---
 name: multiplayer-sync
-description: Peer-to-peer multiplayer in Decentraland using CRDT networking. syncEntity (auto-synced components), parentEntity for synced hierarchies, MessageBus and binary MessageBus (fire-and-forget events), custom component definition with Schemas (Int64, EnumNumber, EnumString, Map, OneOf, Optional), and connection state. Use when the user wants multiplayer, synced entities, shared world state, broadcast events, or player-to-player communication without a server. Do NOT use for server-authoritative multiplayer, anti-cheat, or persistent storage (see authoritative-server). Do NOT use for screen UI (see build-ui).
+description: Peer-to-peer multiplayer in Decentraland using CRDT networking with syncEntity and MessageBus. Use when the user wants multiplayer, synced entities, shared world state, broadcast events, or player-to-player communication without a server. Do NOT use for server-authoritative multiplayer, anti-cheat, or persistent storage (see authoritative-server). Do NOT use for screen UI (see build-ui).
 ---
 
 # Multiplayer Synchronization in Decentraland
@@ -88,6 +88,8 @@ function createProjectile() {
 }
 ```
 
+> **Some visuals are inherently per-player, not shared.** A `Billboard` (camera-facing) is recomputed locally in each explorer, so every player sees it facing themselves — this is not synced and needs no `syncEntity`. The exception is a `Billboard` with a `targetEntity`: because the target's position is scene state, all players see that billboard oriented the same way. Use `targetEntity` when you need a shared, consistent orientation (e.g. a sign that points at a shared object). See the `player-avatar` / `sdk-scenes` component reference for Billboard details.
+
 ## Custom Synced Components
 
 Define custom components and sync them between players:
@@ -112,6 +114,10 @@ function addScore(points: number) {
 	data.lastUpdated = Date.now()
 }
 ```
+
+> **Use `Schemas.Int64` for timestamps and other large numbers.** `Schemas.Number` / `Schemas.Int` corrupt values over 13 digits (like `Date.now()`) — always store such values in `Schemas.Int64` (as `lastUpdated` above does).
+
+**Custom schemas must be deterministic:** the same component name must map to the same schema across all clients.
 
 ## Player-Specific Data
 
@@ -230,7 +236,7 @@ bus.emit('hit', { damage: 10 })
 
 ### syncEntity vs MessageBus
 
-- `syncEntity`: late joiners get current state, automatic conflict resolution. The state persists as long as at least one player remains in the scene
+- `syncEntity`: late joiners get current state, automatic conflict resolution — CRDT last-write-wins, so if two players change the same component simultaneously the last write wins. The state persists as long as at least one player remains in the scene
 - `MessageBus`: fire-and-forget, late joiners miss past messages, good for transient effects
 
 ### Binary MessageBus (Performance Optimization)
@@ -350,26 +356,13 @@ For Decentraland Worlds that do not need multiplayer:
 | `Profile not initialized. Call syncEntity inside main()` | `syncEntity` called at module top-level (e.g. in a module initialiser) | Move all `syncEntity` calls (and entity creation that depends on them) into a function called from `main()`. Never call `syncEntity` at module load time. Same applies to `engine.addSystem()`. |
 | State not syncing between players                        | Missing `syncEntity()` call                                            | Every entity you want shared must call `syncEntity(entity, [ComponentId1, ComponentId2])`                                                                                                       |
 | Sync ID collision                                        | Two entities share the same numeric sync ID                            | Use an enum to assign unique IDs to every predefined synced entity                                                                                                                              |
-| `Date.now()` values corrupted                            | Using `Schemas.Number` for timestamps                                  | Use `Schemas.Int64` for any number over 13 digits (like `Date.now()`)                                                                                                                           |
 | State not ready on join                                  | Reading synced state before sync completes                             | Guard with `if (!isStateSyncronized()) return` in your system                                                                                                                                   |
 | MessageBus messages lost                                 | Late joiner expecting past messages                                    | MessageBus is fire-and-forget. Use `syncEntity` for persistent state                                                                                                                            |
 
-> **Need server-side validation or anti-cheat?** See the **authoritative-server** skill for the headless server pattern.
+> **Need guaranteed consistency, server-side validation, or anti-cheat?** `syncEntity` and `MessageBus` are not entirely reliable — if it's important that all players see the same state change, see the **authoritative-server** skill for the headless server pattern.
 
 ## Example scenes
 
 No serverless `syncEntity`/`MessageBus` reference scene is available in the engine-team test set yet. For contrast, the closest multiplayer scene is server-authoritative (use it to see how the authoritative pattern differs from the serverless one described here):
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — **authoritative** (NOT serverless): only the server calls `syncEntity`, and synced components are locked with `validateBeforeChange` so clients can only read them and send messages. If you instead want any client to mutate shared state directly (the pattern this skill documents), each client calls `syncEntity` on its own and there is no `validateBeforeChange`. See the **authoritative-server** skill for that scene's full breakdown.
-
-## Important Notes
-
-- **Entities must be explicitly synced** via `syncEntity(entity, [componentIds])` — pass the `componentId` of each component to sync
-- **CRDT resolution**: If two players change the same component simultaneously, last-write-wins
-- **No server-side code**: Decentraland scenes run entirely client-side with CRDT sync (unless using the Multiplayer Server)
-- **Custom schemas must be deterministic**: Same component name = same schema across all clients
-- **Use `Schemas.Int64` for timestamps**: `Schemas.Number` corrupts large numbers (13+ digits). Always use `Schemas.Int64` for values like `Date.now()`
-- Any changes in the scene state done with `syncEntity` are not persisted. If all players leave the scene then the next player to come back will find the scene in its default state.
-- `syncEntity` and the `messageBus` are not entirely reliable, if it's important that all players see the same state change in the scene, see the `authoritative-server` skill
-- For server-authoritative multiplayer with validation and anti-cheat, see the `authoritative-server` skill
-- **Some visuals are inherently per-player, not shared.** A `Billboard` (camera-facing) is recomputed locally in each explorer, so every player sees it facing themselves — this is not synced and needs no `syncEntity`. The exception is a `Billboard` with a `targetEntity`: because the target's position is scene state, all players see that billboard oriented the same way. Use `targetEntity` when you need a shared, consistent orientation (e.g. a sign that points at a shared object). See the `player-avatar` / `sdk-scenes` component reference for Billboard details.

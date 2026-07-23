@@ -1,6 +1,6 @@
 ---
 name: game-design
-description: Plan and design Decentraland games and interactive experiences. Scene limit formulas, performance budgets, texture requirements, asset preloading, state management patterns (module-level, component-based, state machines), object pooling, UX/UI guidelines, input design, and MVP planning. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
+description: Plan and design Decentraland games and interactive experiences. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
 ---
 
 # Decentraland Game Design & Scene Optimization
@@ -195,7 +195,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
 
-## 11. Game Loop Archetypes
+## 10. Game Loop Archetypes
 
 ### Exploration
 - **Core loop**: Discover locations, find hidden items, unlock areas.
@@ -223,7 +223,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - **Design tips**: Prefer turn-based or timing-based competition over twitch reflexes. Use server-authoritative state to prevent cheating. Keep rounds short (2-5 minutes).
 - **Anti-cheat architecture**: whenever scores or prizes are at stake, make the scene server-authoritative (see [[authoritative-server]]). Clients send **intent** messages only (e.g. `claimPoint`) — never a score; the server validates (proximity to the objective, permissions) and is the only writer of game state. The official leaderboard test scene is a complete end-to-end template of this design: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard
 
-## 12. Spatial Design
+## 11. Spatial Design
 
 ### Landmarks
 - Place a tall, visible landmark at the center or entrance of your scene. Players use it to orient themselves.
@@ -247,7 +247,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - While a player glides, continuous scene forces are 1.5× stronger and their **upward** component can lift the glider (the falling-speed cap only limits descent). This enables traversal mechanics like thermal updrafts, wind corridors, and floating-island hops. One-shot impulses (launch pads, knockback) are unaffected by gliding. See the `player-physics` skill ("Forces while gliding").
 - Use open space at parcel edges as buffer zones.
 
-## 13. Engagement and Monetization
+## 12. Engagement and Monetization
 
 ### Engagement Patterns
 - **Daily rewards**: Offer small rewards for daily visits. Track visits via external server — DCL has no built-in daily tracking. Display streak counters in-scene.
@@ -264,7 +264,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - **Shared spaces**: Create common areas where players naturally congregate. Add ambient interactive objects that encourage casual interaction.
 - **Events**: Design scenes that can host scheduled events (concerts, competitions). Include a stage area with good sightlines. Provide event host controls (start/stop game, reset scene, broadcast messages). Gate host/admin actions server-side with an admin allow-list checked against the server-verified sender ([[authoritative-server]] Pattern 4) — never trust a client-reported role.
 
-## 14. Tutorial and Onboarding
+## 13. Tutorial and Onboarding
 
 ### In-World Signs
 - Place `TextShape` entities with short instructions at key locations.
@@ -285,7 +285,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - If a new player cannot figure out the first action within 30 seconds without any text or instructions, the design needs work.
 - Watch real players attempt your scene cold. Their confusion is your design feedback.
 
-## 10. Cross-References
+## 14. Cross-References
 
 | Topic | Skill | When to Use |
 |---|---|---|

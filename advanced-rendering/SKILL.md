@@ -1,6 +1,6 @@
 ---
 name: advanced-rendering
-description: Advanced rendering in Decentraland scenes. Billboard (face camera), TextShape (3D world text), PBR materials (metallic, roughness, transparency, emissive glow), GltfNodeModifiers (per-node shadow/material overrides), VisibilityComponent (show/hide entities), and texture modes. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
+description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PBR materials, GltfNodeModifiers, and VisibilityComponent. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
 ---
 
 # Advanced Rendering in Decentraland
@@ -96,6 +96,9 @@ TextShape.create(label, {
 })
 ```
 
+- Keep `fontSize` readable — 16-32 for in-world text.
+- Always add `outlineColor` and `outlineWidth` for legibility against any background.
+
 ### Text Alignment Options
 
 ```typescript
@@ -110,27 +113,7 @@ TextAlignMode.TAM_BOTTOM_CENTER
 TextAlignMode.TAM_BOTTOM_RIGHT
 ```
 
-### Floating Label (Billboard + TextShape)
-
-Combine Billboard and TextShape to create labels that always face the player:
-
-```typescript
-const floatingLabel = engine.addEntity()
-Transform.create(floatingLabel, { position: Vector3.create(8, 4, 8) })
-
-TextShape.create(floatingLabel, {
-  text: 'NPC Name',
-  fontSize: 16,
-  textColor: Color4.White(),
-  outlineColor: Color4.Black(),
-  outlineWidth: 0.08,
-  textAlign: TextAlignMode.TAM_BOTTOM_CENTER
-})
-
-Billboard.create(floatingLabel, {
-  billboardMode: BillboardMode.BM_Y
-})
-```
+For the floating-label pattern (Billboard + TextShape combined into a camera-facing label), see the **Floating Label (Billboard + TextShape)** section in `{baseDir}/references/rendering-patterns.md`.
 
 ## Advanced PBR Materials
 
@@ -172,6 +155,8 @@ Material.setPbrMaterial(entity, {
 })
 ```
 
+- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed.
+
 ### Emissive (Glow Effects)
 
 ```typescript
@@ -190,6 +175,8 @@ Material.setPbrMaterial(entity, {
   emissiveColor: Color3.White()
 })
 ```
+
+- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility.
 
 ### Texture Maps
 
@@ -242,24 +229,9 @@ VisibilityComponent.create(entity, { visible: false })
 // Toggle visibility
 const visibility = VisibilityComponent.getMutable(entity)
 visibility.visible = !visibility.visible
-
-// Useful for LOD (Level of Detail)
-function lodSystem() {
-  const playerPos = Transform.get(engine.PlayerEntity).position
-
-  for (const [entity, transform] of engine.getEntitiesWith(Transform, MeshRenderer)) {
-    const distance = Vector3.distance(playerPos, transform.position)
-
-    if (distance > 30) {
-      VisibilityComponent.createOrReplace(entity, { visible: false })
-    } else {
-      VisibilityComponent.createOrReplace(entity, { visible: true })
-    }
-  }
-}
-
-engine.addSystem(lodSystem)
 ```
+
+For a distance-based LOD (Level of Detail) system that toggles `VisibilityComponent` per frame, see the **LOD via VisibilityComponent** section in `{baseDir}/references/rendering-patterns.md`.
 
 ### propagateToChildren
 
@@ -292,27 +264,7 @@ GltfNodeModifiers.create(entity, {
 })
 ```
 
-To override the materials or shadow casting of the entire model, set the path to ''.
-
-```typescript
-import { GltfNodeModifiers } from '@dcl/sdk/ecs'
-
-GltfNodeModifiers.create(entity, {
-  modifiers: [
-    {
-      path: '', 
-      material: {
-				material: {
-					$case: 'pbr',
-					pbr: {
-						albedoColor: Color4.Red(),
-					},
-				},
-			},
-    }
-  ]
-})
-```
+To override the material or shadow casting of the **entire** model (`path: ''`) — including the nested `material: { material: { $case: 'pbr' | 'unlit', ... } }` shape — see the **GltfNodeModifiers — Whole-Model Material Override** section in `{baseDir}/references/rendering-patterns.md`.
 
 **Modifier details** (from the `74,-8-gltfnodemodifier` test scene):
 
@@ -359,42 +311,9 @@ Material.setPbrMaterial(entity, {
 Filter modes: `TFM_POINT` (pixelated), `TFM_BILINEAR` (smooth), `TFM_TRILINEAR` (smoothest).
 Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirror tile).
 
-## Texture tweens
+## Texture Tweens
 
-You can use tweens to make a texture slide sideways or shrink or zoom in, this can be used to achieve very cool effects. Requires a `Material` with a texture whose `wrapMode` is `TWM_REPEAT`, and a `TweenSequence` component (even with an empty `sequence`) for the tween to loop.
-
-```typescript
-Material.setPbrMaterial(myEntity, {
-	texture: Material.Texture.Common({
-		src: 'materials/water.png',
-		wrapMode: TextureWrapMode.TWM_REPEAT,
-	}),
-})
-
-// move continuously — (entity, direction, speed)
-Tween.setTextureMoveContinuous(myEntity, Vector2.create(0, 1), 1)
-```
-
-You can also make a texture move once, lasting a specific duration:
-
-```typescript
-// slide once, for 1 second — (entity, start, end, durationMs, movementType?, easing?)
-Tween.setTextureMove(myEntity, Vector2.create(0, 0), Vector2.create(0, 1), 1000)
-```
-
-**Movement type**: both helpers take an optional `movementType: TextureMovementType` (defaults to `TMT_OFFSET`):
-- `TextureMovementType.TMT_OFFSET` — pans the texture across the surface (scrolling water, conveyor belts).
-- `TextureMovementType.TMT_TILING` — animates the tiling factor (zoom / density changes).
-
-```typescript
-import { TextureMovementType, TweenLoop, TweenSequence } from '@dcl/sdk/ecs'
-
-// animate tiling from 1x to 2x over 4s, then yoyo back
-Tween.setTextureMove(plane, Vector2.create(1, 1), Vector2.create(2, 2), 4000, TextureMovementType.TMT_TILING)
-TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_YOYO })
-```
-
-To loop, pair the tween with `TweenSequence.create(entity, { sequence: [], loop: TweenLoop.TL_RESTART | TL_YOYO })`.
+For animated texture patterns (`Tween.setTextureMoveContinuous` scrolling, `Tween.setTextureMove` slide-once, `TMT_OFFSET` vs `TMT_TILING` movement types, and looping via `TweenSequence`) — all requiring a texture with `wrapMode: TWM_REPEAT` — see the **Texture Tweens** section in `{baseDir}/references/rendering-patterns.md`.
 
 
 ## FlatMaterial Accessors
@@ -415,16 +334,6 @@ const src = Material.getFlatOrNull(entity)?.texture?.src
 // Mutate a texture in-place without knowing PBR vs Basic
 Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/Images/new.png' })
 ```
-
-## Best Practices
-
-- Use `BillboardMode.BM_Y` instead of `BM_ALL` — looks more natural and renders faster
-- Keep `fontSize` readable (16-32 for in-world text)
-- Add `outlineColor` and `outlineWidth` to TextShape for legibility against any background
-- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility
-- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed
-- Combine Billboard + TextShape for floating name labels above NPCs or objects
-- Use VisibilityComponent for LOD systems instead of removing/re-adding entities
 
 ## Example scenes
 

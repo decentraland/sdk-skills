@@ -1,6 +1,6 @@
 ---
 name: deploy-scene
-description: Deploy a Decentraland scene to Genesis City (LAND-based). Covers pre-deployment checklist, scene.json validation, spawn points, .dclignore (excluding files from upload), and common deployment errors. Use when the user wants to deploy, publish, go live, upload to parcels they own, or reduce the deployed scene size. Do NOT use for Worlds deployment (see deploy-worlds).
+description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when the user wants to deploy or publish to parcels they own, or reduce the deployed scene size. Do NOT use for Worlds deployment (see deploy-worlds).
 ---
 
 # Deploying to Genesis City
@@ -31,14 +31,14 @@ Before deploying, verify:
    ```
 
 3. **Scene previews correctly**:
-   Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start --bevy-web` manually)
+   Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start --bevy-web` manually). Test with multiple browser tabs to verify multiplayer behavior.
 
 4. **Dependencies installed**:
    ```bash
    npm install
    ```
 
-5. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height)
+5. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
 
 6. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
@@ -78,6 +78,8 @@ npx @dcl/sdk-commands deploy
   "main": "bin/index.js"
 }
 ```
+
+`display.navmapThumbnail` sets the image shown for the scene on the Genesis City map — always provide one, and write a clear `display.description` for discovery.
 
 ### Spawn Points
 
@@ -184,11 +186,3 @@ Let visitors send MANA tips to the scene creator. Add a `creator` field to `scen
 When set, a **piggy bank icon** appears in the top-left for visitors. Clicking it opens a MANA tip modal. If the address is linked to a Decentraland NAME, the name is shown in the modal. Creators receive an in-app notification for each tip.
 
 Can also be configured via Creator Hub → scene Settings → Details → **Creator wallet address**.
-
-## Best Practices
-
-- Always preview locally before deploying
-- Use a thumbnail image (`navmapThumbnail`) for the Genesis City map
-- Write a clear description for discovery
-- Test with multiple browser tabs to verify multiplayer behavior
-- Keep scene load time under 15 seconds (optimize assets)

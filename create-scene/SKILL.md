@@ -1,25 +1,13 @@
 ---
 name: create-scene
-description: Scaffold a new Decentraland SDK7 scene project. Creates scene.json, package.json, tsconfig.json, and src/index.ts. Covers scene.json schema (parcels, spawnPoints, permissions, featureToggles), multi-parcel layouts, and project structure. Use when the user wants to start a new scene, create a project, or set up from scratch. Do NOT use for deployment (see deploy-scene or deploy-worlds).
+description: Scaffold a new Decentraland SDK7 scene project. Use when the user wants to start a new scene or create a project. Do NOT use for deployment (see deploy-scene or deploy-worlds).
 ---
 
 # Create a New Decentraland SDK7 Scene
 
 > **Runtime constraint:** Decentraland runs in a QuickJS sandbox. No Node.js APIs (`fs`, `http`, `path`, `process`). Use the SDK's `executeTask()` + `fetch()` for async work. See the **scene-runtime** skill for details.
 
-## ⚠ CRITICAL RULE — Read before generating any code
-
-**NEVER put initial scene entities in `src/index.ts`.**
-
-Every entity that exists when the scene loads — models, primitives, lights, text, audio — MUST be declared in `assets/scene/main.composite`.
-
-`src/index.ts` is ONLY for:
-
-- Adding behavior/interactivity to entities fetched from the composite
-- Entities spawned dynamically at runtime (projectiles, enemies, clones, etc.)
-- Systems and game logic
-
-If you find yourself writing `engine.addEntity()` for a piece of scenery or a static prop, stop — put it in the composite instead.
+> **CRITICAL — read before generating any code:** All initial scene entities (everything present at scene load) go in `assets/scene/main.composite`, NEVER in `src/index.ts`. See "Composite vs TypeScript — where entities go" (Step 4) for the rule, decision table, and rationale.
 
 When the user wants to create a new scene, follow these steps:
 
@@ -36,6 +24,8 @@ If the user hasn't described their scene, ask them:
 **Always run `/init` first.** This uses the official `@dcl/sdk-commands init` to create scene.json, package.json, tsconfig.json, and src/index.ts with the correct, up-to-date configuration, and installs dependencies automatically.
 
 Never manually create scene.json, package.json, or tsconfig.json — the SDK templates may change between versions and hand-written copies will diverge.
+
+The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them.
 
 ## 3. Find Matching 3D Assets
 
@@ -58,6 +48,8 @@ Before writing scene code, check the asset catalog for free models that match th
 
 > **Existing folders take precedence.** If the scene already has `assets/scene/Models/` (legacy layout) or assets under `assets/asset-packs/` / `assets/custom/` (added via the Creator Hub), reuse those paths instead of creating a parallel `assets/Models/`. Same rule applies for `assets/Audio/`, `assets/Images/`, and `assets/Videos/`.
 
+**Done when:** every model the user approved exists in `assets/Models/` (or the pre-existing asset folder per the precedence rule above), each file is non-empty and begins with the `glTF` magic bytes (`head -c 4 file.glb`) — a curl that saved an HTML error page fails this check — and no downloaded file sits at the project root. If the user declined new models, this step is done with nothing downloaded.
+
 ## 4. Customize the Generated Files
 
 After `/init` completes, customize the generated files based on what the user wants:
@@ -73,7 +65,7 @@ Update the `display` fields and parcels:
 
 ### Composite vs TypeScript — where entities go
 
-**NEVER create initial scene entities in TypeScript. They MUST go in `assets/scene/main.composite`.**
+**NEVER create initial scene entities in TypeScript. They MUST go in `assets/scene/main.composite`.** If you find yourself writing `engine.addEntity()` for a piece of scenery or a static prop, stop — put it in the composite instead.
 
 | Use `.composite` for                                                         | Use `.ts` (index.ts) for                                                                        |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -125,6 +117,9 @@ For multi-entity scenes, GLB models with collision masks, tags, and the full com
 
 > **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground.
 
+- Center of a single-parcel scene is (8, 0, 8) at ground level.
+- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them.
+
 ### src/index.ts
 
 Use `index.ts` **only** for:
@@ -157,8 +152,6 @@ export function main() {
 ```
 
 To fetch groups of entities by tag (`engine.getEntitiesByTag`) or add/remove tags at runtime, see the "Referencing Composite Entities from Code" section of `{baseDir}/../composites/composite-reference.md`.
-
-> **When to create entities in TypeScript instead:** Only if the entity is truly dynamic — spawned in response to gameplay events, instanced multiple times at runtime, or its count/identity is not known at scene-authoring time.
 
 ### scene.json Reference
 
@@ -258,7 +251,11 @@ Configure where and how players enter the scene:
 
 **Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit applies to the whole scene and grows with parcel count: `log2(n+1) × 20` meters (1 parcel = 20m, 2x2 = ~46m, 3x3 = ~66m).
 
+- **Always validate entity positions against parcel bounds.** With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene.** An entity entirely outside the bounds is not rendered and no error is shown; a model that straddles the boundary still renders the part that is inside. The bound check uses **world** positions, so a child whose parent is moved out of bounds disappears with it, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
+
 **Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See the "Agent Behavioral Guidelines" section in the `sdk-scenes` skill (`{baseDir}/../sdk-scenes/SKILL.md`).
+
+**Done when:** (1) `main.composite` parses as JSON and every entity ID that appears in any component's `data` map has a `core::Transform` and a `core-schema::Name` entry; (2) every composite position lies within parcel bounds (`0 ≤ x ≤ 16·width`, `0 ≤ z ≤ 16·depth`) — an entity placed entirely outside is silently hidden, and a model straddling the boundary renders only the part inside; (3) `src/index.ts` contains no `engine.addEntity()` for load-time scenery — grep for `engine.addEntity` and confirm every hit is a runtime spawn; (4) `scene.json` has `"runtimeVersion": "7"` and `scene.base` is a member of `scene.parcels`; (5) `npm run build` exits 0.
 
 ## 5. Post-Creation Steps
 
@@ -267,21 +264,16 @@ After customizing the files:
 1. Use the `preview` tool to start the preview server (or run `npx @dcl/sdk-commands start --bevy-web` manually)
 2. The scene will open in a browser at http://localhost:8000
 
+**Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
+
+**Done when:** the preview server responds at `http://localhost:8000` and the scene renders with no errors in the console.
+
 ## Cross-References
 
 - Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds)
 - Need to optimize for parcel limits? See the **optimize-scene** skill
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
-
-## Important Notes
-
-- **Always validate entity positions against parcel bounds.** Each parcel is 16×16m. With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene — entities there are not rendered and no error is shown.** The bound check applies to an entity's **world** position, so a child whose parent is moved out of bounds also disappears, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
-- Center of a single-parcel scene is (8, 0, 8) at ground level
-- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them
-- The `main` field in scene.json MUST be `"bin/index.js"` — this is the compiled output path
-- The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them
-- **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill
 
 ## Example scenes
 

@@ -1,6 +1,6 @@
 ---
 name: script-components
-description: "Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, the Script component `priority` field and script execution order (defaults to 0 = runs last; higher number runs earlier; scripts sharing a priority share one system), @action JSDoc tags to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity)."
+description: "Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity)."
 ---
 
 # Writing Script Components for Creator Hub
@@ -177,6 +177,8 @@ This pattern keeps the script portable: as long as the child entities have names
 
 If your script has functions that could be useful to call from other items in the scene, mark them by adding a JSDoc comment block (`/** ... */`) with an `@action` tag directly before the method. Then add an **Action** component to the entity and define a corresponding action. This lets other smart items (e.g. a button) pick and trigger this action.
 
+**CRITICAL: Use ONLY the `@action` JSDoc tag — NEVER decorator syntax (`@action()` above the method). The Creator Hub parser has no decorators plugin, so a decorator makes parsing fail and ALL params and actions silently disappear from the UI.**
+
 An optional description line before the `@action` tag becomes the action's description shown in the Creator Hub UI.
 
 ```ts
@@ -256,15 +258,3 @@ const instance = getScriptInstance(entity, 'assets/scripts/Padlock.ts')
 const allOnEntity = getAllScriptInstances(entity)
 const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
-
-## Key rules summary
-
-1. Place script files under `assets/` (use `assets/scripts/`), never in a root-level `scripts/` folder — the scene's `tsconfig.json` only type-checks `src/**/*` and `assets/**/*`. The Script component `path` must match (e.g. `assets/scripts/MyScript.ts`).
-2. Never remove `public src: string` and `public entity: Entity` from the constructor.
-3. Use `this.src + '/filename'` for any bundled asset paths.
-4. Do not pass child entities of the same custom item as `Entity` constructor parameters, and do not require a per-instance name parameter — find them at runtime by matching a **substring** of their `Name` value (e.g. `.includes('Sit Spot')`), so duplicated/auto-numbered copies (`"Sit Spot 2"`, `"Sit Spot 3"`, …) all work with zero configuration.
-5. Mark methods you want to expose as triggerable actions with an `@action` tag inside a JSDoc comment block (`/** ... */`) directly before the method. NEVER use decorator syntax (`@action()` above the method): the Creator Hub parser has no decorators plugin, so a decorator makes parsing fail and ALL params and actions disappear from the UI.
-6. Use `ActionCallback` for parameters that should let users wire up editor actions.
-7. Add `@param` JSDoc comments before the constructor for UI tooltips.
-8. Manually include any code-only assets (sounds, textures) in the custom item folder.
-9. The Script component `priority` field defaults to `0`, which makes scripts run LAST each frame (after regular systems and UI). Higher number = earlier. Scripts sharing a `priority` share one system and run sequentially; raise `priority` (e.g. `1000000`) to run a script — or a physics step — before regular systems.

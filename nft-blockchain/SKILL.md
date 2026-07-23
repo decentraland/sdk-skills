@@ -1,6 +1,6 @@
 ---
 name: nft-blockchain
-description: NFT display and blockchain interaction in Decentraland. NftShape (framed NFT artwork), wallet checks (getPlayer, isGuest), signedFetch (authenticated requests), smart contract interaction (eth-connect, createEthereumProvider), and RPC calls. Use when the user wants NFTs, blockchain, wallet, smart contracts, Web3, crypto, or token gating. Do NOT use for player avatar data or emotes (see player-avatar).
+description: NFT display and blockchain interaction in Decentraland. Use when the user wants NFTs, blockchain, wallet, smart contracts, Web3, or token gating. Do NOT use for player avatar data or emotes (see player-avatar).
 ---
 
 # NFT and Blockchain in Decentraland
@@ -65,6 +65,8 @@ npm install eth-connect
 
 Read operations (view/pure functions) don't require gas. Write operations prompt the player to sign and require gas.
 
+Wrap all async blockchain calls in `executeTask(async () => { ... })`. Handle errors gracefully — blockchain operations can fail (rejected by user, insufficient gas, network issues).
+
 ## Gas Price and Balance
 
 Use `requestManager.eth_gasPrice()` and `requestManager.eth_getBalance()` from `eth-connect` to check current gas prices and account ETH balances.
@@ -120,17 +122,5 @@ Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `ma
 | Sign a message | `crypto.ethereum.signMessageAdvanced()` |
 | Custom smart contract | `eth-connect` (see above) |
 | Authenticated API call | `signedFetch` (see above) |
-
-## Best Practices
-
-- **Always check `isGuest`** before any blockchain interaction -- guest players can't sign transactions
-- Use `executeTask(async () => { ... })` for all async blockchain calls
-- Store ABI files separately (e.g., `contracts/`) -- don't inline large ABIs
-- Handle errors gracefully -- blockchain operations can fail (rejected by user, insufficient gas, network issues)
-- `eth-connect` must be installed as a dependency: `npm install eth-connect`
-- Use `signedFetch` for backend authentication instead of raw `fetch` -- it proves the player's identity
-- Read operations (view/pure functions) don't require gas; write operations prompt the user to sign
-- Test on Sepolia before deploying to mainnet
-- NFT URNs are not limited to Ethereum mainnet: the chain segment (e.g. `matic`, `base`, `optimism`) is forwarded to Decentraland's OpenSea proxy, so any OpenSea-indexed NFT on a supported chain works
 
 For full code examples and implementation patterns, including the dcl-crypto-toolkit library API, see '{baseDir}/references/blockchain-patterns.md'.

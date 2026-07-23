@@ -1,6 +1,6 @@
 ---
 name: audio-analysis
-description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Renderer fills the component each frame; scenes copy values into a plain JS view via readIntoView/tryReadIntoView and drive entity scale, color, lights, materials, particles, or UI from amplitude (overall loudness) and bands[0..7] (low→high frequency bins). Use when the user asks for music visualizers, beat reactivity, audio-reactive scenes, equalizers, dancing lights, scaling cubes that pulse to music, audio-driven materials, or anything that should react to sound. Do NOT use to play sound (see audio-video) or to detect player-emitted audio (this reads only entity-attached AudioSource/AudioStream/VideoPlayer audio).
+description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Use when the user asks for music visualizers, beat reactivity, equalizers, or audio-reactive scenes. Do NOT use to play sound (see audio-video) or to detect player-emitted audio (this reads only entity-attached AudioSource/AudioStream/VideoPlayer audio).
 ---
 
 # AudioAnalysis
@@ -140,7 +140,7 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 ## Gotchas
 
-- \*\*Component ID is `1212`
+- **Component ID is `1212`.**
 - **`amplitudeGain` and `bandsGain` are no-ops in MODE_RAW.** Setting them won't error, but the renderer ignores them outside MODE_LOGARITHMIC.
 - **Output values can exceed `1.0`** with high gains or loud source material. Clamp downstream if you feed UI bars or alpha channels expecting `0..1`.
 - **Throttled updates.** The renderer runs analysis under a frame-time budget — values update each frame in normal conditions but can skip frames under heavy load. Drive smooth animations with `dt` interpolation rather than assuming a fixed update cadence.

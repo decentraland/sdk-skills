@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, system execution order & engine.addSystem priority (higher number runs earlier; default 100000), Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assert, assertComponentValue, deepCloseTo). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (movePlayerTo, teleport, emotes, external URLs), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -9,7 +9,7 @@ Cross-cutting runtime APIs available in every Decentraland SDK7 scene.
 
 ## Async Tasks
 
-The scene runtime is single-threaded. Wrap any async work in `executeTask()`:
+The scene runtime is single-threaded. Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
 
 ```typescript
 import { executeTask } from "@dcl/sdk/ecs";
@@ -66,17 +66,20 @@ executeTask(async () => {
   // Scene info: URN, content mappings, metadata JSON, baseUrl
   const scene = await getSceneInformation({});
   const metadata = JSON.parse(scene.metadataJson);
+  // metadata.scene?.parcels (parcel list), metadata.display?.title (scene title)
   console.log(scene.urn, scene.baseUrl, metadata);
 
-  // Realm info: baseUrl, realmName, isPreview, networkId, commsAdapter
+  // Realm info: baseUrl, realmName, isPreview, networkId (1 = mainnet, 5 = goerli), commsAdapter
   const realm = await getRealm({});
-  console.log(realm.realmInfo?.realmName, realm.realmInfo?.isPreview);
+  console.log(realm.realmInfo?.realmName, realm.realmInfo?.isPreview); // realmName e.g. "peer-us-1"
 
   // Explorer info: agent string, platform, configurations
   const explorer = await getExplorerInformation({});
   console.log(explorer.agent, explorer.platform);
 });
 ```
+
+Check `realm.realmInfo?.isPreview` to detect preview mode and gate debug features.
 
 ## World Time
 
@@ -91,7 +94,7 @@ executeTask(async () => {
 
 ## Read Deployed Files
 
-Read files deployed with the scene at runtime:
+Read files deployed with the scene at runtime — use it for data files like JSON configs or level data:
 
 ```typescript
 import { readFile } from "~system/Runtime";
@@ -143,7 +146,7 @@ engine.addSystem(lateSystem, 10);         // runs after regular systems
 
 ## Restricted Actions
 
-These require player interaction before they can execute. Import from `~system/RestrictedActions`:
+These require prior player interaction (e.g. a click) before they can execute. Import from `~system/RestrictedActions`:
 
 ```typescript
 import {
@@ -245,7 +248,7 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ## Utility: removeEntityWithChildren
 
-Recursively remove an entity and all its children:
+Recursively remove an entity and all its children — reach for this when cleaning up complex entity hierarchies:
 
 ```typescript
 import { removeEntityWithChildren } from "@dcl/sdk/ecs";
@@ -280,7 +283,7 @@ await exit({});
 ```
 
 - `spawn({ ens?, pid? })` → `SpawnResponse { pid, parentCid, name, ens? }`. Field is `ens`/`pid`, **not `urn`**.
-- `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
+- `kill({ pid })` returns `{ status: boolean }`; `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
 - The **host scene** must enable them in `scene.json`: `"featureToggles": { "portableExperiences": "enabled" }`. Values: `"enabled"` | `"disabled"` | `"hideUi"` (spawns PX but hides their UI). With `"disabled"`, `spawn()` is a no-op / rejected.
 
 ## Testing Framework
@@ -334,14 +337,9 @@ There is NO count assertion — count entities with `assertEquals(Array.from(eng
 
 **Running tests**: there is no CLI test command (`npx @dcl/sdk-commands test` does not exist). Tests execute only when the hosting runtime exposes the `~system/Testing` module — CI test runners or test-enabled explorers. In a normal preview the test runner is a no-op that just logs, and it's guarded behind DEBUG in production builds. Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
 
-## Best Practices
+## Logging
 
-- Always wrap async code in `executeTask()` or async functions — bare promises will be silently dropped
-- Use `signedFetch` (not plain `fetch`) when your backend needs to verify the player's identity
-- Check `realm.realmInfo?.isPreview` to detect preview mode and enable debug features
-- Use `readFile()` for data files (JSON configs, level data) deployed alongside the scene
-- `removeEntityWithChildren()` is essential when cleaning up complex entity hierarchies
-- Logging: only `console.log()` and `console.error()` are declared in the runtime — `console.warn()`, `.info()`, `.debug()`, `.trace()` are NOT available
+Only `console.log()` and `console.error()` are declared in the runtime — `console.warn()`, `.info()`, `.debug()`, `.trace()` are NOT available.
 
 ## Example scenes
 
@@ -353,4 +351,4 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
-For complete executeTask patterns, all RestrictedActions, realm detection, and portable experiences, see `{baseDir}/references/runtime-apis.md`.
+Full RestrictedActions reference — `triggerSceneEmote` (`_emote.glb` requirement), `setCommunicationsAdapter`, `movePlayerTo` rotate-in-place, predefined emote names — plus extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.

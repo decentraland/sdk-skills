@@ -40,7 +40,7 @@ ParticleSystem.create(entity, {
 		end: Color4.create(0.2, 0, 0, 0),
 	},
 	initialVelocitySpeed: { start: 1.5, end: 2.5 },
-	gravity: -0.3,
+	gravity: -0.3, // negative = rises
 	blendMode: PBParticleSystem_BlendMode.PSB_ADD,
 	billboard: true,
 	shape: ParticleSystem.Shape.Point(),

@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer. Covers loading, positioning, scaling, colliders, parenting, and browsing 8,800+ free assets from the OpenDCL model catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer, including 8,800+ free assets from the OpenDCL catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -20,6 +20,8 @@ Two models don't overlap just because their origins are different. Always verify
 ## RULE: Single-sided models — orient the rendered face toward players
 
 Many GLB models use back-face culling. The rendered face is typically toward local **-Z**. Y rotation transforms facing: 0deg -> south, 90deg -> east, 180deg -> north, 270deg -> west. When players approach from both sides, add a second copy rotated 180deg. Prefer double-sided geometry for elements visible from all angles.
+
+Decentraland uses a **Y-up** coordinate system — test model orientation after import: a model exported Z-up (common from Blender) loads tipped over and must be re-exported with "Y Up".
 
 ## RULE: Text labels must be in open air — no occlusion by geometry
 
@@ -92,7 +94,7 @@ Choose the mask based on role:
 
 ## RULE: Always validate entity positions against parcel bounds
 
-**Entities outside scene parcels are not rendered** — no error shown. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
+**Entities entirely outside scene parcels are not rendered** — no error shown; a model that straddles the boundary still renders the part that is inside. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
 
 ## Loading a 3D Model in TypeScript (dynamic entities only)
 
@@ -134,7 +136,6 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 - Use `.glb` format (binary GLTF) — smaller than `.gltf`
 - Optimize triangle count: aim for under 1,500 triangles per model for small props
 - Use texture atlases when possible to reduce draw calls
-- Test model orientation — Decentraland uses Y-up coordinate system
 - Materials in models should use PBR for best results
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.

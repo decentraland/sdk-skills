@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Dynamic lighting and environment in Decentraland scenes. LightSource (point and spot lights), shadows, SkyboxTime (day/night cycle), realm detection, and emissive materials for glow effects. Use when the user wants lights, shadows, skybox control, day-night cycle, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
+description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
 ---
 
 # Lighting and Environment in Decentraland
@@ -106,9 +106,12 @@ lightData.active = !lightData.active
 - Up to ~3 shadow-casting lights render at once.
 - The renderer auto-culls lights based on quality settings and proximity.
 - Intensity is in **candela** (lumens/m² at 1m, i.e. lumens/4π). Default `16000`.
-- `range` default is `-1` → auto-computed as `intensity^0.25` (fourth root, in meters). Set an explicit `range` to override.
+- `range` default is `-1` → auto-computed as `intensity^0.25` (fourth root, in meters). Set an explicit `range` to override — this also limits a light's influence and saves performance.
+- Spread lights out so few are near the player at once (only the closest ones render).
 
 ## SkyboxTime (Day/Night Cycle)
+
+Use SkyboxTime for atmosphere — nighttime scenes with point lights create dramatic environments.
 
 ### Fixed Time in scene.json
 
@@ -244,7 +247,7 @@ LightSource.create(spotEntity, {
 
 Constraints:
 - Shadows are only supported for **spot** lights; point lights do not cast shadows.
-- Max **3** shadow-casting lights rendered at a time.
+- Max **3** shadow-casting lights rendered at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
 - Shadow quality/culling is automatic, based on the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
 
 | Distance from player | Result |
@@ -257,16 +260,6 @@ Constraints:
 - Lights only render while the player is standing **inside** the scene; outside, they are not rendered.
 
 > **Need advanced material effects?** See the **advanced-rendering** skill for metallic, roughness, transparency, texture maps, texture tweens, and texture modes.
-
-## Best Practices
-
-- Keep the number of *simultaneously visible* lights low (only ~4–10 render) — spread lights out so few are near the player at once
-- Use emissive materials for decorative glow that doesn't need to illuminate surroundings
-- Combine emissive materials with LightSource for realistic light fixtures (lamp = emissive mesh + point light)
-- Use spot lights with shadows for dramatic effects (stage lighting, flashlights)
-- Keep shadow count low (max ~3 shadow-casting lights visible) — disable `shadow` on lights that don't need it
-- Set `range` on lights to limit their influence and save performance
-- Use `SkyboxTime` for atmosphere — nighttime scenes with point lights create dramatic environments
 
 ## Gotchas
 

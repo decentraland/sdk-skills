@@ -1,6 +1,6 @@
 ---
 name: animations-tweens
-description: Animate objects in Decentraland scenes. Play GLTF model animations with Animator (clip blending, weights, playSingleAnimation), create procedural motion with Tween (move/rotate/scale, continuous variants, texture UV scrolling), chain sequences with TweenSequence (loop, yoyo), and detect completion with tweenSystem.tweenCompleted. Use when the user wants to animate, move, rotate, spin, slide, bob, scroll a texture, or create motion effects. Do NOT use for audio/video playback (see audio-video), player emotes (see player-avatar), or physics-driven motion (see player-physics).
+description: Animate objects in Decentraland scenes. Play GLTF model animations with Animator, create procedural motion with Tween, chain sequences with TweenSequence. Use when the user wants to animate, move, rotate, scroll a texture, or create motion effects. Do NOT use for audio/video playback (see audio-video), player emotes (see player-avatar), or physics-driven motion (see player-physics).
 ---
 
 # Animations and Tweens in Decentraland
@@ -12,7 +12,7 @@ description: Animate objects in Decentraland scenes. Play GLTF model animations 
 | Play animation baked into a .glb model | `Animator`           | Character walks, door opens, flag waves — any animation from Blender/Maya     |
 | Move/rotate/scale an entity smoothly   | `Tween`              | Sliding doors, floating platforms, growing objects — procedural A-to-B motion |
 | Chain multiple animations in sequence  | `TweenSequence`      | Patrol paths, multi-step doors, complex choreography                          |
-| Continuous per-frame control           | `engine.addSystem()` | Physics-like motion, following a target, custom easing                        |
+| Continuous per-frame control           | `engine.addSystem()` | Physics-like motion, following a target, custom easing, input-driven user control |
 
 **Decision flow:**
 
@@ -158,7 +158,7 @@ The short-circuit avoids calling `getMutableOrNull()` on unchanged frames, elimi
 
 ## Tweens (Code-Based Animation)
 
-Animate entity properties smoothly over time. Create with `Tween.create(entity, { mode: Tween.Mode.Move/Rotate/Scale({start, end}), duration, easingFunction })`. Duration is in **milliseconds**. An entity can only have one Tween component at a time.
+Animate entity properties smoothly over time. Create with `Tween.create(entity, { mode: Tween.Mode.Move/Rotate/Scale({start, end}), duration, easingFunction })`. Duration is in **milliseconds** (1000 = 1 second). An entity can only have one Tween component at a time.
 
 **Helper methods** (create or replace Tween directly):
 
@@ -220,14 +220,6 @@ For complex animations, create a system with `engine.addSystem((dt) => { ... })`
 | Tween doesn't move                                  | Same start and end                                                                                                                                                       | Verify values differ in `Tween.Mode.Move()`                                                                                                                                                                        |
 | Tween plays once then stops                         | No loop                                                                                                                                                                  | Add `TweenSequence` with `loop: TweenLoop.TL_YOYO`                                                                                                                                                                 |
 | Animation jitters                                   | Creating Tween every frame                                                                                                                                               | Only create Tween once, not inside a system                                                                                                                                                                        |
-
-## Best Practices
-
-- Use Tweens for simple A-to-B animations (doors, platforms, UI elements)
-- Use Animator for character/model animations baked into GLTF files
-- Use Systems for continuous user control or physics-based animations
-- Tween durations are in **milliseconds** (1000 = 1 second)
-- For looping: use `TweenSequence` with `loop: TweenLoop.TL_RESTART`
 
 For full code examples (Animator setup, all tween types, sequences, helpers, texture scrolling), see `{baseDir}/references/animation-patterns.md`.
 

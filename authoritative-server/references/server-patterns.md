@@ -1,22 +1,10 @@
 # Multiplayer Server Patterns Reference
 
+Reusable server-wiring and architectural patterns that extend the `authoritative-server` SKILL. For conceptual rules and API essentials see `{baseDir}/SKILL.md`; for standalone feature code (validation patterns, messages, storage, env vars, player positions, heartbeat, performance) see `{baseDir}/references/auth-server-examples.md`.
+
 ## Complete Server Setup
 
-### Project Structure
-
-```
-src/
-├── index.ts              # Entry point — isServer() branching
-├── client/
-│   ├── setup.ts          # Client init, input handlers, message senders
-│   └── ui.tsx            # React ECS UI (reads synced state, sends messages)
-├── server/
-│   ├── server.ts         # Server init, game loop, message handlers
-│   └── gameState.ts      # Server state management
-└── shared/
-    ├── schemas.ts        # Custom component definitions + validateBeforeChange
-    └── messages.ts       # Message definitions via registerMessages()
-```
+Recommended project structure: see `{baseDir}/SKILL.md` → Recommended Project Structure.
 
 ### Entry Point (index.ts)
 
@@ -61,11 +49,14 @@ if (isServer()) {
   })
 }
 
-// For built-in components, use per-entity validation
+// Minimal structural type used by the helper below. The real callback receives
+// { entity, currentValue, newValue, senderAddress, createdBy } — this helper
+// only reads senderAddress so it widens to just that field.
 type ComponentWithValidation = {
   validateBeforeChange: (entity: Entity, cb: (value: { senderAddress: string }) => boolean) => void
 }
 
+// Per-entity validation for built-in components (Transform, GltfContainer, …).
 // Helper. Must only be invoked from inside isServer() — see server.ts.
 export function protectServerEntity(entity: Entity, components: ComponentWithValidation[]) {
   for (const component of components) {
@@ -77,6 +68,8 @@ export function protectServerEntity(entity: Entity, components: ComponentWithVal
 ```
 
 ### Shared Messages (shared/messages.ts)
+
+Canonical `registerMessages()` setup. Define schemas with `Schemas.Map(...)` (plain JS objects fail binary serialization). See `{baseDir}/SKILL.md` → Messages for the module-load timing rule.
 
 ```typescript
 import { Schemas } from '@dcl/sdk/ecs'
@@ -96,7 +89,7 @@ export const Messages = {
 export const room = registerMessages(Messages)
 ```
 
-### Server Logic (server/server.ts)
+### Server Logic (server.ts)
 
 ```typescript
 import { engine, PlayerIdentityData, Transform } from '@dcl/sdk/ecs'
@@ -108,7 +101,7 @@ export function initServer() {
   // Create server-managed entities
   const stateEntity = engine.addEntity()
   GameState.create(stateEntity, { phase: 'lobby', score: 0, timeRemaining: 60 })
-  protectServerEntity(stateEntity, [Transform])
+  protectServerEntity(stateEntity, [Transform]) // pass several components to protect them all, e.g. [Transform, GltfContainer]
   syncEntity(stateEntity, [GameState.componentId], 1)
 
   // Handle client messages
@@ -130,26 +123,6 @@ export function initServer() {
   engine.addSystem(gameLoopSystem)
 }
 ```
-
-## Authentication Flow
-
-The auth server automatically provides player identity via `PlayerIdentityData`:
-
-```typescript
-// Server reads actual player positions
-engine.addSystem(() => {
-  for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
-    const transform = Transform.getOrNull(entity)
-    if (!transform) continue
-
-    // identity.address = wallet address (verified by server)
-    // transform.position = actual player position (not client-reported)
-    console.log(`[Server] ${identity.address} at`, transform.position)
-  }
-})
-```
-
-Never trust client-reported positions. The server sees real positions via `PlayerIdentityData` + `Transform`.
 
 ## State Reconciliation
 
@@ -174,55 +147,11 @@ Because `validateBeforeChange` blocks client writes, clients can only read the s
 
 ## Storage Patterns
 
-### Scene Storage (Global Data, shared across all players)
+Basic `Storage` API usage (Scene + Player get/set/delete, boolean-checking) and the CLI commands are in `{baseDir}/references/auth-server-examples.md` → Storage. The concurrent host-call cap that makes over-frequent writes fail is documented under Server Resource Limits below. This section covers the **checkpoint persistence pattern** that follows from that cap.
 
-`Storage.set/get/delete` are top-level methods on `Storage` — there is no `Storage.world` namespace.
+### Persist at Checkpoints, Not on Every Change
 
-```typescript
-import { Storage } from '@dcl/sdk/server'
-
-// Save leaderboard
-await Storage.set('leaderboard', JSON.stringify([
-  { name: 'Alice', score: 100 },
-  { name: 'Bob', score: 85 }
-]))
-
-// Load leaderboard
-const data = await Storage.get<string>('leaderboard')
-const leaderboard = data ? JSON.parse(data) : []
-
-// Delete
-await Storage.delete('leaderboard')
-```
-
-### Player Storage (Per-Player Data)
-
-```typescript
-import { Storage } from '@dcl/sdk/server'
-
-// Save player progress
-await Storage.player.set(playerAddress, 'progress', JSON.stringify({
-  level: 5,
-  coins: 250,
-  achievements: ['first_kill', 'speedrun']
-}))
-
-// Load player progress
-const saved = await Storage.player.get<string>(playerAddress, 'progress')
-const progress = saved ? JSON.parse(saved) : { level: 1, coins: 0, achievements: [] }
-```
-
-**Note:** Storage only accepts strings. Always `JSON.stringify()` objects and `String()` numbers.
-
-**Local dev storage location:** `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`
-
-### Storage is Limited — Persist at Checkpoints, Not on Every Change
-
-The server isolate caps **in-flight host calls at 40** (`maxInflightHostCalls`, default 40, in `decentraland/hammurabi-headless`). The cap is **isolate-wide**: one counter shared by every host call the scene makes — `signedFetch`, runtime APIs, and each Storage request — not a per-Storage or storage-service queue. On breach the excess call **rejects** immediately with `Error('too many concurrent host calls')`; nothing is queued or retried. The SDK's Storage wrapper catches that rejection, logs a `console.error`, and resolves the call to **`false`** — `Storage.set` never throws, so an unchecked write fails silently and persisted state goes stale or is lost.
-
-**The failure is detectable**: `Storage.set` / `Storage.player.set` (and the `delete` variants) return `Promise<boolean>` — `false` means the write did not persist. Check the result and retry (or keep the key marked dirty) instead of discarding it.
-
-Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints.
+Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints. Over-frequent writes hit the isolate's in-flight host-call cap (see Server Resource Limits) and the excess `Storage.set` resolves to `false` — a silent, unchecked write loss.
 
 **Anti-pattern — write per event/tick:**
 ```typescript
@@ -258,25 +187,6 @@ async function flush() {
 
 Persist on: game over, player leaves, round end, or a periodic debounced save. Never persist on: every score change, every position update, every frame/tick.
 
-### CLI: Scene Storage
-
-```bash
-npx sdk-commands storage scene set high_score --value 100
-npx sdk-commands storage scene get high_score
-npx sdk-commands storage scene delete high_score
-npx sdk-commands storage scene clear --confirm
-```
-
-### CLI: Player Storage
-
-```bash
-npx sdk-commands storage player set level --value 10 --address 0x1234...
-npx sdk-commands storage player get level --address 0x1234...
-npx sdk-commands storage player delete level --address 0x1234...
-npx sdk-commands storage player clear --address 0x1234... --confirm
-npx sdk-commands storage player clear --confirm
-```
-
 ## Server Resource Limits
 
 The headless server runs each scene in a sandboxed V8 isolate with hard resource/DoS caps. Design scenes to stay well under these — several are enforced by **silently dropping** data or by **terminating the isolate** (killing the server for everyone in the scene). Numbers below are defaults; a scene cannot raise them.
@@ -296,57 +206,21 @@ Limits a scene creator can realistically hit and should design around:
 | Scene→comms message | **30,000 bytes** max | (separate transport guidance: keep synced messages under 13 KB — see SKILL.md) |
 | Live entities | **100,000** max | — (very unlikely to hit) |
 
+The in-flight host-call cap is **isolate-wide**: one counter (`maxInflightHostCalls`, default 40, in `decentraland/hammurabi-headless`) shared by every host call the scene makes — `signedFetch`, runtime APIs, and each Storage request — not a per-Storage or storage-service queue. On breach the excess call **rejects** immediately with `Error('too many concurrent host calls')`; nothing is queued or retried. The SDK's Storage wrapper (`@dcl/sdk/server`) catches that rejection (internally `wrapSignedFetch` converts it into an error tuple), logs a `console.error`, and resolves the call to **`false`** — `Storage.set` / `Storage.player.set` (and the `delete` variants) never throw, so an unchecked write fails silently and persisted state goes stale or is lost. Always check the boolean.
+
 Design implications:
 - **Storage**: keep working state in memory; persist only at checkpoints (see Storage Patterns above). Never `Storage.set` per event/tick, and always check the boolean it resolves to — `false` means the write did not persist.
 - **Memory**: in-memory state is the right place for working data, but it is not unbounded — 256 MB caps how much you can cache. Prune stale per-player state when players leave.
 - **CPU**: never run unbounded synchronous loops on the server; a single turn exceeding 10 s kills the isolate for all players. Spread heavy work across ticks with a dt-accumulator system.
 - **Messages**: throttle client→server sends; a peer exceeding 300 msgs/s has excess frames dropped (they are lost, not queued). Never send per-frame.
 
-Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The in-flight cap of 40 is `maxInflightHostCalls` (`HAMMURABI_MAX_INFLIGHT_HOST_CALLS`), enforced isolate-wide in the injected sandbox globals — it is NOT a storage-service limit; Storage requests simply count against it like every other host call. The "silent" failure mode is produced by the SDK (`@dcl/sdk/server`): `wrapSignedFetch` converts the rejection into an error tuple and `Storage.set` resolves to `false` after a `console.error`.
-
-## Environment Variables
-
-`EnvVar.get(key: string): Promise<string>` — always resolves to a string, returns `''` (empty string) when the variable isn't set or the fetch fails. Never `undefined`. The `|| 'fallback'` pattern works correctly because `'' || 'x'` evaluates to `'x'`.
-
-```typescript
-import { EnvVar } from '@dcl/sdk/server'
-
-// Read with defaults — empty string from a missing var triggers the fallback
-const maxPlayers = parseInt((await EnvVar.get('MAX_PLAYERS')) || '4')
-const gameDuration = parseInt((await EnvVar.get('GAME_DURATION')) || '300')
-const debugMode = ((await EnvVar.get('DEBUG')) || 'false') === 'true'
-```
-
-### Local Development (.env file)
-
-```
-MAX_PLAYERS=8
-GAME_DURATION=300
-DEBUG=true
-```
-
-### Production Deployment
-
-```bash
-npx sdk-commands storage env set MAX_PLAYERS --value 8
-npx sdk-commands storage env set GAME_DURATION --value 300
-npx sdk-commands storage env delete OLD_VAR
-```
-
-## scene.json Required Fields
-
-```json
-{
-  "logsPermissions": ["0xYourWalletAddress"]
-}
-```
-
-- `logsPermissions` — root-level array of wallet addresses authorized to read production server logs. Without it, server logs are hidden in production **even from the scene owner**.
-- `worldConfiguration.name` — only needed when deploying to a World (not required for Genesis City LAND)
+Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The in-flight cap of 40 is `maxInflightHostCalls` (`HAMMURABI_MAX_INFLIGHT_HOST_CALLS`), enforced isolate-wide in the injected sandbox globals — it is NOT a storage-service limit; Storage requests simply count against it like every other host call.
 
 ## Production Logs
 
-Stream live `console.log()` output from the deployed server to diagnose issues without redeploying.
+Stream live server-side `console.log()` output from the deployed server to diagnose issues without redeploying.
+
+Configure it with `logsPermissions` — a **root-level array of wallet addresses** in `scene.json` authorized to read production server logs. **Without it, server logs are hidden in production even from the scene owner.**
 
 ```bash
 # Genesis City LAND

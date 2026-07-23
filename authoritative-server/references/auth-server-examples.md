@@ -2,13 +2,8 @@
 
 ## Setup
 
-### Install auth-server SDK branch (MANDATORY)
-```bash
-npm install @dcl/sdk@auth-server
-npm install @dcl/js-runtime@auth-server
-```
+Install commands and the `authoritativeMultiplayer` auto-add behavior are documented in `{baseDir}/SKILL.md` → Setup. Canonical `scene.json` worked example:
 
-### scene.json Configuration
 ```json
 {
   "authoritativeMultiplayer": true,
@@ -16,25 +11,13 @@ npm install @dcl/js-runtime@auth-server
 }
 ```
 
-`authoritativeMultiplayer: true` (root-level) is what enables the headless server — without it `isServer()` never returns `true` and the scene runs as ordinary serverless CRDT. **It is auto-added**: the `@dcl/sdk@auth-server` sdk-commands writes it to `scene.json` on every build and preview (`bundle.ts` → `ensureJsonKey(..., 'authoritativeMultiplayer', true)`, only if absent), so you don't add it by hand — just don't remove it. `logsPermissions` is optional (only needed to read production server logs).
-
-`worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
+- `authoritativeMultiplayer: true` (root-level) enables the headless server; it is auto-added on every build and preview — do not remove it. See `{baseDir}/SKILL.md` → Setup.
+- `logsPermissions` (root-level array) is optional — only needed to read production server logs. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- `worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
 
 ## Server/Client Branching
 
-```typescript
-import { isServer } from '@dcl/sdk/network'
-
-export async function main() {
-  if (isServer()) {
-    const { server } = await import('./server/server')
-    server()
-    return
-  }
-  setupClient()
-  setupUi()
-}
-```
+The entry-point skeleton (`index.ts`) is in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Entry Point. Concept (branch a single codebase with `isServer()` from `@dcl/sdk/network`): `{baseDir}/SKILL.md` → Server/Client Branching.
 
 ## Validation Patterns
 
@@ -120,72 +103,15 @@ if (isServer()) {
 
 ## Custom Components (Global Validation)
 
-The component itself is defined at module scope so both server and client can import its `componentId` / type. **But the `validateBeforeChange()` call must be wrapped in `isServer()`** — both the per-entity and the no-entity (global) overloads produce errors on the client. Put the validate call inside `main()`/`initServer()` or inside an `if (isServer()) { ... }` block in the shared file.
-
-```typescript
-import { engine, Schemas } from '@dcl/sdk/ecs'
-import { isServer } from '@dcl/sdk/network'
-import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
-
-// Shared: component definition itself runs on both sides
-export const GameState = engine.defineComponent('game:State', {
-  phase: Schemas.String,
-  score: Schemas.Int,
-  timeRemaining: Schemas.Int,
-})
-
-// Server-only: register the validator inside an isServer() guard
-if (isServer()) {
-  GameState.validateBeforeChange((value) => {
-    // value: { entity, currentValue, newValue, senderAddress, createdBy }
-    return value.senderAddress === AUTH_SERVER_PEER_ID
-  })
-}
-```
+Defining a custom synced component at module scope and gating its writes with a global `validateBeforeChange()` inside `isServer()`: the canonical `GameState` + validator is in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Schemas (see also Pattern 1 above). Concept: `{baseDir}/SKILL.md` → Synced Components with Validation.
 
 ## Built-in Components (Per-Entity Validation)
 
-```typescript
-import { engine, Entity, Transform, GltfContainer } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-import { isServer } from '@dcl/sdk/network'
-import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
-
-// Minimal structural type used by the helper below. The real callback receives
-// { entity, currentValue, newValue, senderAddress, createdBy } — this helper
-// only reads senderAddress so it widens to just that field.
-type ComponentWithValidation = {
-  validateBeforeChange: (
-    entity: Entity,
-    cb: (value: { senderAddress: string }) => boolean
-  ) => void
-}
-
-function protectServerEntity(
-  entity: Entity,
-  components: ComponentWithValidation[]
-) {
-  for (const component of components) {
-    component.validateBeforeChange(entity, (value) => {
-      return value.senderAddress === AUTH_SERVER_PEER_ID
-    })
-  }
-}
-
-// Always call protectServerEntity() inside isServer() — it wraps
-// validateBeforeChange(), which only has meaning on the server.
-// Calling it on a client produces errors.
-if (isServer()) {
-  const entity = engine.addEntity()
-  Transform.create(entity, { position: Vector3.create(10, 5, 10) })
-  GltfContainer.create(entity, { src: 'assets/model.glb' })
-  protectServerEntity(entity, [Transform, GltfContainer])
-}
-```
+The `protectServerEntity()` helper and the per-entity `validateBeforeChange(entity, cb)` pattern for built-in components (Transform, GltfContainer) are in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Schemas. Always call the helper inside `isServer()` — `validateBeforeChange()` only has meaning on the server.
 
 ## Syncing Entities
 
-In an authoritative-server scene, **only the server calls `syncEntity()`** — guard with `isServer()`. The server creates the entity instance and clients get synced about it. This differs from serverless `multiplayer-sync`, where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors.
+In an authoritative-server scene, **only the server calls `syncEntity()`** — see `{baseDir}/SKILL.md` → Synced Components with Validation for the rule and rationale.
 
 ```typescript
 import { isServer, syncEntity } from '@dcl/sdk/network'
@@ -197,18 +123,14 @@ if (isServer()) {
 
 ## Messages
 
-### Define Messages
-```typescript
-import { Schemas } from '@dcl/sdk/ecs'
-import { registerMessages } from '@dcl/sdk/network'
+For the canonical `registerMessages()` pattern see `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Messages. The `room` object used below is defined with this example's own message set:
 
-export const Messages = {
+```typescript
+export const room = registerMessages({
   playerJoin: Schemas.Map({ displayName: Schemas.String }),
   playerAction: Schemas.Map({ actionType: Schemas.String, data: Schemas.Number }),
   gameEvent: Schemas.Map({ eventType: Schemas.String, playerName: Schemas.String }),
-}
-
-export const room = registerMessages(Messages)
+})
 ```
 
 ### Send Messages
@@ -348,19 +270,7 @@ engine.addSystem(joinActionRetrySystem)
 
 ## Schema Types Reference
 
-```typescript
-Schemas.String          // "hello"
-Schemas.Int             // 42
-Schemas.Float           // 3.14
-Schemas.Boolean         // true / false  (NOT Schemas.Bool)
-Schemas.Int64           // Date.now() / 13+ digit numbers
-Schemas.Vector3
-Schemas.Quaternion
-Schemas.Entity          // entity reference
-Schemas.Array(Schemas.String)
-Schemas.Optional(Schemas.String)
-Schemas.Map({ name: Schemas.String, hp: Schemas.Int })
-```
+The full schema-type list, with the verified `Schemas.Boolean` (not `Schemas.Bool`) and `Schemas.Int64`-for-timestamps notes, is in `{baseDir}/SKILL.md` → Schema Types Reference.
 
 ## Server Reading Player Positions
 
@@ -371,17 +281,19 @@ engine.addSystem(() => {
   for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
     const transform = Transform.getOrNull(entity)
     if (!transform) continue
-    const address = identity.address
-    const position = transform.position
+    const address = identity.address   // wallet address, verified by the server
+    const position = transform.position // actual player position (not client-reported)
   }
 })
 ```
+
+Never trust client-reported positions. The server sees real positions via `PlayerIdentityData` + `Transform`.
 
 ## Storage
 
 `Storage.set/get/delete` are top-level methods on `Storage` for scene-wide (global) values — there is no `Storage.world` namespace. `Storage.player.set/get/delete` is scoped by wallet address. Storage only accepts strings — `JSON.stringify()`/`JSON.parse()` for objects, `String()`/`parseInt()` for numbers. **Server-only** — guard with `isServer()`.
 
-`set` and `delete` resolve to a **boolean**: `false` means the operation did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it.
+`set` and `delete` resolve to a **boolean**: `false` means the operation did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it. For the persist-at-checkpoints pattern and the cap details, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
 
 ### Scene Storage (Global, shared across all players)
 ```typescript
@@ -423,11 +335,12 @@ npx sdk-commands storage player clear --confirm
 
 ## Environment Variables
 
-`EnvVar.get(key: string): Promise<string>` — always resolves to a string. Returns `''` (empty string) when the variable isn't set or the fetch fails; never returns `undefined`. The `|| 'fallback'` pattern still works because `'' || 'x'` evaluates to `'x'`.
+For `EnvVar.get` behavior (always-string return, `''` on unset or failed fetch, `|| 'fallback'` pattern) and concepts (secrets, write-only UI, live-tunable params) see `{baseDir}/SKILL.md` → Environment Variables.
 
 ```typescript
 import { EnvVar } from '@dcl/sdk/server'
 const maxPlayers = parseInt((await EnvVar.get('MAX_PLAYERS')) || '4')
+const gameDuration = parseInt((await EnvVar.get('GAME_DURATION')) || '300')
 const debugMode = ((await EnvVar.get('DEBUG')) || 'false') === 'true'
 ```
 
