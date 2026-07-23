@@ -1,6 +1,6 @@
 ---
 name: advanced-rendering
-description: Advanced rendering in Decentraland scenes. Billboard (face camera), TextShape (3D world text), PBR materials (metallic, roughness, transparency, emissive glow), GltfNodeModifiers (per-node shadow/material overrides), VisibilityComponent (show/hide entities), and texture modes. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
+description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PBR materials, GltfNodeModifiers, and VisibilityComponent. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
 ---
 
 # Advanced Rendering in Decentraland
@@ -96,6 +96,9 @@ TextShape.create(label, {
 })
 ```
 
+- Keep `fontSize` readable — 16-32 for in-world text.
+- Always add `outlineColor` and `outlineWidth` for legibility against any background.
+
 ### Text Alignment Options
 
 ```typescript
@@ -172,6 +175,8 @@ Material.setPbrMaterial(entity, {
 })
 ```
 
+- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed.
+
 ### Emissive (Glow Effects)
 
 ```typescript
@@ -190,6 +195,8 @@ Material.setPbrMaterial(entity, {
   emissiveColor: Color3.White()
 })
 ```
+
+- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility.
 
 ### Texture Maps
 
@@ -415,16 +422,6 @@ const src = Material.getFlatOrNull(entity)?.texture?.src
 // Mutate a texture in-place without knowing PBR vs Basic
 Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/Images/new.png' })
 ```
-
-## Best Practices
-
-- Use `BillboardMode.BM_Y` instead of `BM_ALL` — looks more natural and renders faster
-- Keep `fontSize` readable (16-32 for in-world text)
-- Add `outlineColor` and `outlineWidth` to TextShape for legibility against any background
-- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility
-- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed
-- Combine Billboard + TextShape for floating name labels above NPCs or objects
-- Use VisibilityComponent for LOD systems instead of removing/re-adding entities
 
 ## Example scenes
 

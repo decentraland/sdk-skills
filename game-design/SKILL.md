@@ -1,6 +1,6 @@
 ---
 name: game-design
-description: Plan and design Decentraland games and interactive experiences. Scene limit formulas, performance budgets, texture requirements, asset preloading, state management patterns (module-level, component-based, state machines), object pooling, UX/UI guidelines, input design, and MVP planning. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
+description: Plan and design Decentraland games and interactive experiences. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
 ---
 
 # Decentraland Game Design & Scene Optimization

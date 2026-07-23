@@ -1,6 +1,6 @@
 ---
 name: npcs
-description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB-based NPCs with built-in dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs dressed in wearables. Use when the user wants to add an NPC, character, shopkeeper, quest giver, guard, or any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
+description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB NPCs with dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs in wearables. Use when the user wants to add an NPC, shopkeeper, or quest giver — any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
 ---
 
 # NPCs in Decentraland

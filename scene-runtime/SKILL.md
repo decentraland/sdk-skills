@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Covers async work (executeTask), HTTP (fetch, signedFetch, getHeaders), WebSocket, timers (timers.setTimeout/clearTimeout/setInterval/clearInterval from @dcl/sdk/ecs — NEVER use the native JS setTimeout), realm/scene info (getRealm, getSceneInformation, getExplorerInformation), world time (getWorldTime), reading deployed files (readFile), EngineInfo frame timing, system execution order & engine.addSystem priority (higher number runs earlier; default 100000), Component.onChange listeners, removeEntityWithChildren, restricted actions (movePlayerTo, teleportTo, triggerEmote, openExternalUrl, openNftDialog, copyToClipboard, changeRealm, triggerSceneEmote), and the @dcl/sdk/testing framework (test, assertEquals, assert, assertComponentValue, deepCloseTo). Use when the user needs async, HTTP, WebSocket, timers, realm/scene metadata, restricted actions, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (movePlayerTo, teleport, emotes, external URLs), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -9,7 +9,7 @@ Cross-cutting runtime APIs available in every Decentraland SDK7 scene.
 
 ## Async Tasks
 
-The scene runtime is single-threaded. Wrap any async work in `executeTask()`:
+The scene runtime is single-threaded. Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
 
 ```typescript
 import { executeTask } from "@dcl/sdk/ecs";
@@ -77,6 +77,8 @@ executeTask(async () => {
   console.log(explorer.agent, explorer.platform);
 });
 ```
+
+Check `realm.realmInfo?.isPreview` to detect preview mode and gate debug features.
 
 ## World Time
 
@@ -334,14 +336,9 @@ There is NO count assertion — count entities with `assertEquals(Array.from(eng
 
 **Running tests**: there is no CLI test command (`npx @dcl/sdk-commands test` does not exist). Tests execute only when the hosting runtime exposes the `~system/Testing` module — CI test runners or test-enabled explorers. In a normal preview the test runner is a no-op that just logs, and it's guarded behind DEBUG in production builds. Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
 
-## Best Practices
+## Logging
 
-- Always wrap async code in `executeTask()` or async functions — bare promises will be silently dropped
-- Use `signedFetch` (not plain `fetch`) when your backend needs to verify the player's identity
-- Check `realm.realmInfo?.isPreview` to detect preview mode and enable debug features
-- Use `readFile()` for data files (JSON configs, level data) deployed alongside the scene
-- `removeEntityWithChildren()` is essential when cleaning up complex entity hierarchies
-- Logging: only `console.log()` and `console.error()` are declared in the runtime — `console.warn()`, `.info()`, `.debug()`, `.trace()` are NOT available
+Only `console.log()` and `console.error()` are declared in the runtime — `console.warn()`, `.info()`, `.debug()`, `.trace()` are NOT available.
 
 ## Example scenes
 

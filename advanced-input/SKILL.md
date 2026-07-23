@@ -1,11 +1,11 @@
 ---
 name: advanced-input
-description: System-level input polling and player movement control in Decentraland. Covers inputSystem (isTriggered/isPressed for held keys, WASD polling), InputModifier (freeze/restrict player movement), PointerLock (cursor capture detection), PrimaryPointerInfo (cursor screen coords and world ray), and number-key action bar patterns. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, or multi-key combo patterns. For event-driven clicks and hover on entities see add-interactivity.
+description: System-level input polling and player movement control in Decentraland. Covers inputSystem, InputModifier, PointerLock, and PrimaryPointerInfo. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, or multi-key combo patterns. For event-driven clicks and hover on entities see add-interactivity.
 ---
 
 # Advanced Input Handling in Decentraland
 
-For basic click/hover events, see the `add-interactivity` skill. This skill covers advanced input patterns.
+For basic click/hover events, see the `add-interactivity` skill. This skill covers advanced input patterns. Prefer `pointerEventsSystem.onPointerDown()` (add-interactivity) for simple entity clicks; use `inputSystem` for complex multi-key or polling patterns.
 
 ## Pointer Lock State
 
@@ -96,6 +96,8 @@ function myInputSystem() {
 
 engine.addSystem(myInputSystem)
 ```
+
+The returned command carries `hit` data (position and entity) — use `getInputCommand()` when you need to know what was clicked.
 
 Omit the entity argument to check globally (any entity / no target). Pass `InputAction.IA_ANY` to match any action — `getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` returns the command for whatever key was pressed, and `cmd.button` tells you which one (verified: `0,1-input-modifier`).
 
@@ -257,6 +259,8 @@ function customMovementSystem(dt: number) {
 engine.addSystem(customMovementSystem)
 ```
 
+WASD keys (`IA_FORWARD`, etc.) also control player movement — polling them reads the movement state but does not override it. To make WASD drive a custom entity instead of the avatar, freeze the avatar with `InputModifier`.
+
 ## Combining Input Patterns
 
 ### Action Bar with Number Keys
@@ -283,15 +287,6 @@ function actionBarSystem() {
 
 engine.addSystem(actionBarSystem)
 ```
-
-## Best Practices
-
-- Use `isTriggered()` for one-shot actions (fire weapon, open door) — it returns true only on the frame the key is first pressed
-- Use `isPressed()` for continuous actions (movement, holding a shield) — it returns true every frame while held
-- `getInputCommand()` gives hit data (position, entity) — use it when you need to know what was clicked
-- Prefer `pointerEventsSystem.onPointerDown()` for simple entity clicks — use `inputSystem` for complex multi-key or polling patterns
-- InputModifier only works in the DCL 2.0 desktop client — test with the desktop client if your scene relies on it
-- WASD keys (`IA_FORWARD`, etc.) also control player movement — polling them reads the movement state but doesn't override it
 
 ## Example scenes
 

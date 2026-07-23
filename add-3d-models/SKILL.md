@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer. Covers loading, positioning, scaling, colliders, parenting, and browsing 8,800+ free assets from the OpenDCL model catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer, including 8,800+ free assets from the OpenDCL catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -134,7 +134,6 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 - Use `.glb` format (binary GLTF) — smaller than `.gltf`
 - Optimize triangle count: aim for under 1,500 triangles per model for small props
 - Use texture atlases when possible to reduce draw calls
-- Test model orientation — Decentraland uses Y-up coordinate system
 - Materials in models should use PBR for best results
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.

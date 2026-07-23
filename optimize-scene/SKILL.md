@@ -1,6 +1,6 @@
 ---
 name: optimize-scene
-description: Optimize Decentraland scene performance. Scene limit formulas (triangles, entities, materials, textures, height per parcel count), object pooling, LOD patterns, texture optimization, system throttling, and asset preloading. Use when the user wants to optimize, improve performance, fix lag, reduce load time, check limits, or reduce entity/triangle count. Do NOT use for deployment (see deploy-scene).
+description: Optimize Decentraland scene performance. Scene limit formulas, object pooling, LOD patterns, texture optimization, system throttling, and asset preloading. Use when the user wants to optimize performance, fix lag, reduce load time, check limits, or reduce entity/triangle count. Do NOT use for deployment (see deploy-scene).
 ---
 
 # Optimizing Decentraland Scenes
@@ -233,11 +233,7 @@ Caveats:
 
 ## Loading Time Optimization
 
-- Lazy-load 3D models (load on demand, not all at scene start)
-- Use compressed .glb files (Draco compression)
-- Minimize total asset size
 - Use CDN URLs for large shared assets when possible
-- Do NOT preload assets needed at scene startup; use `AssetLoad` to preload assets needed later (appear on interaction or in a later phase) so they display instantly
 
 ### Loading Areas for Large Scenes
 

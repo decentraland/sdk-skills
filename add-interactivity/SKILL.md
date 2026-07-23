@@ -1,6 +1,6 @@
 ---
 name: add-interactivity
-description: Event-driven interactivity for Decentraland entities. Covers pointerEventsSystem (onPointerDown/Up/hover on entities), proximity events (onProximityDown/Up/Enter/Leave for nearby interactions without aiming), trigger areas (enter/exit zones), raycasting, and one-shot key presses on entities. Use when the user wants clickable objects, hover highlights, proximity-based interactions, detecting when a player enters a zone, E/F key actions on an entity, or ray-hit detection. For system-level polling (held keys, WASD movement, cursor lock, InputModifier, action bar) see advanced-input. For screen-space UI buttons see build-ui.
+description: Event-driven interactivity for Decentraland entities. Covers pointerEventsSystem, proximity events, trigger areas (enter/exit zones), raycasting, and one-shot key presses on entities. Use when the user wants clickable objects, hover highlights, proximity-based interactions, detecting when a player enters a zone, E/F key actions on an entity, or ray-hit detection. For system-level polling (held keys, WASD movement, cursor lock, InputModifier, action bar) see advanced-input. For screen-space UI buttons see build-ui.
 ---
 
 # Adding Interactivity to Decentraland Scenes
@@ -63,7 +63,7 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 ## Pointer Events (Click / Hover)
 
-Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Remove with `.removeOnPointerDown(entity)` etc.
+Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range, and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
 
 ### Feedback options: `showFeedback` gates `hoverText`
 
@@ -266,6 +266,8 @@ PITFALL: `RaycastQueryType.RQT_HIT_FIRST` picks the **first** hit in range, **no
 
 Listen for key presses anywhere (not entity-specific) using `inputSystem.isTriggered()` (just pressed this frame) and `inputSystem.isPressed()` (currently held) inside an `engine.addSystem()`. Use `inputSystem.getInputCommand()` for entity-specific input via system.
 
+Design for both desktop and mobile — mobile has no keyboard, so rely on pointer events and on-screen UI buttons rather than key presses.
+
 ## Cursor State
 
 Read pointer lock with `PointerLock.get(engine.CameraEntity).isPointerLocked`. Get cursor position and world ray with `PrimaryPointerInfo.get(engine.RootEntity)`.
@@ -273,16 +275,6 @@ Read pointer lock with `PointerLock.get(engine.CameraEntity).isPointerLocked`. G
 ## Toggle Pattern
 
 Common pattern: track state in a module-level boolean, flip it in the click handler, and update the entity accordingly.
-
-## Best Practices
-
-- Always set `maxDistance` on pointer events (8-16m is typical)
-- Always set `hoverText` so users know what outcome their interaction will have
-- Clean up handlers when entities are removed
-- Use `MeshCollider` for invisible trigger surfaces
-- For complex interactions, use a system with state tracking
-- Set `continuous: false` on raycasts unless you need per-frame results
-- Design for both desktop and mobile — mobile has no keyboard, rely on pointer and on-screen buttons
 
 ## Example scenes
 

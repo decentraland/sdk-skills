@@ -1,6 +1,6 @@
 ---
 name: authoritative-server
-description: Build multiplayer Decentraland scenes with a headless Multiplayer Server. Covers isServer() branching, registerMessages() for client-server communication, validateBeforeChange() for server-only state, Storage (scene-wide and per-player persistence), EnvVar (environment variables), and project structure. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
+description: Build multiplayer Decentraland scenes with a headless Multiplayer Server. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
 ---
 
 # Multiplayer Server
@@ -34,7 +34,7 @@ The validator callback receives `{ entity, currentValue, newValue, senderAddress
 
 Use `isPreview()` from `@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils` (sync, no args, returns `boolean`) to relax validation during local development. The deep `dist/...` import path is the only working one — the package has no top-level re-export.
 
-**Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`. Both forms must be wrapped in `isServer()`.
+**Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`.
 
 After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`. **In an authoritative-server scene, only the server should call `syncEntity()`** — wrap the call in `if (isServer())`. The server creates and shares the entity instance; all clients receive the sync. This is different from the `multiplayer-sync` pattern (serverless), where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors, and avoiding client-side calls also removes the need to worry about entity-id consistency across peers.
 
@@ -128,16 +128,8 @@ Client and server always move together (paired by hash). Existing players keep t
 - **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
 - **Storage inspection**: Check local JSON file or [decentraland.org/storage](https://decentraland.org/storage)
-- **Timers**: use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` — never the native JS globals. Prefer `engine.addSystem()` with dt accumulator for game logic
+- **Timers & sandbox**: QuickJS sandbox — no Node.js APIs (`fs`, `http`, etc.). Use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` for delays — never the native JS globals. Prefer `engine.addSystem()` with dt accumulator for game logic
 - **Entity sync**: Verify `syncEntity(entity, [componentIds])` with correct `.componentId` values
-
-## Important Notes
-
-- **SDK branch (MANDATORY)**: Requires `@dcl/sdk@auth-server`, not standard `@dcl/sdk`
-- **No Node.js APIs**: QuickJS sandbox — no `fs`, `http`, etc. For delays, use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` (not the native JS globals)
-- **Single codebase**: Both server and client run the same entry point, branched with `isServer()`
-- **Server sleeps when empty**: Code defensively with retry logic and `Storage` for persistence
-- For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill
 
 ## Example scenes
 

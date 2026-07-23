@@ -1,6 +1,6 @@
 ---
 name: audio-video
-description: Add sound effects, music, audio streaming, and video players to Decentraland scenes. Covers AudioSource (local files, spatial audio, pitch), AudioStream (streaming URLs, MediaState polling), VideoPlayer (video on meshes or GLBs), VideoState events, spatial min/max distances, and ALLOW_MEDIA_HOSTNAMES permissions. Use when the user wants sound, music, audio, video screens, radio, live streams, or media playback. Do NOT use for player emotes (see player-avatar) or screen-space UI sounds (sounds attach to entities, not UI).
+description: Add sound effects, music, audio streaming, and video players to Decentraland scenes with AudioSource, AudioStream, and VideoPlayer. Use when the user wants sound, music, video screens, radio, live streams, or media playback. Do NOT use for player emotes (see player-avatar) or screen-space UI sounds (sounds attach to entities, not UI).
 ---
 
 # Audio and Video in Decentraland
@@ -40,7 +40,7 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
@@ -52,6 +52,8 @@ AudioSource.stopSound(entity)                            // stops, resets cursor
 ```
 
 Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
+
+Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
@@ -102,19 +104,10 @@ For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStre
 ## Video Limits & Tips
 
 - **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. Maximum 5 simultaneous videos.
+- **HTTPS required**: Video sources must be HTTPS URLs — HTTP won't work
 - **Distance-based control**: Pause video when player is far away to save bandwidth
 - **Supported formats**: `.mp4` (H.264), `.webm`, HLS (`.m3u8`) for live streaming
 - **Live streaming**: Use HLS (`.m3u8`) URLs — most reliable across clients
-
-## Important Notes
-
-- Audio files must be in the project's directory (relative paths from project root)
-- Video requires HTTPS URLs — HTTP won't work
-- Players must interact with the scene (click) before audio can play (browser autoplay policy)
-- Keep audio files small — large files increase scene load time
-- Use `.mp3` for music and `.ogg` for sound effects (smaller file sizes)
-- For live video streaming, use HLS (.m3u8) URLs when possible
-- If an audio file needs to be ready to play as the player interacts, use the `AssetLoad` component to pre-load the asset
 
 ## Example scenes
 

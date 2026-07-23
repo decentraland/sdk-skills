@@ -1,6 +1,6 @@
 ---
 name: composites
-description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Covers the file structure, entity ID allocation, component grouping, jsonSchema rules, authoring-from-scratch vs edit mode (`inspector::Nodes`), and referencing composite entities from TypeScript with getEntityOrNullByName and getEntitiesByTag. Use when creating or editing a main.composite file, or when other skills point to the composite reference. For scaffolding a whole scene project see create-scene."
+description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Use when creating or editing a main.composite file, or when other skills point to the composite reference. For scaffolding a whole scene project see create-scene."
 ---
 
 # Composites

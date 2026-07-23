@@ -1,6 +1,6 @@
 ---
 name: audio-analysis
-description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Renderer fills the component each frame; scenes copy values into a plain JS view via readIntoView/tryReadIntoView and drive entity scale, color, lights, materials, particles, or UI from amplitude (overall loudness) and bands[0..7] (low→high frequency bins). Use when the user asks for music visualizers, beat reactivity, audio-reactive scenes, equalizers, dancing lights, scaling cubes that pulse to music, audio-driven materials, or anything that should react to sound. Do NOT use to play sound (see audio-video) or to detect player-emitted audio (this reads only entity-attached AudioSource/AudioStream/VideoPlayer audio).
+description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Use when the user asks for music visualizers, beat reactivity, equalizers, or audio-reactive scenes. Do NOT use to play sound (see audio-video) or to detect player-emitted audio (this reads only entity-attached AudioSource/AudioStream/VideoPlayer audio).
 ---
 
 # AudioAnalysis

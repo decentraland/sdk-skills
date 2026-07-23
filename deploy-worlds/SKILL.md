@@ -1,6 +1,6 @@
 ---
 name: deploy-worlds
-description: Deploy a Decentraland scene to a World (personal 3D space using a DCL NAME or ENS domain). Covers worldConfiguration setup, Places listing opt-out, and common deployment errors. Use when the user wants to deploy to a World, publish to a personal space, or use a DCL NAME/ENS domain. Do NOT use for Genesis City LAND deployment (see deploy-scene).
+description: Deploy a Decentraland scene to a World (personal 3D space using a DCL NAME or ENS domain). Use when the user wants to deploy to a World or use a DCL NAME/ENS domain. Do NOT use for Genesis City LAND deployment (see deploy-scene).
 ---
 
 # Deploying to Decentraland Worlds

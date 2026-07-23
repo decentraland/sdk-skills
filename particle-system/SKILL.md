@@ -1,6 +1,6 @@
 ---
 name: particle-system
-description: Emit particles (fire, smoke, sparks, snow, magic, fireworks) from an entity in a Decentraland SDK7 scene with the ParticleSystem component. Covers emitter shapes (Point, Sphere, Cone, Box), continuous rate vs Burst emission, lifetime/size/color/velocity ranges, gravity and additionalForce, blend modes (ALPHA/ADD/MULTIPLY), billboard and faceTravelDirection, sprite-sheet texture animation, simulation space (local vs world), playback state, and per-scene particle budget. Use when the user asks for particles, sparks, fire, smoke, dust, fog, fireworks, magic effects, snowfall, rain, embers, trails, or atmospheric effects. Do NOT use for procedural entity motion (see animations-tweens), GLTF model effects (see add-3d-models), or 2D UI effects (see build-ui).
+description: Emit particles (fire, smoke, snow, fireworks, magic, trails) from an entity in a Decentraland SDK7 scene with the ParticleSystem component. Do NOT use for procedural entity motion (see animations-tweens), GLTF model effects (see add-3d-models), or 2D UI effects (see build-ui).
 ---
 
 # ParticleSystem (SDK7)
@@ -218,7 +218,6 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Performance
 
-- Cap each system with `maxParticles`. Total scene budget across all systems is ~1000 particles.
 - Keep `lifetime * rate` low; that product is the steady-state live count.
 - Disable systems out of view via `playbackState = PS_STOPPED` or `active = false`.
 - Prefer `PSB_ALPHA` for opaque/translucent effects. `PSB_ADD` is best for glow/fire (it stacks visually) but multi-layer additive overdraw is the most expensive case.

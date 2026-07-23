@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), fetch avatar appearance for ANY wallet address (catalyst /lambdas/profile endpoint, for off-scene users like parcel owners or NFT holders), trigger emotes (triggerEmote, triggerSceneEmote), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points for cosmetics, OR parent to engine.CameraEntity for aim-sensitive held items like guns/reticles/flashlights that need to track camera pitch, OR parent to engine.PlayerEntity for yaw-only body-fixed items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, off-scene avatar data, emotes, wearables, attaching items to players (cosmetic items vs held gameplay items), or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -48,6 +48,8 @@ function trackPlayer() {
 engine.addSystem(trackPlayer)
 ```
 
+Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame.
+
 ### Distance-Based Logic
 
 ```typescript
@@ -85,6 +87,8 @@ function main() {
 
 - `userId` — the player's Ethereum wallet address (or guest ID)
 - `isGuest` — `true` if the player hasn't connected a wallet
+
+Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
 
 ## Profile Data for Off-Scene Users (Catalyst)
 
@@ -130,6 +134,8 @@ AvatarAttach.create(hat, {
 	anchorPointId: AvatarAnchorPointType.AAPT_NAME_TAG,
 })
 ```
+
+`AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves.
 
 > **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
 
@@ -284,7 +290,6 @@ triggerSceneEmote({
 
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
-- Custom emote files **must** end with the `_emote.glb` suffix (case-insensitive) — scenes that ignore this may work in preview but break once deployed
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
 - Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
 
@@ -350,7 +355,9 @@ AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking on avatars to see p
 AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the area
 ```
 
-`modifiers` is an array — combine several, e.g. `[AMT_HIDE_AVATARS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected; mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+`modifiers` is an array — combine several, e.g. `[AMT_HIDE_AVATARS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+
+`AMT_HIDE_AVATARS` is useful for private rooms or single-player puzzle areas.
 
 ## Avatar Locomotion Settings
 
@@ -508,17 +515,6 @@ Beyond the commonly used anchor points, the full list includes:
 - `AvatarAnchorPointType.AAPT_NECK` — neck bone
 
 > **Need to check the player's wallet before showing avatar items?** See the **nft-blockchain** skill for wallet checks with `getPlayer()` and `isGuest`.
-
-## Best Practices
-
-- Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame
-- Use `getPlayer()` to check `isGuest` before attempting wallet-dependent features
-- `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves
-- Custom emote files **must** be named with the `_emote.glb` suffix (case-insensitive) — without it, `triggerSceneEmote` may work in `npm run start` preview but silently fail in the deployed scene. Rename the file on disk, don't just rename the reference.
-- Use `AvatarModifierArea` with `AMT_HIDE_AVATARS` for private rooms or single-player puzzle areas
-- Add `excludeIds` to modifier areas when you want specific players (like the scene owner) to remain visible
-- **Never mutate the player's Transform** (`Transform.getMutable`, `Transform.createOrReplace`, direct `.position` / `.rotation` assignment on `engine.PlayerEntity`) — the engine silently ignores it. Code compiles and runs but the avatar does not move. Use `movePlayerTo` for teleports/slides, or `Physics.*` (skill: `player-physics`) for forces (lift, knockback, push, wind).
-- `Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only
 
 ## Example scenes
 
