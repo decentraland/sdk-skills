@@ -94,7 +94,7 @@ Choose the mask based on role:
 
 ## RULE: Always validate entity positions against parcel bounds
 
-**Entities outside scene parcels are not rendered** — no error shown. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
+**Entities entirely outside scene parcels are not rendered** — no error shown; a model that straddles the boundary still renders the part that is inside. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
 
 ## Loading a 3D Model in TypeScript (dynamic entities only)
 
