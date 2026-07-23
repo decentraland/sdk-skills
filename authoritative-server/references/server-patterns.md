@@ -218,7 +218,11 @@ const progress = saved ? JSON.parse(saved) : { level: 1, coins: 0, achievements:
 
 ### Storage is Limited — Persist at Checkpoints, Not on Every Change
 
-The storage service caps **in-flight requests at 40** and is **rate-limited**. Forcing too many concurrent requests saturates the queue and **silently drops** some of them — persisted state goes stale or is lost. Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints.
+The server isolate caps **in-flight host calls at 40** (`maxInflightHostCalls`, default 40, in `decentraland/hammurabi-headless`). The cap is **isolate-wide**: one counter shared by every host call the scene makes — `signedFetch`, runtime APIs, and each Storage request — not a per-Storage or storage-service queue. On breach the excess call **rejects** immediately with `Error('too many concurrent host calls')`; nothing is queued or retried. The SDK's Storage wrapper catches that rejection, logs a `console.error`, and resolves the call to **`false`** — `Storage.set` never throws, so an unchecked write fails silently and persisted state goes stale or is lost.
+
+**The failure is detectable**: `Storage.set` / `Storage.player.set` (and the `delete` variants) return `Promise<boolean>` — `false` means the write did not persist. Check the result and retry (or keep the key marked dirty) instead of discarding it.
+
+Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints.
 
 **Anti-pattern — write per event/tick:**
 ```typescript
@@ -242,11 +246,13 @@ room.onMessage('claimPoint', (data, context) => {
 
 // Debounced flush: run periodically (e.g. every ~30s via a dt-accumulator system),
 // and always flush the relevant key at real checkpoints (game over, player leaves).
+// set() resolves false when the write failed (e.g. host-call cap hit) — keep the
+// key dirty so the next flush retries it instead of losing the update.
 async function flush() {
   for (const address of dirty) {
-    await Storage.player.set(address, 'score', String(scores[address]))
+    const ok = await Storage.player.set(address, 'score', String(scores[address]))
+    if (ok) dirty.delete(address)
   }
-  dirty.clear()
 }
 ```
 
@@ -279,8 +285,7 @@ Limits a scene creator can realistically hit and should design around:
 
 | Limit | Value | Enforcement on breach |
 |---|---|---|
-| Storage in-flight requests | **40** concurrent | excess requests silently dropped (persisted state stale/lost) |
-| Storage rate limit | rate-limited (service-side) | throttled/dropped when exceeded |
+| In-flight host calls (isolate-wide, incl. Storage) | **40** concurrent | excess call rejects (`too many concurrent host calls`); SDK resolves `Storage.set` to `false` |
 | Isolate memory | **256 MB** ceiling | isolate disposed (server dies) |
 | Sync execution per turn | **10,000 ms** wall-clock | overrun terminates & disposes the isolate |
 | Async turn settle | **60,000 ms** | overrun terminates & disposes the isolate |
@@ -292,12 +297,12 @@ Limits a scene creator can realistically hit and should design around:
 | Live entities | **100,000** max | — (very unlikely to hit) |
 
 Design implications:
-- **Storage**: keep working state in memory; persist only at checkpoints (see Storage Patterns above). Never `Storage.set` per event/tick.
+- **Storage**: keep working state in memory; persist only at checkpoints (see Storage Patterns above). Never `Storage.set` per event/tick, and always check the boolean it resolves to — `false` means the write did not persist.
 - **Memory**: in-memory state is the right place for working data, but it is not unbounded — 256 MB caps how much you can cache. Prune stale per-player state when players leave.
 - **CPU**: never run unbounded synchronous loops on the server; a single turn exceeding 10 s kills the isolate for all players. Spread heavy work across ticks with a dt-accumulator system.
 - **Messages**: throttle client→server sends; a peer exceeding 300 msgs/s has excess frames dropped (they are lost, not queued). Never send per-frame.
 
-Source: `decentraland/hammurabi-headless` Resource / DoS limits (isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The storage in-flight (40) and storage rate limit are enforced at the storage-service layer (authoritative, per Decentraland team), separate from the isolate host-call caps.
+Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The in-flight cap of 40 is `maxInflightHostCalls` (`HAMMURABI_MAX_INFLIGHT_HOST_CALLS`), enforced isolate-wide in the injected sandbox globals — it is NOT a storage-service limit; Storage requests simply count against it like every other host call. The "silent" failure mode is produced by the SDK (`@dcl/sdk/server`): `wrapSignedFetch` converts the rejection into an error tuple and `Storage.set` resolves to `false` after a `console.error`.
 
 ## Environment Variables
 

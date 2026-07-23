@@ -381,11 +381,14 @@ engine.addSystem(() => {
 
 `Storage.set/get/delete` are top-level methods on `Storage` for scene-wide (global) values — there is no `Storage.world` namespace. `Storage.player.set/get/delete` is scoped by wallet address. Storage only accepts strings — `JSON.stringify()`/`JSON.parse()` for objects, `String()`/`parseInt()` for numbers. **Server-only** — guard with `isServer()`.
 
+`set` and `delete` resolve to a **boolean**: `false` means the operation did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it.
+
 ### Scene Storage (Global, shared across all players)
 ```typescript
 import { Storage } from '@dcl/sdk/server'
 
-await Storage.set('leaderboard', JSON.stringify(leaderboardData))
+const ok = await Storage.set('leaderboard', JSON.stringify(leaderboardData))
+if (!ok) { /* write failed — retry later or surface it, do not assume it saved */ }
 const data = await Storage.get<string>('leaderboard')
 if (data) { const leaderboard = JSON.parse(data) }
 await Storage.delete('oldKey')
@@ -395,9 +398,10 @@ await Storage.delete('oldKey')
 ```typescript
 import { Storage } from '@dcl/sdk/server'
 
-await Storage.player.set(playerAddress, 'highScore', String(score))
-const saved = await Storage.player.get<string>(playerAddress, 'highScore')
-const highScore = saved ? parseInt(saved) : 0
+const saved = await Storage.player.set(playerAddress, 'highScore', String(score))
+if (!saved) { /* write failed — keep the value dirty and retry at the next flush */ }
+const raw = await Storage.player.get<string>(playerAddress, 'highScore')
+const highScore = raw ? parseInt(raw) : 0
 await Storage.player.delete(playerAddress, 'highScore')
 ```
 
