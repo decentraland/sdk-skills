@@ -109,6 +109,8 @@ Read every source file. Build a list of:
 - Every `Camera.instance`, `Input.instance` — these become static engine entities + component reads.
 - All `setParent` calls — these become `Transform.parent` field assignments.
 
+This list is the completion checklist for steps 5–10 — each of those steps is done only when every item in its category has been ported and its SDK6 symbols no longer appear in the source.
+
 ### 2. Replace `package.json`, `tsconfig.json`, and update `scene.json`
 
 - Replace `decentraland-ecs` with `@dcl/sdk` (latest).
@@ -134,7 +136,7 @@ SDK6 scenes commonly kept assets in **top-level folders at the project root**: `
    - `Material.Texture.Common({ src: 'textures/logo.png' })` → `... 'assets/Images/logo.png'`
    - React-ECS `<UiEntity uiBackground={{ texture: { src: 'images/icon.png' } }} />` → `... 'assets/Images/icon.png'`
    - Any string literal mentioning the old folder name anywhere in code, JSON, or `.composite` files.
-5. **Verify** by grepping the project for the old folder names — there should be zero remaining references. Then check Creator Hub: open the scene, the asset tree should populate from `assets/`.
+5. **Done when:** grepping the project for the old folder names returns zero remaining references, and opening the scene in Creator Hub shows the asset tree populated from `assets/`.
 
 **Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these when the user imports assets through the UI), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type — don't fragment.
 
@@ -153,32 +155,49 @@ export function main() {
 
 Convert each `@Component` class to `engine.defineComponent(name, schema, defaults)`. **Flatten nested types** — `Schemas` does not support arbitrary classes, but does support `Schemas.Vector3`, `Schemas.Quaternion`, primitives, arrays, and nested `Schemas.Map(...)`. A `Vector2` field in SDK6 typically becomes two scalar fields (`posX`, `posY`) in SDK7 — see the 2048 example in `{baseDir}/references/migration-example.md`.
 
+**Done when:** `grep -rn "@Component(" src/` returns zero hits and every component on the step-1 audit list has a corresponding `engine.defineComponent` call.
+
 ### 6. Port systems
 
 Each `class X implements ISystem { update(dt) {...} }` becomes a free function. Replace `engine.getComponentGroup(A, B).entities` iteration with `for (const [entity, a, b] of engine.getEntitiesWith(A, B))`. Inside the loop, use `.getMutable(entity)` only when writing.
 
+**Done when:** `grep -rnE "implements ISystem|getComponentGroup" src/` returns zero hits and every system on the step-1 audit list is registered via `engine.addSystem`.
+
 ### 7. Port the entity/component setup (the bulk of `game.ts`)
 
 For each `new Entity()` block, replace with `engine.addEntity()` and a series of `Component.create(entity, ...)` calls. Convert `setParent` to a `parent` field on the Transform. Use the new `assets/Models/...`, `assets/Audio/...`, `assets/Images/...` paths established in step 3 for every `src` / `audioClipUrl` / `texture.src`.
+
+**Done when:** `grep -rnE "new Entity\(|\.addComponent\(|\.setParent\(" src/` returns zero hits, and no `src` / `audioClipUrl` / texture path still references a pre-step-3 folder.
 
 ### 8. Port input/pointer handlers
 
 - Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`. Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`). See [[add-interactivity]].
 - Global key subscriptions (`Input.instance.subscribe`) → use `inputSystem.isTriggered(InputAction.IA_X, PointerEventType.PET_DOWN)` inside a system. See [[advanced-input]].
 
+**Done when:** `grep -rnE "OnPointerDown|OnPointerUp|Input\.instance|ActionButton\." src/` returns zero hits and every handler on the step-1 audit list has a `pointerEventsSystem` or `inputSystem` counterpart.
+
 ### 9. Port animations
 
 `new Animator()` + `new AnimationState('clip')` + `animator.addClip(...)` becomes a single `Animator.create(entity, { states: [{ clip, playing, loop }] })`. Play with `Animator.playSingleAnimation(entity, 'clip')`. Stop all with `Animator.stopAllAnimations(entity)`. See [[animations-tweens]].
+
+**Done when:** `grep -rnE "new Animator|AnimationState|addClip|getClip" src/` returns zero hits, and every clip name that appears in an SDK6 `playAnimation` / `getClip` call is listed in some `states[]` array — clips missing from `states[]` fail silently (see the `playSingleAnimation` pitfall in **Common Pitfalls**).
 
 ### 10. Port sounds
 
 `new AudioClip(url)` + `entity.addComponent(new AudioSource(clip))` becomes `AudioSource.create(entity, { audioClipUrl: url, playing: false, ... })`. Play by toggling `AudioSource.getMutable(entity).playing = true`. See [[audio-video]].
 
+**Done when:** `grep -rnE "new AudioClip|new AudioSource\(" src/` returns zero hits.
+
 ### 11. Verify and test
 
-- Run `npm install` to fetch the new SDK.
-- Run `sdk-commands start` (or `npm start`) and check the in-world result.
-- Compare positions/rotations against the SDK6 scene — the visible layout must match.
+Run `npm install` to fetch the new SDK, then `sdk-commands start` (or `npm start`). The migration is complete only when ALL of these hold:
+
+1. `npm run build` exits 0.
+2. A final sweep `grep -rnE "decentraland-ecs|@Component\(|implements ISystem|Input\.instance|Camera\.instance" src/` returns zero hits — per-step greps get missed when work is interrupted and resumed; this is the end-to-end check.
+3. The preview loads with no errors in the console.
+4. The visible layout (positions/rotations) matches the SDK6 scene.
+
+If any check fails, return to the step that owns that symbol category — do NOT report the migration as done.
 
 ## Common Pitfalls
 
