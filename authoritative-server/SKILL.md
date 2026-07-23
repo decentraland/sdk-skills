@@ -13,7 +13,7 @@ Build multiplayer Decentraland scenes where a **headless server** controls game 
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), but you do **not** add it manually: the `@dcl/sdk@auth-server` sdk-commands **auto-adds it on every build and preview** (`bundle.ts` writes `authoritativeMultiplayer: true` to `scene.json` via `ensureJsonKey`, only if absent — it also auto-adds a `server-logs` script to `package.json`). The rule is simply: **do not remove it.** Optionally add `logsPermissions` (array of wallet addresses) at the **root** of `scene.json` to authorize viewing production server logs — without it, server logs are hidden in production **even from the scene owner**. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), but you do **not** add it manually: the `@dcl/sdk@auth-server` sdk-commands **auto-adds it on every build and preview** (`bundle.ts` writes `authoritativeMultiplayer: true` to `scene.json` via `ensureJsonKey`, only if absent — it also auto-adds a `server-logs` script to `package.json`). The rule is simply: **do not remove it.** Optionally add `logsPermissions` (root-level array of wallet addresses) to authorize reading production server logs — see `{baseDir}/references/server-patterns.md` → Production Logs. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 
@@ -74,7 +74,7 @@ Persist data across server restarts. **Server-only** — guard with `isServer()`
 
 Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objects. Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
 
-**IMPORTANT — storage writes are capped, do NOT write on every change/tick**: The server isolate caps **in-flight host calls at 40** (`maxInflightHostCalls` in `hammurabi-headless`, isolate-wide — shared by ALL host calls: `signedFetch`, runtime APIs, and every Storage request). A scene that fires a `Storage.set` per score change / per event / per tick will hit the cap: the excess call **rejects** with `too many concurrent host calls`, and the SDK's Storage wrapper catches that rejection, logs a `console.error`, and resolves `Storage.set` to **`false`** — so an unchecked write fails silently and persisted state ends up stale or lost. **`Storage.set`/`Storage.player.set` return `Promise<boolean>` — check it** (`false` = the write did not persist; retry or surface it). Keep live/working state **in memory** (faster and correct for a server) and persist to Storage only at meaningful checkpoints: game over, player leaves, or a periodic debounced save. Persist only data that must survive server restarts/deploys. See `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
+**IMPORTANT — storage writes are capped, do NOT write on every change/tick**: A scene that fires a `Storage.set` per score change / per event / per tick hits the isolate's shared in-flight host-call cap; the excess write fails **silently** — the SDK resolves it to **`false`** rather than throwing. **`Storage.set`/`Storage.player.set` return `Promise<boolean>` — check it** (`false` = the write did not persist; retry or surface it). Keep live/working state **in memory** (faster and correct for a server) and persist to Storage only at meaningful checkpoints: game over, player leaves, or a periodic debounced save. Persist only data that must survive server restarts/deploys. For the cap mechanism and the checkpoint pattern, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
 
 **Live storage web UI** ([decentraland.org/storage](https://decentraland.org/storage), also reachable from Creator Hub **Manage** → three dots next to a published place → **View Storage**). Three tabs — **Scene**, **Player**, **Environment**. Edits apply to the running scene **live, without republishing**:
 - **Scene** tab: view/edit/delete the shared variables (leaderboard, door state). Handy for tweaking live values, e.g. resetting a leaderboard.
@@ -82,7 +82,7 @@ Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objec
 
 ## Environment Variables
 
-Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → **Environment** tab (or Creator Hub → Manage → three dots → **View Storage**).
+Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set or the fetch fails (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → **Environment** tab (or Creator Hub → Manage → three dots → **View Storage**).
 - **Right place for secrets** (private keys, reward/claim codes, API keys) — the values only ever exist on the server, never reach the client or the published scene code.
 - **Write-only in the UI**: you can add, overwrite, or delete a variable, but you **cannot read the current value back** (intentional, to protect secrets).
 - Also ideal for **live-tunable game parameters / feature flags** (match duration, max player count) you want to adjust on the running scene without republishing.
@@ -93,8 +93,8 @@ Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): 
 src/
 ├── index.ts              # Entry point — isServer() branching
 ├── client/
-│   ├── setup.ts          # Client initialization, message handlers
-│   └── ui.tsx            # React ECS UI reading synced state
+│   ├── setup.ts          # Client init, input handlers, message senders
+│   └── ui.tsx            # React ECS UI (reads synced state, sends messages)
 ├── server/
 │   ├── server.ts         # Server init, systems, message handlers
 │   └── gameState.ts      # Server state management class

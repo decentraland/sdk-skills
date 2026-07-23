@@ -23,7 +23,7 @@ function trackCamera() {
 engine.addSystem(trackCamera)
 ```
 
-`engine.CameraEntity` is read-only — never write to its Transform. To move a camera under scene control, drive a VirtualCamera instead (see "Following an NPC").
+`engine.CameraEntity` is read-only — never write to its Transform. To move a camera under scene control, drive a VirtualCamera instead (see VirtualCamera below).
 
 ## Camera Mode Detection
 
@@ -148,38 +148,11 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 
 **Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
 
+You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
+
 ## Tracking Camera Position
 
-Poll camera position each frame for camera-triggered events:
-
-```typescript
-import { engine, Transform } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-let lastNotifiedZone = ''
-
-function cameraZoneSystem() {
-	if (!Transform.has(engine.CameraEntity)) return
-
-	const camPos = Transform.get(engine.CameraEntity).position
-	let currentZone = ''
-
-	if (camPos.y > 10) {
-		currentZone = 'sky'
-	} else if (camPos.x < 4) {
-		currentZone = 'west'
-	} else {
-		currentZone = 'center'
-	}
-
-	if (currentZone !== lastNotifiedZone) {
-		lastNotifiedZone = currentZone
-		console.log('Camera entered zone:', currentZone)
-	}
-}
-
-engine.addSystem(cameraZoneSystem)
-```
+Poll camera position each frame by reading `Transform.get(engine.CameraEntity).position` inside a system. For a full worked zone-tracking system (`cameraZoneSystem`), see `{baseDir}/references/camera-patterns.md` → "Tracking Camera Position (camera zone system)".
 
 ## Camera and Colliders
 
@@ -227,46 +200,10 @@ GltfContainer.create(myEntity2, {
 
 ## Common Patterns
 
-### Camera-Triggered Events
+For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 
-Use the camera position to trigger actions when the player looks at a specific area:
-
-```typescript
-function cameraLookTrigger() {
-	const camTransform = Transform.get(engine.CameraEntity)
-	const targetPos = Vector3.create(8, 2, 8)
-	const distance = Vector3.distance(camTransform.position, targetPos)
-
-	if (distance < 5) {
-		// Player is close — check if camera is pointing at target
-		// Use raycasting for precise look detection (see add-interactivity skill)
-	}
-}
-
-engine.addSystem(cameraLookTrigger)
-```
-
-### Following an NPC
-
-Move camera to track an NPC by updating a VirtualCamera's Transform:
-
-```typescript
-function followNpcCamera(dt: number) {
-	const npcPos = Transform.get(npcEntity).position
-	const camTransform = Transform.getMutable(cinematicCam)
-
-	// Position camera behind and above the NPC
-	camTransform.position = Vector3.create(
-		npcPos.x - 2,
-		npcPos.y + 3,
-		npcPos.z - 2
-	)
-}
-
-engine.addSystem(followNpcCamera)
-```
-
-You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
+- **Camera-Triggered Events** — use camera position/proximity to trigger actions when the player looks at an area.
+- **Following an NPC (camera-follows-NPC)** — track an NPC by driving a VirtualCamera's Transform each frame (guardrail on why this works lives in the VirtualCamera section above).
 
 > **Freezing player during cutscenes?** Combine VirtualCamera with `InputModifier` from the **advanced-input** skill to prevent player movement during cinematic sequences.
 

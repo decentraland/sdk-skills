@@ -66,11 +66,12 @@ executeTask(async () => {
   // Scene info: URN, content mappings, metadata JSON, baseUrl
   const scene = await getSceneInformation({});
   const metadata = JSON.parse(scene.metadataJson);
+  // metadata.scene?.parcels (parcel list), metadata.display?.title (scene title)
   console.log(scene.urn, scene.baseUrl, metadata);
 
-  // Realm info: baseUrl, realmName, isPreview, networkId, commsAdapter
+  // Realm info: baseUrl, realmName, isPreview, networkId (1 = mainnet, 5 = goerli), commsAdapter
   const realm = await getRealm({});
-  console.log(realm.realmInfo?.realmName, realm.realmInfo?.isPreview);
+  console.log(realm.realmInfo?.realmName, realm.realmInfo?.isPreview); // realmName e.g. "peer-us-1"
 
   // Explorer info: agent string, platform, configurations
   const explorer = await getExplorerInformation({});
@@ -145,7 +146,7 @@ engine.addSystem(lateSystem, 10);         // runs after regular systems
 
 ## Restricted Actions
 
-These require player interaction before they can execute. Import from `~system/RestrictedActions`:
+These require prior player interaction (e.g. a click) before they can execute. Import from `~system/RestrictedActions`:
 
 ```typescript
 import {
@@ -282,7 +283,7 @@ await exit({});
 ```
 
 - `spawn({ ens?, pid? })` → `SpawnResponse { pid, parentCid, name, ens? }`. Field is `ens`/`pid`, **not `urn`**.
-- `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
+- `kill({ pid })` returns `{ status: boolean }`; `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
 - The **host scene** must enable them in `scene.json`: `"featureToggles": { "portableExperiences": "enabled" }`. Values: `"enabled"` | `"disabled"` | `"hideUi"` (spawns PX but hides their UI). With `"disabled"`, `spawn()` is a no-op / rejected.
 
 ## Testing Framework
@@ -350,4 +351,4 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
-For complete executeTask patterns, all RestrictedActions, realm detection, and portable experiences, see `{baseDir}/references/runtime-apis.md`.
+Full RestrictedActions reference — `triggerSceneEmote` (`_emote.glb` requirement), `setCommunicationsAdapter`, `movePlayerTo` rotate-in-place, predefined emote names — plus extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.

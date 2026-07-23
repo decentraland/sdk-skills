@@ -101,34 +101,7 @@ The returned command carries `hit` data (position and entity) — use `getInputC
 
 Omit the entity argument to check globally (any entity / no target). Pass `InputAction.IA_ANY` to match any action — `getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` returns the command for whatever key was pressed, and `cmd.button` tells you which one (verified: `0,1-input-modifier`).
 
-Best practice: use the Tag component to mark all entities that share a same interaction, then iterate over them in a system.
-
-```typescript
-import { engine, inputSystem, InputAction, PointerEventType, Tags } from '@dcl/sdk/ecs'
-
-function myInputSystem() {
-
-  // fetch entities with a particular tag
-  const taggedEntities = engine.getEntitiesByTag('myTag')
-  
-  // iterate over those entities
-	for (const entity of taggedEntities) {
-         // Check for click on a specific entity
-        const clickData = inputSystem.getInputCommand(
-          InputAction.IA_POINTER,
-          PointerEventType.PET_DOWN,
-          entity
-        )
-
-        if (clickData) {
-          console.log('Entity clicked via system:', clickData.hit.entityId)
-        }
-    }
-
-}
-
-engine.addSystem(myInputSystem)
-```
+For the Tag-based per-entity cookbook (mark entities with a Tag, fetch them with `engine.getEntitiesByTag`, and poll each with `getInputCommand` inside a system), see `{baseDir}/references/input-patterns.md` → "Per-Entity Input Command Cookbook (Tag-based)".
 
 
 
@@ -218,77 +191,15 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 ### Cutscene Pattern
 
-Freeze the player during a cinematic sequence:
-
-```typescript
-function startCutscene() {
-  // Freeze player
-  InputModifier.create(engine.PlayerEntity, {
-    mode: InputModifier.Mode.Standard({ disableAll: true })
-  })
-
-  // ... play cinematic with VirtualCamera ...
-
-  // After cutscene ends, restore movement
-  // InputModifier.deleteFrom(engine.PlayerEntity)
-}
-```
+For the worked cutscene flow (freeze the player with `disableAll` during a cinematic, then restore movement with `InputModifier.deleteFrom`), see `{baseDir}/references/input-patterns.md` → "Cutscene Pattern (freeze player during a cinematic)".
 
 ## WASD Movement Pattern
 
-Poll movement keys to control custom entities:
-
-```typescript
-import { engine, inputSystem, InputAction, PointerEventType, Transform } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-const MOVE_SPEED = 5
-
-function customMovementSystem(dt: number) {
-  const transform = Transform.getMutable(controllableEntity)
-  let moveX = 0
-  let moveZ = 0
-
-  if (inputSystem.isPressed(InputAction.IA_FORWARD)) moveZ += 1
-  if (inputSystem.isPressed(InputAction.IA_BACKWARD)) moveZ -= 1
-  if (inputSystem.isPressed(InputAction.IA_LEFT)) moveX -= 1
-  if (inputSystem.isPressed(InputAction.IA_RIGHT)) moveX += 1
-
-  transform.position.x += moveX * MOVE_SPEED * dt
-  transform.position.z += moveZ * MOVE_SPEED * dt
-}
-
-engine.addSystem(customMovementSystem)
-```
-
-WASD keys (`IA_FORWARD`, etc.) also control player movement — polling them reads the movement state but does not override it. To make WASD drive a custom entity instead of the avatar, freeze the avatar with `InputModifier`.
+For the WASD-driven custom-entity pattern (poll `IA_FORWARD`/`IA_BACKWARD`/`IA_LEFT`/`IA_RIGHT` with `isPressed` to move a `Transform`, plus the note on freezing the avatar with `InputModifier` and how polling WASD relates to player movement), see `{baseDir}/references/input-patterns.md` → "WASD Movement Pattern (drive a custom entity)".
 
 ## Combining Input Patterns
 
-### Action Bar with Number Keys
-
-```typescript
-function actionBarSystem() {
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_3, PointerEventType.PET_DOWN)) {
-    console.log('Slot 1 activated')
-    useAbility(1)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_4, PointerEventType.PET_DOWN)) {
-    console.log('Slot 2 activated')
-    useAbility(2)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_5, PointerEventType.PET_DOWN)) {
-    console.log('Slot 3 activated')
-    useAbility(3)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_6, PointerEventType.PET_DOWN)) {
-    console.log('Slot 4 activated')
-    useAbility(4)
-  }
-}
-
-engine.addSystem(actionBarSystem)
-```
+For the action-bar / number-key pattern (map `IA_ACTION_3`–`IA_ACTION_6` to ability slots via `isTriggered`), see `{baseDir}/references/input-patterns.md` → "Action Bar with Number Keys".
 
 ## Example scenes
 
@@ -299,5 +210,9 @@ Engine-team test scenes exercising these APIs (ground truth):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — reading `PrimaryPointerInfo` (screen coords/delta/worldRayDirection) each frame; feeding `worldRayDirection` into a camera raycast.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — WASD-driven controllable camera via `isPressed(IA_FORWARD/...)`; toggling InputModifier alongside a VirtualCamera.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — system-based per-entity click via `getEntitiesWith(Cube, PointerEvents)` + `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
+
+## References
+
+- `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
 
 For basic pointer events and click handlers, see the `add-interactivity` skill.

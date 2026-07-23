@@ -112,49 +112,28 @@ Multiple bursts in one cycle = staggered ignition pattern (fireworks).
 
 ## Common patterns
 
-```typescript
-// 1. Fire ember — Point + ADD blend, slight upward drift
-const fire = engine.addEntity()
-Transform.create(fire, { position: Vector3.create(8, 1, 8) })
-ParticleSystem.create(fire, {
-	rate: 40,
-	lifetime: 2,
-	maxParticles: 200,
-	initialSize: { start: 0.1, end: 0.3 },
-	sizeOverTime: { start: 1.0, end: 0.0 }, // shrink to nothing
-	initialColor: {
-		start: Color4.create(1, 0.6, 0.1, 1),
-		end: Color4.create(1, 0.2, 0, 1),
-	},
-	colorOverTime: {
-		start: Color4.create(1, 0.5, 0.1, 1),
-		end: Color4.create(0.2, 0, 0, 0),
-	},
-	initialVelocitySpeed: { start: 1.5, end: 2.5 },
-	gravity: -0.3, // negative = rises
-	blendMode: PBParticleSystem_BlendMode.PSB_ADD,
-	shape: ParticleSystem.Shape.Point(),
-})
+Anatomy of a `ParticleSystem` definition — attach to an entity that also has a `Transform`:
 
-// 2. One-shot burst — explosion/pickup VFX
-ParticleSystem.create(entity, {
-	loop: false,
-	rate: 0,
-	lifetime: 3,
-	maxParticles: 150,
-	initialSize: { start: 0.1, end: 0.25 },
-	sizeOverTime: { start: 1.0, end: 0.0 },
-	initialVelocitySpeed: { start: 2, end: 4 },
-	shape: ParticleSystem.Shape.Sphere({ radius: 0.5 }),
-	bursts: {
-		values: [
-			{ time: 0, count: 100, cycles: 1, interval: 0.01, probability: 1.0 },
-		],
+```typescript
+const emitter = engine.addEntity()
+Transform.create(emitter, { position: Vector3.create(8, 1, 8) })
+ParticleSystem.create(emitter, {
+	rate: 20, // particles per second
+	lifetime: 2, // seconds each particle lives
+	maxParticles: 100,
+	initialSize: { start: 0.1, end: 0.3 }, // FloatRange sampled per particle
+	sizeOverTime: { start: 1.0, end: 0.0 }, // shrink to nothing over lifetime
+	initialVelocitySpeed: { start: 1, end: 2 },
+	colorOverTime: {
+		// fade out via alpha = 0 at end
+		start: Color4.create(1, 1, 1, 1),
+		end: Color4.create(1, 1, 1, 0),
 	},
+	shape: ParticleSystem.Shape.Point(), // emitter geometry
 })
 ```
 
-For 17 production-ready presets (fire ember, magic aura, snowfall, vortex, fountain, bat swarm, lightning sparks, heavy rain, asteroid trail, fireworks, campfire, moving trail, etc.), see `{baseDir}/references/particle-presets.md`.
+For full production-ready configurations, see `{baseDir}/references/particle-presets.md` — 17 presets: Fire Ember, Magic Aura, Snowfall, Vortex Spiral, Gravity Fountain, Bat Swarm, Tumbling Leaves, Lightning Sparks, Heavy Rain, One-Shot Burst, Asteroid Trail, Purple Swirl, Bee Swarm, Fireworks Loop, Campfire, Flame Wisps, Moving Trail. The explosion/pickup VFX (Point/Cone + ADD fire, one-shot Sphere burst) all live there — e.g. **Fire Ember** (preset 1), the **One-Shot Burst** explosion (preset 10), and looping **Fireworks Loop** (preset 14).
 
 ## Playback control
 
