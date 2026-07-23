@@ -93,7 +93,7 @@ executeTask(async () => {
 
 ## Read Deployed Files
 
-Read files deployed with the scene at runtime:
+Read files deployed with the scene at runtime — use it for data files like JSON configs or level data:
 
 ```typescript
 import { readFile } from "~system/Runtime";
@@ -247,7 +247,7 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ## Utility: removeEntityWithChildren
 
-Recursively remove an entity and all its children:
+Recursively remove an entity and all its children — reach for this when cleaning up complex entity hierarchies:
 
 ```typescript
 import { removeEntityWithChildren } from "@dcl/sdk/ecs";

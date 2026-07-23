@@ -127,7 +127,7 @@ SDK6 scenes commonly kept assets in **top-level folders at the project root**: `
    - `audio/` or `sounds/` → `assets/Audio/`
    - `videos/` → `assets/Videos/`
    - `textures/` → `assets/Images/` (textures are images; consolidate unless the user wants a separate folder)
-3. **Move** files into the new structure. Do NOT leave duplicate copies — delete the old top-level folders once the move is complete. Dual copies cause Creator Hub to index stale paths and inflate scene size on deploy.
+3. **Move** files into the new structure. Do NOT leave duplicate copies — delete the old top-level folders once the move is complete. Dual copies cause Creator Hub to index stale paths and roughly double scene size on deploy (both copies get bundled).
 4. **Rewrite every code reference** to the moved paths. Grep the entire source tree for the old folder names and update each hit:
    - `GltfContainer.create(e, { src: 'models/chair.glb' })` → `... { src: 'assets/Models/chair.glb' }`
    - `AudioSource.create(e, { audioClipUrl: 'sounds/click.mp3' })` → `... 'assets/Audio/click.mp3'`

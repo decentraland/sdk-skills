@@ -136,6 +136,8 @@ engine.addSystem(myInputSystem)
 
 Check if a specific key was pressed, regardless of if the player's cursor was pointing at an entity or not.
 
+Use `isTriggered()` for one-shot actions (fire a weapon, open a door) — it returns true only on the frame the key is first pressed. Use `isPressed()` for continuous actions (movement, holding a shield) — it returns true every frame while held.
+
 ```typescript
 function globalInputSystem() {
   // Was the key just pressed this frame?
@@ -212,7 +214,7 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 **Standard flags** (all optional booleans; verified `input_modifier.gen.d.ts`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent (both seen in test scenes).
 
-**Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer.
+**Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer — test with the desktop client if your scene relies on it.
 
 ### Cutscene Pattern
 

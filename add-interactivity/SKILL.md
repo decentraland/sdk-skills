@@ -252,7 +252,7 @@ Four direction modes: local direction (relative to entity rotation), global dire
 
 **Callback-based** (recommended): `raycastSystem.registerLocalDirectionRaycast()`, `.registerGlobalDirectionRaycast()`, `.registerGlobalTargetRaycast()`, `.registerTargetEntityRaycast()`. Remove with `.removeRaycasterEntity()`.
 
-**Component-based**: Create `Raycast` component, read `RaycastResult` in a system. Set `continuous: false` for one-shot, `true` for per-frame. Fields (verified `77,-1-raycast-unit-tests`): `direction: { $case: 'localDirection'|'globalDirection'|'globalTarget'|'targetEntity', ... }`, `originOffset`, `maxDistance`, `queryType`, `continuous`, `timestamp`. `RaycastResult` (added a frame later) contains `globalOrigin`, a normalized `direction`, `hits[]`, `timestamp`, and `tickNumber`.
+**Component-based**: Create `Raycast` component, read `RaycastResult` in a system. Set `continuous: false` unless you genuinely need per-frame results (`true` re-casts every frame and costs accordingly). Fields (verified `77,-1-raycast-unit-tests`): `direction: { $case: 'localDirection'|'globalDirection'|'globalTarget'|'targetEntity', ... }`, `originOffset`, `maxDistance`, `queryType`, `continuous`, `timestamp`. `RaycastResult` (added a frame later) contains `globalOrigin`, a normalized `direction`, `hits[]`, `timestamp`, and `tickNumber`.
 
 **Ray origin respects the world transform:** the ray starts at the entity's world position (parent chain applied) plus `originOffset`, so a raycast entity nested under moved/scaled parents casts from its resolved world pose. `localDirection` is rotated by the entity's world rotation; `globalDirection` ignores it.
 
@@ -275,6 +275,8 @@ Read pointer lock with `PointerLock.get(engine.CameraEntity).isPointerLocked`. G
 ## Toggle Pattern
 
 Common pattern: track state in a module-level boolean, flip it in the click handler, and update the entity accordingly.
+
+For complex interactions (multi-step sequences, cooldowns, several entities reacting to shared state), move beyond a single boolean: track state in a module-level object or custom component and drive updates from a system.
 
 ## Example scenes
 

@@ -111,6 +111,8 @@ lightData.active = !lightData.active
 
 ## SkyboxTime (Day/Night Cycle)
 
+Use SkyboxTime for atmosphere — nighttime scenes with point lights create dramatic environments.
+
 ### Fixed Time in scene.json
 
 Set a permanent time of day without code. Two valid locations:

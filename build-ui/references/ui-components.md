@@ -199,7 +199,7 @@ export function setupUi() {
 }
 ```
 
-**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls (joystick, chat, profile, interaction button) — keep those clear manually by placing UI away from the left side, top-right, and bottom-right of the canvas on mobile.
+**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls — keep those clear manually on mobile: the joystick sits on the left, the chat/profile/camera buttons on the top-right, and the interaction button on the bottom-right of the canvas.
 
 ## InteractableArea (Client-UI-Safe Region)
 

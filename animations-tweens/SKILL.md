@@ -12,7 +12,7 @@ description: Animate objects in Decentraland scenes. Play GLTF model animations 
 | Play animation baked into a .glb model | `Animator`           | Character walks, door opens, flag waves — any animation from Blender/Maya     |
 | Move/rotate/scale an entity smoothly   | `Tween`              | Sliding doors, floating platforms, growing objects — procedural A-to-B motion |
 | Chain multiple animations in sequence  | `TweenSequence`      | Patrol paths, multi-step doors, complex choreography                          |
-| Continuous per-frame control           | `engine.addSystem()` | Physics-like motion, following a target, custom easing                        |
+| Continuous per-frame control           | `engine.addSystem()` | Physics-like motion, following a target, custom easing, input-driven user control |
 
 **Decision flow:**
 
