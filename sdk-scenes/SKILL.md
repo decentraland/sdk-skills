@@ -114,7 +114,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Screen-Space UI
 
-**Skill: `build-ui`** — React ECS components for 2D in-world UI: layout, text, images, buttons, inputs.
+**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
 
 ### Audio & Video
 
@@ -138,7 +138,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Script Components (Creator Hub)
 
-**Skill: `script-components`** — Writing `.tsx` script files for the Creator Hub Script component, constructor parameters, `@action()` decorators.
+**Skill: `script-components`** — Writing `.ts` script files for the Creator Hub Script component, constructor parameters, `@action` JSDoc tags (never decorator syntax).
 
 ### Async, HTTP, WebSocket, Timers
 

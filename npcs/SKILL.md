@@ -47,7 +47,7 @@ const npcEntity = npc.create(
 )
 ```
 
-For full dialogue scripting, movement paths, state machines, and all config options, see **`libraries/npc.mdc`** — it covers:
+For full dialogue scripting, movement paths, state machines, and all config options, see **`{baseDir}/references/npc-library.mdc`** — it covers:
 - Dialogue types (talk, button choices, NPC responses)
 - Walking to positions and following paths
 - State management (quest giver, guard, shop patterns)

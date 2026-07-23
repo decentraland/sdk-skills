@@ -103,7 +103,7 @@ For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStre
 
 ## Video Limits & Tips
 
-- **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. Maximum 5 simultaneous videos.
+- **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. The maximum depends on each player's quality setting (as low as 1 on Low quality — see the Video Limits table in `{baseDir}/references/media-reference.md`), so treat 1 as the only safe floor.
 - **HTTPS required**: Video sources must be HTTPS URLs — HTTP won't work
 - **Distance-based control**: Pause video when player is far away to save bandwidth
 - **Supported formats**: `.mp4` (H.264), `.webm`, HLS (`.m3u8`) for live streaming

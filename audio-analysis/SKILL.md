@@ -140,7 +140,7 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 ## Gotchas
 
-- \*\*Component ID is `1212`
+- **Component ID is `1212`.**
 - **`amplitudeGain` and `bandsGain` are no-ops in MODE_RAW.** Setting them won't error, but the renderer ignores them outside MODE_LOGARITHMIC.
 - **Output values can exceed `1.0`** with high gains or loud source material. Clamp downstream if you feed UI bars or alpha channels expecting `0..1`.
 - **Throttled updates.** The renderer runs analysis under a frame-time budget — values update each frame in normal conditions but can skip frames under heavy load. Drive smooth animations with `dt` interpolation rather than assuming a fixed update cadence.
