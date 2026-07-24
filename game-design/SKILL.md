@@ -197,6 +197,8 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 ## 10. Game Loop Archetypes
 
+> **Implementations for these loops live in the `game-mechanics` skill** — wave spawners, turn/grid managers, economy/upgrades, status effects, combat AI, and quiz/card/battle UI. This section covers the design fit; go there for the code.
+
 ### Exploration
 - **Core loop**: Discover locations, find hidden items, unlock areas.
 - **DCL fit**: Excellent. The 3D world and spatial navigation are strengths.
@@ -289,6 +291,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 | Topic | Skill | When to Use |
 |---|---|---|
+| Reusable mechanic systems (waves, turns/grid, economy, status effects, combat AI, quiz/card/battle UI) | **game-mechanics** | Implementing the moving parts of a game after the design is set |
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls |
