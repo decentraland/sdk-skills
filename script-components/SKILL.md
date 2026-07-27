@@ -25,7 +25,7 @@ Every script is a single exported class with:
 
 - A **constructor** that receives configurable parameters (exposed in the Creator Hub UI).
 - An optional **`start()`** method, called once when the scene loads.
-- An optional **`update(dt: number)`** method, called every frame (see "When scripts run" below for ordering — by default scripts update *after* all regular systems).
+- An optional **`update(dt: number)`** method, called every frame (~30 FPS; see "When scripts run" below for ordering — by default scripts update *after* all regular systems).
 
 The first two constructor parameters must always be `public src: string` and `public entity: Entity` — do not remove or reorder them.
 

@@ -264,9 +264,29 @@ After customizing the files:
 1. Use the `preview` tool to start the preview server (or run `npx @dcl/sdk-commands start --bevy-web` manually)
 2. The scene will open in a browser at http://localhost:8000
 
+### Preview CLI flags
+
+| Flag | Type | Description |
+|---|---|---|
+| `--mcp` | boolean | Enable the MCP server in the Explorer (forwarded as a deep-link parameter) |
+| `--mcp-port` | number | Port for the MCP server in the Explorer |
+| `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
+| `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
+| `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
+
 **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
 
 **Done when:** the preview server responds at `http://localhost:8000` and the scene renders with no errors in the console.
+
+## Vibe Coding with AI
+
+AI assistants (Cursor, Claude Code, etc.) can build entire scenes from plain-language prompts. Install Decentraland SDK skills first so the AI knows SDK patterns:
+
+```bash
+npx skills add decentraland/sdk-skills
+```
+
+The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 
 ## Cross-References
 

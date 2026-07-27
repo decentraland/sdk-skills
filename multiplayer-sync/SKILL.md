@@ -359,7 +359,7 @@ For Decentraland Worlds that do not need multiplayer:
 | State not ready on join                                  | Reading synced state before sync completes                             | Guard with `if (!isStateSyncronized()) return` in your system                                                                                                                                   |
 | MessageBus messages lost                                 | Late joiner expecting past messages                                    | MessageBus is fire-and-forget. Use `syncEntity` for persistent state                                                                                                                            |
 
-> **Need guaranteed consistency, server-side validation, or anti-cheat?** `syncEntity` and `MessageBus` are not entirely reliable — if it's important that all players see the same state change, see the **authoritative-server** skill for the headless server pattern.
+> **Need guaranteed consistency, server-side validation, or anti-cheat?** `syncEntity` and `MessageBus` are not entirely reliable — if it's important that all players see the same state change, see the **authoritative-server** skill for the headless server pattern. For a complete competitive game architecture (anti-cheat with server-side proximity validation, checkpoint-only Storage persistence, atomic component splits by change rate), see the Gem Rush reference scene (`92,-9-authoritative-server-gem-rush`).
 
 ## Example scenes
 

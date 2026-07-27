@@ -204,6 +204,7 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 
 - **Camera-Triggered Events** — use camera position/proximity to trigger actions when the player looks at an area.
 - **Following an NPC (camera-follows-NPC)** — track an NPC by driving a VirtualCamera's Transform each frame (guardrail on why this works lives in the VirtualCamera section above).
+- **Mouselook Camera (FPS-style)** — drive a VirtualCamera with `PrimaryPointerInfo.screenDelta` (pixel delta per frame, keeps working while cursor is locked). Accumulate into yaw/pitch, clamp pitch [-85,+85], combine with PointerLock + InputModifier `disableAll`. Desktop only (screenDelta always 0 on mobile). See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
 
 > **Freezing player during cutscenes?** Combine VirtualCamera with `InputModifier` from the **advanced-input** skill to prevent player movement during cinematic sequences.
 
@@ -211,3 +212,4 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — multiple VirtualCameras: static, `Speed`/`Time` transitions, `lookAtEntity: engine.PlayerEntity`, a Tween-driven moving camera, a WASD-controllable camera (driving the VirtualCamera Transform each frame), plus `CameraModeArea` and `AvatarModifierArea`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — mouselook camera: `PrimaryPointerInfo.screenDelta` driving VirtualCamera yaw/pitch while pointer is locked, with `InputModifier` disableAll and PointerLock control. Reference implementation for the mouselook pattern.

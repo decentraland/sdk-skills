@@ -355,9 +355,11 @@ AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking on avatars to see p
 AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the area
 ```
 
-`modifiers` is an array — combine several, e.g. `[AMT_HIDE_AVATARS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+`modifiers` is an array — combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
 
-`AMT_HIDE_AVATARS` is useful for private rooms or single-player puzzle areas.
+`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
+
+**Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
 ## Avatar Locomotion Settings
 
@@ -524,6 +526,7 @@ Engine-team test scenes (exercised against the real engine):
 - [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, and `mask: AvatarMask.AM_UPPER_BODY`.
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
+- [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
 - [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release.
