@@ -202,7 +202,12 @@ Limits a scene creator can realistically hit and should design around:
 | Inbound messages per peer | **300** per **1,000 ms** window | excess data frames dropped |
 | Inbound packet size | **131,072 bytes** (128 KB) per packet | oversized packet dropped entirely |
 | Concurrent `signedFetch` | **32** in-flight | additional fetches queue/block |
-| Fetch timeout / retries | **15,000 ms** per attempt, **2** attempts | fetch fails |
+| Fetch timeout | **15,000 ms** per attempt | fetch fails |
+| Max fetch redirects | **5** hops | fetch fails on the 6th redirect |
+| Max fetch response body | **10 MB** | fetch fails |
+| Max open WebSockets | **32** concurrent | additional connections rejected |
+| Max WebSocket message | **1 MB** (1,048,576 bytes) | oversized send rejected locally |
+| Outbound `sendMessages` per tick | **512** | excess messages dropped |
 | Scene→comms message | **30,000 bytes** max | (separate transport guidance: keep synced messages under 13 KB — see SKILL.md) |
 | Live entities | **100,000** max | — (very unlikely to hit) |
 
@@ -214,7 +219,7 @@ Design implications:
 - **CPU**: never run unbounded synchronous loops on the server; a single turn exceeding 10 s kills the isolate for all players. Spread heavy work across ticks with a dt-accumulator system.
 - **Messages**: throttle client→server sends; a peer exceeding 300 msgs/s has excess frames dropped (they are lost, not queued). Never send per-frame.
 
-Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). The in-flight cap of 40 is `maxInflightHostCalls` (`HAMMURABI_MAX_INFLIGHT_HOST_CALLS`), enforced isolate-wide in the injected sandbox globals — it is NOT a storage-service limit; Storage requests simply count against it like every other host call.
+Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, isolate memory, sync/async execution, inbound rate/packet, fetch, entities, comms message). Values cross-checked against `sdk7-test-scenes/93,-9-authoritative-server-limits-lab` shared config. The in-flight cap of 40 is `maxInflightHostCalls` (`HAMMURABI_MAX_INFLIGHT_HOST_CALLS`), enforced isolate-wide in the injected sandbox globals — it is NOT a storage-service limit; Storage requests simply count against it like every other host call.
 
 ## Production Logs
 

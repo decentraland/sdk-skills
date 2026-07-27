@@ -222,7 +222,7 @@ assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
 // Stop listening: assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(entity)
 ```
 
-`LoadingState` members (from the test scene): `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR` (asset found but failed to load), `NOT_FOUND` (path does not exist), plus the default/unknown state. A missing/typo'd `src` resolves to `NOT_FOUND`, not a thrown error.
+`LoadingState` enum members: `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR` (asset found but failed to load), `NOT_FOUND` (path does not exist), `UNKNOWN` (initial/default state). A missing/typo'd `src` resolves to `NOT_FOUND`, not a thrown error.
 
 Caveats:
 

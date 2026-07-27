@@ -70,7 +70,14 @@ function readPointer() {
 engine.addSystem(readPointer)
 ```
 
-PITFALL: every `PrimaryPointerInfo` field is optional (`screenCoordinates?`, `screenDelta?`, `worldRayDirection?`, `pointerType?`) — verified schema and `0,5-primary-cursor-info`, which guards each read (`pointerInfo.screenCoordinates?.x ?? -666`, `pointerInfo.worldRayDirection?.x.toFixed(2)`). Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and always null-check the fields. `worldRayDirection` feeds directly into a camera raycast direction (see the "spawn at cursor" pattern in that scene).
+### Field details
+
+- `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the bottom-left corner of the screen** (positive Y = up). When the cursor is locked, freezes at the screen center.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = up (bottom-left origin). **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). Desktop only — always reports 0 on mobile.
+- `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
+- `pointerType` — `0` for none, `1` for mouse.
+
+PITFALL: every field is optional — verified schema and `0,5-primary-cursor-info`, which guards each read (`pointerInfo.screenCoordinates?.x ?? -666`, `pointerInfo.worldRayDirection?.x.toFixed(2)`). Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and always null-check the fields. `worldRayDirection` feeds directly into a camera raycast direction (see the "spawn at cursor" pattern in that scene).
 
 ## Input Polling with inputSystem
 
@@ -210,6 +217,7 @@ Engine-team test scenes exercising these APIs (ground truth):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — reading `PrimaryPointerInfo` (screen coords/delta/worldRayDirection) each frame; feeding `worldRayDirection` into a camera raycast.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — WASD-driven controllable camera via `isPressed(IA_FORWARD/...)`; toggling InputModifier alongside a VirtualCamera.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — system-based per-entity click via `getEntitiesWith(Cube, PointerEvents)` + `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — `PrimaryPointerInfo.screenDelta` driving mouselook camera while pointer locked; shows `screenDelta` continuing to report raw mouse movement during lock (while `screenCoordinates` freezes at screen center).
 
 ## References
 
