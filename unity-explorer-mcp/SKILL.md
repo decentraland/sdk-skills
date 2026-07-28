@@ -85,6 +85,27 @@ Skip this confirmation only when the user has already made the intent explicit i
 
    Errors with "already exists in local config" if registered by a previous session — that's fine, nothing to do. If the current session has no `mcp__explorer__*` tools, follow "Missing tools" under Scene health & recovery below — the fix is the user reconnecting via `/mcp`, not a workaround.
 
+   **Not running in Claude Code?** `claude mcp add` / `/mcp` are Claude Code commands. In any other MCP client (Cursor, Cline, VS Code, a custom SDK harness), register the server the way that client documents, using these connection details — then reload/restart the client so it picks the server up:
+
+   | Field | Value |
+   |---|---|
+   | Transport | Streamable HTTP (**not** stdio; no command to spawn — the server is embedded in the already-running Explorer) |
+   | URL | `http://127.0.0.1:8123/unity-explorer-mcp` (`--mcp-port <port>` changes the port) |
+   | Auth | none |
+   | Suggested name | `explorer` (tool prefix follows your client's convention) |
+
+   A common JSON shape, for clients that configure servers in a file (`.cursor/mcp.json`, `mcp.json`, etc. — key names vary, check your client's docs):
+
+   ```json
+   {
+     "mcpServers": {
+       "explorer": { "type": "http", "url": "http://127.0.0.1:8123/unity-explorer-mcp" }
+     }
+   }
+   ```
+
+   If the client cannot do Streamable HTTP at all, skip registration and drive the endpoint directly with curl JSON-RPC (see "Missing tools" below) — every tool in this skill is reachable that way, just without the schemas surfacing as native tools.
+
 4. Wait for the world to load: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`.
 
 ## The iteration loop
