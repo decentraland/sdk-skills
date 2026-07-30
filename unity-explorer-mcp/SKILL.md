@@ -15,22 +15,28 @@ Deeper reference, loaded only when the task reaches it:
 - [`reference/assets.md`](reference/assets.md) — before placing, downloading, converting, or exporting any 3D model
 - [`reference/visuals.md`](reference/visuals.md) — before tuning emissives/bloom, UI overlays, skybox time, or judging thin geometry
 
+## Gates
+
+Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
+
 ## Load the SDK skills (before anything, either way)
 
 This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the other topic skills of the same `decentraland/sdk-skills` package this skill ships from (entry point `sdk-scenes`, plus `create-scene`, `add-3d-models`, etc.), and parts of the API (e.g. native `TriggerArea`) are newer than training data. You need them whether or not the Explorer ends up in play, so do this before the pre-flight below.
 
-Load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). This is done when you can **name the topic skills available to you** — not when you've noticed they exist. If they cannot be loaded — e.g. only `unity-explorer-mcp` itself was installed, not the whole package — **MANDATORY — ask the user**: pull in the rest of the package's topic skills from that same source? Recommend it. If YES, ask at which level — scene-local or global — and run the matching command:
+Load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). This is done when you can **name the topic skills available to you** — not when you've noticed they exist. If they cannot be loaded — e.g. only `unity-explorer-mcp` itself was installed, not the whole package — **skills-install gate**: pull in the rest of the package's topic skills from that same source? Recommend it. On yes, ask at which level — scene-local or global — and run the matching command:
 
 ```bash
 npx skills add decentraland/sdk-skills --all       # scene-local (run inside the scene folder)
 npx skills add decentraland/sdk-skills --all -g    # global (user-level, ~/.claude/skills)
 ```
 
-Skills are loaded at session start, so a mid-session install may not surface until the session restarts. If NO, move forward without them — the scene can still be implemented, just less efficiently; the **stale memory** rule under the iteration loop still governs.
+A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the install buys nothing.
 
-## Pre-flight — confirm intent (MANDATORY, do this first)
+Declining either gate is fine — the scene can still be implemented, just less efficiently. Until the skills actually load, the **stale memory** rule under the iteration loop governs every SDK7 API you write.
 
-**Always ask, before anything else.** This skill fires on its own — the mere presence of an `mcp__explorer__*` tool triggers it — so it is often loaded when the user never asked for it. Before probing for a server, launching the Explorer, or editing the scene, STOP and confirm the user wants to drive the scene through the Unity Explorer MCP server. Ask a plain yes/no, e.g. *"Do you want to build/test this scene against a running Decentraland Explorer via the Unity Explorer MCP server? This will launch/connect to the Explorer and iterate in-world."* Ask even when the request looks unambiguous — one cheap question beats launching processes the user didn't want.
+## Intent gate (pre-flight, do this first)
+
+This skill fires on its own — the mere presence of an `mcp__explorer__*` tool triggers it — so it is often loaded when the user never asked for it. Before probing for a server, launching the Explorer, or editing the scene, confirm they want to drive the scene through the Unity Explorer MCP server: *"Do you want to build/test this scene against a running Decentraland Explorer via the Unity Explorer MCP server? This will launch/connect to the Explorer and iterate in-world."*
 
 - **YES** — continue to Setup below.
 - **NO** — run no setup, launch, or MCP step from this skill. Work on the scene without the Explorer (edit code, lean on the topic skills you just loaded), and let the user re-invoke this skill later if they change their mind.
@@ -45,9 +51,9 @@ Skills are loaded at session start, so a mid-session install may not surface unt
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
    ```
 
-   **Server found** (tool answer or `serverInfo` result) — ask the user: use the already-running Explorer, or start the scene from scratch with the MCP flag? Never decide silently.
+   **Server found** (tool answer or `serverInfo` result) — **launch/kill gate**: use the already-running Explorer, or start the scene from scratch with the MCP flag?
    - *Use it*: launch nothing. If port 8000 isn't serving the target scene folder (`lsof -nP -i :8000 -sTCP:LISTEN`, then check the PID's cwd), kill whatever holds it and run `npm run start -- --no-client`. Skip step 2 if the tools are already available.
-   - *From scratch*: ask a follow-up before touching anything — kill the previously-running scene server, or keep it and run a second stack alongside?
+   - *From scratch*: same gate, follow-up question, before touching anything — kill the previously-running scene server, or keep it and run a second stack alongside?
      - *Kill it*: kill the port-8000 dev server, have the user close the running client (never kill an Editor process yourself), then continue below.
      - *Keep it*: leave it and its Explorer untouched and start a second stack on its own ports — see "Running a second stack" in [`reference/setup.md`](reference/setup.md).
 
@@ -71,13 +77,13 @@ Skills are loaded at session start, so a mid-session install may not surface unt
 
    **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** Claude Code opens its MCP connections once, at session startup, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its one connection attempt, and `mcp__explorer__*` tools will never appear on their own. Only the interactive `/mcp` UI re-binds them, and only the user can drive it: there is nothing you can run instead, so ask rather than trying to engineer around it.
 
-   **Ask the user to bind the tools — as a blocking question that ends your turn.** Use `AskUserQuestion` if your client has it (options: *"Reconnect via /mcp (recommended)"* / *"Skip it — drive the Explorer over curl"*); otherwise ask in plain text, e.g. *"The Explorer is up. Run `/mcp`, reconnect the `explorer` server, and tell me when it's done — that binds the native tools, which give me real screenshot images, validated arguments, and far fewer tokens per call. If you'd rather not, I can drive the same endpoint over curl JSON-RPC instead, but it costs more and returns no images I can inspect."*
+   Ask them to bind the tools, recommending it. Use `AskUserQuestion` if your client has it (options: *"Reconnect via /mcp (recommended)"* / *"Skip it — drive the Explorer over curl"*); otherwise ask in plain text, e.g. *"The Explorer is up. Run `/mcp`, reconnect the `explorer` server, and tell me when it's done — that binds the native tools, which give me real screenshot images, validated arguments, and far fewer tokens per call. If you'd rather not, I can drive the same endpoint over curl JSON-RPC instead, but it costs more and returns no images I can inspect."*
 
-   **Call no tool after asking. End the turn and let the user answer.** You may only move past this step in one of these three states — no fourth reading exists:
+   You may only move past this step in one of these three states — no fourth reading exists:
 
-   - **Tools already present** (the Explorer was running before this session started) — no ask needed; continue to step 3.
+   - **Tools already present** (the Explorer was running before this session started) — the gate doesn't apply; continue to step 3.
    - **The user says they reconnected** — verify by calling a native `mcp__explorer__*` tool, then continue to step 3.
-   - **The user has explicitly declined in writing, this session** — only then read [`reference/curl-fallback.md`](reference/curl-fallback.md) and drive the endpoint over HTTP. Their silence is not a decline, your own judgment that curl would be faster is not a decline, and a working curl probe is not a decline.
+   - **The user has explicitly declined in writing, this session** — only then read [`reference/curl-fallback.md`](reference/curl-fallback.md) and drive the endpoint over HTTP. A working curl probe is not a decline.
 
    The probe in step 1 is the only curl call you make before this gate. Getting an answer out of it proves the Explorer is up — which is the trigger to ask, not permission to continue.
 
