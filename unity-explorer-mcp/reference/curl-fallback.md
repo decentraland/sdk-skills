@@ -1,6 +1,6 @@
 # Curl JSON-RPC fallback
 
-**Open this file only after the user has explicitly declined to reconnect via `/mcp`, or their client cannot do Streamable HTTP.** If neither has happened yet, go back to the bind gate in `SKILL.md` Setup step 2 and ask.
+**Open this file only after the user — told its costs first — has explicitly chosen this fallback over reconnecting via `/mcp` or restarting the Claude session, or their client cannot do Streamable HTTP.** If neither has happened yet, go back to the bind gate in `SKILL.md` Setup step 2 and ask; silence or a working probe is not a choice.
 
 Every tool in this skill is reachable over plain HTTP, just without the schemas surfacing as native tools — and at a real cost: no inspectable screenshot images in context, no argument validation, and far more tokens per call.
 
