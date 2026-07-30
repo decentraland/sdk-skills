@@ -1,7 +1,5 @@
 # 3D asset reference
 
-Read before placing, downloading, converting, or exporting any 3D model.
-
 ## Picking from the sdk-skills catalog
 
 - Fetch the `preview:` thumbnail BEFORE downloading — some models render near-black or broken even in their own previews (e.g. arcade-cabinet-atari). Use the exact `[anim: ...]` clip names; a wrong clip name fails silently (no error, no motion) — cross-examine: burst-capture (`-n 3 -i 1`) and diff frames to prove an animation is actually running.

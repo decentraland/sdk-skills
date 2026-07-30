@@ -4,8 +4,8 @@
 # only when you actually need to inspect it.
 #
 # Usage: screenshot.sh [options]
-#   -o, --out FILE        output file (single capture; extension follows quality)
-#   -d, --dir DIR         output directory (default: mcp-shots/; used for bursts and when -o is omitted)
+#   -o, --out FILE        output file (single capture; extension follows quality; relative to cwd)
+#   -d, --dir DIR         output dir (default: $TMPDIR/mcp-shots, outside the scene folder; used for bursts and when -o is omitted)
 #   -n, --count N         number of frames to capture (default: 1)
 #   -i, --interval SEC    seconds between frames in a burst (default: 0.5; keep >= 0.2, captures are serialized)
 #   -w, --max-width PX    maxWidth passed to the tool (default: 1280; use 640 for cheap sanity checks)
@@ -24,7 +24,8 @@ WORLD_ONLY=false
 COUNT=1
 INTERVAL=0.5
 OUT=""
-OUT_DIR="mcp-shots"
+TMP_BASE="${TMPDIR:-/tmp}"
+OUT_DIR="${TMP_BASE%/}/mcp-shots"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

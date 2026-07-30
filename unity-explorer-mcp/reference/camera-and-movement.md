@@ -1,7 +1,5 @@
 # Camera & movement reference
 
-Read before framing screenshots, navigating precise lines, or inspecting a build from multiple viewpoints.
-
 ## Aiming the camera
 
 - `move_to`'s `lookAt*` params orient the avatar but NOT the third-person camera; `screenshot` and `walk` follow the camera. Call the standalone `look_at` tool (it aligns camera yaw — confirm via `get_player_state` → `camera.rotationEuler.y`) before walking a precise line or framing a screenshot.
@@ -10,7 +8,11 @@ Read before framing screenshots, navigating precise lines, or inspecting a build
 ## Free camera
 
 - The free camera is the fastest way to inspect a scene from many points of view: `set_camera_pose` places it at any absolute position, optionally aims it (`lookAt*`) and sets `fov`, auto-entering free mode. Repositioning while already free is instant (~200ms), so sweep a build cheaply — aerial plan view, each facade, eye-level details, interiors — capturing to disk between calls, instead of walking the player around. `look_at` also works in free mode (aims from the camera's own position), and the free camera stays put while the player moves, so you can even watch the avatar walk through the scene from a fixed vantage. Entering free from another mode blends over ~2-3s (the tool waits and reports `settled`).
-- The free camera is a debug view, not what players see. To confirm the end-user experience, switch back to the real modes — `set_camera_mode` `first_person` / `third_person` / `drone_view` are exactly the cameras retail users have — and re-check framing, avatar occlusion, and interaction reach from there (e.g. verify a hover target is actually visible and clickable at player height, not just from a flattering freecam angle). **MANDATORY: never leave the camera in free mode when you finish working** — always restore `set_camera_mode third_person` as your last camera action. `set_camera_mode` respects scene locks and errors truthfully — check `get_player_state` → `camera.modeChangeAllowed` first; `false` inside a `CameraModeArea`/scene virtual camera is correct behavior worth verifying, not a tool failure. `screenshot` works in any mode.
+- The free camera is a debug view, not what players see. To confirm the end-user experience, switch back to the real modes — `set_camera_mode` `first_person` / `third_person` / `drone_view` are exactly the cameras retail users have — and re-check framing, avatar occlusion, and interaction reach from there (e.g. verify a hover target is actually visible and clickable at player height, not just from a flattering freecam angle).
+
+## Camera modes
+
+- `set_camera_mode` respects scene locks and errors truthfully — check `get_player_state` → `camera.modeChangeAllowed` first; `false` inside a `CameraModeArea`/scene virtual camera is correct behavior worth verifying, not a tool failure. `screenshot` works in any mode.
 
 ## Precise navigation
 
