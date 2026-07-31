@@ -17,7 +17,7 @@ Deeper reference, loaded only when the task reaches it:
 
 ## Gates
 
-Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
+Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. **Running as a subagent, you cannot open a gate at all** — there is no user to ask: stop and report the pending decision to your caller with your recommendation, rather than passing the gate on your own authority. Doing so violates the gate even when the workaround happens to work. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
 
 ## Load the SDK skills (before anything, either way)
 
@@ -77,19 +77,23 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** Claude Code opens its MCP connections once, at session startup, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its one connection attempt, and `mcp__explorer__*` tools will never appear on their own. Mid-session, only the interactive `/mcp` UI re-binds them; alternatively, restarting the Claude session while the Explorer keeps running binds them automatically at the new session's startup. Both are user actions: there is nothing you can run instead, so ask rather than trying to engineer around it.
 
-   Ask them to bind the tools, presenting the paths from best to worst and recommending whichever is easiest for them. Use `AskUserQuestion` if your client has it (options: *"Reconnect via /mcp (recommended)"* / *"Restart the Claude session (Explorer stays up)"* / *"Neither — use the curl fallback (slower, no images)"*); otherwise ask in plain text, e.g. *"The Explorer is up, but this Claude session started before it, so the native MCP tools aren't bound. Two quick fixes: run `/mcp` and reconnect the `explorer` server (fastest — keeps this conversation), or restart the Claude session leaving the Explorer running (tools bind automatically at startup). If you'd rather not do either, I can drive the same endpoint over raw curl commands — but fair warning: that means one shell command per player action, possible permission prompts on each new call shape, more tokens, and no screenshot images I can actually inspect. Which do you prefer?"* The warning is the point: the user must understand the curl fallback is materially worse *before* they end up in it, not discover it by watching a wall of curl calls scroll by.
+   Open with the situation — *"the Explorer is up, but this Claude session started before it, so the native MCP tools aren't bound"* — then offer three paths, best first, with the fallback's costs stated before they can land in it:
 
-   **Running as a subagent?** This gate cannot be opened from inside a background agent — there is no user to ask. Do NOT fall back to curl on your own authority: stop, and report back to the main session (or your caller) that the bind gate needs a user decision, listing the options above with the reconnect/restart paths recommended. Silently curling through the task violates the gate even when it works.
+   - **Reconnect via `/mcp`** — fastest, and keeps this conversation.
+   - **Restart the Claude session**, leaving the Explorer running — the tools bind automatically at startup.
+   - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and no screenshot images you can inspect.
 
-   You may only move past this step in one of these three states — no fourth reading exists:
+   Use `AskUserQuestion` if your client has it, one option each; otherwise put the same three in plain text and close with *"Which do you prefer?"*.
+
+   You may only move past this step in one of these three states — no fourth reading exists, and a subagent can only ever be in the first:
 
    - **Tools already present** (the Explorer was running before this session started) — the gate doesn't apply; continue to step 3.
-   - **The user says they reconnected** — verify by calling a native `mcp__explorer__*` tool, then continue to step 3. (If they chose to restart the session instead, this conversation ends; the fresh session finds the tools bound and skips this gate entirely.)
+   - **The user rebound the tools** — via `/mcp`, or by restarting with the Explorer left up. Verify by calling a native `mcp__explorer__*` tool, then continue to step 3. (A restart ends this conversation; the fresh session finds them bound and skips this gate.)
    - **The user has explicitly chosen the curl fallback in writing, this session, after being told its costs** — only then read [`reference/curl-fallback.md`](reference/curl-fallback.md) and drive the endpoint over HTTP. A working curl probe is not a decline, and neither is silence.
 
    The probe in step 1 is the only curl call you make before this gate. Getting an answer out of it proves the Explorer is up — which is the trigger to ask, not permission to continue.
 
-   Mention the prevention once, not every session: launching the Explorer *before* starting Claude Code — or simply leaving it running between sessions — binds the tools at startup and skips this dance entirely.
+   Mention the prevention once, not every session: starting the Explorer *before* Claude Code — or simply leaving it running between sessions — skips this gate entirely.
 
    **Not running in Claude Code?** `claude mcp add` and `/mcp` are Claude Code commands — for Cursor, Cline, VS Code, or a custom SDK harness, the connection details and config shapes are in [`reference/setup.md`](reference/setup.md).
 
