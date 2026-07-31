@@ -138,7 +138,7 @@ SDK6 scenes commonly kept assets in **top-level folders at the project root**: `
    - Any string literal mentioning the old folder name anywhere in code, JSON, or `.composite` files.
 5. **Done when:** grepping the project for the old folder names returns zero remaining references, and opening the scene in Creator Hub shows the asset tree populated from `assets/`.
 
-**Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these when the user imports assets through the UI), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type — don't fragment.
+**Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these for asset-pack items and custom items), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type — don't fragment.
 
 ### 4. Create `src/index.ts` with an exported `main()`
 

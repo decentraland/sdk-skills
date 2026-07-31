@@ -187,7 +187,7 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Gotchas
 
-- **Texture path** — particle textures default to `assets/Images/`. Same path conventions as Material textures. Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/` (still works); Creator Hub assets land in `assets/asset-packs/`, `assets/custom/`, or `assets/scene/` — reference those paths as-is.
+- **Texture path** — particle textures default to `assets/Images/`. Same path conventions as Material textures. Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/` (still works); textures from Creator Hub asset packs land in `assets/asset-packs/` and custom items in `assets/custom/` — reference those paths as-is.
 - **Quaternion rotation fields** — `rotationOverTime` is interpreted as per-axis angular velocity (quaternion → Euler XYZ). `Quaternion.fromEulerDegrees(0, 90, 0)` = spin 90°/s on Y. Identity = no spin.
 - **`additionalForce` is world-space** even when `simulationSpace = PSS_LOCAL`. Wind/drift directions stay constant regardless of emitter rotation.
 - **`limitVelocity.dampen = 1`** = hard clamp (particles never exceed `speed`). Lower values let velocity exceed cap briefly then decay.

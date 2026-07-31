@@ -89,7 +89,7 @@ Read `{baseDir}/references/audio-catalog.md` before recommending audio so sugges
 
 - **Default** for audio you download yourself: `assets/Audio/`.
 - **Legacy scenes** may already have audio under `assets/scene/Audio/` — that path still works; reuse it for any new clips in those scenes instead of creating a parallel `assets/Audio/` folder.
-- **Creator Hub assets**: audio added through the Creator Hub UI lands in `assets/asset-packs/` (free DCL packs) or `assets/custom/` (user-imported) or `assets/scene/` (user-imported). Reference these paths as-is — never move or rename them.
+- **Creator Hub assets**: audio imported directly through the Creator Hub UI lands in `assets/Audio/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new file.
 

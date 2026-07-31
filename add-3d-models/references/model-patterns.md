@@ -241,7 +241,7 @@ import { AssetLoad, LoadingState, assetLoadLoadingStateSystem } from '@dcl/sdk/e
 
 const loader = engine.addEntity()
 AssetLoad.getOrCreateMutable(loader, {
-  assets: ['assets/scene/Models/chicken.glb', 'assets/scene/Images/Logo.png'],
+  assets: ['assets/Models/chicken.glb', 'assets/Images/Logo.png'],
 })
 
 // Optional: react to each asset's state change
