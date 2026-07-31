@@ -1,6 +1,6 @@
 ---
 name: advanced-rendering
-description: Advanced rendering in Decentraland scenes. Billboard (face camera), TextShape (3D world text), PBR materials (metallic, roughness, transparency, emissive glow), GltfNodeModifiers (per-node shadow/material overrides), VisibilityComponent (show/hide entities), and texture modes. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
+description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PBR materials, GltfNodeModifiers, and VisibilityComponent. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
 ---
 
 # Advanced Rendering in Decentraland
@@ -51,6 +51,29 @@ BillboardMode.BM_NONE   // No billboard rotation
 
 - Prefer `BM_Y` over `BM_ALL` for most use cases — it looks more natural and is cheaper to render.
 - `BM_ALL` is useful for particles or effects that should always directly face the camera.
+- **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
+- **Porting note**: SDK6 → SDK7 ports occasionally show a billboarded model facing **away** from the camera that was correct under SDK6. The two SDKs appear to disagree on which face the billboard points at the camera. Same fix — rotate the displayed model 180° on Y. See [[migrate-sdk6-to-sdk7]] (Common Pitfalls) for context.
+
+### Face another entity — `targetEntity`
+
+`Billboard` has an optional `targetEntity?: Entity` field. When set, the entity reorients to face **that target entity** instead of the camera.
+
+```typescript
+// Face a specific entity instead of the camera
+Billboard.create(card, { targetEntity: sphere })
+
+// Yaw-only tracking of a target (BM_Y respected while targeting)
+Billboard.create(card, { targetEntity: target, billboardMode: BillboardMode.BM_Y })
+
+// Retarget at runtime
+Billboard.getMutable(card).targetEntity = otherEntity
+```
+
+- **Unset (default)** → faces the main camera, exactly as before. `targetEntity` is fully backwards-compatible.
+- Setting `targetEntity` to the **camera reserved entity** (`engine.CameraEntity`, id `2`) is equivalent to leaving it unset.
+- `billboardMode` still applies: `BM_Y` with a `targetEntity` yaws to face the target on the Y axis only.
+- **Gotcha:** if the referenced target entity does not exist or is deleted, billboard reorientation is **disabled** (the entity freezes at its last orientation) until the target exists again.
+- **Multiplayer:** a camera-facing billboard is computed locally per player (each player sees it facing themselves, nothing is synced). A `targetEntity` billboard instead faces the same way for **all** players, because the target's position is scene state. Use `targetEntity` when every player must see the same orientation.
 
 ## TextShape (3D Text)
 
@@ -73,6 +96,9 @@ TextShape.create(label, {
 })
 ```
 
+- Keep `fontSize` readable — 16-32 for in-world text.
+- Always add `outlineColor` and `outlineWidth` for legibility against any background.
+
 ### Text Alignment Options
 
 ```typescript
@@ -87,27 +113,7 @@ TextAlignMode.TAM_BOTTOM_CENTER
 TextAlignMode.TAM_BOTTOM_RIGHT
 ```
 
-### Floating Label (Billboard + TextShape)
-
-Combine Billboard and TextShape to create labels that always face the player:
-
-```typescript
-const floatingLabel = engine.addEntity()
-Transform.create(floatingLabel, { position: Vector3.create(8, 4, 8) })
-
-TextShape.create(floatingLabel, {
-  text: 'NPC Name',
-  fontSize: 16,
-  textColor: Color4.White(),
-  outlineColor: Color4.Black(),
-  outlineWidth: 0.08,
-  textAlign: TextAlignMode.TAM_BOTTOM_CENTER
-})
-
-Billboard.create(floatingLabel, {
-  billboardMode: BillboardMode.BM_Y
-})
-```
+For the floating-label pattern (Billboard + TextShape combined into a camera-facing label), see the **Floating Label (Billboard + TextShape)** section in `{baseDir}/references/rendering-patterns.md`.
 
 ## Advanced PBR Materials
 
@@ -143,11 +149,13 @@ Material.setPbrMaterial(entity, {
 
 // Alpha test — cutout (binary visible/invisible based on threshold)
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/cutout.png' }),
+  texture: Material.Texture.Common({ src: 'assets/Images/cutout.png' }),
   transparencyMode: MaterialTransparencyMode.MTM_ALPHA_TEST,
   alphaTest: 0.5
 })
 ```
+
+- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed.
 
 ### Emissive (Glow Effects)
 
@@ -161,22 +169,34 @@ Material.setPbrMaterial(entity, {
 
 // Emissive with texture
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/diffuse.png' }),
-  emissiveTexture: Material.Texture.Common({ src: 'assets/scene/Images/emissive.png' }),
+  texture: Material.Texture.Common({ src: 'assets/Images/diffuse.png' }),
+  emissiveTexture: Material.Texture.Common({ src: 'assets/Images/emissive.png' }),
   emissiveIntensity: 1.0,
   emissiveColor: Color3.White()
 })
 ```
 
+- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility.
+
 ### Texture Maps
 
 ```typescript
 Material.setPbrMaterial(entity, {
-  texture: Material.Texture.Common({ src: 'assets/scene/Images/diffuse.png' }),
-  bumpTexture: Material.Texture.Common({ src: 'assets/scene/Images/normal.png' }),
-  emissiveTexture: Material.Texture.Common({ src: 'assets/scene/Images/emissive.png' })
+  texture: Material.Texture.Common({ src: 'assets/Images/diffuse.png' }),
+  bumpTexture: Material.Texture.Common({ src: 'assets/Images/normal.png' }),
+  emissiveTexture: Material.Texture.Common({ src: 'assets/Images/emissive.png' })
 })
 ```
+
+### castShadows
+
+Both `setPbrMaterial` and `setBasicMaterial` accept `castShadows: boolean` (default `true`). Set `false` to stop a surface from casting shadows without changing its appearance:
+
+```typescript
+Material.setPbrMaterial(entity, { albedoColor: Color4.Green(), castShadows: false })
+```
+
+For disabling shadows on a specific node inside a GLTF model, use `GltfNodeModifiers` with `castShadows: false` instead (see below).
 
 ## GltfContainer Collision Masks
 
@@ -209,24 +229,9 @@ VisibilityComponent.create(entity, { visible: false })
 // Toggle visibility
 const visibility = VisibilityComponent.getMutable(entity)
 visibility.visible = !visibility.visible
-
-// Useful for LOD (Level of Detail)
-function lodSystem() {
-  const playerPos = Transform.get(engine.PlayerEntity).position
-
-  for (const [entity, transform] of engine.getEntitiesWith(Transform, MeshRenderer)) {
-    const distance = Vector3.distance(playerPos, transform.position)
-
-    if (distance > 30) {
-      VisibilityComponent.createOrReplace(entity, { visible: false })
-    } else {
-      VisibilityComponent.createOrReplace(entity, { visible: true })
-    }
-  }
-}
-
-engine.addSystem(lodSystem)
 ```
+
+For a distance-based LOD (Level of Detail) system that toggles `VisibilityComponent` per frame, see the **LOD via VisibilityComponent** section in `{baseDir}/references/rendering-patterns.md`.
 
 ### propagateToChildren
 
@@ -236,9 +241,11 @@ Set `propagateToChildren: true` on a `VisibilityComponent` to apply visibility t
 VisibilityComponent.create(parentEntity, { visible: false, propagateToChildren: true })
 ```
 
-Rules:
-- If a child has its **own** `VisibilityComponent`, that overrides what the parent propagates.
+Rules (verified against the `1,0-visibility-comp-propagation` test scene):
+- If a child has its **own** `VisibilityComponent`, that value wins regardless of what an ancestor propagates — even if the child's own `propagateToChildren` is `false`, the child stays at its own `visible` value and does not re-inherit the parent's.
 - If a child has **no** `VisibilityComponent`, it inherits from the nearest ancestor with `propagateToChildren: true`.
+- A child that overrides an invisible parent to `visible: true` can itself set `propagateToChildren: true` to force its own subtree visible again — propagation re-evaluates at each node that carries a `VisibilityComponent`.
+- Propagation follows the live `Transform.parent` hierarchy: re-parenting an entity at runtime changes which ancestor's propagated visibility applies to it.
 
 ### Per-Node Modifiers (GltfNodeModifiers)
 
@@ -257,27 +264,19 @@ GltfNodeModifiers.create(entity, {
 })
 ```
 
-To override the materials or shadow casting of the entire model, set the path to ''.
+To override the material or shadow casting of the **entire** model (`path: ''`) — including the nested `material: { material: { $case: 'pbr' | 'unlit', ... } }` shape — see the **GltfNodeModifiers — Whole-Model Material Override** section in `{baseDir}/references/rendering-patterns.md`.
 
-```typescript
-import { GltfNodeModifiers } from '@dcl/sdk/ecs'
+**Modifier details** (from the `74,-8-gltfnodemodifier` test scene):
 
-GltfNodeModifiers.create(entity, {
-  modifiers: [
-    {
-      path: '', 
-      material: {
-				material: {
-					$case: 'pbr',
-					pbr: {
-						albedoColor: Color4.Red(),
-					},
-				},
-			},
-    }
-  ]
-})
-```
+- `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
+- `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
+- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
+- `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
+- One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
+- **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
+- Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
+
+Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
 
 
 ### Avatar Texture
@@ -302,7 +301,7 @@ import { TextureFilterMode, TextureWrapMode } from '@dcl/sdk/ecs'
 
 Material.setPbrMaterial(entity, {
   texture: Material.Texture.Common({
-    src: 'assets/scene/Images/pixel-art.png',
+    src: 'assets/Images/pixel-art.png',
     filterMode: TextureFilterMode.TFM_POINT,    // crisp pixels (no smoothing)
     wrapMode: TextureWrapMode.TWM_REPEAT        // tile the texture
   })
@@ -312,28 +311,9 @@ Material.setPbrMaterial(entity, {
 Filter modes: `TFM_POINT` (pixelated), `TFM_BILINEAR` (smooth), `TFM_TRILINEAR` (smoothest).
 Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirror tile).
 
-## Texture tweens
+## Texture Tweens
 
-You can use tweens to make a texture slide sideways or shrink or zoom in, this can be used to achieve very cool effects.
-
-```typescript
-Material.setPbrMaterial(myEntity, {
-	texture: Material.Texture.Common({
-		src: 'materials/water.png',
-		wrapMode: TextureWrapMode.TWM_REPEAT,
-	}),
-})
-
-// move continuously
-Tween.setTextureMoveContinuous(myEntity, Vector2.create(0, 1), 1)
-```
-
-You can also make a texture move once, lasting a specific duration
-
-```typescript
-// slide once, for 1 second
-Tween.setTextureMove(myEntity, Vector2.create(0, 0), Vector2.create(0, 1), 1000)
-```
+For animated texture patterns (`Tween.setTextureMoveContinuous` scrolling, `Tween.setTextureMove` slide-once, `TMT_OFFSET` vs `TMT_TILING` movement types, and looping via `TweenSequence`) — all requiring a texture with `wrapMode: TWM_REPEAT` — see the **Texture Tweens** section in `{baseDir}/references/rendering-patterns.md`.
 
 
 ## FlatMaterial Accessors
@@ -352,15 +332,14 @@ The `Material` component provides shortcut methods that skip the nested union st
 const src = Material.getFlatOrNull(entity)?.texture?.src
 
 // Mutate a texture in-place without knowing PBR vs Basic
-Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/scene/Images/new.png' })
+Material.getFlatMutableOrNull(entity)!.texture = Material.Texture.Common({ src: 'assets/Images/new.png' })
 ```
 
-## Best Practices
+## Example scenes
 
-- Use `BillboardMode.BM_Y` instead of `BM_ALL` — looks more natural and renders faster
-- Keep `fontSize` readable (16-32 for in-world text)
-- Add `outlineColor` and `outlineWidth` to TextShape for legibility against any background
-- Use `emissiveColor` with a dark `albedoColor` for maximum glow visibility
-- `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed
-- Combine Billboard + TextShape for floating name labels above NPCs or objects
-- Use VisibilityComponent for LOD systems instead of removing/re-adding entities
+Engine-team test scenes exercising these APIs against the real runtime:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier — `GltfNodeModifiers` overriding PBR/unlit materials, video textures, per-node colors and `castShadows` on specific GLTF nodes; `createOrReplace`/`deleteFrom`; wrong-path console-dump debug trick.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/1,0-visibility-comp-propagation — `VisibilityComponent` `propagateToChildren` across a parent/child/grandchild hierarchy with runtime re-parenting, covering every override combination.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,3-texture-movement — texture tweens via `Tween.setTextureMove` with `TextureMovementType.TMT_OFFSET` and `TMT_TILING`, paired with `TweenSequence` loops; also `Billboard` + `TextShape`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/52,-52-testing-gallery — PBR material sweeps (metallic/roughness/emissive/normal-map) and `GltfContainer` collision-mask combinations shown side by side.

@@ -1,17 +1,17 @@
 ---
 name: audio-video
-description: Add sound effects, music, audio streaming, and video players to Decentraland scenes. Covers AudioSource (local files, spatial audio, pitch), AudioStream (streaming URLs, MediaState polling), VideoPlayer (video on meshes or GLBs), VideoState events, spatial min/max distances, and ALLOW_MEDIA_HOSTNAMES permissions. Use when the user wants sound, music, audio, video screens, radio, live streams, or media playback. Do NOT use for player emotes (see player-avatar) or screen-space UI sounds (sounds attach to entities, not UI).
+description: Add sound effects, music, audio streaming, and video players to Decentraland scenes with AudioSource, AudioStream, and VideoPlayer. Use when the user wants sound, music, video screens, radio, live streams, or media playback. Do NOT use for player emotes (see player-avatar) or screen-space UI sounds (sounds attach to entities, not UI).
 ---
 
 # Audio and Video in Decentraland
 
 ## When to Use Which Media Component
 
-| Need | Component | Key Difference |
-|------|-----------|---------------|
-| Sound effect from a file (click, explosion, footstep) | `AudioSource` | Local file, spatial, one-shot or looping |
-| Background music or radio stream | `AudioStream` | External URL, non-spatial, continuous |
-| Video on a surface (screen, billboard) | `VideoPlayer` + `Material.Texture.Video` | Requires a mesh to display on |
+| Need                                                  | Component                                | Key Difference                           |
+| ----------------------------------------------------- | ---------------------------------------- | ---------------------------------------- |
+| Sound effect from a file (click, explosion, footstep) | `AudioSource`                            | Local file, spatial, one-shot or looping |
+| Background music or radio stream                      | `AudioStream`                            | External URL, non-spatial, continuous    |
+| Video on a surface (screen, billboard)                | `VideoPlayer` + `Material.Texture.Video` | Requires a mesh to display on            |
 
 **Decision flow:**
 
@@ -19,13 +19,41 @@ description: Add sound effects, music, audio streaming, and video players to Dec
 2. Is it a streaming URL (radio, live audio)? → `AudioStream`
 3. Is it video content? → `VideoPlayer` on a plane/mesh
 
+## Audio Sourcing
+
+Before referencing any audio file path in code, check `{baseDir}/references/audio-catalog.md`. It lists 50 free Decentraland audio clips with direct downloadable URLs that cover most needs (UI clicks, ambients, music, game mechanics, sound effects).
+
+The expected workflow when a user asks for sound:
+
+1. Read this skill + `references/audio-catalog.md`.
+2. If the catalog has fitting clips, surface them to the user as suggestions — name the clip and what it would be used for.
+3. **Ask** how they want to proceed. Some creators want catalog clips downloaded; others prefer placeholder paths so they can drop in their own files later. Don't assume.
+4. If they pick catalog clips: download with `curl -o assets/Audio/<name>.mp3 "<URL>"` — these URLs work directly from `Bash`, no separate tool needed.
+5. If they want placeholders: use a clear placeholder path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
+6. Reference the resulting local path in `AudioSource.audioClipUrl`.
+
+**Things to avoid:**
+
+- Telling the user "I can't download audio files." `Bash` + `curl` works fine on the catalog URLs — the capability is there if they want it.
+- Recommending external sources (freesound / mixkit / pixabay) without first checking whether the catalog already has a fitting clip.
+- Downloading clips without asking — even if the catalog has a perfect match, confirm before pulling files into the project.
+
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Key fields: `audioClipUrl` (local file path), `playing` (boolean), `loop`, `volume` (0-1), `pitch` (playback speed). Audio files go in `assets/scene/Audio/`. Supported formats: `.mp3` (recommended), `.ogg`, `.wav`.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
-Control playback via `AudioSource.getMutable(entity).playing = true/false`. To replay from start, set `playing = false` then `playing = true`.
+**Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
+
+```typescript
+AudioSource.playSound(entity, 'assets/Audio/click.mp3') // retriggers from 0 every call
+AudioSource.stopSound(entity)                            // stops, resets cursor to 0
+```
+
+Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
+
+Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
@@ -33,7 +61,7 @@ Control playback via `AudioSource.getMutable(entity).playing = true/false`. To r
 
 Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
-Query state with `AudioStream.getAudioState(entity)` which returns a `MediaState` enum (`MS_PLAYING`, `MS_ERROR`, etc.).
+Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`.
 
 > **Before adding a streaming URL**: If not provided by the user, confirm the source first.
 
@@ -51,33 +79,41 @@ To play video on a non-primitive shape (curved screens), use `GltfNodeModifiers`
 
 ## Free Audio Files
 
-Always check the audio catalog before creating placeholder sound file references. It contains 50 free sounds from the Creator Hub asset packs.
+The audio catalog is the first place to look — see the **Audio Sourcing** section at the top of this skill. It lists 50 free Decentraland clips across music, ambient, interaction sounds, sound effects, and game mechanics, each with a `curl`-ready URL.
 
-Read `{baseDir}/references/audio-catalog.md` for music tracks, ambient sounds, interaction sounds, sound effects, and game mechanic sounds.
+Read `{baseDir}/references/audio-catalog.md` before recommending audio so suggestions are concrete, then check with the user whether they want those clips downloaded or prefer placeholders.
 
-**Workflow**: Read catalog → suggest specific sounds → download with `curl -o assets/scene/Audio/<name>.mp3 "<URL>"` → reference with local path in `audioClipUrl`.
+> **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/Audio/` first.
 
-> **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/scene/Audio/` first.
+### Asset folder conventions
+
+- **Default** for audio you download yourself: `assets/Audio/`.
+- **Legacy scenes** may already have audio under `assets/scene/Audio/` — that path still works; reuse it for any new clips in those scenes instead of creating a parallel `assets/Audio/` folder.
+- **Creator Hub assets**: audio added through the Creator Hub UI lands in `assets/asset-packs/` (free DCL packs) or `assets/custom/` (user-imported) or `assets/scene/` (user-imported). Reference these paths as-is — never move or rename them.
+
+Always check the scene's existing folders before deciding where to put a new file.
+
+## Audio-reactive scenes (visualizers, beat sync)
+
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.
 
 ## Permission for External Media
 
-External audio/video URLs require the `ALLOW_MEDIA_HOSTNAMES` permission in scene.json with specific hostnames listed in `allowedMediaHostnames`.
+`[LEGACY]` External audio/video URLs do **not** require the `ALLOW_MEDIA_HOSTNAMES` permission. The permission and its `allowedMediaHostnames` list still exist in `@dcl/schemas`, but no current client enforces them — unity-explorer's hostname check is gated behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define (set in no build config, so `SceneData.TryGetMediaUrl` just does a URL syntax check), and bevy-explorer has no enforcement. Only the retired web client enforced it. Do not add it for new scenes; current clients play external media without it.
 
 ## Video Limits & Tips
 
-- **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. Maximum 5 simultaneous videos.
+- **Simultaneous videos**: Avoid playing multiple videos at once. Only play more than 1 simultaneous video if explicitly requested. The maximum depends on each player's quality setting (as low as 1 on Low quality — see the Video Limits table in `{baseDir}/references/media-reference.md`), so treat 1 as the only safe floor.
+- **HTTPS required**: Video sources must be HTTPS URLs — HTTP won't work
 - **Distance-based control**: Pause video when player is far away to save bandwidth
 - **Supported formats**: `.mp4` (H.264), `.webm`, HLS (`.m3u8`) for live streaming
 - **Live streaming**: Use HLS (`.m3u8`) URLs — most reliable across clients
 
-## Important Notes
+## Example scenes
 
-- Audio files must be in the project's directory (relative paths from project root)
-- Video requires HTTPS URLs — HTTP won't work
-- Players must interact with the scene (click) before audio can play (browser autoplay policy)
-- Keep audio files small — large files increase scene load time
-- Use `.mp3` for music and `.ogg` for sound effects (smaller file sizes)
-- For live video streaming, use HLS (.m3u8) URLs when possible
-- If an audio file needs to be ready to play as the player interacts, use the `AssetLoad` component to pre-load the asset
+Engine-team test scenes exercised against the real explorer:
+
+- [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
+- [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
 
 For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.

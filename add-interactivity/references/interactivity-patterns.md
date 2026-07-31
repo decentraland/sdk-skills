@@ -188,6 +188,8 @@ pointerEventsSystem.onProximityDown(
 
 For more control, use the system-based approach with `InteractionType.PROXIMITY`:
 
+> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`. For proximity range, set `maxPlayerDistance` inside `eventInfo` (measured from the avatar); `maxDistance` is the cursor ray range and does nothing for proximity events.
+
 ```typescript
 import { PointerEvents, InteractionType, inputSystem, PointerEventType } from '@dcl/sdk/ecs'
 
@@ -195,11 +197,11 @@ PointerEvents.create(myEntity, {
   pointerEvents: [
     {
       eventType: PointerEventType.PET_DOWN,
+      interactionType: InteractionType.PROXIMITY,
       eventInfo: {
         button: InputAction.IA_PRIMARY,
         hoverText: 'Press E',
-        maxDistance: 5,
-        interactionType: InteractionType.PROXIMITY,
+        maxPlayerDistance: 5,
       },
     },
   ],
@@ -219,11 +221,13 @@ PointerEvents.create(myEntity, {
   pointerEvents: [
     {
       eventType: PointerEventType.PET_DOWN,
-      eventInfo: { button: InputAction.IA_PRIMARY, hoverText: 'Aim & Press E', interactionType: InteractionType.CURSOR },
+      // interactionType omitted → defaults to InteractionType.CURSOR (cursor aim)
+      eventInfo: { button: InputAction.IA_PRIMARY, hoverText: 'Aim & Press E' },
     },
     {
       eventType: PointerEventType.PET_DOWN,
-      eventInfo: { button: InputAction.IA_SECONDARY, hoverText: 'Press F nearby', interactionType: InteractionType.PROXIMITY, maxDistance: 5 },
+      interactionType: InteractionType.PROXIMITY,
+      eventInfo: { button: InputAction.IA_SECONDARY, hoverText: 'Press F nearby', maxPlayerDistance: 5 },
     },
   ],
 })

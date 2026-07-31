@@ -1,6 +1,6 @@
 ---
 name: game-design
-description: Plan and design Decentraland games and interactive experiences. Scene limit formulas, performance budgets, texture requirements, asset preloading, state management patterns (module-level, component-based, state machines), object pooling, UX/UI guidelines, input design, and MVP planning. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
+description: Plan and design Decentraland games and interactive experiences. Use when the user wants game design advice, scene architecture, performance planning, or help structuring a game. Do NOT use for specific implementation (see add-interactivity, build-ui, multiplayer-sync).
 ---
 
 # Decentraland Game Design & Scene Optimization
@@ -31,7 +31,7 @@ For the full limits table across all parcel counts, see the **optimize-scene** s
 
 ## 4. Asset Preloading
 
-Use the `AssetLoad` component to pre-download large assets before rendering to avoid visible pop-in. Apply to any model over ~1 MB, any asset needed before a game phase starts, and any sound that plays in response to player interaction.
+Use the `AssetLoad` component to pre-load assets that aren't needed at scene startup so they display instantly when needed (e.g. things that appear later or on player interaction); don't use it for startup assets.
 
 For the implementation pattern, see the **optimize-scene** skill.
 
@@ -91,6 +91,9 @@ engine.addSystem(lodSystem)
 
 ### Disable Unused Colliders
 Remove collision meshes from decorative objects that players never interact with. This reduces physics body count significantly.
+
+### Disable Landscape Terrain (Worlds)
+For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove the auto-generated grassland/trees/sea around the scene. Two payoffs: it frees rendering budget, and it lets you commit to a self-contained aesthetic (open water, space, void). Ignored in Genesis City. See the `create-scene` skill.
 
 ## 6. Input System Design
 
@@ -192,7 +195,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
 
-## 11. Game Loop Archetypes
+## 10. Game Loop Archetypes
 
 ### Exploration
 - **Core loop**: Discover locations, find hidden items, unlock areas.
@@ -218,8 +221,9 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - **Core loop**: Race, fight, or outscore other players.
 - **DCL fit**: Moderate. Latency and input limitations constrain fast-paced action.
 - **Design tips**: Prefer turn-based or timing-based competition over twitch reflexes. Use server-authoritative state to prevent cheating. Keep rounds short (2-5 minutes).
+- **Anti-cheat architecture**: whenever scores or prizes are at stake, make the scene server-authoritative (see [[authoritative-server]]). Clients send **intent** messages only (e.g. `claimPoint`) — never a score; the server validates (proximity to the objective, permissions) and is the only writer of game state. The official leaderboard test scene is a complete end-to-end template of this design: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard
 
-## 12. Spatial Design
+## 11. Spatial Design
 
 ### Landmarks
 - Place a tall, visible landmark at the center or entrance of your scene. Players use it to orient themselves.
@@ -238,13 +242,16 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 ### Parcel Transitions
 - If your scene spans multiple parcels, ensure smooth visual transitions.
 - Do not place critical interactive elements right at parcel boundaries (loading edge cases).
+
+### Vertical Traversal with Gliding
+- While a player glides, continuous scene forces are 1.5× stronger and their **upward** component can lift the glider (the falling-speed cap only limits descent). This enables traversal mechanics like thermal updrafts, wind corridors, and floating-island hops. One-shot impulses (launch pads, knockback) are unaffected by gliding. See the `player-physics` skill ("Forces while gliding").
 - Use open space at parcel edges as buffer zones.
 
-## 13. Engagement and Monetization
+## 12. Engagement and Monetization
 
 ### Engagement Patterns
 - **Daily rewards**: Offer small rewards for daily visits. Track visits via external server — DCL has no built-in daily tracking. Display streak counters in-scene.
-- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements).
+- **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements). For persistent leaderboards and per-player progress, the built-in Multiplayer Server's `Storage` persists across redeploys and server sleep, with a server-owned synced component all clients render — see [[authoritative-server]] for the full pattern and reference scene.
 - **Achievements**: Define clear milestones (first win, 100 collectibles, visited all rooms). Announce with sound and visual effects. Display achievement history in-scene (trophy room, wall of fame).
 
 ### Monetization Approaches
@@ -255,9 +262,9 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 ### Social Mechanics
 - **Cooperative tasks**: Design objectives requiring multiple players (two switches pressed simultaneously, etc.). Reward cooperation with shared benefits.
 - **Shared spaces**: Create common areas where players naturally congregate. Add ambient interactive objects that encourage casual interaction.
-- **Events**: Design scenes that can host scheduled events (concerts, competitions). Include a stage area with good sightlines. Provide event host controls (start/stop game, reset scene, broadcast messages).
+- **Events**: Design scenes that can host scheduled events (concerts, competitions). Include a stage area with good sightlines. Provide event host controls (start/stop game, reset scene, broadcast messages). Gate host/admin actions server-side with an admin allow-list checked against the server-verified sender ([[authoritative-server]] Pattern 4) — never trust a client-reported role.
 
-## 14. Tutorial and Onboarding
+## 13. Tutorial and Onboarding
 
 ### In-World Signs
 - Place `TextShape` entities with short instructions at key locations.
@@ -278,12 +285,15 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - If a new player cannot figure out the first action within 30 seconds without any text or instructions, the design needs work.
 - Watch real players attempt your scene cold. Their confusion is your design feedback.
 
-## 10. Cross-References
+## 14. Cross-References
 
 | Topic | Skill | When to Use |
 |---|---|---|
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
+| Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |
+| FPS-style / mouselook camera controls | **camera-control** | Mouselook pattern: `PrimaryPointerInfo.screenDelta` + VirtualCamera + PointerLock + InputModifier. Desktop only. |
+| Audio-reactive visuals (music visualizers, beat detection) | **audio-analysis** | `AudioAnalysis` component on `AudioSource` or `VideoPlayer` (progressive only, not HLS). Drive geometry/lights/colors from `amplitude` and 8 frequency `bands`. |
 | Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs |
 | Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques |
 

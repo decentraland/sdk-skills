@@ -4,26 +4,26 @@ AI coding skills for building [Decentraland](https://decentraland.org) scenes wi
 
 ## Quick Start
 
-Install everything with a single command — no flags needed:
+Install all skills with a single command:
 
 ```bash
-npx skills add decentraland/sdk-skills
+npx skills add decentraland/sdk-skills --all
 ```
 
-This installs the root skill which includes behavioral guidelines, the composite-first rule, an index of all topic skills, and references to all sub-skill documentation.
+This installs the `sdk-scenes` entry-point skill (behavioral guidelines, the composite-first rule, and an index of all topic skills) along with every individual topic skill it references.
 
 You can also install individual topic skills if you only need specific areas:
 
 ```bash
+npx skills add decentraland/sdk-skills --skill sdk-scenes
 npx skills add decentraland/sdk-skills --skill create-scene
 npx skills add decentraland/sdk-skills --skill add-3d-models
-npx skills add decentraland/sdk-skills --skill multiplayer-sync
 ```
 
-Or install all individual skills at once:
+Or run the command without flags to pick skills interactively:
 
 ```bash
-npx skills add decentraland/sdk-skills --all
+npx skills add decentraland/sdk-skills
 ```
 
 ## Available Skills
@@ -37,8 +37,9 @@ npx skills add decentraland/sdk-skills --all
 | `advanced-input` | System-level input polling and player movement control. |
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
+| `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
-| `authoritative-server` | Headless authoritative server for multiplayer (BETA). |
+| `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
@@ -46,10 +47,12 @@ npx skills add decentraland/sdk-skills --all
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
+| `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
+| `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
@@ -61,7 +64,7 @@ Skills are markdown files that give AI coding assistants the context they need t
 
 ## Contributing
 
-The source of truth for these skills is maintained in the [decentraland/docs](https://github.com/decentraland/docs) repository under the `skills/` directory. To contribute improvements, please open a PR there.
+The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
 
 ## License
 

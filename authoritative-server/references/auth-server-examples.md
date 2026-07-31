@@ -1,57 +1,54 @@
-# Authoritative Server Code Examples
+# Multiplayer Server Code Examples
 
 ## Setup
 
-### Install auth-server SDK branch (MANDATORY)
-```bash
-npm install @dcl/sdk@auth-server
-npm install @dcl/js-runtime@auth-server
-```
+Install commands and the `authoritativeMultiplayer` auto-add behavior are documented in `{baseDir}/SKILL.md` → Setup. Canonical `scene.json` worked example:
 
-### scene.json Configuration
 ```json
 {
-  "worldConfiguration": {
-    "name": "my-world-name.dcl.eth"
-  },
+  "authoritativeMultiplayer": true,
   "logsPermissions": ["0xYourWalletAddress"]
 }
 ```
 
+- `authoritativeMultiplayer: true` (root-level) enables the headless server; it is auto-added on every build and preview — do not remove it. See `{baseDir}/SKILL.md` → Setup.
+- `logsPermissions` (root-level array) is optional — only needed to read production server logs. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- `worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
+
 ## Server/Client Branching
 
-```typescript
-import { isServer } from '@dcl/sdk/network'
-
-export async function main() {
-  if (isServer()) {
-    const { server } = await import('./server/server')
-    server()
-    return
-  }
-  setupClient()
-  setupUi()
-}
-```
+The entry-point skeleton (`index.ts`) is in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Entry Point. Concept (branch a single codebase with `isServer()` from `@dcl/sdk/network`): `{baseDir}/SKILL.md` → Server/Client Branching.
 
 ## Validation Patterns
 
 ### Pattern 1 — Server-only writes (strictest)
 ```typescript
+import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
+// `Score` is a custom synced component defined in shared/schemas.ts
+
 Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)
 ```
 
 ### Pattern 2 — Validate the value itself
 ```typescript
+import { Transform } from '@dcl/sdk/ecs'
+import { isServer } from '@dcl/sdk/network'
+
 if (isServer()) {
   Transform.validateBeforeChange(entity, (value) => {
-    return value.position.y > 0
+    // value: { entity, currentValue, newValue, senderAddress, createdBy }
+    // newValue is undefined when the component is being deleted
+    return !!value.newValue && value.newValue.position.y > 0
   })
 }
 ```
 
 ### Pattern 3 — Proximity validation (anti-cheat)
 ```typescript
+import { engine, PlayerIdentityData, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+import { isServer } from '@dcl/sdk/network'
+
 if (isServer()) {
   Transform.validateBeforeChange(pickableEntity, (value) => {
     for (const [playerEntity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
@@ -70,14 +67,20 @@ if (isServer()) {
 
 ### Pattern 4 — Admin-only writes
 ```typescript
-import { isServer, isPreview } from '@dcl/sdk/network'
-import { getSceneAdmins } from '@dcl/sdk/server'
+import { isServer } from '@dcl/sdk/network'
+// isPreview and getSceneAdmins are NOT exported from @dcl/sdk. The only working
+// import paths are the deep dist paths below (the asset-packs package has no
+// exports field and no top-level re-export).
+import { isPreview } from '@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils'
+import { getSceneAdmins } from '@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api'
 
 if (isServer()) {
   let adminAddresses = new Set<string>()
 
   async function updateAdminAddresses() {
     if (isPreview()) return
+    // Go-style tuple: [error, response]. Response shape:
+    //   { id: string; name: string; admin: string; active: string; canBeRemoved: boolean }[]
     const [error, response] = await getSceneAdmins()
     if (error) {
       adminAddresses = new Set()
@@ -94,75 +97,40 @@ if (isServer()) {
 }
 ```
 
+`isPreview()`: sync, no args, returns `boolean`. Reads a cached realm fetch — call from server code after the SDK has started (e.g. inside `main()`/`initServer()`, not at module top level).
+
+`getSceneAdmins()`: async, no args, returns `Promise<[error: string | null, response: SceneAdminResponse[] | null]>`. The `admin` field on each row is the lowercased wallet address (always normalize with `.toLowerCase()` anyway).
+
 ## Custom Components (Global Validation)
 
-```typescript
-import { engine, Schemas } from '@dcl/sdk/ecs'
-import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
-
-export const GameState = engine.defineComponent('game:State', {
-  phase: Schemas.String,
-  score: Schemas.Number,
-  timeRemaining: Schemas.Number,
-})
-
-GameState.validateBeforeChange((value) => {
-  return value.senderAddress === AUTH_SERVER_PEER_ID
-})
-```
+Defining a custom synced component at module scope and gating its writes with a global `validateBeforeChange()` inside `isServer()`: the canonical `GameState` + validator is in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Schemas (see also Pattern 1 above). Concept: `{baseDir}/SKILL.md` → Synced Components with Validation.
 
 ## Built-in Components (Per-Entity Validation)
 
-```typescript
-import { Entity, Transform, GltfContainer } from '@dcl/sdk/ecs'
-import { AUTH_SERVER_PEER_ID } from '@dcl/sdk/network/message-bus-sync'
-
-type ComponentWithValidation = {
-  validateBeforeChange: (
-    entity: Entity,
-    cb: (value: { senderAddress: string }) => boolean
-  ) => void
-}
-
-function protectServerEntity(
-  entity: Entity,
-  components: ComponentWithValidation[]
-) {
-  for (const component of components) {
-    component.validateBeforeChange(entity, (value) => {
-      return value.senderAddress === AUTH_SERVER_PEER_ID
-    })
-  }
-}
-
-// Usage:
-const entity = engine.addEntity()
-Transform.create(entity, { position: Vector3.create(10, 5, 10) })
-GltfContainer.create(entity, { src: 'assets/model.glb' })
-protectServerEntity(entity, [Transform, GltfContainer])
-```
+The `protectServerEntity()` helper and the per-entity `validateBeforeChange(entity, cb)` pattern for built-in components (Transform, GltfContainer) are in `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Schemas. Always call the helper inside `isServer()` — `validateBeforeChange()` only has meaning on the server.
 
 ## Syncing Entities
 
+In an authoritative-server scene, **only the server calls `syncEntity()`** — see `{baseDir}/SKILL.md` → Synced Components with Validation for the rule and rationale.
+
 ```typescript
-import { syncEntity } from '@dcl/sdk/network'
-syncEntity(entity, [Transform.componentId, GameState.componentId])
+import { isServer, syncEntity } from '@dcl/sdk/network'
+
+if (isServer()) {
+  syncEntity(entity, [Transform.componentId, GameState.componentId], 1)
+}
 ```
 
 ## Messages
 
-### Define Messages
-```typescript
-import { Schemas } from '@dcl/sdk/ecs'
-import { registerMessages } from '@dcl/sdk/network'
+For the canonical `registerMessages()` pattern see `{baseDir}/references/server-patterns.md` → Complete Server Setup → Shared Messages. The `room` object used below is defined with this example's own message set:
 
-export const Messages = {
+```typescript
+export const room = registerMessages({
   playerJoin: Schemas.Map({ displayName: Schemas.String }),
   playerAction: Schemas.Map({ actionType: Schemas.String, data: Schemas.Number }),
   gameEvent: Schemas.Map({ eventType: Schemas.String, playerName: Schemas.String }),
-}
-
-export const room = registerMessages(Messages)
+})
 ```
 
 ### Send Messages
@@ -202,21 +170,107 @@ engine.addSystem(() => {
 })
 ```
 
-## Schema Types Reference
+### Server Liveness Heartbeat
+
+`isStateSyncronized()` only confirms the CRDT room is connected — the room can be replaying a stale snapshot while the auth server is still cold-booting (or hasn't booted at all because this client is the first to arrive). Detect actual server liveness with a heartbeat the server pulses into a synced component, and on the client track the **time *you* observed the value change**, not the value itself. That sidesteps clock skew and prevents a stale snapshot from a previous server run from reading as alive.
 
 ```typescript
-Schemas.String          // "hello"
-Schemas.Int             // 42
-Schemas.Float           // 3.14
-Schemas.Bool            // true / false
-Schemas.Int64           // Date.now() / 13+ digit numbers
-Schemas.Vector3
-Schemas.Quaternion
-Schemas.Entity          // entity reference
-Schemas.Array(Schemas.String)
-Schemas.Optional(Schemas.String)
-Schemas.Map({ name: Schemas.String, hp: Schemas.Int })
+// shared/schemas.ts — add a heartbeat field to a state component
+export const MatchState = engine.defineComponent('myscene::MatchState', {
+  // ...other fields...
+  serverHeartbeatAt: Schemas.Int64  // Int64 — Date.now() is 13 digits
+})
 ```
+
+```typescript
+// server/matchLoop.ts — pulse the heartbeat from a system
+import { isServer } from '@dcl/sdk/network'
+
+const HEARTBEAT_MS = 2000
+let lastHeartbeatAt = 0
+let stateEntity: Entity | null = null
+
+export function initMatchState(): void {
+  stateEntity = engine.addEntity()
+  // Publish a heartbeat immediately so the first client connecting after a
+  // cold start can detect liveness without waiting a full interval.
+  MatchState.create(stateEntity, { /* ...fields..., */ serverHeartbeatAt: Date.now() })
+  syncEntity(stateEntity, [MatchState.componentId])
+}
+
+export function matchLoopSystem(): void {
+  if (!isServer() || stateEntity === null) return
+  const now = Date.now()
+  if (now - lastHeartbeatAt < HEARTBEAT_MS) return
+  lastHeartbeatAt = now
+  MatchState.getMutable(stateEntity).serverHeartbeatAt = now
+}
+```
+
+```typescript
+// client/serverReadiness.ts — probe liveness from the client
+import { engine } from '@dcl/sdk/ecs'
+import { isStateSyncronized } from '@dcl/sdk/network'
+import { MatchState } from '../shared/schemas'
+
+const HEARTBEAT_FRESHNESS_MS = 6000  // ~3× the server interval
+
+let lastSeenValue = 0
+let lastSeenAtClient = 0
+
+export function isServerAlive(): boolean {
+  if (!isStateSyncronized()) return false
+  for (const [, data] of engine.getEntitiesWith(MatchState)) {
+    if (data.serverHeartbeatAt !== lastSeenValue) {
+      lastSeenValue = data.serverHeartbeatAt
+      lastSeenAtClient = Date.now()
+    }
+    break
+  }
+  if (lastSeenAtClient === 0) return false  // never observed a tick yet
+  return Date.now() - lastSeenAtClient < HEARTBEAT_FRESHNESS_MS
+}
+```
+
+### Handling the Two Failure Modes at the UI Layer
+
+Room-not-synced and server-not-alive look similar but need different UX:
+
+- **Room not synced** (~1 s during scene load, always resolves) — buffer the action and fire it from a retry system.
+- **Server not alive** (up to ~15 s on cold start, may not resolve at all if the player abandons) — surface a popup; silent buffering feels like a broken click. Auto-clear the popup when a heartbeat finally lands.
+
+```typescript
+// client/joinAction.ts
+import { isServerAlive } from './serverReadiness'
+
+let pendingAction: 'join' | 'leave' | null = null
+let serverNotReadyWarning = false
+
+export function isServerNotReadyWarningVisible() { return serverNotReadyWarning }
+export function dismissServerNotReadyWarning() { serverNotReadyWarning = false }
+
+export function sendJoin(): void {
+  if (!isServerAlive()) {
+    serverNotReadyWarning = true   // tell the player; don't buffer silently
+    return
+  }
+  pendingAction = 'join'  // retry system flushes once isStateSyncronized()
+}
+
+function joinActionRetrySystem(): void {
+  // Auto-clear the popup the moment the server comes back online so a
+  // player who waited isn't left staring at a stale dialog.
+  if (serverNotReadyWarning && isServerAlive()) serverNotReadyWarning = false
+  if (pendingAction === null || !isStateSyncronized()) return
+  room.send(pendingAction === 'join' ? 'requestJoin' : 'leaveGame', { /* ... */ })
+  pendingAction = null
+}
+engine.addSystem(joinActionRetrySystem)
+```
+
+## Schema Types Reference
+
+The full schema-type list, with the verified `Schemas.Boolean` (not `Schemas.Bool`) and `Schemas.Int64`-for-timestamps notes, is in `{baseDir}/SKILL.md` → Schema Types Reference.
 
 ## Server Reading Player Positions
 
@@ -227,27 +281,39 @@ engine.addSystem(() => {
   for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
     const transform = Transform.getOrNull(entity)
     if (!transform) continue
-    const address = identity.address
-    const position = transform.position
+    const address = identity.address   // wallet address, verified by the server
+    const position = transform.position // actual player position (not client-reported)
   }
 })
 ```
 
+Never trust client-reported positions. The server sees real positions via `PlayerIdentityData` + `Transform`.
+
 ## Storage
 
-### World Storage (Global)
+`Storage.set/get/delete` are top-level methods on `Storage` for scene-wide (global) values — there is no `Storage.world` namespace. `Storage.player.set/get/delete` is scoped by wallet address. Storage only accepts strings — `JSON.stringify()`/`JSON.parse()` for objects, `String()`/`parseInt()` for numbers. **Server-only** — guard with `isServer()`.
+
+`set` and `delete` resolve to a **boolean**: `false` means the operation did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it. For the persist-at-checkpoints pattern and the cap details, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
+
+### Scene Storage (Global, shared across all players)
 ```typescript
-await Storage.world.set('leaderboard', JSON.stringify(leaderboardData))
-const data = await Storage.world.get<string>('leaderboard')
+import { Storage } from '@dcl/sdk/server'
+
+const ok = await Storage.set('leaderboard', JSON.stringify(leaderboardData))
+if (!ok) { /* write failed — retry later or surface it, do not assume it saved */ }
+const data = await Storage.get<string>('leaderboard')
 if (data) { const leaderboard = JSON.parse(data) }
-await Storage.world.delete('oldKey')
+await Storage.delete('oldKey')
 ```
 
-### Player Storage (Per-Player)
+### Player Storage (Per-Player, scoped by wallet address)
 ```typescript
-await Storage.player.set(playerAddress, 'highScore', String(score))
-const saved = await Storage.player.get<string>(playerAddress, 'highScore')
-const highScore = saved ? parseInt(saved) : 0
+import { Storage } from '@dcl/sdk/server'
+
+const saved = await Storage.player.set(playerAddress, 'highScore', String(score))
+if (!saved) { /* write failed — keep the value dirty and retry at the next flush */ }
+const raw = await Storage.player.get<string>(playerAddress, 'highScore')
+const highScore = raw ? parseInt(raw) : 0
 await Storage.player.delete(playerAddress, 'highScore')
 ```
 
@@ -269,9 +335,12 @@ npx sdk-commands storage player clear --confirm
 
 ## Environment Variables
 
+For `EnvVar.get` behavior (always-string return, `''` on unset or failed fetch, `|| 'fallback'` pattern) and concepts (secrets, write-only UI, live-tunable params) see `{baseDir}/SKILL.md` → Environment Variables.
+
 ```typescript
 import { EnvVar } from '@dcl/sdk/server'
 const maxPlayers = parseInt((await EnvVar.get('MAX_PLAYERS')) || '4')
+const gameDuration = parseInt((await EnvVar.get('GAME_DURATION')) || '300')
 const debugMode = ((await EnvVar.get('DEBUG')) || 'false') === 'true'
 ```
 

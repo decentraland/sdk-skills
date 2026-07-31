@@ -6,6 +6,15 @@ It's best to load heavy assets through the composite, as they load faster. Asset
 
 This file must exist at `assets/scene/main.composite`.
 
+## main.composite vs main.crdt
+
+Two file forms carry initial-scene entity state; do not confuse them:
+
+- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. Edit this.
+- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
+
+The rest of this document describes the `main.composite` JSON format.
+
 ## Structure
 
 ```json
@@ -24,18 +33,91 @@ This file must exist at `assets/scene/main.composite`.
 }
 ```
 
-## DO NOT Include
+## Authoring-from-scratch vs editing-an-existing-composite
 
-These components are auto-generated and must **NEVER** be in the composite. Including any of them will break the scene in the Creator Hub and/or cause SDK build failures:
+The rules in this document have **two modes** that you must distinguish before touching a composite. Read this section first — applying the wrong mode causes invisible-in-editor entities or SDK build failures.
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes SDK build error: `"inspector::Nodes is not defined and there is no schema to define it"`
-- **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3`; the engine uses base names only.
+| Mode | Trigger | Inspector/auto components |
+| ---- | ------- | ------------------------- |
+| **Authoring from scratch** | The composite does not exist yet, or it exists but contains NO `inspector::*` / `composite::root` / `asset-packs::ActionTypes` components | These components must be **absent**. The Creator Hub will generate them on first save. |
+| **Editing an existing composite** | The composite already contains `inspector::Nodes`, `inspector::SceneMetadata-v4`, `composite::root`, etc. (i.e. the user has opened and saved the scene in the Creator Hub at least once) | These components are **already present and must be kept in sync**. Do NOT delete them. When you add new entities, you MUST also register them in `inspector::Nodes` (and in `inspector::SceneMetadata-*` only if the layout/parcels change). |
+
+**How to detect the mode:** before editing, scan the composite for any component whose name starts with `inspector::` or equals `composite::root`. If any are present, you are in **edit mode** — go to the section "Editing an existing composite (edit mode)" below.
+
+## DO NOT Include — applies ONLY to authoring-from-scratch mode
+
+When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
+
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (see the Troubleshooting section for the exact wording, which differs between current and older SDK versions)
+- **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
 - **`composite::root`** — auto-generated, never include manually
 - **`asset-packs::ActionTypes`** — auto-generated from the engine's action type registry
 
-**Rule of thumb:** if a component name starts with `inspector::` or `asset-packs::`, do NOT include it. The Creator Hub Inspector manages these components internally.
+**Rule of thumb (authoring mode only):** if a component name starts with `inspector::` or `asset-packs::ActionTypes`, do NOT include it. The Creator Hub Inspector manages these components internally on first save.
+
+> **WARNING — edit mode is different.** If the composite already contains `inspector::*` components, you are NOT authoring from scratch. Do NOT strip them, and DO update `inspector::Nodes` whenever you add a new entity. See "Editing an existing composite" below.
+
+## Editing an existing composite (edit mode)
+
+After the user opens and saves a scene in the Creator Hub, the composite contains baked-in inspector components. Adding new entities WITHOUT updating `inspector::Nodes` is a silent bug: the entities render correctly in the running scene but are **invisible in the Creator Hub entity tree**, so the user cannot select or edit them in the editor.
+
+### Required updates when adding a new entity (entity ID `<id>`) in edit mode
+
+For every new entity you add (in addition to the normal `core::Transform`, `core-schema::Name`, and feature components):
+
+1. **Update `inspector::Nodes`** — this is the entity-tree registry on root entity `0`. Two changes required:
+   - Append `<id>` to the `children` array inside the entry whose `entity` is `0` (the RootEntity entry).
+   - Append a new entry `{ "entity": <id>, "children": [] }` to the top-level `value` array. (If the new entity has children of its own, list them in `children`; otherwise use `[]`.)
+
+2. **Add a `core-schema::Name` entry** — every new entity MUST have a name in `core-schema::Name.data["<id>"].json.value`. Without it the entity shows as anonymous in the entity tree and cannot be looked up via `engine.getEntityOrNullByName()`.
+
+3. **Add an `inspector::TransformConfig` entry** (optional but expected) — append `"<id>": { "json": {} }` to its `data` map. This is what the Creator Hub uses to track per-entity proportional-scaling state. An empty `{}` is a valid default.
+
+4. **Keep `entity-names.ts` in sync** — this file at `assets/scene/entity-names.ts` is auto-generated by the Creator Hub from `core-schema::Name`. If you add a new name, either (a) add a matching `EntityNames` member to the file so TypeScript references compile, or (b) leave the file alone and let the Creator Hub regenerate it on next save. Never edit the generated header.
+
+5. **Do NOT touch** `inspector::SceneMetadata-*` (only changes when `scene.json` parcels change), `inspector::Selection` (per-user editor state), `composite::root`, or `asset-packs::ActionTypes` — these remain managed by the Creator Hub.
+
+### Concrete shape of `inspector::Nodes`
+
+```json
+{
+  "name": "inspector::Nodes",
+  "jsonSchema": { /* keep as-is from the existing file */ },
+  "data": {
+    "0": {
+      "json": {
+        "value": [
+          { "entity": 0, "open": true, "children": [512, 513, 531, 532, 1, 2] },
+          { "entity": 512, "children": [] },
+          { "entity": 513, "children": [] },
+          { "entity": 531, "children": [] },
+          { "entity": 532, "children": [] },
+          { "entity": 1,   "children": [] },
+          { "entity": 2,   "children": [] }
+        ]
+      }
+    }
+  }
+}
+```
+
+Notes on the structure:
+
+- The first entry is always entity `0` (RootEntity) and is the only one that carries `"open": true`.
+- Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) appear at the END of the entity-`0` `children` array AND as their own entries with empty `children`. Preserve this ordering — append your new IDs **before** the trailing `1` and `2`.
+- Every entity that exists in the composite must have its own `{ "entity": <id>, "children": [...] }` entry, even if `children` is empty.
+- If your new entity has `Transform.parent` set to another entity (e.g. `512`), append your entity ID to the `children` of that parent's entry instead of entity `0`'s.
+
+### Edit-mode failure mode (the bug this section prevents)
+
+A new entity has `core::Transform` + `core::GltfContainer` but is NOT registered in `inspector::Nodes`:
+
+- In the running scene: renders correctly.
+- In the Creator Hub entity tree: **does not appear**, so the user cannot select, rename, reposition, or delete it from the editor — they can only edit it by hand-editing the JSON.
+
+If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, the Creator Hub treats them as "orphan" entities that exist in the ECS but not in the editor's tree.
 
 ## jsonSchema Rules
 
@@ -52,94 +134,6 @@ These components are auto-generated and must **NEVER** be in the composite. Incl
 ```
 
 **How to get the jsonSchema:** When you read an asset's composite from the catalog (`node_modules/@dcl/asset-packs/catalog.json`), each non-core component already has its `jsonSchema`. Copy it as-is into the scene composite.
-
-## Step 0 — Read scene.json and Compute Bounds (MANDATORY)
-
-**Before writing a single entity position, read `scene.json` and calculate the scene bounds.** This must happen first — all entity positions must fit within these bounds or they will not render.
-
-### How to calculate bounds
-
-1. Open `scene.json` and locate `scene.parcels` (array of `"x,y"` strings) and `scene.base`.
-2. Parse every parcel as integers. Find the min and max X and Y across all parcels.
-3. Compute:
-
-```
-parcelsWide = max(parcel_x) - min(parcel_x) + 1
-parcelsDeep = max(parcel_y) - min(parcel_y) + 1
-
-maxX = parcelsWide * 16
-maxZ = parcelsDeep * 16
-```
-
-4. Valid entity positions: **X in [0, maxX], Z in [0, maxZ]**. Negative values and values above maxX/maxZ are outside the scene and will not render.
-
-### Step 0b — Account for 3D Model Bounding Boxes (MANDATORY for GLB models)
-
-**A model's `Transform.position` is its local origin, NOT its visual extent.** Tree and vegetation models commonly extend 6–12 m _beyond_ their origin in one or more directions. Placing a tree at x=2 can cause it to render at x=–10, which is outside the scene bounds.
-
-**How to find a model's bounding box** — parse the GLB binary and apply node-level transforms. Raw accessor `min`/`max` values alone are **not reliable** because many GLB models have large scale factors or translations baked into the GLTF node hierarchy (e.g. a model whose accessors say 0.6 m but whose node scale is 24× giving an actual rendered size of 14 m).
-
-```js
-node -e "
-const buf = require('fs').readFileSync('assets/scene/Models/MyModel.glb');
-const jsonLen = buf.readUInt32LE(12);
-const json = JSON.parse(buf.slice(20, 20+jsonLen));
-let minW=[Infinity,Infinity,Infinity], maxW=[-Infinity,-Infinity,-Infinity];
-json.nodes?.forEach(n => {
-  if (n.mesh === undefined) return;
-  const s = n.scale || [1,1,1];
-  const t = n.translation || [0,0,0];
-  for (const prim of json.meshes[n.mesh].primitives) {
-    const acc = json.accessors[prim.attributes.POSITION];
-    if (!acc.min || !acc.max) continue;
-    for (let i = 0; i < 3; i++) {
-      const lo = acc.min[i]*s[i]+t[i], hi = acc.max[i]*s[i]+t[i];
-      minW[i] = Math.min(minW[i], lo, hi);
-      maxW[i] = Math.max(maxW[i], lo, hi);
-    }
-  }
-});
-const w=maxW[0]-minW[0], h=maxW[1]-minW[1], d=maxW[2]-minW[2];
-console.log('Rendered size:', w.toFixed(2)+'m x', h.toFixed(2)+'m x', d.toFixed(2)+'m');
-console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFixed(2)));
-"
-```
-
-**Known measured bounding boxes** (half-extents from origin):
-
-| Model           | –X   | +X   | –Z    | +Z   | Safe minimum origin    |
-| --------------- | ---- | ---- | ----- | ---- | ---------------------- |
-| Tree_01_Art.glb | 8.16 | 7.78 | 11.34 | 0.76 | x≥9, z≥12              |
-| Tree_02_Art.glb | 6.56 | 6.23 | 11.41 | 0.36 | x≥7, z≥12              |
-| Column_Art.glb  | 0.82 | 0.82 | 0.82  | 0.82 | any x/z with 1m margin |
-| Wall01_Art.glb  | 2.18 | 2.16 | 0.05  | 0.05 | x≥3, z≥1               |
-
-**Rule:** For every GLB model, compute:
-
-```
-minSafeX = max(0, -bbox.minX) + margin      (≥1 m)
-minSafeZ = max(0, -bbox.minZ) + margin      (≥1 m)
-maxSafeX = maxX - (bbox.maxX + margin)
-maxSafeZ = maxZ - (bbox.maxZ + margin)
-```
-
-Only place the model if its Transform position satisfies all four bounds.
-
-For tree/vegetation models where the bounding box is unknown, assume a **12 m safe buffer** from all edges — i.e., place origins in `[12, maxX-12]` × `[12, maxZ-12]`.
-
-### Examples
-
-| scene.json parcels          | parcelsWide | parcelsDeep | Valid X | Valid Z |
-| --------------------------- | ----------- | ----------- | ------- | ------- |
-| `["0,0"]`                   | 1           | 1           | 0 – 16  | 0 – 16  |
-| `["0,0","1,0"]`             | 2           | 1           | 0 – 32  | 0 – 16  |
-| `["0,0","1,0","0,1","1,1"]` | 2           | 2           | 0 – 32  | 0 – 32  |
-
-### Never change scene.json parcel count without explicit user instruction
-
-Adding parcels to `scene.json` is not always an option, it depends where the scene will be published to. If publishing to Genesis City, parcels must be **owned or rented** by the deploying wallet; if publishing to a World, it might be an option. If the scene is currently too small for what the user is asking for, ask the user for confirmation to change the scene layout and include more parcels. If they disagree then **work within the existing parcel bounds and make the scene as rich as possible within 16×16m**. Do not silently expand the parcel list. If more space is truly needed, ask the user first.
-
----
 
 ## Entity ID Allocation
 
@@ -174,7 +168,7 @@ Adding parcels to `scene.json` is not always an option, it depends where the sce
 
 - `rotation` is a quaternion (x, y, z, w). Default = `{x:0, y:0, z:0, w:1}` (no rotation)
 - `parent: 0` means child of RootEntity (top-level)
-- Each parcel is 16m x 16m. Scene bounds are computed in **Step 0** from `scene.json`. A 1×1 scene has maxX=16, maxZ=16; a 2×2 scene has maxX=32, maxZ=32. Always use the computed bounds, not assumed ones.
+- Each parcel is 16m x 16m. Scene bounds are computed in **Step 0** (in the composites `SKILL.md`) from `scene.json`. A 1×1 scene has maxX=16, maxZ=16; a 2×2 scene has maxX=32, maxZ=32. Always use the computed bounds, not assumed ones.
 
 ### 4. core-schema::Name (on every user entity)
 
@@ -214,6 +208,8 @@ Adding parcels to `scene.json` is not always an option, it depends where the sce
 - Example: "Tree Forest Pink 01" → `assets/asset-packs/tree_forest_pink_01/Tree_Forest_Pink_01.glb`
 
 **Default collision masks:** If not provided, set `visibleMeshesCollisionMask: 0` and `invisibleMeshesCollisionMask: 3` (CL_POINTER + CL_PHYSICS).
+
+**Swapping `src` on an existing entity:** the inherited `Transform.scale`/`position`/`rotation` were tuned for the **previous** model's native dimensions and pivot — they are almost never correct for a new GLB. Recompute scale from the new model's native bounding box, verify the pivot, and re-check scene bounds. See the "Swapping a model `src`" rule in `../add-3d-models/SKILL.md`.
 
 ### core::MeshRenderer (primitive shapes)
 
@@ -257,6 +253,8 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 - `2` = CL_PHYSICS (player physics, walls, floors)
 - `3` = CL_POINTER + CL_PHYSICS (both)
 
+**Default:** if `collisionMask` is omitted it defaults to `3` (CL_POINTER | CL_PHYSICS) — a bare `MeshCollider` is already clickable and solid. Set it explicitly only to narrow the behavior (e.g. `2` for a wall that shouldn't intercept clicks), not to enable colliders.
+
 ### core::Material
 
 **PBR material:**
@@ -277,7 +275,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 							"tex": {
 								"$case": "texture",
 								"texture": {
-									"src": "assets/scene/Images/image.png",
+									"src": "assets/Images/image.png",
 									"wrapMode": 0,
 									"filterMode": 0
 								}
@@ -334,7 +332,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 	"data": {
 		"512": {
 			"json": {
-				"audioClipUrl": "assets/scene/Sounds/music.mp3",
+				"audioClipUrl": "assets/Audio/music.mp3",
 				"playing": true,
 				"volume": 1,
 				"loop": true,
@@ -344,6 +342,27 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 	}
 }
 ```
+
+### core::AudioStream
+
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+
+```json
+{
+	"name": "core::AudioStream",
+	"data": {
+		"512": {
+			"json": {
+				"url": "https://example.com/stream.mp3",
+				"playing": true,
+				"volume": 1
+			}
+		}
+	}
+}
+```
+
+Non-spatial by default. Set `"spatial": true` (optionally with `spatialMinDistance` / `spatialMaxDistance`) to position the stream in 3D at the entity.
 
 ### core::VideoPlayer
 
@@ -597,13 +616,13 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core, and require installing the `asset-packs` library in the project. Do not add any of these unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. On current SDK versions the build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required; older SDK versions require `@dcl/asset-packs` to be a project dependency. Either way, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 
-**NOTE:** Do NOT include `inspector::Nodes` or `inspector::SceneMetadata` in the composite. The Creator Hub creates these automatically when opening the scene. Including them causes the SDK build to fail. These components should only exist on the RootEntity (ID 0).
+These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
-If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
+If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 
 The `inspector::SceneMetadata` component in the composite must match `scene.json`:
 
@@ -656,7 +675,10 @@ export function main() {
 		)
 	}
 
-	// Strict variant — throws at compile time if name changes, no null check needed
+	// Strict variant — the <EntityNames> type parameter catches renames at
+	// COMPILE time only. At runtime it never throws: called before composite
+	// entities are instantiated it silently returns a null-ish Entity.
+	// Only safe inside main() or later, when the entity is guaranteed to exist.
 	const box = engine.getEntityByName<EntityNames>(EntityNames.MyBox)
 	console.log(Transform.get(box).position.x)
 }
@@ -689,38 +711,41 @@ Tags.add(entity, 'Crystal')
 Tags.remove(entity, 'Crystal')
 ```
 
-## Validation Checklist
+## Spawning a Composite at Runtime
 
-Before writing a composite, verify:
+A composite file (a self-contained `.composite`, or a Custom Item stored as `composite.json`) can be instantiated at runtime as many times as you like. Two steps: **load once** (async), then **instance** (sync, repeatable).
 
-- [ ] `version` is `1`
-- [ ] NO `inspector::*` components whatsoever — no `inspector::Nodes`, `inspector::SceneMetadata` (any version), `inspector::Selection`, `inspector::TransformConfig`, `inspector::UIState`. These are all auto-generated by the Creator Hub and including them breaks the entity tree or causes build errors.
-- [ ] NO `composite::root` or `asset-packs::ActionTypes` — auto-generated by engine
-- [ ] Every user entity (512+) has `core::Transform` and `core-schema::Name`
-- [ ] No duplicate entity IDs across the composite
-- [ ] No duplicate entity IDs with entities created via code with an explicit ID
-- [ ] `core::` components do NOT have `jsonSchema` — this is a hard requirement; including jsonSchema on a core:: component will cause the Creator Hub to fail to parse entities correctly
-- [ ] Non-core components (`asset-packs::*`, `core-schema::*`) MUST have `jsonSchema` (copied from catalog)
-- [ ] All `GltfContainer.src` paths use slugified name format: `assets/asset-packs/<slug>/<filename>`
-- [ ] All referenced asset files were downloaded to disk (GLB, audio, images)
-- [ ] Default collision masks set on GltfContainer (`visibleMeshesCollisionMask: 0`, `invisibleMeshesCollisionMask: 3`)
-- [ ] All positions within parcel bounds — bounds were calculated in **Step 0** from the actual `scene.json` parcel list. Every entity's X is in `[0, maxX]` and Z is in `[0, maxZ]`. Negative values and values above maxX/maxZ do not render. If the user requested a "large" scene but parcel count was not changed, all entities fit within the original bounds.
-- [ ] For every `GltfContainer` entity: checked whether the GLB contains animations (clip names embedded in the file). If it does, an `core::Animator` component is present on that entity. A model with animations but no Animator will silently loop its first clip with no way to control it.
-- [ ] For every `GltfContainer` entity: checked whether the GLB contains collision meshes (any mesh whose name includes the string `_collider`). If yes, `invisibleMeshesCollisionMask` is set to `3` (CL_POINTER + CL_PHYSICS) to activate them. If no built-in colliders, evaluated whether a `core::MeshCollider` box/sphere is needed to cover the model's rough shape (for walkable surfaces, walls, or clickable objects).
-- [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, and have `value` = highest allocated component ID
-- [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
-- [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
-- [ ] The project must have the `@dcl/asset-packs` library as a dependency to be able to use a composite file
+```ts
+import { engine, Composite, getCompositeProvider, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
 
-## Post-Write Validation
+const src = 'assets/barrel.composite'
 
-After writing the composite, **run the SDK build** to verify:
+export async function spawnBarrel(position: Vector3) {
+  // Provider is registered automatically by @dcl/sdk at module load.
+  const provider = getCompositeProvider()!
 
-```bash
-npx sdk-commands build
+  // 1. Load into memory. Async, idempotent — cached by `src`, so calling it
+  //    again with the same path returns the already-loaded resource (no re-read).
+  const resource = await provider.loadComposite!(src)
+
+  // 2. Instance. Synchronous; returns the ROOT entity of the spawned tree.
+  const root = Composite.instance(engine, resource, provider)
+
+  // 3. Position it: set the root entity's Transform AFTER instancing
+  //    (there is no transform option on instance()).
+  Transform.createOrReplace(root, { position })
+  return root
+}
 ```
 
-The build must pass with zero errors. If it fails, the composite is invalid. Common errors:
+- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. ⚠ An earlier API named `engine.addEntityFromComposite(src)` does NOT exist on current SDK main (it was replaced by `Composite.instance`) — do not use it even if older docs mention it.
+- `getCompositeProvider()` returns the scene's standard provider (`@dcl/sdk` registers it via `setCompositeProvider(engine, compositeProvider)` at module load; returns `null` only if that never ran). The provider offers `loadComposite(src): Promise<Composite.Resource>` — reads + caches the file via `~system/Runtime.readFile`, accepting JSON `.composite` and binary `.composite.bin` — and `getCompositeOrNull(src)`, the synchronous cache lookup.
+- `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
+- **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
+- JSON `.composite` decoding uses `TextDecoder`. Since `@dcl/sdk` replaced the external text-encoding polyfill with a built-in UTF-8 codec, `TextDecoder` is available by default and no extra import (e.g. `@dcl/sdk/ethereum-provider`) is needed. The older polyfill helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required for composite loading.
+- Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
 
-- `"X is not defined and there is no schema to define it"` → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
-- TypeScript errors → fix generated scripts
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-2-main-crdt — ships a binary `main.crdt` at scene root defining static entities (1 primitive cube at entity `512` + 4 GltfContainers) present at `tickNumber === 1`. Scene code queries them by component (`engine.getEntitiesWith(MeshRenderer)` / `getEntitiesWith(GltfContainer)`) and rotates them, and a `@dcl/sdk/testing` test asserts the initial state. Demonstrates the compiled-`main.crdt` form of composite loading (see "main.composite vs main.crdt" above).

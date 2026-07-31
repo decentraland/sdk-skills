@@ -1,6 +1,6 @@
 ---
 name: optimize-scene
-description: Optimize Decentraland scene performance. Scene limit formulas (triangles, entities, materials, textures, height per parcel count), object pooling, LOD patterns, texture optimization, system throttling, and asset preloading. Use when the user wants to optimize, improve performance, fix lag, reduce load time, check limits, or reduce entity/triangle count. Do NOT use for deployment (see deploy-scene).
+description: Optimize Decentraland scene performance. Scene limit formulas, object pooling, LOD patterns, texture optimization, system throttling, and asset preloading. Use when the user wants to optimize performance, fix lag, reduce load time, check limits, or reduce entity/triangle count. Do NOT use for deployment (see deploy-scene).
 ---
 
 # Optimizing Decentraland Scenes
@@ -19,6 +19,8 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 | **Height limit**   | log2(n+1) x 20m | 20m      | 31m       | 40m       | 46m       | 56m       | 66m       | 81m        | 87m        |
 
 **File limits:** 15 MB per parcel, 300 MB max total, 200 files per parcel, 50 MB max per individual file.
+
+File limits count only what is actually uploaded on deploy. Make sure `.dclignore` (at the project root) excludes all working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown docs — since these are often the bulk of a project's size and are never needed at runtime. See the `.dclignore` section in the **deploy-scene** skill.
 
 Important: Except for the MB size limits, all other limits can be exceeded. It's generally not recommended to go over them because of performance impact, but if a user tests their scene and determines that it's good enough, it should be ok to publish.
 
@@ -111,8 +113,9 @@ MeshRenderer.setPlane(entity) // Very cheap
 
 ## Texture Optimization
 
-- **Dimensions must be power-of-two**: 256, 512, 1024, 2048
-- **Recommended sizes**: 512x512 for most objects, 1024x1024 max for hero pieces
+- **Dimensions must be power-of-two**: 256, 512, 1024
+- **Maximum is 1024x1024.** The asset-bundle-converter enforces `DESKTOP_MAX_TEXTURE_SIZE = 1024` (`AssetBundleConverter.cs` → `ReduceTextureSizeIfNeeded`): anything larger (e.g. 2048) is **downscaled to 1024 at conversion**, so authoring above 1024 wastes source size without visual benefit.
+- **Recommended sizes**: 512x512 for most objects, 1024x1024 for hero pieces
 - Use `.png` for UI/sprites with transparency
 - Use `.jpg` for photos and textures without transparency
 - Prefer compressed formats (WebP) over raw PNG where possible
@@ -135,10 +138,10 @@ Material.setPbrMaterial(entity2, {
 
 | Use Case                      | Recommended | Maximum   |
 | ----------------------------- | ----------- | --------- |
-| Scene objects (walls, floors) | 1024x1024   | 2048x2048 |
+| Scene objects (walls, floors) | 1024x1024   | 1024x1024 |
 | Props and furniture           | 512x512     | 1024x1024 |
 | UI elements / icons           | 256x256     | 512x512   |
-| Skybox / environment maps     | 1024x1024   | 2048x2048 |
+| Skybox / environment maps     | 1024x1024   | 1024x1024 |
 
 Textures do not need to be square — 512x1024 is valid as long as both dimensions are powers of two.
 
@@ -191,53 +194,53 @@ engine.removeSystem(systemFn)
 
 ## Asset Preloading (AssetLoad Component)
 
-For large assets that would cause visible pop-in, use `AssetLoad` to pre-download before rendering:
+Use `AssetLoad` to pre-load assets into memory ahead of time so they display instantly when needed. `PBAssetLoad` has a single field: `assets: string[]` — the list of asset paths to load. Commonly created on `engine.RootEntity`, but any entity works.
 
 ```typescript
 import {
 	engine,
 	AssetLoad,
+	assetLoadLoadingStateSystem,
 	LoadingState,
-	GltfContainer,
-	Transform,
 } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
 
-// Create a preload entity at scene startup
-const preloadEntity = engine.addEntity()
-AssetLoad.create(preloadEntity, { src: 'models/large-model.glb' })
+// Queue assets to pre-load (any entity works — commonly a dedicated cube/root).
+// AssetLoad.getOrCreateMutable lets you also PUSH more paths later:
+//   AssetLoad.getOrCreateMutable(entity, { assets: [...] }).assets.push(morePath)
+AssetLoad.create(entity, { assets: ['models/big.glb', 'sounds/win.mp3'] })
 
-// System to track loading progress
-function assetLoadingSystem(dt: number) {
-	for (const [entity] of engine.getEntitiesWith(AssetLoad)) {
-		const state = AssetLoad.get(entity)
-		if (state.loadingState === LoadingState.FINISHED) {
-			// Asset is cached — now safe to create the visible entity
-			GltfContainer.create(entity, { src: 'models/large-model.glb' })
-			Transform.create(entity, { position: Vector3.create(8, 0, 8) })
-			AssetLoad.deleteFrom(entity) // Remove preload component
+// React to loading state. The callback fires PER ASSET (once per path in the
+// list), receiving { asset, currentState } — NOT one batch-level event.
+assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
+	entity,
+	(state: { asset: string; currentState: LoadingState }) => {
+		if (state.currentState === LoadingState.FINISHED) {
+			// state.asset finished loading and is now cached
 		}
-	}
-}
-engine.addSystem(assetLoadingSystem)
+	},
+)
+// Stop listening: assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(entity)
 ```
 
-Use this pattern for any asset that should be ready before a game phase begins, or that may be needed any time based on player interaction. For example for the sound effect of pressing a button that is already available to the player.
+`LoadingState` enum members: `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR` (asset found but failed to load), `NOT_FOUND` (path does not exist), `UNKNOWN` (initial/default state). A missing/typo'd `src` resolves to `NOT_FOUND`, not a thrown error.
+
+Caveats:
+
+- The state callback is **per-asset**, keyed by the `asset` path string — dispatch on `state.asset` to update the right entity. There is no single "all finished" event; track completion yourself by counting per-asset `FINISHED`/error states.
+- `AssetLoad` only **adds** assets to memory. Removing a path from the `assets` list does **not** free memory — there is no unload via `AssetLoad`.
+- Preloading a path does **not** create/render anything — you still `getOrCreateMutable` the real component (`GltfContainer`, `AudioSource`, `VideoPlayer`, `Material` texture) on an entity to use it; the preload just makes that later use instant.
+- If an asset is used immediately at scene startup, there is **no need** for `AssetLoad`. Only pre-load assets NOT required at startup — things that appear later or on player interaction.
 
 ## Loading Time Optimization
 
-- Lazy-load 3D models (load on demand, not all at scene start)
-- Use compressed .glb files (Draco compression)
-- Minimize total asset size
 - Use CDN URLs for large shared assets when possible
-- Preload critical assets with `AssetLoad`, defer non-essential ones
 
 ### Loading Areas for Large Scenes
 
 For scenes with many 3D models (e.g. a furnished multi-room building), avoid rendering everything at once. Use trigger areas to load and unload content as the player moves through the scene:
 
 ```typescript
-import { engine, Transform, GltfContainer, TriggerArea, TriggerAction } from '@dcl/sdk/ecs'
+import { engine, Transform, GltfContainer, TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'
 import { Vector3 } from '@dcl/sdk/math'
 
 // Keep furniture hidden initially
@@ -245,11 +248,19 @@ let furnitureLoaded = false
 
 // When player enters the building, spawn interior furniture
 const trigger = engine.addEntity()
-Transform.create(trigger, { position: Vector3.create(8, 1, 8) })
-TriggerArea.create(trigger, {
-  area: { box: Vector3.create(3, 3, 3) },
-  onEnter: [{ type: TriggerAction.TA_CUSTOM, customId: 'load-interior' }],
-  onExit: [{ type: TriggerAction.TA_CUSTOM, customId: 'unload-interior' }],
+Transform.create(trigger, {
+  position: Vector3.create(8, 1, 8),
+  scale: Vector3.create(3, 3, 3)
+})
+TriggerArea.setBox(trigger, ColliderLayer.CL_PLAYER)
+
+triggerAreaEventsSystem.onTriggerEnter(trigger, () => {
+  if (!furnitureLoaded) loadInterior()
+  furnitureLoaded = true
+})
+triggerAreaEventsSystem.onTriggerExit(trigger, () => {
+  if (furnitureLoaded) unloadInterior()
+  furnitureLoaded = false
 })
 ```
 
@@ -260,16 +271,17 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Pitfall                              | Symptom                          | Fix                                                      |
 | ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
 | Too many unique materials            | High draw calls, low FPS         | Merge into texture atlases, reuse materials              |
-| Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024/2048                 |
+| Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |
 | Large uncompressed textures          | Slow loading, file size exceeded | Use WebP, reduce resolution, use atlases                 |
+| Working files uploaded on deploy     | "Scene too large" deploy error   | Add Blender/FBX sources, concept art, docs to `.dclignore` (see **deploy-scene**) |
 | Too many transparent materials       | Extra draw calls, sorting issues | Minimize transparency, use alpha cutoff instead of blend |
 | Adding entities/components in a system without guards | Entity count explodes | Systems run every frame — always check before creating  |
 | Unbounded entity queries             | CPU spike                        | Filter with specific components, cache results           |
 | All detail loaded at all distances   | Triangle budget blown            | Implement LOD system                                     |
-| No asset preloading                  | Pop-in during gameplay           | Use AssetLoad for large models and audio                 |
+| No asset preloading                  | Pop-in during gameplay           | Use AssetLoad to preload assets needed later (not startup assets) |
 
 ## Scene Statistics Monitoring
 
@@ -305,6 +317,14 @@ When running the scene locally with `npm run start`:
 # Optimize a GLB with Draco compression
 npx @gltf-transform/cli optimize input.glb output.glb --compress draco
 ```
+
+## Example scenes
+
+Engine-team stress-test scenes (treat as ground truth for API shape):
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,2-cube-wave-32x32 — ~961 primitive cubes in ONE parcel (far over the 200-entity soft limit), all `Transform.position.y` mutated every frame via a single `engine.getEntitiesWith(MeshRenderer)` query. Demonstrates that soft limits can be exceeded and that a per-frame query over hundreds of entities is the intended pattern (no pooling needed for a fixed static set — cubes are created once in `main()`, not per frame).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/73,-2-dbmonster — UI stress test: dozens of nested `<Label>` in a ReactEcs tree rebuilt every frame with `Math.random()` values. Demonstrates the UI render function re-runs each frame, so heavy per-frame allocation in `.tsx` is a real cost.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load — `AssetLoad` preloading with the per-asset `assetLoadLoadingStateSystem` state callback (mp3 / texture / video / glb, plus a deliberately missing path that resolves to `NOT_FOUND`).
 
 ## Cross-References
 

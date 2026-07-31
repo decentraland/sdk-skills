@@ -1,44 +1,56 @@
 ---
 name: authoritative-server
-description: Build multiplayer Decentraland scenes with a headless authoritative server. Covers isServer() branching, registerMessages() for client-server communication, validateBeforeChange() for server-only state, Storage (world and player persistence), EnvVar (environment variables), and project structure. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
+description: Build multiplayer Decentraland scenes with a headless Multiplayer Server. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
 ---
 
-# Authoritative Server Pattern
+# Multiplayer Server
 
-**IMPORTANT**: The authoritative server is a feature in BETA. Always notify the user and ask them if they want to proceed before adding it to the scene.
+**📔 Note**: The Multiplayer Server was previously called the **Authoritative Server**. Only the name changed, the feature is the same. The SDK branch to install is still named `auth-server`.
 
-**IMPORTANT — deployment constraint**: The authoritative server currently only works on scenes published to **Worlds**, NOT to LAND parcels in Genesis City. If a world has multiple scenes, only one of them can have an authoritative server.
+**IMPORTANT**: Always notify the user and ask them if they want to proceed before adding it to the scene. Mention that it requires installing the `@dcl/sdk@auth-server` branch instead of the standard SDK.
 
 Build multiplayer Decentraland scenes where a **headless server** controls game state, validates changes, and prevents cheating. The same codebase runs on both server and client, with the server having full authority. Decentraland hosts and deploys the server automatically. For basic CRDT multiplayer (no server), see the `multiplayer-sync` skill instead.
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. Optionally add `logsPermissions` in scene.json to list wallet addresses that can see server logs. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), but you do **not** add it manually: the `@dcl/sdk@auth-server` sdk-commands **auto-adds it on every build and preview** (`bundle.ts` writes `authoritativeMultiplayer: true` to `scene.json` via `ensureJsonKey`, only if absent — it also auto-adds a `server-logs` script to `package.json`). The rule is simply: **do not remove it.** Optionally add `logsPermissions` (root-level array of wallet addresses) to authorize reading production server logs — see `{baseDir}/references/server-patterns.md` → Production Logs. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 
 Use `isServer()` from `@dcl/sdk/network` to branch logic in a single codebase. Server runs headlessly (no rendering) and has access to all player positions via `PlayerIdentityData`.
 
+For **shared/library code** that resolves the role itself via the low-level `isServer()` from `~system/EngineApi` (async, unlike the sync `@dcl/sdk/network` helper), use the defensive idiom: resolve the role once at startup, have systems return early while it is still unknown, keep client-only features permanently off on the server, and treat a *failed* query as **client** — so a real client never loses functionality if the query errors.
+
 ## Synced Components with Validation
 
-Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. Guard calls with `isServer()` — on the client the call is a no-op. Incoming values include `senderAddress` (wallet address of sender; equals `AUTH_SERVER_PEER_ID` when sent by server). Always compare addresses with `.toLowerCase()`.
+Define custom components that sync from server to all clients. **Always** use `validateBeforeChange()` to prevent clients from modifying server-authoritative state. **Always guard `validateBeforeChange()` (and any helper that wraps it, like `protectServerEntity()`) inside an `isServer()` block** — both overloads (per-entity and global no-entity) only have meaning on the server, and calling either on a client produces errors. This applies even to global custom-component validators in shared files: define the component at module scope, but place the `validateBeforeChange()` call inside an `isServer()` guard (e.g. inside `main()` or inside an `if (isServer()) { ... }` block in `shared/schemas.ts`).
+
+The validator callback receives `{ entity, currentValue, newValue, senderAddress, createdBy }`. Read component fields from `value.newValue.<field>` (NOT `value.<field>` — that field does not exist). `currentValue` is the pre-change value (`undefined` if component was not present). `newValue` is `undefined` when the component is being deleted. `senderAddress` is the wallet address of the sender; equals `AUTH_SERVER_PEER_ID` when sent by the server. Always compare addresses with `.toLowerCase()`.
 
 ### Validation Patterns
 
 - **Pattern 1 — Server-only writes** (strictest): `Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)`
-- **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `position.y > 0`)
-- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`
-- **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/sdk/server` to restrict to admins
+- **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `value.newValue.position.y > 0`)
+- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`. Server-read player `Transform.position` is **scene-local** metres — the same frame the client sees and the same frame scene entities use — so compare it directly to entity positions with `Vector3.distance()`, no base-parcel offset math. Canonical example: the official `90,-9-authoritative-server-leaderboard` test scene (deployed at non-origin parcels) compares server-read player position directly to a scene-local target. (Some older SDK server builds returned world/parcel-absolute coordinates instead; that was a bug, since fixed — do not add `scene.base` offset corrections.)
+- **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api` to restrict to admins. For a lightweight fixed allow-list, gate the message handler on the **server-verified** sender instead: keep a lower-cased `ADMINS: string[]` in shared config and check `ADMINS.includes(context.from.toLowerCase())` inside `room.onMessage(...)` (never trust a client-reported role). Clients may read the same list to decide whether to *show* a privileged button, but only the server's check is authoritative.
 
-Use `isPreview()` from `@dcl/sdk/network` to relax validation during local development.
+Use `isPreview()` from `@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils` (sync, no args, returns `boolean`) to relax validation during local development. The deep `dist/...` import path is the only working one — the package has no top-level re-export.
 
 **Custom components** use global validation: `GameState.validateBeforeChange((value) => ...)`. **Built-in components** (Transform, GltfContainer) use per-entity validation: `Transform.validateBeforeChange(entity, (value) => ...)`.
 
-After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`.
+After creating and protecting an entity, sync it with `syncEntity(entity, [Transform.componentId, GameState.componentId])`. **In an authoritative-server scene, only the server should call `syncEntity()`** — wrap the call in `if (isServer())`. The server creates and shares the entity instance; all clients receive the sync. This is different from the `multiplayer-sync` pattern (serverless), where every client calls `syncEntity` on its own. Calling `syncEntity` on the client in an authoritative scene produces errors, and avoiding client-side calls also removes the need to worry about entity-id consistency across peers.
+
+### Per-Player Synced Entities
+
+For server-created entities that exist one-per-player (score, hold time, wallet), **never derive an explicit sync id from the player's address** (e.g. `hash(address) % N`). An explicit sync id is a *global* network identity with a hard collision check — a hashed id throws `syncEntity failed because the id provided is already in use` both when two addresses hash into the same slot (~50% odds by ~370 players for a 100k range) and when the same player reconnects before their old entity is cleaned up. Instead **omit the id** (`syncEntity(entity, [Comp.componentId])`) — auto-allocation is unique by construction — and store the player's address in a component field (`playerId`); all readers (client systems and server-restart reconciliation) match on that field, never on the network id. Reserve explicit enum ids for fixed singletons (game state, flag, leaderboard).
+
+Long-running servers recycle entity slots, so cached `Map<address, Entity>` handles can go stale (component gone while the map still points at the dead entity). Validate the cache with `Comp.getOrNull(entity)` before reuse and recreate on a stale hit; in per-frame systems use `getMutableOrNull` + guard so a transient miss skips one tick instead of throwing `[mutable] Component <name> for <id> not found` every frame. When adopting entities from an `engine.getEntitiesWith(Comp)` scan (e.g. rebuilding the map after a server restart), skip any entity whose number (`entity & 0xffff`) is below 512 — those are reserved/avatar-range slots owned by the runtime; never cache or `removeEntity()` them. Full pattern with code: `{baseDir}/references/server-patterns.md` → Per-Player Synced Entities.
 
 ## Messages
 
 Use `registerMessages()` for client-to-server and server-to-client communication. Define message schemas with `Schemas.Map(...)` — plain JS objects will fail binary serialization.
+
+**Module-load timing (critical):** `registerMessages()` defines a component internally, and `engine.defineComponent()` in `shared/schemas.ts` defines components too. Both MUST run during initial module load, before the engine seals. Reach them via **static** `import` (e.g. `import './shared/messages'` at the top of `index.ts`), NOT via a dynamic `import()` inside `main()` — a dynamic import runs after the seal and throws `Engine is already sealed`. Only server-only modules (those importing `@dcl/sdk/server`) should be dynamically imported inside the `isServer()` branch, and only if they define no components at module scope — this keeps `@dcl/sdk/server` out of the client bundle path.
 
 - Client sends: `room.send('playerJoin', { displayName: 'Alice' })`
 - Server sends to all: `room.send('gameEvent', { ... })`
@@ -49,9 +61,13 @@ Clients must wait for `isStateSyncronized()` (note SDK typo) to return `true` be
 
 **IMPORTANT — message size limit**: Never send messages larger than **13 KB**. The transport will silently drop any message that exceeds this limit. Split large payloads into smaller chunks if needed.
 
+**`MessageBus` is client-only.** `MessageBus` (from `@dcl/sdk/message-bus`) subscribes to the legacy `EngineApi.subscribe('comms')` event, which the headless server runtime does not implement — on the server it fails with `RemoteError: not implemented`. Because module-scope code runs on both sides, never construct one at module scope (`const bus = new MessageBus()`) in an authoritative-server scene; construct it only inside the client branch (`if (!isServer())`). It remains fine client-side for transient client-to-client effects, but the server can neither send nor receive on it — all client↔server communication must go through `registerMessages()` + `room`.
+
 ### Schema Types Reference
 
-`Schemas.String`, `.Int`, `.Float`, `.Bool`, `.Int64` (for `Date.now()` / 13+ digit numbers), `.Vector3`, `.Quaternion`, `.Entity`, `.Array(Schemas.String)`, `.Optional(Schemas.String)`, `.Map({ name: Schemas.String, hp: Schemas.Int })`.
+`Schemas.String`, `.Int`, `.Float`, `.Boolean`, `.Int64` (for `Date.now()` / 13+ digit numbers), `.Vector3`, `.Quaternion`, `.Entity`, `.Array(Schemas.String)`, `.Optional(Schemas.String)`, `.Map({ name: Schemas.String, hp: Schemas.Int })`.
+
+> The boolean schema is **`Schemas.Boolean`**, not `Schemas.Bool` (verified — `@dcl/ecs` `schemas/index.d.ts` exposes `Schemas.Boolean`; the internal class is named `Bool` but is not exposed under that name on the `Schemas` namespace).
 
 **Use `Schemas.Int64` for timestamps** — `Schemas.Number` corrupts large numbers (13+ digits).
 
@@ -63,14 +79,23 @@ Read actual server-verified positions via `engine.getEntitiesWith(PlayerIdentity
 
 Persist data across server restarts. **Server-only** — guard with `isServer()`. Import from `@dcl/sdk/server`.
 
-- **World Storage** (global): `Storage.world.set/get/delete(key)`
-- **Player Storage** (per-player): `Storage.player.set/get/delete(address, key)`
+- **Scene Storage** (global, shared across all players): `Storage.set/get/delete(key)` — top-level methods on `Storage`
+- **Player Storage** (per-player, scoped by wallet address): `Storage.player.set/get/delete(address, key)`
 
 Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objects. Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
 
+**IMPORTANT — storage writes are capped, do NOT write on every change/tick**: A scene that fires a `Storage.set` per score change / per event / per tick hits the isolate's shared in-flight host-call cap; the excess write fails **silently** — the SDK resolves it to **`false`** rather than throwing. **`Storage.set`/`Storage.player.set` return `Promise<boolean>` — check it** (`false` = the write did not persist; retry or surface it). Keep live/working state **in memory** (faster and correct for a server) and persist to Storage only at meaningful checkpoints: game over, player leaves, or a periodic debounced save. Persist only data that must survive server restarts/deploys. For the cap mechanism and the checkpoint pattern, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
+
+**Live storage web UI** ([decentraland.org/storage](https://decentraland.org/storage), also reachable from Creator Hub **Manage** → three dots next to a published place → **View Storage**). Three tabs — **Scene**, **Player**, **Environment**. Edits apply to the running scene **live, without republishing**:
+- **Scene** tab: view/edit/delete the shared variables (leaderboard, door state). Handy for tweaking live values, e.g. resetting a leaderboard.
+- **Player** tab: look up a player by wallet address or name and inspect/edit/clear their stored data. Main use is **support** — un-wedge a player stuck in a bad state (e.g. contradictory data from an older scene version) without redeploying.
+
 ## Environment Variables
 
-Configure values without hardcoding. **Server-only**. `EnvVar.get('KEY')` from `@dcl/sdk/server`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → Environment tab. Env vars are the right place for secrets (API keys, private keys) since server code never reaches the player.
+Configure values without hardcoding. **Server-only**. `EnvVar.get(key: string): Promise<string>` from `@dcl/sdk/server` — always resolves to a string, returns `''` (empty string) when the variable isn't set or the fetch fails (never `undefined`). The `|| 'fallback'` pattern still works for defaults since `'' || 'x'` evaluates to `'x'`. Use `.env` file locally (add to `.gitignore`). Deploy with `npx sdk-commands storage env set KEY --value VALUE`. Production UI at [decentraland.org/storage](https://decentraland.org/storage) → **Environment** tab (or Creator Hub → Manage → three dots → **View Storage**).
+- **Right place for secrets** (private keys, reward/claim codes, API keys) — the values only ever exist on the server, never reach the client or the published scene code.
+- **Write-only in the UI**: you can add, overwrite, or delete a variable, but you **cannot read the current value back** (intentional, to protect secrets).
+- Also ideal for **live-tunable game parameters / feature flags** (match duration, max player count) you want to adjust on the running scene without republishing.
 
 ## Recommended Project Structure
 
@@ -78,8 +103,8 @@ Configure values without hardcoding. **Server-only**. `EnvVar.get('KEY')` from `
 src/
 ├── index.ts              # Entry point — isServer() branching
 ├── client/
-│   ├── setup.ts          # Client initialization, message handlers
-│   └── ui.tsx            # React ECS UI reading synced state
+│   ├── setup.ts          # Client init, input handlers, message senders
+│   └── ui.tsx            # React ECS UI (reads synced state, sends messages)
 ├── server/
 │   ├── server.ts         # Server init, systems, message handlers
 │   └── gameState.ts      # Server state management class
@@ -94,7 +119,13 @@ Every component change sends the **entire** component data. Prefer atomic compon
 
 ## Server Lifecycle
 
-Server is **only active while at least one player is in the scene**. Code must tolerate cold starts — use retry logic on initial client requests and rely on `Storage` to restore state.
+The server is **only active while at least one player is in the scene**. After the last player leaves it stays up for roughly two minutes, then shuts down. The next visit cold-starts a fresh instance, which takes **~15 seconds in production**. Local preview launches the server instantly — which is exactly why server-readiness bugs almost always escape into production unnoticed. Always test the "no players have been here for a while" path against a real deploy.
+
+**`isStateSyncronized()` is not a server-readiness check.** It only confirms the CRDT room transport is connected. The room's CRDT snapshot can hold state persisted from a *previous* server run, so a fresh client may see "valid" state while the server is still booting — or while it never wakes up at all because this client is the only one and the platform hasn't started one yet. Messages sent in that window are silently lost and the scene wedges waiting for a server response that will never come.
+
+The reliable pattern is a **server heartbeat**: the server writes `Date.now()` to a synced component field every ~2 s; the client tracks the **client-side time at which it observed the value last change** (not the server's timestamp) and treats the server as alive only if a tick has been observed within ~3× the interval. Tracking client-observed time, not the heartbeat value, means a stale snapshot from a long-gone server run does not read as live, and clock skew between server and client is irrelevant. Publish the first heartbeat *inside* the server's state-init function so the first client to connect doesn't have to wait a full interval.
+
+Distinguish two failure modes at the UI layer — they look similar but behave very differently. Room-not-synced is transient (~1 s during scene load): buffer the action and auto-fire it from a retry system. Server-not-alive can last 15 s or more on a cold start and may never resolve: surface a "server waking up" popup rather than silently buffering, and auto-dismiss it the moment a heartbeat lands so a player who waited isn't left staring at a stale dialog. See `{baseDir}/references/auth-server-examples.md` → Server Liveness Heartbeat for a full implementation.
 
 ## Version Control of Deploys
 
@@ -104,19 +135,19 @@ Client and server always move together (paired by hash). Existing players keep t
 
 - **Log prefixes**: Use `[SERVER]` and `[CLIENT]` in `console.log()`
 - **Local multi-player**: Click Preview a second time in Creator Hub, or open `decentraland://realm=http://127.0.0.1:8000&local-scene=true&debug=true`
-- **Production logs**: `npx sdk-commands sdk-server-logs` (optionally `--world WORLD_NAME.dcl.eth`)
+- **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- **Server-log noise signatures**: two recurring errors in *server* logs both mean client-only code is running in the server branch. `RemoteError: not implemented` on `EngineApi.subscribe('comms')` → a `MessageBus` was constructed on the server (see Messages). `400 Invalid metadata content` from `comms-gatekeeper.decentraland.org` → server code called a client-context platform API via `signedFetch`. Neither crashes the server, but the repeating noise buries real server logs — gate the offending code behind `!isServer()`.
+- **Per-player entity error signatures**: `syncEntity failed because the id provided is already in use` → an explicit sync id collided (usually a hash-derived per-player id, or a same-frame remove-and-recreate with the same id); `[mutable] Component <name> for <id> not found` repeating every frame → a cached entity handle went stale on a long-running server. Both fixes in Per-Player Synced Entities above.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
 - **Storage inspection**: Check local JSON file or [decentraland.org/storage](https://decentraland.org/storage)
-- **Timers**: `setTimeout`/`setInterval` available via polyfill. Prefer `engine.addSystem()` with dt accumulator
+- **Timers & sandbox**: QuickJS sandbox — no Node.js APIs (`fs`, `http`, etc.). Use `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` for delays — never the native JS globals. Prefer `engine.addSystem()` with dt accumulator for game logic
 - **Entity sync**: Verify `syncEntity(entity, [componentIds])` with correct `.componentId` values
 
-## Important Notes
+## Example scenes
 
-- **SDK branch (MANDATORY)**: Requires `@dcl/sdk@auth-server`, not standard `@dcl/sdk`
-- **Worlds-only**: Only works on Worlds (not Genesis City LAND)
-- **No Node.js APIs**: QuickJS sandbox — no `fs`, `http`, etc. `setTimeout`/`setInterval` supported
-- **Single codebase**: Both server and client run the same entry point, branched with `isServer()`
-- **Server sleeps when empty**: Code defensively with retry logic and `Storage` for persistence
-- For basic CRDT multiplayer without a server, see the `multiplayer-sync` skill
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — full end-to-end authoritative leaderboard. Clients send a `claimPoint` action (never a score); the headless server validates proximity to a "score orb" (scene-local coordinates, compared directly), increments the score itself, persists per-player totals to `Storage`, and broadcasts a synced top-N `Leaderboard` component that all clients render. Shows: `authoritativeMultiplayer: true` in `scene.json`, `isServer()` branching, static-import of `registerMessages()`/`defineComponent()` for module-load timing, custom-component `validateBeforeChange` gated by `isServer()` (server-only writes via `AUTH_SERVER_PEER_ID`), server-only `syncEntity`, atomic components (heartbeat kept separate from the board), and the server-liveness heartbeat with client-observed-time tracking.
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/92,-9-authoritative-server-gem-rush — full competitive game with anti-cheat + checkpoint persistence. Key patterns: server-side proximity validation via `PlayerIdentityData` + `Transform` (never trust client positions, server reads player transform directly and compares with `Vector3.distance`); position stored in a guarded custom component (not synced Transform) to prevent client write-back; atomic component split by change rate (countdown separate from scoreboard separate from hall of fame); Storage writes ONLY at round end (1 scene SET + N player SETs per round, 0 calls during gameplay); `antiCheat: true` flag in rejection messages; `ServerHeartbeat` with `Date.now()` pulsed on boot + every ~2 s; per-player stats lazy-loaded from `Storage.player.get` once per session and cached in memory.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/93,-9-authoritative-server-limits-lab — stress-tests every runtime limit: `maxInflightHostCalls` 40, `maxConcurrentFetches` 32, `maxSendMessages` 512, `maxCommsMessageBytes` 30000, `maxMessagesPerWindow` 300/s, `maxLiveEntities` 100000, `isolateMemoryLimitBytes` 256 MB, sync 10 s / async 60 s, fetch timeout 15 s, max WS message 1 MB, max open sockets 32, max fetch redirects 5, max body 10 MB. Reference for the limit values in `{baseDir}/references/server-patterns.md` → Server Resource Limits.
 
 For full code examples (validation patterns, messages, Storage, EnvVar, performance), see `{baseDir}/references/auth-server-examples.md`. For server setup patterns, see `{baseDir}/references/server-patterns.md`.

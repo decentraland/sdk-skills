@@ -8,7 +8,17 @@
       "Bash(curl -s \"https://api.github.com/repos/decentraland/docs/pulls/75\")",
       "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/authoritative-servers.md\" -o /tmp/authoritative-servers.md)",
       "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/README.md\" -o /tmp/networking-readme.md)",
-      "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/serverless-multiplayer.md\" -o /tmp/serverless.md)"
+      "Bash(curl -s \"https://raw.githubusercontent.com/decentraland/docs/feat/authoritative-server-docs/creator/sdk7/networking/serverless-multiplayer.md\" -o /tmp/serverless.md)",
+      "Bash(curl -sSL \"https://api.github.com/repos/decentraland/protocol/pulls/328\")",
+      "Bash(curl -sSL \"https://patch-diff.githubusercontent.com/raw/decentraland/protocol/pull/328.diff\")",
+      "Read(//private/tmp/**)",
+      "Bash(curl -sSL \"https://api.github.com/repos/decentraland/js-sdk-toolchain/pulls/1256\")",
+      "Bash(gh api *)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp",
+      "/tmp",
+      "/Users/Nico/Documents/github/sdk-skills/audio-analysis"
     ]
   }
 }

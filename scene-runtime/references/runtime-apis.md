@@ -1,18 +1,13 @@
 # Runtime APIs Reference
 
-## executeTask Patterns
+Long-tail extensions to `scene-runtime/SKILL.md`. Core teaching (executeTask basics, the restricted-actions list + player-interaction rule, canonical action examples, realm/scene metadata, portable experiences) lives in the SKILL. This file holds only additional variants and the two restricted actions the SKILL imports but does not detail.
 
-All async work must be wrapped in `executeTask()` or async functions — bare promises are silently dropped:
+## executeTask Variants
+
+Basic usage is in SKILL.md. Additional patterns:
 
 ```typescript
 import { executeTask } from '@dcl/sdk/ecs'
-
-// Basic async operation
-executeTask(async () => {
-	const res = await fetch('https://api.example.com/data')
-	const data = await res.json()
-	console.log(data)
-})
 
 // With error handling
 executeTask(async () => {
@@ -34,198 +29,37 @@ executeTask(async () => {
 })
 ```
 
-## All Restricted Actions
+## Restricted Actions — extended
 
-Import from `~system/RestrictedActions`. These require prior player interaction (e.g., a click) before they execute.
+The full list, the player-interaction rule, and canonical examples (`movePlayerTo`, `teleportTo`, `triggerEmote`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md. Details below extend those.
 
-### movePlayerTo
+### movePlayerTo — rotate avatar in place
 
-Move the player to a position within scene bounds:
+Params are documented in SKILL.md. To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the `80,-4-restricted-actions` "Rotate Avatar" buttons).
 
-```typescript
-import { movePlayerTo } from '~system/RestrictedActions'
+### triggerEmote — predefined emote names
 
-movePlayerTo({
-	newRelativePosition: { x: 8, y: 0, z: 8 },
-	cameraTarget: { x: 8, y: 1, z: 12 }, // Optional: where camera looks
-})
-```
+`predefinedEmote` accepts: `'wave'`, `'dance'`, `'clap'`, `'robot'`, `'fistpump'`, `'raiseHand'`, etc.
 
-### teleportTo
+### triggerSceneEmote — custom emote from .glb
 
-Teleport to Genesis City coordinates:
-
-```typescript
-import { teleportTo } from '~system/RestrictedActions'
-teleportTo({ worldCoordinates: { x: 50, y: 70 } })
-```
-
-### triggerEmote
-
-Play a built-in avatar emote:
-
-```typescript
-import { triggerEmote } from '~system/RestrictedActions'
-triggerEmote({ predefinedEmote: 'wave' })
-// Available: 'wave', 'dance', 'clap', 'robot', 'fistpump', 'raiseHand', etc.
-```
-
-### triggerSceneEmote
-
-Play a custom emote from a .glb file (must end with `_emote.glb`):
+Play a custom emote from a `.glb` file (imported in SKILL.md but not detailed there):
 
 ```typescript
 import { triggerSceneEmote } from '~system/RestrictedActions'
 triggerSceneEmote({ src: 'animations/custom_emote.glb', loop: false })
 ```
 
-### openExternalUrl
+> ⚠️ **The file MUST end with `_emote.glb`** (case-insensitive). This is a hard runtime requirement — files without this suffix often work in `npm run start` preview but **silently fail in production** once the scene is deployed. Rename the file on disk, not just the string passed to `src`.
 
-Open a URL in the player's browser (shows confirmation prompt):
+Valid filenames: `wave_emote.glb`, `Snowball_Throw_emote.glb`, `dance_EMOTE.GLB`
+Invalid: `wave.glb`, `emote_wave.glb`, `wave_emote_v2.glb`
 
-```typescript
-import { openExternalUrl } from '~system/RestrictedActions'
-openExternalUrl({ url: 'https://decentraland.org' })
-```
+### setCommunicationsAdapter — custom comms
 
-### openNftDialog
-
-Show an NFT detail dialog:
-
-```typescript
-import { openNftDialog } from '~system/RestrictedActions'
-openNftDialog({
-	urn: 'urn:decentraland:ethereum:erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d:558536',
-})
-```
-
-### copyToClipboard
-
-Copy text to the player's clipboard:
-
-```typescript
-import { copyToClipboard } from '~system/RestrictedActions'
-copyToClipboard({ value: 'Hello from Decentraland!' })
-```
-
-### changeRealm
-
-Prompt the player to switch to a different realm:
-
-```typescript
-import { changeRealm } from '~system/RestrictedActions'
-changeRealm({ realm: 'other-realm.dcl.eth', message: 'Join this realm?' })
-```
-
-### setCommunicationsAdapter
-
-Change the communications adapter for the scene:
+Change the scene's communication channel (imported in SKILL.md but not detailed there). Used for custom multiplayer infrastructure beyond the default CRDT sync:
 
 ```typescript
 import { setCommunicationsAdapter } from '~system/RestrictedActions'
-setCommunicationsAdapter({ adapter: 'wss://custom-comms.example.com' })
+setCommunicationsAdapter({ adapter: 'wss://custom-comms.example.com/room/my-scene' })
 ```
-
-## Realm Detection Patterns
-
-```typescript
-import { getRealm } from '~system/Runtime'
-
-executeTask(async () => {
-	const realm = await getRealm({})
-	const info = realm.realmInfo
-
-	// Check if running in preview
-	if (info?.isPreview) {
-		console.log('Running in preview mode')
-	}
-
-	// Get realm name and network
-	console.log('Realm:', info?.realmName) // e.g., "peer-us-1"
-	console.log('Network:', info?.networkId) // 1 = mainnet, 5 = goerli
-	console.log('Base URL:', info?.baseUrl)
-	console.log('Comms:', info?.commsAdapter)
-})
-```
-
-### Common Pattern: Preview-Only Debug Features
-
-```typescript
-executeTask(async () => {
-	const realm = await getRealm({})
-	if (realm.realmInfo?.isPreview) {
-		enableDebugPanel()
-		enableFreeCam()
-	}
-})
-```
-
-## Scene Information
-
-```typescript
-import { getSceneInformation } from '~system/Runtime'
-
-executeTask(async () => {
-	const scene = await getSceneInformation({})
-	const metadata = JSON.parse(scene.metadataJson)
-
-	console.log('URN:', scene.urn)
-	console.log('Base URL:', scene.baseUrl)
-	console.log('Parcels:', metadata.scene?.parcels)
-	console.log('Title:', metadata.display?.title)
-})
-```
-
-## Read Deployed Files
-
-Read data files shipped with the scene:
-
-```typescript
-import { readFile } from '~system/Runtime'
-
-executeTask(async () => {
-	const result = await readFile({ fileName: 'data/config.json' })
-	const text = new TextDecoder().decode(result.content)
-	const config = JSON.parse(text)
-})
-```
-
-<!-- ## Portable Experiences
-
-Scenes that persist across world navigation:
-
-```typescript
-import {
-	spawn,
-	kill,
-	exit,
-	getPortableExperiencesLoaded,
-} from '~system/PortableExperiences'
-
-// Spawn by URN
-const result = await spawn({ urn: 'urn:decentraland:entity:bafk...' })
-
-// List loaded portable experiences
-const loaded = await getPortableExperiencesLoaded({})
-
-// Kill a specific one
-await kill({ urn: 'urn:decentraland:entity:bafk...' })
-
-// Exit self (if this IS a portable experience)
-await exit({})
-``` -->
-
-## CommsAdapter
-
-Custom communication channels between players:
-
-```typescript
-import { setCommunicationsAdapter } from '~system/RestrictedActions'
-
-// Switch to a custom WebSocket-based comms adapter
-setCommunicationsAdapter({
-	adapter: 'wss://custom-comms-server.example.com/room/my-scene',
-})
-```
-
-Used for custom multiplayer infrastructure beyond the default CRDT sync.

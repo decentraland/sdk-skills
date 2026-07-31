@@ -1,6 +1,6 @@
 ---
 name: deploy-worlds
-description: Deploy a Decentraland scene to a World (personal 3D space using a DCL NAME or ENS domain). Covers worldConfiguration setup, Places listing opt-out, and common deployment errors. Use when the user wants to deploy to a World, publish to a personal space, or use a DCL NAME/ENS domain. Do NOT use for Genesis City LAND deployment (see deploy-scene).
+description: Deploy a Decentraland scene to a World (personal 3D space using a DCL NAME or ENS domain). Use when the user wants to deploy to a World or use a DCL NAME/ENS domain. Do NOT use for Genesis City LAND deployment (see deploy-scene).
 ---
 
 # Deploying to Decentraland Worlds
@@ -56,6 +56,8 @@ npx @dcl/sdk-commands deploy --target-content https://worlds-content-server.dece
 
 This will prompt the user to sign the deployment with their wallet. Validations run automatically to allow or reject the scene.
 
+Files matched by `.dclignore` (at the project root) are excluded from the upload — keep working files like Blender sources, concept art, and markdown docs listed there so the World stays light. See the `.dclignore` section in the **deploy-scene** skill.
+
 ### Via Creator Hub
 
 1. Open the scene project in Creator Hub
@@ -105,13 +107,7 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 "worldConfiguration": {
   "name": "my-name.dcl.eth",
   "skyboxConfig": {
-    "fixedTime": 36000,
-    "textures": ["textures/skybox.png"]
-  },
-  "miniMapConfig": {
-    "visible": true,
-    "dataImage": "images/minimap.png",
-    "estateImage": "images/estate.png"
+    "fixedTime": 43200
   },
   "placesConfig": {
     "optOut": false
@@ -119,17 +115,24 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 }
 ```
 
+- `skyboxConfig.fixedTime` — verified against the engine test scenes and current docs.
+- `skyboxConfig.textures`, `miniMapConfig` (`visible`/`dataImage`/`estateImage`) — [UNVERIFIED: not present in the engine test scenes or the current scene-metadata docs; confirm against js-sdk-toolchain scene schema before relying on them].
+
 **`skyboxConfig.fixedTime` values:**
+
+Values are seconds since midnight; a full day is `86400`.
 
 | Value | Time of day |
 |-------|------------|
 | `0` | Midnight |
-| `18000` | 6 AM (sunrise) |
-| `36000` | Noon |
-| `45000` | 6 PM (sunset) |
-| `50400` | Maximum |
+| `21600` | 6 AM (sunrise) |
+| `43200` | Noon |
+| `64800` | 6 PM (sunset) |
+| `86400` | Full day (maximum) |
 
-Omit `fixedTime` for a dynamic day/night cycle.
+Any value above `86400` is interpreted as midnight. Omit `fixedTime` for a dynamic day/night cycle.
+
+`worldConfiguration.skyboxConfig.fixedTime` is verified working in the engine test scenes, and takes precedence over a top-level `skyboxConfig.fixedTime` if both are present. See the **lighting-environment** skill for runtime control (the `SkyboxTime` component, which overrides either JSON value).
 
 ## Multi-Scene Worlds
 
@@ -158,9 +161,13 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 |-------|-------|----------|
 | "NAME not found" or "NAME not owned" | The wallet signing the deployment doesn't own the NAME/ENS in `worldConfiguration.name` | Verify NAME ownership at `https://builder.decentraland.org/names`. The wallet used for signing must own the exact NAME |
 | ENS resolution fails | ENS domain not registered or expired | Check ENS registration at `https://app.ens.domains` |
-| "Scene too large" | World scenes have size limits even though parcels aren't constrained | Reduce asset sizes. Worlds still enforce file size and entity limits |
+| "Scene too large" | World scenes have size limits even though parcels aren't constrained | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Worlds still enforce file size and entity limits |
 | Deploy succeeds but world is empty | `main` field misconfigured | Ensure `main` is `"bin/index.js"` and code compiles |
 | World not showing on Places | Propagation delay | Wait a few minutes after deployment. If opted out via `placesConfig.optOut`, it won't appear |
+
+## Example scenes
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — a World scene setting a fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime`, and reading it back with `getSceneInformation`.
 
 > **Deploying to Genesis City instead?** See the **deploy-scene** skill.
 

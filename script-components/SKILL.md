@@ -1,11 +1,23 @@
 ---
 name: script-components
-description: Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Covers constructor parameters exposed in the Creator Hub UI (string/number/boolean/Entity, defaults, optional, @param JSDoc tooltips), the required `public src: string` and `public entity: Entity` parameters, start()/update(dt) lifecycle, @action() decorators to expose methods as triggerable actions, ActionCallback params for user-wired callbacks, referencing bundled assets via `this.src`, finding child entities by name at runtime (instead of passing them as Entity params), and calling other scripts via `~sdk/script-utils` (callScriptMethod, getScriptInstance). Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity).
+description: "Writing .ts script files for the Creator Hub Script component — self-contained classes attached to individual entities. Use when the user wants to create a custom smart item, a reusable scripted entity, or write code that runs on a Creator Hub Script component. Do NOT use for regular scene index.ts code or global systems (see scene-runtime, add-interactivity)."
 ---
 
 # Writing Script Components for Creator Hub
 
 This document explains how to write `.tsx` files that are used inside a **Script component** on an entity in a Creator Hub scene. These scripts run as self-contained classes attached to individual entities.
+
+## Where script files must live
+
+Script files referenced by a Script component MUST live **inside the `assets/` folder** — use `assets/scripts/` (e.g. `assets/scripts/MyScript.ts`). Do NOT place them in a root-level `scripts/` folder.
+
+Why: the scene's `tsconfig.json` only includes `src/**/*` and `assets/**/*`:
+
+```json
+"include": ["src/**/*.ts", "src/**/*.tsx", "assets/**/*.ts", "assets/**/*.tsx"]
+```
+
+A file in a root-level `scripts/` folder falls outside these globs, so the TypeScript type checker (and the build's type-check step) won't cover it. The Script component's `path` field is resolved relative to the project root, so it must match the real file location — e.g. `"path": "assets/scripts/SitChair.ts"`.
 
 ## Script structure
 
@@ -13,7 +25,7 @@ Every script is a single exported class with:
 
 - A **constructor** that receives configurable parameters (exposed in the Creator Hub UI).
 - An optional **`start()`** method, called once when the scene loads.
-- An optional **`update(dt: number)`** method, called every frame.
+- An optional **`update(dt: number)`** method, called every frame (~30 FPS; see "When scripts run" below for ordering — by default scripts update *after* all regular systems).
 
 The first two constructor parameters must always be `public src: string` and `public entity: Entity` — do not remove or reorder them.
 
@@ -37,6 +49,16 @@ export class MyScript {
   }
 }
 ```
+
+## When scripts run — the `priority` field (IMPORTANT)
+
+The Creator Hub Script component has a `priority` field (separate from constructor params — it's set in the component UI, not in your class). It **defaults to `0`**, and this has non-obvious consequences:
+
+- **Default priority `0` = scripts run LAST each frame.** At build time `@dcl/sdk-commands` groups all scripts by their `priority` value and registers ONE engine system per group via `engine.addSystem(updateLoop, Number(priority))`. Because engine systems run **highest-priority-first** (regular systems use `100000`, UI uses `100000`), priority `0` runs after everything else.
+- **All scripts sharing the same `priority` share ONE system callback** and run **sequentially** inside it. A single heavy script's `update()` therefore delays every other script in the same priority group that frame.
+- **To run a script's `update()` before regular systems**, raise its `priority` (e.g. `1000000`) in the Script component. This also gives it its own dedicated system. This is how you'd step a physics library (cannon.js) inside `update(dt)` ahead of systems that read the result — there is no separate physics loop.
+
+> Higher `priority` number = earlier execution — the OPPOSITE of the "priority 1 = first" assumption. See the `scene-runtime` skill's "System Execution Order & Priority" section for the underlying engine rule.
 
 ## Constructor parameters
 
@@ -116,7 +138,14 @@ start() {
 
 Do **not** pass entities that belong to the same custom item as `Entity` input parameters. Entity IDs are not stable across scenes — an entity ID that is valid in your development scene may not exist in a user's scene.
 
-Instead, find child entities at runtime by iterating over the entity hierarchy and matching by name:
+Instead, find child entities at runtime by iterating over the entity hierarchy and matching their `Name` component value with a **substring** match (e.g. `.startsWith(...)` or `.includes(...)`).
+
+**Best practice: match a substring of the child's name, not an exact name, and not a per-instance constructor parameter.** When a user duplicates a smart item or drops multiple copies into a scene, the Creator Hub editor auto-numbers the duplicated child entities — e.g. `"Sit Spot"`, `"Sit Spot 2"`, `"Sit Spot 3"`, … A substring match (`name.includes('Sit Spot')`) finds the matching child in every copy automatically, with zero per-instance configuration.
+
+- **Exact-name match** fails on every duplicate after the first, because their names are auto-suffixed.
+- **A constructor `string`/`Entity` parameter for the child name** forces the user to manually rename or rewire each copy, which defeats the purpose of a reusable scripted item.
+
+The example below uses `.startsWith('Needle')` — a substring-style match — for exactly this reason.
 
 ```ts
 import { engine, Entity, Transform, Name } from '@dcl/sdk/ecs'
@@ -142,11 +171,15 @@ export class ClapMeter {
 }
 ```
 
-This pattern keeps the script portable: as long as the child entities have the expected names, it works in any scene.
+This pattern keeps the script portable: as long as the child entities have names containing the expected substring, it works in any scene and across any number of duplicated copies.
 
 ## Defining actions (`@action`)
 
-If your script has functions that could be useful to call from other items in the scene, mark them with the `@action` decorator. Then add an **Action** component to the entity and define a corresponding action. This lets other smart items (e.g. a button) pick and trigger this action.
+If your script has functions that could be useful to call from other items in the scene, mark them by adding a JSDoc comment block (`/** ... */`) with an `@action` tag directly before the method. Then add an **Action** component to the entity and define a corresponding action. This lets other smart items (e.g. a button) pick and trigger this action.
+
+**CRITICAL: Use ONLY the `@action` JSDoc tag — NEVER decorator syntax (`@action()` above the method). The Creator Hub parser has no decorators plugin, so a decorator makes parsing fail and ALL params and actions silently disappear from the UI.**
+
+An optional description line before the `@action` tag becomes the action's description shown in the Creator Hub UI.
 
 ```ts
 import { engine, Entity } from '@dcl/sdk/ecs'
@@ -159,14 +192,20 @@ export class TreasureChest {
     public entity: Entity,
   ) {}
 
-  @action()
+  /**
+   * Opens the chest
+   * @action
+   */
   open() {
     if (this.isOpen) return
     this.isOpen = true
     console.log('Chest opened!')
   }
 
-  @action()
+  /**
+   * Closes the chest
+   * @action
+   */
   close() {
     if (!this.isOpen) return
     this.isOpen = false
@@ -175,7 +214,7 @@ export class TreasureChest {
 }
 ```
 
-With the `@action` decorator, `open` and `close` become available in the Actions component dropdown and can be triggered by other smart items or scripts.
+With the `@action` JSDoc tag, `open` and `close` become available in the Actions component dropdown and can be triggered by other smart items or scripts.
 
 ## ActionCallback parameters
 
@@ -192,7 +231,9 @@ export class Padlock {
     public onUnlock: ActionCallback,
   ) {}
 
-  @action()
+  /**
+   * @action
+   */
   solve() {
     this.onUnlock()
   }
@@ -211,19 +252,9 @@ import {
   getScriptInstancesByPath
 } from '~sdk/script-utils'
 
-callScriptMethod(entity, 'scripts/Padlock.ts', 'solve', 123)
+callScriptMethod(entity, 'assets/scripts/Padlock.ts', 'solve', 123)
 
-const instance = getScriptInstance(entity, 'scripts/Padlock.ts')
+const instance = getScriptInstance(entity, 'assets/scripts/Padlock.ts')
 const allOnEntity = getAllScriptInstances(entity)
-const allByPath = getScriptInstancesByPath('scripts/Padlock.ts')
+const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
-
-## Key rules summary
-
-1. Never remove `public src: string` and `public entity: Entity` from the constructor.
-2. Use `this.src + '/filename'` for any bundled asset paths.
-3. Do not pass child entities of the same custom item as `Entity` constructor parameters — find them by name at runtime instead.
-4. Use `@action()` on methods you want to expose as triggerable actions.
-5. Use `ActionCallback` for parameters that should let users wire up editor actions.
-6. Add `@param` JSDoc comments before the constructor for UI tooltips.
-7. Manually include any code-only assets (sounds, textures) in the custom item folder.

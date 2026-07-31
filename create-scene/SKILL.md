@@ -1,25 +1,13 @@
 ---
 name: create-scene
-description: Scaffold a new Decentraland SDK7 scene project. Creates scene.json, package.json, tsconfig.json, and src/index.ts. Covers scene.json schema (parcels, spawnPoints, permissions, featureToggles), multi-parcel layouts, and project structure. Use when the user wants to start a new scene, create a project, or set up from scratch. Do NOT use for deployment (see deploy-scene or deploy-worlds).
+description: Scaffold a new Decentraland SDK7 scene project. Use when the user wants to start a new scene or create a project. Do NOT use for deployment (see deploy-scene or deploy-worlds).
 ---
 
 # Create a New Decentraland SDK7 Scene
 
 > **Runtime constraint:** Decentraland runs in a QuickJS sandbox. No Node.js APIs (`fs`, `http`, `path`, `process`). Use the SDK's `executeTask()` + `fetch()` for async work. See the **scene-runtime** skill for details.
 
-## ⚠ CRITICAL RULE — Read before generating any code
-
-**NEVER put initial scene entities in `src/index.ts`.**
-
-Every entity that exists when the scene loads — models, primitives, lights, text, audio — MUST be declared in `assets/scene/main.composite`.
-
-`src/index.ts` is ONLY for:
-
-- Adding behavior/interactivity to entities fetched from the composite
-- Entities spawned dynamically at runtime (projectiles, enemies, clones, etc.)
-- Systems and game logic
-
-If you find yourself writing `engine.addEntity()` for a piece of scenery or a static prop, stop — put it in the composite instead.
+> **CRITICAL — read before generating any code:** All initial scene entities (everything present at scene load) go in `assets/scene/main.composite`, NEVER in `src/index.ts`. See "Composite vs TypeScript — where entities go" (Step 4) for the rule, decision table, and rationale.
 
 When the user wants to create a new scene, follow these steps:
 
@@ -37,6 +25,8 @@ If the user hasn't described their scene, ask them:
 
 Never manually create scene.json, package.json, or tsconfig.json — the SDK templates may change between versions and hand-written copies will diverge.
 
+The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them.
+
 ## 3. Find Matching 3D Assets
 
 IMPORTANT: Only fetch models from the free catalogs below if the prompt explicitly asks to add new models. Confirm with the user always if they wish to add new models to their scene.
@@ -46,15 +36,19 @@ Before writing scene code, check the asset catalog for free models that match th
 1. Search `{baseDir}/../add-3d-models/references/model-catalog.md` (8,800+ models with descriptions, dimensions, animations, and download URLs)
 2. Read `{baseDir}/../audio-video/references/audio-catalog.md` (50 free sounds — music, ambient, SFX, game mechanics, etc.)
 3. Suggest matching models and sounds to the user
-4. Download selected models into the scene's `assets/scene/Models/` directory:
+4. Download selected models into the scene's `assets/Models/` directory:
    ```bash
-   mkdir -p assets/scene/Models
-   curl -o assets/scene/Models/arcade_machine.glb "https://models.dclregenesislabs.xyz/blobs/bafybei..."
+   mkdir -p assets/Models
+   curl -o assets/Models/arcade_machine.glb "https://models.dclregenesislabs.xyz/blobs/bafybei..."
    ```
 
 > **Important**: `GltfContainer` only works with local files. Never use external URLs for the model `src` field.
 
-> **Important**: Always download into `assets/scene/Models/`. Never write to the scene root.
+> **Important**: Always download into `assets/Models/`. Never write to the scene root.
+
+> **Existing folders take precedence.** If the scene already has `assets/scene/Models/` (legacy layout) or assets under `assets/asset-packs/` / `assets/custom/` (added via the Creator Hub), reuse those paths instead of creating a parallel `assets/Models/`. Same rule applies for `assets/Audio/`, `assets/Images/`, and `assets/Videos/`.
+
+**Done when:** every model the user approved exists in `assets/Models/` (or the pre-existing asset folder per the precedence rule above), each file is non-empty and begins with the `glTF` magic bytes (`head -c 4 file.glb`) — a curl that saved an HTML error page fails this check — and no downloaded file sits at the project root. If the user declined new models, this step is done with nothing downloaded.
 
 ## 4. Customize the Generated Files
 
@@ -71,7 +65,7 @@ Update the `display` fields and parcels:
 
 ### Composite vs TypeScript — where entities go
 
-**NEVER create initial scene entities in TypeScript. They MUST go in `assets/scene/main.composite`.**
+**NEVER create initial scene entities in TypeScript. They MUST go in `assets/scene/main.composite`.** If you find yourself writing `engine.addEntity()` for a piece of scenery or a static prop, stop — put it in the composite instead.
 
 | Use `.composite` for                                                         | Use `.ts` (index.ts) for                                                                        |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -84,7 +78,11 @@ Update the `display` fields and parcels:
 
 ### assets/scene/main.composite
 
-Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format. Example — a box and a 3D model:
+Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format.
+
+> **Editing an existing scene? Read the "Editing an existing composite (edit mode)" section of the composite reference FIRST.** If the scene has been opened in the Creator Hub, `main.composite` already contains `inspector::*` components; adding new entities without registering them in `inspector::Nodes` leaves them rendering in-world but invisible and un-selectable in the Creator Hub entity tree. The reference spells out the exact procedure.
+
+Minimal example — a single named box. Components share entity IDs across their `data` maps, so all of entity `512`'s data lives under the `"512"` key:
 
 ```json
 {
@@ -100,47 +98,27 @@ Create `assets/scene/main.composite` with the initial scene entities. See `{base
 						"rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
 						"parent": 0
 					}
-				},
-				"513": {
-					"json": {
-						"position": { "x": 4, "y": 0, "z": 4 },
-						"scale": { "x": 1, "y": 1, "z": 1 },
-						"rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
-						"parent": 0
-					}
 				}
 			}
 		},
 		{
 			"name": "core::MeshRenderer",
-			"data": {
-				"512": { "json": { "mesh": { "$case": "box", "box": {} } } }
-			}
-		},
-		{
-			"name": "core::GltfContainer",
-			"data": {
-				"513": {
-					"json": {
-						"src": "assets/asset-packs/tree_forest_01/Tree_Forest_01.glb",
-						"visibleMeshesCollisionMask": 0,
-						"invisibleMeshesCollisionMask": 3
-					}
-				}
-			}
+			"data": { "512": { "json": { "mesh": { "$case": "box", "box": {} } } } }
 		},
 		{
 			"name": "core-schema::Name",
-			"data": {
-				"512": { "json": { "value": "BlueCube" } },
-				"513": { "json": { "value": "Tree_1" } }
-			}
+			"data": { "512": { "json": { "value": "BlueCube" } } }
 		}
 	]
 }
 ```
 
-> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground. Never at a height below 0.
+For multi-entity scenes, GLB models with collision masks, tags, and the full component-grouping pattern, see `{baseDir}/../composites/composite-reference.md`.
+
+> **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground.
+
+- Center of a single-parcel scene is (8, 0, 8) at ground level.
+- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them.
 
 ### src/index.ts
 
@@ -157,7 +135,7 @@ import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {
-	// Fetch entity defined in the composite — never re-create it here
+	// Fetch an entity defined in the composite — never re-create it here
 	const cube = engine.getEntityOrNullByName(EntityNames.BlueCube)
 	if (cube) {
 		pointerEventsSystem.onPointerDown(
@@ -170,16 +148,10 @@ export function main() {
 			}
 		)
 	}
-
-	// Fetch all entities tagged "Tree" from the composite
-	const trees = engine.getEntitiesByTag('Tree')
-	for (const tree of trees) {
-		// apply behavior to every tree
-	}
 }
 ```
 
-> **When to create entities in TypeScript instead:** Only if the entity is truly dynamic — spawned in response to gameplay events, instanced multiple times at runtime, or its count/identity is not known at scene-authoring time.
+To fetch groups of entities by tag (`engine.getEntitiesByTag`) or add/remove tags at runtime, see the "Referencing Composite Entities from Code" section of `{baseDir}/../composites/composite-reference.md`.
 
 ### scene.json Reference
 
@@ -187,7 +159,7 @@ All valid `scene.json` fields:
 
 | Field                      | Required    | Description                                                           |
 | -------------------------- | ----------- | --------------------------------------------------------------------- |
-| `ecs7`                     | Yes         | Must be `true` for SDK7                                               |
+| `ecs7`                     | Conventional | `true` in SDK7 scenes. Written by `init`; the build only validates `runtimeVersion`, but keep it for tooling compatibility |
 | `runtimeVersion`           | Yes         | Must be `"7"`                                                         |
 | `main`                     | Yes         | Must be `"bin/index.js"` — the compiled output path                   |
 | `display.title`            | Recommended | Scene name shown in the map and Places                                |
@@ -200,29 +172,33 @@ All valid `scene.json` fields:
 | `allowedMediaHostnames`    | Optional    | Whitelisted domains for external media                                |
 | `featureToggles`           | Optional    | Enable/disable SDK features                                           |
 | `worldConfiguration`       | Optional    | For Worlds deployment (see **deploy-worlds** skill)                   |
-| `authoritativeMultiplayer` | Optional    | Enable authoritative server mode (see **authoritative-server** skill) |
+| `landscapeTerrain`         | Optional    | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
 
 ### Tags
 
 Valid values for the `tags` array:
 
-`"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`
+`"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
 
 ### Required Permissions
 
 Add to `requiredPermissions` when your scene uses these features:
 
-| Permission                          | When needed                             |
-| ----------------------------------- | --------------------------------------- |
-| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | Teleporting the player within the scene |
-| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | Playing avatar emotes                   |
-| `ALLOW_MEDIA_HOSTNAMES`             | Loading external video/audio streams    |
-| `USE_WEB3_API`                      | Blockchain interactions                 |
-| `USE_FETCH`                         | HTTP requests to external servers       |
-| `USE_WEBSOCKET`                     | WebSocket connections                   |
-| `OPEN_EXTERNAL_LINK`                | Opening URLs in the user's browser      |
+These are the exact 7 permission strings the runtime recognizes (the protocol enum names drop the `PI_` prefix):
 
-When using `ALLOW_MEDIA_HOSTNAMES`, also whitelist the domains:
+| Permission                          | When needed                                          |
+| ----------------------------------- | ---------------------------------------------------- |
+| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)        |
+| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`               |
+| `ALLOW_MEDIA_HOSTNAMES` `[LEGACY]`  | External video/audio streams — **not required** (see below) |
+| `USE_WEB3_API`                      | Blockchain interactions                              |
+| `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)              |
+| `USE_WEBSOCKET`                     | WebSocket connections                                |
+| `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)         |
+
+> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The `66,6-signed-fetch` scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
+
+`[LEGACY]` `ALLOW_MEDIA_HOSTNAMES` and `allowedMediaHostnames` are **not required** — do not add them for new scenes. The permission string still exists in `@dcl/schemas`, but no current client enforces it: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, which is set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all. Only the retired web client enforced it. Current clients play external media without it. If a legacy scene still declares it, whitelist the domains as follows:
 
 ```json
 "requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
@@ -273,9 +249,13 @@ Configure where and how players enter the scene:
 
 **Base parcel:** Always set `scene.base` to the southwest (lowest x,y) corner parcel.
 
-**Boundaries per parcel:** 16m x 16m x 20m height. A 2x2 scene spans 32m x 32m.
+**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit applies to the whole scene and grows with parcel count: `log2(n+1) × 20` meters (1 parcel = 20m, 2x2 = ~46m, 3x3 = ~66m).
 
-**Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See `agent-behaviors.md` in `overview/`.
+- **Always validate entity positions against parcel bounds.** With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene.** An entity entirely outside the bounds is not rendered and no error is shown; a model that straddles the boundary still renders the part that is inside. The bound check uses **world** positions, so a child whose parent is moved out of bounds disappears with it, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
+
+**Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See the "Agent Behavioral Guidelines" section in the `sdk-scenes` skill (`{baseDir}/../sdk-scenes/SKILL.md`).
+
+**Done when:** (1) `main.composite` parses as JSON and every entity ID that appears in any component's `data` map has a `core::Transform` and a `core-schema::Name` entry; (2) every composite position lies within parcel bounds (`0 ≤ x ≤ 16·width`, `0 ≤ z ≤ 16·depth`) — an entity placed entirely outside is silently hidden, and a model straddling the boundary renders only the part inside; (3) `src/index.ts` contains no `engine.addEntity()` for load-time scenery — grep for `engine.addEntity` and confirm every hit is a runtime spawn; (4) `scene.json` has `"runtimeVersion": "7"` and `scene.base` is a member of `scene.parcels`; (5) `npm run build` exits 0.
 
 ## 5. Post-Creation Steps
 
@@ -284,6 +264,30 @@ After customizing the files:
 1. Use the `preview` tool to start the preview server (or run `npx @dcl/sdk-commands start --bevy-web` manually)
 2. The scene will open in a browser at http://localhost:8000
 
+### Preview CLI flags
+
+| Flag | Type | Description |
+|---|---|---|
+| `--mcp` | boolean | Enable the MCP server in the Explorer (forwarded as a deep-link parameter) |
+| `--mcp-port` | number | Port for the MCP server in the Explorer |
+| `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
+| `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
+| `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
+
+**Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
+
+**Done when:** the preview server responds at `http://localhost:8000` and the scene renders with no errors in the console.
+
+## Vibe Coding with AI
+
+AI assistants (Cursor, Claude Code, etc.) can build entire scenes from plain-language prompts. Install Decentraland SDK skills first so the AI knows SDK patterns:
+
+```bash
+npx skills add decentraland/sdk-skills
+```
+
+The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
+
 ## Cross-References
 
 - Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds)
@@ -291,10 +295,10 @@ After customizing the files:
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 
-## Important Notes
+## Example scenes
 
-- **Always validate entity positions against parcel bounds.** Each parcel is 16×16m. With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene — entities there are not rendered and no error is shown.**
-- Center of a single-parcel scene is (8, 0, 8) at ground level
-- Y axis is up, minimum Y=0 (ground)
-- The `main` field in scene.json MUST be `"bin/index.js"` — this is the compiled output path
-- The `jsx` and `jsxImportSource` tsconfig settings are already included by `/init` — do not modify them
+Engine-team test scenes illustrating `scene.json` configuration:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,90-scene-bounds-check — multi-parcel, non-rectangular parcel layout (`["5,90","5,89","6,89","6,88"]`); moves many entity types across the parcel/height boundary to show what the engine hides out of bounds.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `requiredPermissions` for `movePlayerTo` + emotes.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `featureToggles.portableExperiences: "enabled"` (see also the `disabled` and `hideUi` sibling scenes).

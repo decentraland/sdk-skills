@@ -24,13 +24,15 @@ AvatarShape.create(entity, {
 	hairColor: { r: 0.92, g: 0.76, b: 0.62 }, // RGB 0-1
 	skinColor: { r: 0.94, g: 0.85, b: 0.6 }, // RGB 0-1
 	eyeColor: { r: 0.2, g: 0.4, b: 0.7 }, // RGB 0-1
-	expressionTriggerId: '', // Currently playing expression
-	expressionTriggerTimestamp: 0, // When expression was triggered
+	expressionTriggerId: '', // built-in emote name OR a scene-emote _emote.glb path
+	expressionTriggerTimestamp: 0, // Lamport timestamp; bump to replay the SAME id
 	talking: false, // Mouth animation
 	emotes: [], // Custom emote URNs
-	show_only_wearables: false, // Mannequin mode (show wearables without body)
+	showOnlyWearables: false, // Mannequin mode (show wearables without body)
 })
 ```
+
+`expressionTriggerId` on an AvatarShape plays either a built-in emote (`'robot'`) or a custom scene emote by `.glb` path (`'animations/Snowball_Throw_emote.glb'`, same `_emote.glb` files as `triggerSceneEmote`). Confirmed in test scenes 4,21 and 4,22.
 
 ### Body Shape URNs
 
@@ -72,7 +74,7 @@ AvatarShape.create(entity, {
 	id: 'mannequin-1',
 	name: 'Display',
 	wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
-	show_only_wearables: true,
+	showOnlyWearables: true,
 })
 ```
 
@@ -152,47 +154,6 @@ For `triggerEmote({ predefinedEmote: '...' })`:
 - `dab` — dab
 - `headexplode` — head explode
 
-## AvatarEmoteMask — Upper-Body Animations
-
-`triggerEmote()` and `triggerSceneEmote()` both accept an optional `mask` field. When set to `AEM_UPPER_BODY`, the animation plays only on the torso, arms, and head while legs keep playing locomotion — the player can walk, run, jog, or jump while the animation is active.
-
-```typescript
-import { AvatarEmoteMask } from '@dcl/sdk/ecs'
-import { triggerEmote, triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
-
-AvatarEmoteMask.AEM_FULL_BODY   // default — whole skeleton; movement interrupts it
-AvatarEmoteMask.AEM_UPPER_BODY  // upper body only; legs keep locomotion
-
-triggerSceneEmote({
-	src: 'animations/Juggler_emote.glb',
-	loop: true,
-	mask: AvatarEmoteMask.AEM_UPPER_BODY,
-})
-
-triggerEmote({
-	predefinedEmote: 'wave',
-	mask: AvatarEmoteMask.AEM_UPPER_BODY,
-})
-```
-
-### `stopEmote()`
-
-Ends any active emote (full-body or upper-body). Required to exit a looping upper-body animation.
-
-```typescript
-import { stopEmote } from '~system/RestrictedActions'
-
-stopEmote({}) // empty object argument is required
-```
-
-### Upper-body mask behavior
-
-- A full-body emote overrides an active upper-body animation (e.g. player triggers an emote-wheel dance).
-- Leaving scene bounds pauses the animation; re-entering resumes it.
-- Gliding cancels the upper-body animation. Block gliding with `InputModifier` (`disableGliding: true`) if continuity matters.
-- Head and hand inverse kinematics are disabled while an upper-body animation plays — looking around or pointing has no visible effect.
-- Custom mask emote files still need the `_emote.glb` filename suffix.
-
 ## Player Event Callbacks
 
 ### Scene Entry/Exit
@@ -239,14 +200,38 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 ```typescript
 AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in area
 AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking avatars for profiles
-AvatarModifierType.AMT_DISABLE_JUMPING // Prevent jumping in area
+AvatarModifierType.AMT_HIDE_NAMETAGS // Hide name tags above avatars in area
 ```
+
+To disable jumping in an area, use the `InputModifier` component's `disableJump` flag (covered in the advanced-input skill), not an `AvatarModifierType`.
 
 ## AvatarLocomotionSettings
 
 ```typescript
+// Values shown are the CLIENT DEFAULTS — set only the fields you want to change.
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
-	runSpeed: 8, // Default ~6 m/s
-	jumpHeight: 3, // Default ~1.5m
+	walkSpeed: 1.5, // Control key on desktop
+	jogSpeed: 8, // the default movement speed
+	runSpeed: 10, // Shift key on desktop
+	jumpHeight: 1,
+	runJumpHeight: 1.5,
+	doubleJumpHeight: 2,
+	glidingSpeed: 6, // horizontal speed while gliding
+	glidingFallingSpeed: 1, // MAX descent speed while gliding — caps falling only, does not limit upward motion (e.g. lift from a continuous force)
+	hardLandingCooldown: 0.75, // seconds before moving again after a high fall
 })
 ```
+
+All fields are `float`; each is optional (omit to keep the client default). Default values (verified against unity-explorer `origin/main` `Explorer/Assets/DCL/Character/CharacterMotion/Settings/CharacterControllerSettings.asset`):
+
+| Field                 | Default | Source field in .asset |
+| --------------------- | ------- | ---------------------- |
+| `walkSpeed`           | `1.5`   | `WalkSpeed`            |
+| `jogSpeed`            | `8`     | `JogSpeed`             |
+| `runSpeed`            | `10`    | `RunSpeed`             |
+| `jumpHeight`          | `1`     | `JogJumpHeight`        |
+| `runJumpHeight`       | `1.5`   | `RunJumpHeight`        |
+| `doubleJumpHeight`    | `2`     | `AirJumpHeight`        |
+| `glidingSpeed`        | `6`     | `GlideSpeed`           |
+| `glidingFallingSpeed` | `1`     | `GlideMaxGravity`      |
+| `hardLandingCooldown` | `0.75`  | `LongFallStunTime`     |

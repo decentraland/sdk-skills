@@ -9,8 +9,10 @@ AudioSource.create(entity, {
   audioClipUrl: 'sounds/effect.mp3',  // Path to local audio file (required)
   playing: false,                      // Start/stop playback
   loop: false,                         // Loop when finished
-  volume: 1.0,                         // Volume 0.0 to 1.0
-  pitch: 1.0                           // Playback speed (0.5 = half, 2.0 = double)
+  volume: 1.0,                         // Volume 0.0 to 1.0 (default 1.0)
+  pitch: 1.0,                          // Playback speed (0.5 = half, 2.0 = double, default 1.0)
+  currentTime: 0,                      // Playback position in seconds (default 0)
+  global: false                        // true = non-spatial, same volume everywhere (default false = spatial)
 })
 ```
 
@@ -28,13 +30,30 @@ audio.volume = 0.5     // Adjust volume
 audio.pitch = 1.5      // Speed up
 ```
 
-### Reset and Replay
+### Retrigger / Replay (use the helpers)
 
-To replay a sound effect from the beginning:
+Use `playSound` / `stopSound` to reliably retrigger. They write the whole component, so identical-parameter clicks still re-emit — hand-mutating `getMutable().playing` can be silently deduped by the LWW-CRDT when values are unchanged, so repeat clicks may do nothing.
+
+```typescript
+// Signatures (both return false if the entity has no AudioSource):
+//   AudioSource.playSound(entity, src: string, resetCursor = true): boolean
+//   AudioSource.stopSound(entity, resetCursor = true): boolean
+
+AudioSource.playSound(entity, 'sounds/effect.mp3')        // play from 0 every call
+AudioSource.playSound(entity, 'sounds/effect.mp3', false) // resume from currentTime
+AudioSource.stopSound(entity)                             // stop, reset cursor to 0
+AudioSource.stopSound(entity, false)                      // stop, keep cursor position
+```
+
+`playSound` sets `audioClipUrl = src`, `playing = true`, and (when `resetCursor`) `currentTime = 0`. Equivalent low-level pattern if you need full control: `AudioSource.createOrReplace(entity, { audioClipUrl, playing: true })` — always emits a CRDT PUT.
+
+**Retrigger semantics** (from the protocol): setting `playing = true` while already playing with `currentTime` unset keeps the current position; if the clip was stopped, or `currentTime` is set, it plays from `currentTime` (or the beginning). Changing `audioClipUrl` while playing stops the current clip and plays the new one as a fresh instance.
+
+Do NOT do this for retriggers — it works on the first click but may be swallowed afterward:
 ```typescript
 const audio = AudioSource.getMutable(entity)
-audio.playing = false
-audio.playing = true  // Restarts from beginning
+audio.playing = true
+audio.currentTime = 0   // if playing/currentTime already had these values, LWW may dedup the PUT
 ```
 
 ## AudioStream — Full Fields
@@ -153,7 +172,7 @@ Material.setBasicMaterial(screen2, { texture: tex })
 
 ### Media Permissions in scene.json
 
-External audio/video URLs require permissions:
+`[LEGACY]` External audio/video URLs do **not** require any permission on current clients — no current client enforces `ALLOW_MEDIA_HOSTNAMES` (unity-explorer gates it behind the unset `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define; bevy-explorer has no enforcement). Only the retired web client enforced it. For legacy scenes that still declare it, the syntax is:
 
 ```json
 {
@@ -164,21 +183,21 @@ External audio/video URLs require permissions:
 
 ## AudioAnalysis (Advanced)
 
-Real-time frequency and amplitude data from audio sources:
+Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. **Unity explorer only.**
 
 ```typescript
 import { AudioAnalysis, AudioAnalysisView } from '@dcl/sdk/ecs'
 
-// Enable analysis on an audio source entity
-AudioAnalysis.create(audioEntity, {})
+// Enable on an entity that already has AudioSource / AudioStream / VideoPlayer
+AudioAnalysis.createAudioAnalysis(audioEntity)
 
-// Read analysis data in a system
+// Pre-allocate the view ONCE; reuse every frame
+const view: AudioAnalysisView = { amplitude: 0, bands: new Array<number>(8) }
+
 engine.addSystem(() => {
-  const view = AudioAnalysisView.getOrNull(audioEntity)
-  if (view) {
-    // Use frequency/amplitude data for visualizers, beat detection, etc.
-  }
+  AudioAnalysis.readIntoView(audioEntity, view)
+  // view.amplitude (number) and view.bands[0..7] are now populated
 })
 ```
 
-Used for music visualizers, reactive environments, and beat-synced animations.
+For full coverage (modes, gains, gotchas, and a complete visualizer example) see the dedicated `audio-analysis` skill.

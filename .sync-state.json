@@ -1,0 +1,26 @@
+{
+  "docs": {
+    "lastCommit": "a68560669599999fa2910f656e04edfd1dad1e75",
+    "lastChecked": "2026-07-27"
+  },
+  "protocol": {
+    "lastCommit": "dfbdec4e65130280cc2c199ec036edc296a5db37",
+    "lastChecked": "2026-07-27"
+  },
+  "js-sdk-toolchain": {
+    "lastCommit": "e70424613425b5316c73bccae7c9482f45629e58",
+    "lastChecked": "2026-07-27"
+  },
+  "creator-hub": {
+    "lastCommit": "8849e880079de08de73d325f9eb9e0c80304b815",
+    "lastChecked": "2026-07-27"
+  },
+  "sdk7-test-scenes": {
+    "lastCommit": "21f4e42aa4a2911a8f346e172557d99432f90387",
+    "lastChecked": "2026-07-27"
+  },
+  "sdk-skills": {
+    "lastCommit": "a4f2d44428b6000ee04bc102de8b80030f9c6327",
+    "lastChecked": "2026-07-27"
+  }
+}

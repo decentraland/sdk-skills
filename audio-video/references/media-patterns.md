@@ -11,7 +11,7 @@ const speaker = engine.addEntity()
 Transform.create(speaker, { position: Vector3.create(8, 1, 8) })
 
 AudioSource.create(speaker, {
-  audioClipUrl: 'assets/scene/Audio/music.mp3',
+  audioClipUrl: 'assets/Audio/music.mp3',
   playing: true,
   loop: true,
   volume: 0.5,
@@ -21,16 +21,18 @@ AudioSource.create(speaker, {
 
 ### Play/Stop/Toggle
 ```typescript
-// Play
-AudioSource.getMutable(speaker).playing = true
-
-// Stop
-AudioSource.getMutable(speaker).playing = false
+// Prefer the helpers — they retrigger reliably and reset the cursor by default.
+AudioSource.playSound(speaker, 'assets/Audio/music.mp3') // play from 0
+AudioSource.stopSound(speaker)                            // stop, reset to 0
 
 // Toggle
-const audio = AudioSource.getMutable(speaker)
-audio.playing = !audio.playing
+let playing = false
+playing = !playing
+if (playing) AudioSource.playSound(speaker, 'assets/Audio/music.mp3')
+else AudioSource.stopSound(speaker)
 ```
+
+Simple one-time volume/property tweaks on an already-playing clip are fine via `getMutable` (changing volume/loop/pitch keeps it playing). It's specifically *retriggering* `playing` that should go through `playSound`.
 
 ### Play on Click
 ```typescript
@@ -42,7 +44,7 @@ const button = engine.addEntity()
 const audioEntity = engine.addEntity()
 Transform.create(audioEntity, { position: Vector3.create(8, 1, 8) })
 AudioSource.create(audioEntity, {
-  audioClipUrl: 'assets/scene/Audio/click.mp3',
+  audioClipUrl: 'assets/Audio/click.mp3',
   playing: false,
   loop: false,
   volume: 0.8,
@@ -54,9 +56,9 @@ pointerEventsSystem.onPointerDown(
     opts: { button: InputAction.IA_POINTER, hoverText: 'Play sound' },
   },
   () => {
-    const audio = AudioSource.getMutable(audioEntity)
-    audio.playing = false
-    audio.playing = true
+    // playSound reliably retriggers from 0 on every click (createOrReplace under the hood).
+    // Do NOT hand-mutate getMutable().playing for retriggers — LWW-CRDT may dedup repeat clicks.
+    AudioSource.playSound(audioEntity, 'assets/Audio/click.mp3')
   }
 )
 ```
@@ -98,7 +100,8 @@ AudioStream.create(radio, {
 ```typescript
 import { AudioStream, MediaState } from '@dcl/sdk/ecs'
 
-const state = AudioStream.getAudioState(radio)
+// getAudioState returns PBAudioEvent | undefined ({ state, timestamp }), not a bare enum
+const state = AudioStream.getAudioState(radio)?.state
 if (state === MediaState.MS_PLAYING) {
   console.log('Stream is playing')
 } else if (state === MediaState.MS_ERROR) {
@@ -108,7 +111,7 @@ if (state === MediaState.MS_PLAYING) {
 // Monitor state changes in a system
 let lastState: MediaState | undefined = undefined
 engine.addSystem(() => {
-  const current = AudioStream.getAudioState(radio)
+  const current = AudioStream.getAudioState(radio)?.state
   if (lastState !== current) {
     console.log('Stream state changed:', current)
     lastState = current
@@ -256,7 +259,7 @@ GltfNodeModifiers.create(myEntity, {
 ### Global (Non-Spatial) AudioSource
 ```typescript
 AudioSource.create(sourceEntity, {
-  audioClipUrl: 'assets/scene/Audio/music.mp3',
+  audioClipUrl: 'assets/Audio/music.mp3',
   playing: true,
   global: true,
 })
@@ -291,14 +294,14 @@ AudioStream.create(audioStreamEntity, {
 
 ```bash
 # Download from catalog
-mkdir -p assets/scene/Audio
-curl -o assets/scene/Audio/ambient_1.mp3 "https://builder-items.decentraland.org/contents/bafybeic4faewxkdqx67dloyw57ikgaeibc2e2dbx34hwjubl3gfvs2r4su"
+mkdir -p assets/Audio
+curl -o assets/Audio/ambient_1.mp3 "https://builder-items.decentraland.org/contents/bafybeic4faewxkdqx67dloyw57ikgaeibc2e2dbx34hwjubl3gfvs2r4su"
 ```
 
 ```typescript
 // Reference in code — must be a local file path
 AudioSource.create(entity, {
-  audioClipUrl: 'assets/scene/Audio/ambient_1.mp3',
+  audioClipUrl: 'assets/Audio/ambient_1.mp3',
   playing: true,
   loop: true,
 })
@@ -322,6 +325,8 @@ engine.addSystem(() => {
 ---
 
 ## Permission for External Media
+
+`[LEGACY]` Not required — no current client enforces `ALLOW_MEDIA_HOSTNAMES`. For legacy scenes that still declare it:
 
 ```json
 {

@@ -1,11 +1,36 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Read player position (Transform on engine.PlayerEntity), player profile (getPlayer, isGuest), trigger and stop emotes (triggerEmote, triggerSceneEmote, stopEmote, upper-body AvatarEmoteMask), read equipped wearables (AvatarEquippedData.onChange), attach objects to avatars (AvatarAttach with anchor points), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed (AvatarLocomotionSettings), teleport the player (movePlayerTo), and listen for scene entry/exit (onEnterScene/onLeaveScene). Use when the user wants player position, player profile, emotes, wearables, attaching items to players, or avatar zones. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
 
-## Player Position and Movement
+## CRITICAL: The player Transform is READ-ONLY from scene code
+
+`Transform` on `engine.PlayerEntity` is engine-controlled. **Mutations from scene code are silently ignored** — your code compiles, runs, no error is thrown, and nothing moves in-world. This is the most common bug when trying to lift, push, knock back, float, or teleport the player.
+
+```typescript
+// WRONG — compiles cleanly, runs, does NOTHING in-world
+const t = Transform.getMutable(engine.PlayerEntity)
+t.position.y += 0.1                      // ignored
+t.position = Vector3.create(8, 0, 8)     // ignored
+Transform.createOrReplace(engine.PlayerEntity, { ... }) // ignored
+```
+
+**Symptom to recognize:** TypeScript accepts the code, the system ticks, no console error, but the avatar never moves. If you wrote `Transform...PlayerEntity` and expected motion, this is your bug.
+
+**Correct API by intent:**
+
+| Goal | Use | Skill |
+|------|-----|-------|
+| Instant teleport / smooth slide to a point | `movePlayerTo` from `~system/RestrictedActions` | this skill, see below |
+| Lift / float / launch / jump pad / knockback / push / wind / repulsion | `Physics.*` from `@dcl/sdk/ecs` | `player-physics` |
+| Restrict / freeze movement | `InputModifier` on `engine.PlayerEntity` | `advanced-input` |
+| Change run speed / jump height | `AvatarLocomotionSettings` on `engine.PlayerEntity` | this skill, see below |
+
+`Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only.
+
+## Player Position and Movement (Reading)
 
 Access the player's position via the reserved `engine.PlayerEntity`:
 
@@ -22,6 +47,8 @@ function trackPlayer() {
 
 engine.addSystem(trackPlayer)
 ```
+
+Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame.
 
 ### Distance-Based Logic
 
@@ -61,6 +88,30 @@ function main() {
 - `userId` — the player's Ethereum wallet address (or guest ID)
 - `isGuest` — `true` if the player hasn't connected a wallet
 
+Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
+
+## Profile Data for Off-Scene Users (Catalyst)
+
+`getPlayer(userId)` only returns data for users **currently connected to this scene**. For any other address (parcel owner, NFT holder, leaderboard entry, off-scene claimant), fetch from the catalyst:
+
+```
+GET https://peer.decentraland.org/lambdas/profile/<wallet-address>
+```
+
+- Always use `peer.decentraland.org` — it is the canonical catalyst regardless of realm/world. Worlds servers do NOT expose `/lambdas`, so do not blindly read `realmInfo.baseUrl`.
+- Response shape: `json.avatars[0].avatar.{ bodyShape, wearables, eyes:{color}, hair:{color}, skin:{color} }` (NOT the `json[0].metadata.avatars...` shape from older docs).
+- Unknown address returns `{ avatars: [], timestamp: 0 }` — handle the empty array.
+- Colors come as `{ r, g, b, a }` floats in `[0,1]`. Build a `Color3` and pass it directly to `AvatarShape.skinColor` / `hairColor` / `eyeColor` — these fields take a raw `Color3`, NOT `{ color: Color3 }` (wrapping causes TS2322).
+
+`AvatarShape.create({ id: address })` with only an `id` does NOT auto-fetch wearables — the avatar renders undressed unless you supply `bodyShape`, `wearables`, and the color fields explicitly.
+
+**Which API to use:**
+
+- Local or in-scene player → `getPlayer(userId)` (sync, includes wearables/emotes).
+- Off-scene address → `fetchAvatarFromCatalyst(address)` (async HTTP).
+
+For the full helper (`fetchAvatarFromCatalyst`), end-to-end usage example, and gotchas, see `{baseDir}/references/catalyst-profile-fetch.md`.
+
 ## Avatar Attachments
 
 Attach 3D objects to a player's avatar:
@@ -76,7 +127,7 @@ import {
 
 const hat = engine.addEntity()
 GltfContainer.create(hat, { src: 'models/hat.glb' })
-Transform.crete(hat, {})
+Transform.create(hat, {})
 
 // Attach to the local player's avatar
 AvatarAttach.create(hat, {
@@ -84,13 +135,75 @@ AvatarAttach.create(hat, {
 })
 ```
 
+`AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves.
+
+> **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
+
+### Held items vs cosmetic items — `AvatarAttach` vs parenting to `engine.CameraEntity` / `engine.PlayerEntity`
+
+SDK7 gives you three distinct mechanisms for "an entity that follows the player". They are not interchangeable — picking the wrong one is the single most common mistake when porting "held item" patterns from SDK6, and the most common subtle failure is parenting an aim-sensitive item (gun, reticle, flashlight) to `engine.PlayerEntity` and discovering the item does not track camera pitch when the player looks up or down.
+
+**Default for any aim-sensitive held item: `Transform.parent = engine.CameraEntity`.** Use `engine.PlayerEntity` only when you specifically want yaw-only / no-pitch behavior (a body-fixed item the player carries but never aims with).
+
+| Goal | Use | Tracks | Reason |
+|------|-----|--------|--------|
+| **Aim-sensitive held item** — gun, aiming reticle, flashlight, anything pointed by looking around. **Recommended default for held gameplay items.** | `Transform.parent = engine.CameraEntity` (plus local position offset for "in front of and below" the camera) | Camera yaw **+ pitch** | Follows the camera's full transform, so the item points where the player is looking — including up/down. This is the SDK7 analogue of SDK6's `Attachable.FIRST_PERSON_CAMERA`. Aim stable (no animation jitter). |
+| **Yaw-only / body-fixed item** — a held shield the player doesn't aim, a static torch, a fixed-position carry item that should stay level regardless of where the player looks. | `Transform.parent = engine.PlayerEntity` (plus local offset for hand-height / forward distance) | Player root: feet position + body **yaw only** (no pitch) | Follows the player's root transform. Stable (no animation), but stays level when the player looks up/down — wrong default for guns/aim items, correct for items meant to ride the body orientation only. |
+| **Cosmetic item** — hat, halo, backpack, name plate, glow effect, torch visible to other players riding the avatar. | `AvatarAttach` with an `anchorPointId` (e.g. `AAPT_HEAD`, `AAPT_SPINE`, `AAPT_LEFT_HAND`) | The actual animated bone | Item moves naturally with idle bob, walk cycle, and gestures — visually correct for cosmetics attached to the body. **Not for aim** — animation jitter makes aim-sensitive items unusable. |
+
+**Why `engine.CameraEntity` is the right default for aim-sensitive items:** `engine.PlayerEntity` only tracks the player's root (foot position + body yaw). Body yaw is NOT camera pitch — when the player tilts the camera up to aim at a flying target, the player root rotation does not change, so a gun parented to `PlayerEntity` stays flat and the muzzle doesn't track the look direction. Parenting to `engine.CameraEntity` inherits both yaw and pitch, so the gun aims where the camera looks. This matches the SDK6 `Attachable.FIRST_PERSON_CAMERA` behavior creators expect when porting.
+
+**Why bone anchors break aim:** anchor points like `AAPT_RIGHT_HAND`, `AAPT_SPINE`, `AAPT_HEAD` are positions on the animated avatar skeleton. Every frame the engine pulls the bone's current world transform — which includes the procedural idle bob and any active animation clip. An entity parented there inherits all of that motion. For a weapon, this reads as jitter and makes aiming feel uncontrollable.
+
+#### Example — gun held in first person (aim follows camera pitch)
+
+```typescript
+import { engine, Transform, GltfContainer, CameraModeArea, CameraType } from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+const gun = engine.addEntity()
+GltfContainer.create(gun, { src: 'assets/Models/blaster.glb' })
+Transform.create(gun, {
+	parent: engine.CameraEntity,           // gun follows camera (yaw + pitch) — aim tracks where you look
+	position: Vector3.create(0.25, -0.2, 0.5), // right, down, forward of camera
+	rotation: Quaternion.fromEulerDegrees(0, 0, 0),
+	scale: Vector3.One(),
+})
+```
+
+If the user does NOT want the item to track pitch (e.g. a held torch that should stay level, not point up when looking up), swap `engine.CameraEntity` for `engine.PlayerEntity`. **Do not pick `PlayerEntity` for a gun** — the result is a flat-pointing weapon that ignores look direction.
+
+**Pair with `CameraModeArea` or a forced camera mode when equipping a held gun**, so the player is in first-person while aiming. See [[camera-control]].
+
+#### Anti-pattern (what NOT to do for a held weapon)
+
+```typescript
+// WRONG — gun jitters with every idle/walk/gesture animation frame
+AvatarAttach.create(gun, {
+	anchorPointId: AvatarAnchorPointType.AAPT_RIGHT_HAND,
+})
+```
+
+This **looks** like the right SDK7 way to "put a gun in the avatar's hand" because the API name reads that way — but the hand bone is animated, so the gun is unaimable in practice. Use parenting instead.
+
+```typescript
+// SUBTLY WRONG for a gun — looks correct in hip-fire, fails the moment the player aims up
+Transform.create(gun, { parent: engine.PlayerEntity, position: ... })
+```
+
+`engine.PlayerEntity` inherits body yaw but NOT camera pitch. The gun stays flat when the player looks up to aim at a high target. Use `engine.CameraEntity` instead for any aim-sensitive item. `PlayerEntity` is correct only for body-fixed items that should stay level regardless of where the camera points (e.g. a carried lantern, a non-aimed shield).
+
+#### SDK6 porting note
+
+In SDK7 you have a choice that didn't exist in SDK6. SDK6's `Attachable.FIRST_PERSON_CAMERA` / `Attachable.AVATAR` mapped to coarse follow modes only. If you are porting a held item from an SDK6 scene that used `Attachable.FIRST_PERSON_CAMERA`, the SDK7 equivalent is **parenting to `engine.CameraEntity`** (NOT `AvatarAttach` to a hand anchor, and NOT `engine.PlayerEntity` — `PlayerEntity` loses camera pitch). See [[migrate-sdk6-to-sdk7]].
+
 ### Anchor Points
 
 ```typescript
 AvatarAnchorPointType.AAPT_NAME_TAG // Above the head
 AvatarAnchorPointType.AAPT_RIGHT_HAND // Right hand
 AvatarAnchorPointType.AAPT_LEFT_HAND // Left hand
-AvatarAnchorPointType.AAPT_POSITION // Avatar root position
+AvatarAnchorPointType.AAPT_POSITION // [DEPRECATED] Avatar root position — protocol recommends parenting to `engine.PlayerEntity` (body-fixed) or `engine.CameraEntity` (aim-sensitive) instead
 AvatarAnchorPointType.AAPT_HEAD
 AvatarAnchorPointType.AAPT_NECK
 AvatarAnchorPointType.AAPT_SPINE
@@ -116,6 +229,8 @@ AvatarAnchorPointType.AAPT_RIGHT_TOE_BASE
 AvatarAnchorPointType.AAPT_NAME_TAG
 ```
 
+**Anchor points inherit bone animation.** Bone-targeted anchors (`AAPT_RIGHT_HAND`, `AAPT_SPINE`, `AAPT_HEAD`, etc.) follow the **animated** skeleton — idle bob, walk cycle, and gesture animations all propagate to the attached entity. This is correct for cosmetic items (hats, halos, backpacks) and **wrong** for gameplay items where aim stability matters (guns, reticles). For aim-sensitive items parent to `engine.CameraEntity` (yaw + pitch — the default for guns/reticles/flashlights); for yaw-only body-fixed items parent to `engine.PlayerEntity`. See "Held items vs cosmetic items" above.
+
 ### Attach to a Specific Player
 
 ```typescript
@@ -124,6 +239,20 @@ AvatarAttach.create(hat, {
 	anchorPointId: AvatarAnchorPointType.AAPT_RIGHT_HAND,
 })
 ```
+
+`avatarId` is the target player's wallet address. To attach to every player in the scene (including remote ones), iterate `engine.getEntitiesWith(PlayerIdentityData)` and read `player.address` for each — guard with a marker component so you attach only once per player:
+
+```typescript
+import { PlayerIdentityData } from '@dcl/sdk/ecs'
+
+engine.addSystem(() => {
+	for (const [entity, player] of engine.getEntitiesWith(PlayerIdentityData)) {
+		// player.address is the wallet address to pass as avatarId
+	}
+})
+```
+
+To attach the **local** player's own held item, get the address from `getPlayer()` / `await getPlayer()` (`.userId`). Omitting `avatarId` attaches to the local player. For multiplayer visibility of a held/attached item, sync the anchor entity's `AvatarAttach` component (see [[multiplayer-sync]]).
 
 ## Triggering Emotes
 
@@ -140,10 +269,17 @@ triggerEmote({ predefinedEmote: 'clap' })
 
 ### Custom Scene Emotes
 
+> ⚠️ **CRITICAL FILE NAMING REQUIREMENT:** The emote `.glb` file **MUST** end with `_emote.glb` (case-insensitive). This is **not** optional and **not** just a convention — the runtime rejects files that don't match this suffix.
+>
+> **Why this matters:** Scenes with incorrectly named emote files often **work fine in `npm run start` preview** but **silently fail in production** once deployed. Preview is more permissive; the deployed runtime is strict. Always rename the file on disk (e.g. `SnowballThrow.glb` → `SnowballThrow_emote.glb`) before deploying.
+>
+> Valid: `wave_emote.glb`, `Snowball_Throw_emote.glb`, `dance_EMOTE.GLB`
+> Invalid: `wave.glb`, `emote_wave.glb`, `wave_emote_v2.glb`
+
 ```typescript
 import { triggerSceneEmote } from '~system/RestrictedActions'
 
-// Play a custom emote animation (file must end with _emote.glb)
+// File MUST end with _emote.glb — rename it on disk if it doesn't
 triggerSceneEmote({
 	src: 'animations/Snowball_Throw_emote.glb',
 	loop: false,
@@ -154,71 +290,32 @@ triggerSceneEmote({
 
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
-- Custom emote files must have the `_emote.glb` suffix
+- Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
+- Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
 
-### Upper-Body Animations (Avatar Masks)
+### Stopping an emote
 
-Play an emote on only the torso, arms and head while the legs keep locomotion — the player can walk, run, jog, or jump while the animation plays. Useful for carrying an object, waving a flag, aiming a weapon, or holding a drink.
-
-Pass `mask: AvatarEmoteMask.AEM_UPPER_BODY` to either `triggerEmote()` or `triggerSceneEmote()`:
+`stopEmote({})` from `~system/RestrictedActions` stops the local player's currently playing emote (built-in or scene emote). Useful to end a looping scene emote (`triggerSceneEmote({ src, loop: true })`) on demand — e.g. a "pick up / put down" toggle.
 
 ```typescript
-import { triggerEmote, triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
-import { AvatarEmoteMask } from '@dcl/sdk/ecs'
-
-// Looping custom upper-body animation (e.g. carrying an object)
-triggerSceneEmote({
-	src: 'animations/Juggler_emote.glb',
-	loop: true,
-	mask: AvatarEmoteMask.AEM_UPPER_BODY,
-})
-
-// Default emote played only on the upper body
-triggerEmote({
-	predefinedEmote: 'wave',
-	mask: AvatarEmoteMask.AEM_UPPER_BODY,
-})
-
-// Stop any active emote — essential for ending a looping upper-body animation
+import { stopEmote } from '~system/RestrictedActions'
 stopEmote({})
 ```
 
-`AvatarEmoteMask` values (from `@dcl/sdk/ecs`):
+### Emote masks (upper-body only)
 
-- `AEM_FULL_BODY` — default. Animation affects the whole skeleton; any movement interrupts it. Matches how emotes have always worked.
-- `AEM_UPPER_BODY` — torso, arms, and head only. Legs keep playing locomotion, so the player can walk/run/jog/jump while the animation plays.
-
-**Behavior notes:**
-
-- A full-body emote (e.g. from the player's emote wheel) overrides an active upper-body animation.
-- Upper-body animations pause when the player leaves the scene's bounds and resume on re-entry.
-- Gliding cancels any active upper-body animation. To block it, use `InputModifier` with `disableGliding: true` (see **advanced-input**).
-- While an upper-body animation is playing, head and hand inverse kinematics are disabled (looking around or pointing has no effect on the avatar).
-- Custom mask emotes still require the `_emote.glb` filename suffix.
-
-**Pattern — pick up and carry a prop:** start a looping upper-body `triggerSceneEmote` with a carry animation and attach a GLB to `AAPT_LEFT_HAND` (or `AAPT_RIGHT_HAND`) via `AvatarAttach`. To drop, call `stopEmote({})` and `AvatarAttach.deleteFrom(anchorEntity)`.
+`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives. Use it to restrict a looping emote to the upper body so the player can keep walking around while the upper body animates (e.g. carrying/juggling an object).
 
 ```typescript
-import { triggerSceneEmote, stopEmote } from '~system/RestrictedActions'
-import { AvatarEmoteMask, AvatarAttach, AvatarAnchorPointType } from '@dcl/sdk/ecs'
+import { AvatarMask } from '@dcl/sdk/ecs'
+import { triggerSceneEmote } from '~system/RestrictedActions'
 
-async function pickUp(anchorEntity: Entity, playerId: string) {
-	triggerSceneEmote({
-		src: 'animations/Carry_emote.glb',
-		loop: true,
-		mask: AvatarEmoteMask.AEM_UPPER_BODY,
-	})
-	AvatarAttach.createOrReplace(anchorEntity, {
-		avatarId: playerId,
-		anchorPointId: AvatarAnchorPointType.AAPT_LEFT_HAND,
-	})
-}
-
-function drop(anchorEntity: Entity) {
-	stopEmote({})
-	AvatarAttach.deleteFrom(anchorEntity)
-}
+triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarMask.AM_UPPER_BODY })
 ```
+
+- Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
+- `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
+- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
 
@@ -244,7 +341,7 @@ Transform.create(modifierArea, {
 })
 
 AvatarModifierArea.create(modifierArea, {
-	area: { box: Vector3.create(4, 3, 4) },
+	area: Vector3.create(4, 3, 4),
 	modifiers: [AvatarModifierType.AMT_HIDE_AVATARS],
 	excludeIds: ['0x123...abc'], // Optional: exclude specific players
 })
@@ -255,7 +352,14 @@ AvatarModifierArea.create(modifierArea, {
 ```typescript
 AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in the area
 AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking on avatars to see profiles
+AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the area
 ```
+
+`modifiers` is an array — combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+
+`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
+
+**Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
 ## Avatar Locomotion Settings
 
@@ -264,12 +368,16 @@ Adjust the player's movement speed and jump height:
 ```typescript
 import { engine, AvatarLocomotionSettings } from '@dcl/sdk/ecs'
 
-// Modify run speed and jump height
+// Modify run speed and jump height (set only the fields you want to change)
 AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {
-	runSpeed: 8, // default is ~6
-	jumpHeight: 3, // default is ~1.5
+	runSpeed: 14, // default is 10
+	jumpHeight: 3, // default is 1
 })
 ```
+
+Fields (all `float`, optional) with client defaults — verified against unity-explorer `origin/main` `CharacterControllerSettings.asset`: `walkSpeed` (1.5), `jogSpeed` (8, the default movement speed), `runSpeed` (10), `jumpHeight` (1), `runJumpHeight` (1.5), `doubleJumpHeight` (2), `glidingSpeed` (6), `glidingFallingSpeed` (1), `hardLandingCooldown` (0.75s). See `references/avatar-apis.md`.
+
+`glidingFallingSpeed` is a **max descent cap** — it limits how fast the player falls while gliding, but does not limit upward motion. While gliding, continuous scene forces are 1.5× stronger and can lift the player; see the `player-physics` skill ("Forces while gliding").
 
 ## Restrict Locomotion (InputModifier)
 
@@ -289,13 +397,17 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 **Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, restrictions lift automatically when the player leaves scene bounds.
 
+**Standard-mode flags** (all boolean, on `InputModifier.Mode.Standard({...})`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`. Protocol also defines `disableDoubleJump` and `disableGliding`. Note `disableJog` is separate from `disableWalk`/`disableRun` — jog is the default movement speed, so disabling only walk+run still lets the player jog.
+
+The `mode` can be built two equivalent ways — the `InputModifier.Mode.Standard({...})` helper, or the raw discriminated union `{ $case: 'standard', standard: {...} }`.
+
 **Tip:** Combine with `triggerSceneEmote` — freeze the player during an animation, then remove InputModifier when it ends.
 
-For all available flags (`disableWalk`, `disableRun`, `disableJump`, etc.) and the cutscene pattern, see the **advanced-input** skill.
+For the cutscene pattern, see the **advanced-input** skill.
 
 ## Teleporting the Player
 
-**You MUST use `movePlayerTo` from `~system/RestrictedActions` to move or teleport the player.** Setting `Transform.getMutable(engine.PlayerEntity).position` does NOT work — the runtime ignores direct writes to the player transform.
+**`movePlayerTo` from `~system/RestrictedActions` is the only way to relocate the player to a position.** Setting `Transform.getMutable(engine.PlayerEntity).position` does NOT work (see the read-only warning at the top of this file). For sustained forces (lift, knockback, push, wind), use the `player-physics` skill instead — `movePlayerTo` is for explicit teleports/slides, not for forces.
 
 `movePlayerTo` accepts:
 
@@ -308,7 +420,10 @@ For all available flags (`disableWalk`, `disableRun`, `disableJump`, etc.) and t
 
 - The player must already be inside the scene's bounds for this to work
 - The target position must also be within the scene's bounds
-- During the transition the avatar passes through colliders
+- During the transition the avatar passes through colliders (verified: a `CL_PHYSICS` obstacle placed in the path is passed through)
+- Requires the `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` permission in `scene.json` `requiredPermissions`
+- All fields except `newRelativePosition` are optional — `cameraTarget` and `avatarTarget` may each be omitted or used independently
+- The target Y may be elevated (e.g. `y: 12`) to place the player on a raised platform, not just ground level
 
 ### Instant teleport
 
@@ -403,16 +518,18 @@ Beyond the commonly used anchor points, the full list includes:
 
 > **Need to check the player's wallet before showing avatar items?** See the **nft-blockchain** skill for wallet checks with `getPlayer()` and `isGuest`.
 
-## Best Practices
+## Example scenes
 
-- Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame
-- Use `getPlayer()` to check `isGuest` before attempting wallet-dependent features
-- `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves
-- Custom emote files must use the `_emote.glb` naming convention
-- Use `AvatarModifierArea` with `AMT_HIDE_AVATARS` for private rooms or single-player puzzle areas
-- Add `excludeIds` to modifier areas when you want specific players (like the scene owner) to remain visible
-- **Never use `Transform.getMutable(engine.PlayerEntity)` to move the player** — it does not work. Always use `movePlayerTo` from `~system/RestrictedActions`
-- `Transform.get(engine.PlayerEntity)` is valid for **reading** position only
+Engine-team test scenes (exercised against the real engine):
+
+- [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
+- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, and `mask: AvatarMask.AM_UPPER_BODY`.
+- [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
+- [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
+- [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
+- [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
+- [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
+- [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.

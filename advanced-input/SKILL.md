@@ -1,11 +1,11 @@
 ---
 name: advanced-input
-description: System-level input polling and player movement control in Decentraland. Covers inputSystem (isTriggered/isPressed for held keys, WASD polling), InputModifier (freeze/restrict player movement), PointerLock (cursor capture detection), PrimaryPointerInfo (cursor screen coords and world ray), and number-key action bar patterns. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, or multi-key combo patterns. For event-driven clicks and hover on entities see add-interactivity.
+description: System-level input polling and player movement control in Decentraland. Covers inputSystem, InputModifier, PointerLock, and PrimaryPointerInfo. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, or multi-key combo patterns. For event-driven clicks and hover on entities see add-interactivity.
 ---
 
 # Advanced Input Handling in Decentraland
 
-For basic click/hover events, see the `add-interactivity` skill. This skill covers advanced input patterns.
+For basic click/hover events, see the `add-interactivity` skill. This skill covers advanced input patterns. Prefer `pointerEventsSystem.onPointerDown()` (add-interactivity) for simple entity clicks; use `inputSystem` for complex multi-key or polling patterns.
 
 ## Pointer Lock State
 
@@ -27,6 +27,20 @@ function checkPointerLock() {
 engine.addSystem(checkPointerLock)
 ```
 
+### Requesting / releasing pointer lock (writable)
+
+`PointerLock.isPointerLocked` is a plain writable boolean — a scene can request or release cursor capture by mutating it (verified: `31,20-pointer-lock-control` sets it from click handlers and a timed system):
+
+```typescript
+PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })
+// request lock (e.g. from a button)
+PointerLock.getMutable(engine.CameraEntity).isPointerLocked = true
+// release lock
+PointerLock.getMutable(engine.CameraEntity).isPointerLocked = false
+```
+
+PITFALL: `getMutable(engine.CameraEntity)` throws if `PointerLock` was never created on the camera. Call `PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })` once in `main()` before mutating. Writing `true` is a *request*; the client/player may still control actual capture (e.g. Esc unlocks).
+
 ### Pointer Lock Change Detection
 
 ```typescript
@@ -47,7 +61,7 @@ Get the cursor's screen position and the ray it casts into the 3D world:
 import { engine, PrimaryPointerInfo } from '@dcl/sdk/ecs'
 
 function readPointer() {
-  const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity)
+  const pointerInfo = PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity)
   console.log('Cursor position:', pointerInfo.screenCoordinates)
   console.log('Cursor delta:', pointerInfo.screenDelta)
   console.log('World ray direction:', pointerInfo.worldRayDirection)
@@ -55,6 +69,15 @@ function readPointer() {
 
 engine.addSystem(readPointer)
 ```
+
+### Field details
+
+- `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the bottom-left corner of the screen** (positive Y = up). When the cursor is locked, freezes at the screen center.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = up (bottom-left origin). **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). Desktop only — always reports 0 on mobile.
+- `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
+- `pointerType` — `0` for none, `1` for mouse.
+
+PITFALL: every field is optional — verified schema and `0,5-primary-cursor-info`, which guards each read (`pointerInfo.screenCoordinates?.x ?? -666`, `pointerInfo.worldRayDirection?.x.toFixed(2)`). Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and always null-check the fields. `worldRayDirection` feeds directly into a camera raycast direction (see the "spawn at cursor" pattern in that scene).
 
 ## Input Polling with inputSystem
 
@@ -81,40 +104,19 @@ function myInputSystem() {
 engine.addSystem(myInputSystem)
 ```
 
-Best practice: use the Tag component to mark all entities that share a same interaction, then iterate over them in a system.
+The returned command carries `hit` data (position and entity) — use `getInputCommand()` when you need to know what was clicked.
 
-```typescript
-import { engine, inputSystem, InputAction, PointerEventType, Tags } from '@dcl/sdk/ecs'
+Omit the entity argument to check globally (any entity / no target). Pass `InputAction.IA_ANY` to match any action — `getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` returns the command for whatever key was pressed, and `cmd.button` tells you which one (verified: `0,1-input-modifier`).
 
-function myInputSystem() {
-
-  // fetch entities with a particular tag
-  const taggedEntities = engine.getEntitiesByTag('myTag')
-  
-  // iterate over those entities
-	for (const entity of taggedEntities) {
-         // Check for click on a specific entity
-        const clickData = inputSystem.getInputCommand(
-          InputAction.IA_POINTER,
-          PointerEventType.PET_DOWN,
-          entity
-        )
-
-        if (clickData) {
-          console.log('Entity clicked via system:', clickData.hit.entityId)
-        }
-    }
-
-}
-
-engine.addSystem(myInputSystem)
-```
+For the Tag-based per-entity cookbook (mark entities with a Tag, fetch them with `engine.getEntitiesByTag`, and poll each with `getInputCommand` inside a system), see `{baseDir}/references/input-patterns.md` → "Per-Entity Input Command Cookbook (Tag-based)".
 
 
 
 ### Global Input Checks
 
 Check if a specific key was pressed, regardless of if the player's cursor was pointing at an entity or not.
+
+Use `isTriggered()` for one-shot actions (fire a weapon, open a door) — it returns true only on the frame the key is first pressed. Use `isPressed()` for continuous actions (movement, holding a shield) — it returns true every frame while held.
 
 ```typescript
 function globalInputSystem() {
@@ -148,7 +150,9 @@ engine.addSystem(globalInputSystem)
 | `IA_BACKWARD` | S key |
 | `IA_LEFT` | A key |
 | `IA_RIGHT` | D key |
-| `IA_WALK` | Shift key |
+| `IA_WALK` | Control key |
+| `IA_MODIFIER` | Shift key (run) |
+| `IA_ANY` | Matches any input action (wildcard — use with `getInputCommand`) |
 
 ## Event Types
 
@@ -171,9 +175,11 @@ InputModifier.create(engine.PlayerEntity, {
   mode: InputModifier.Mode.Standard({ disableAll: true })
 })
 
-// Restrict specific movement
+// Restrict specific movement (all flags optional; a false/omitted flag is ignored)
 InputModifier.createOrReplace(engine.PlayerEntity, {
   mode: InputModifier.Mode.Standard({
+    disableWalk: true,
+    disableJog: true,
     disableRun: true,
     disableJump: true,
     disableEmote: true,
@@ -186,87 +192,35 @@ InputModifier.createOrReplace(engine.PlayerEntity, {
 InputModifier.deleteFrom(engine.PlayerEntity)
 ```
 
-**Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer.
+**Standard flags** (all optional booleans; verified `input_modifier.gen.d.ts`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent (both seen in test scenes).
+
+**Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer — test with the desktop client if your scene relies on it.
 
 ### Cutscene Pattern
 
-Freeze the player during a cinematic sequence:
-
-```typescript
-function startCutscene() {
-  // Freeze player
-  InputModifier.create(engine.PlayerEntity, {
-    mode: InputModifier.Mode.Standard({ disableAll: true })
-  })
-
-  // ... play cinematic with VirtualCamera ...
-
-  // After cutscene ends, restore movement
-  // InputModifier.deleteFrom(engine.PlayerEntity)
-}
-```
+For the worked cutscene flow (freeze the player with `disableAll` during a cinematic, then restore movement with `InputModifier.deleteFrom`), see `{baseDir}/references/input-patterns.md` → "Cutscene Pattern (freeze player during a cinematic)".
 
 ## WASD Movement Pattern
 
-Poll movement keys to control custom entities:
-
-```typescript
-import { engine, inputSystem, InputAction, PointerEventType, Transform } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-const MOVE_SPEED = 5
-
-function customMovementSystem(dt: number) {
-  const transform = Transform.getMutable(controllableEntity)
-  let moveX = 0
-  let moveZ = 0
-
-  if (inputSystem.isPressed(InputAction.IA_FORWARD)) moveZ += 1
-  if (inputSystem.isPressed(InputAction.IA_BACKWARD)) moveZ -= 1
-  if (inputSystem.isPressed(InputAction.IA_LEFT)) moveX -= 1
-  if (inputSystem.isPressed(InputAction.IA_RIGHT)) moveX += 1
-
-  transform.position.x += moveX * MOVE_SPEED * dt
-  transform.position.z += moveZ * MOVE_SPEED * dt
-}
-
-engine.addSystem(customMovementSystem)
-```
+For the WASD-driven custom-entity pattern (poll `IA_FORWARD`/`IA_BACKWARD`/`IA_LEFT`/`IA_RIGHT` with `isPressed` to move a `Transform`, plus the note on freezing the avatar with `InputModifier` and how polling WASD relates to player movement), see `{baseDir}/references/input-patterns.md` → "WASD Movement Pattern (drive a custom entity)".
 
 ## Combining Input Patterns
 
-### Action Bar with Number Keys
+For the action-bar / number-key pattern (map `IA_ACTION_3`–`IA_ACTION_6` to ability slots via `isTriggered`), see `{baseDir}/references/input-patterns.md` → "Action Bar with Number Keys".
 
-```typescript
-function actionBarSystem() {
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_3, PointerEventType.PET_DOWN)) {
-    console.log('Slot 1 activated')
-    useAbility(1)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_4, PointerEventType.PET_DOWN)) {
-    console.log('Slot 2 activated')
-    useAbility(2)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_5, PointerEventType.PET_DOWN)) {
-    console.log('Slot 3 activated')
-    useAbility(3)
-  }
-  if (inputSystem.isTriggered(InputAction.IA_ACTION_6, PointerEventType.PET_DOWN)) {
-    console.log('Slot 4 activated')
-    useAbility(4)
-  }
-}
+## Example scenes
 
-engine.addSystem(actionBarSystem)
-```
+Engine-team test scenes exercising these APIs (ground truth):
 
-## Best Practices
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier — InputModifier standard flags (incl. `disableWalk`/`disableJog`), `getInputCommand(IA_ANY, PET_DOWN)` to read whichever key was pressed.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/31,20-pointer-lock-control — writing `PointerLock.isPointerLocked` to request/release cursor capture; `PointerLock.onChange`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — reading `PrimaryPointerInfo` (screen coords/delta/worldRayDirection) each frame; feeding `worldRayDirection` into a camera raycast.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — WASD-driven controllable camera via `isPressed(IA_FORWARD/...)`; toggling InputModifier alongside a VirtualCamera.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — system-based per-entity click via `getEntitiesWith(Cube, PointerEvents)` + `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — `PrimaryPointerInfo.screenDelta` driving mouselook camera while pointer locked; shows `screenDelta` continuing to report raw mouse movement during lock (while `screenCoordinates` freezes at screen center).
 
-- Use `isTriggered()` for one-shot actions (fire weapon, open door) — it returns true only on the frame the key is first pressed
-- Use `isPressed()` for continuous actions (movement, holding a shield) — it returns true every frame while held
-- `getInputCommand()` gives hit data (position, entity) — use it when you need to know what was clicked
-- Prefer `pointerEventsSystem.onPointerDown()` for simple entity clicks — use `inputSystem` for complex multi-key or polling patterns
-- InputModifier only works in the DCL 2.0 desktop client — test with the desktop client if your scene relies on it
-- WASD keys (`IA_FORWARD`, etc.) also control player movement — polling them reads the movement state but doesn't override it
+## References
+
+- `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
 
 For basic pointer events and click handlers, see the `add-interactivity` skill.

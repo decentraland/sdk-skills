@@ -1,15 +1,18 @@
 ---
 name: nft-blockchain
-description: NFT display and blockchain interaction in Decentraland. NftShape (framed NFT artwork), wallet checks (getPlayer, isGuest), signedFetch (authenticated requests), smart contract interaction (eth-connect, createEthereumProvider), and RPC calls. Use when the user wants NFTs, blockchain, wallet, smart contracts, Web3, crypto, or token gating. Do NOT use for player avatar data or emotes (see player-avatar).
+description: NFT display and blockchain interaction in Decentraland. Use when the user wants NFTs, blockchain, wallet, smart contracts, Web3, or token gating. Do NOT use for player avatar data or emotes (see player-avatar).
 ---
 
 # NFT and Blockchain in Decentraland
 
 ## Display NFT Artwork
 
-Use `NftShape` to show any Ethereum ERC-721 NFT in a decorative picture frame. Provide the NFT URN and choose a frame style. The image is loaded automatically from the NFT's metadata.
+Use `NftShape` to show an NFT in a decorative picture frame. Provide the NFT URN and choose a frame style. The image is loaded automatically from the NFT's metadata (fetched through Decentraland's OpenSea proxy, `opensea.decentraland.org`) — any NFT that OpenSea supports can be displayed, across multiple chains.
 
-**NFT URN format:** `urn:decentraland:ethereum:erc721:<contractAddress>:<tokenId>` -- works with any ERC-721 on Ethereum mainnet.
+**NFT URN format:** `urn:decentraland:<chain>:<contractStandard>:<contractAddress>:<tokenId>`
+- Example: `urn:decentraland:ethereum:erc721:0x06012c8cf97bead5deae237070f9587f8e7a266d:558536`
+- `<chain>` supported values (forwarded verbatim to the OpenSea v2 API; unrecognized chains are rejected): `ethereum`, `matic`, `klaytn`, `bsc`, `arbitrum`, `arbitrum_nova`, `avalanche`, `optimism`, `solana`, `base`, `blast`, `zora`.
+- `<contractStandard>` is typically `erc721`. The image is served from the OpenSea response, so contracts OpenSea indexes as `erc1155` also resolve.
 
 ### Available Frame Styles
 
@@ -45,7 +48,12 @@ Use `getPlayer()` from `@dcl/sdk/src/players` to get the player's Ethereum addre
 
 ## Signed Requests
 
-Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a backend. It automatically includes a cryptographic signature proving the player's identity, which your backend can verify.
+Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a backend. It automatically injects signed identity headers (ADR-44) that your backend verifies — you do not build or pass them yourself.
+
+- Signature: `signedFetch({ url, init: { method?, headers?, body? } })`.
+- Response is `{ ok, status, statusText, headers, body }`; **`body` is a string** — call `JSON.parse(response.body)` (there is no `.json()`).
+- It does **not** require prior player interaction (unlike restricted actions).
+- Need only the signed headers for a library that does its own fetching? Use `getHeaders({ url, init? })` from the same module — it returns `{ headers }`.
 
 ## Smart Contract Interaction
 
@@ -56,6 +64,8 @@ npm install eth-connect
 ```
 
 Read operations (view/pure functions) don't require gas. Write operations prompt the player to sign and require gas.
+
+Wrap all async blockchain calls in `executeTask(async () => { ... })`. Handle errors gracefully — blockchain operations can fail (rejected by user, insufficient gas, network issues).
 
 ## Gas Price and Balance
 
@@ -81,45 +91,36 @@ For common blockchain operations, use `dcl-crypto-toolkit` instead of raw `eth-c
 npm install dcl-crypto-toolkit
 ```
 
+Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `mana`, `currency`, `nft`, `marketplace`, `services`, `wearable`, `contract`. There is NO top-level `crypto.signMessage`.
+
 **Capabilities:**
-- **MANA operations:** send, check balance, check/set allowance (`crypto.mana.*`)
+- **MANA operations:** send, check balance (`crypto.mana.send` / `.myBalance` / `.balance`)
 - **ERC20 tokens:** send, check balance, check/set allowance (`crypto.currency.*`)
-- **ERC721/NFT:** check ownership, transfer, approval management (`crypto.nft.*`)
-- **Marketplace:** buy orders, sell orders, cancel orders, check authorization (`crypto.marketplace.*`)
-- **Sign message:** sign arbitrary messages with player wallet (`crypto.signMessage()`)
+- **ERC721/NFT:** check tokens held (token gating), transfer, approval management (`crypto.nft.*`)
+- **Marketplace:** buy (`executeOrder`), sell (`createOrder`), cancel (`cancelOrder`), check authorization (`crypto.marketplace.*`)
+- **Sign message:** sign EIP-712 typed data with player wallet (`crypto.ethereum.signMessageAdvanced()`)
 
 ## Token Gating
 
-**By NFT ownership:** Check `crypto.nft.getBalance()` to verify the player owns a specific NFT, then grant or deny access.
+**By NFT ownership:** Use `crypto.nft.checkTokens(contractAddress, tokenIds?)` — returns whether the player holds tokens of that contract. Omit `tokenIds` to check any token of the contract. Grant or deny access on the result.
 
-**By ERC20 balance:** Check `crypto.mana.getBalance()` (or `crypto.currency.getBalance()` for other tokens) to gate access based on token holdings.
+**By MANA balance:** Check `crypto.mana.myBalance()` (or `crypto.currency.balance(contractAddress, address)` for other ERC20 tokens) to gate access based on holdings.
 
 ### Quick Decision Guide
 
 | Task | Use |
 |---|---|
 | Send MANA | `crypto.mana.send()` |
-| Check MANA balance | `crypto.mana.getBalance()` |
+| Check own MANA balance | `crypto.mana.myBalance()` |
+| Check any address's MANA balance | `crypto.mana.balance(address)` |
 | Send any ERC20 token | `crypto.currency.send()` |
-| Check ERC20 balance | `crypto.currency.getBalance()` |
+| Check ERC20 balance | `crypto.currency.balance(contract, address)` |
 | Transfer an NFT | `crypto.nft.transfer()` |
-| Check NFT ownership | `crypto.nft.getBalance()` |
-| Buy from marketplace | `crypto.marketplace.buyOrder()` |
-| List NFT for sale | `crypto.marketplace.sellOrder()` |
-| Sign a message | `crypto.signMessage()` |
+| Check NFT ownership / token gating | `crypto.nft.checkTokens()` |
+| Buy from marketplace | `crypto.marketplace.executeOrder()` |
+| List NFT for sale | `crypto.marketplace.createOrder()` |
+| Sign a message | `crypto.ethereum.signMessageAdvanced()` |
 | Custom smart contract | `eth-connect` (see above) |
 | Authenticated API call | `signedFetch` (see above) |
 
-## Best Practices
-
-- **Always check `isGuest`** before any blockchain interaction -- guest players can't sign transactions
-- Use `executeTask(async () => { ... })` for all async blockchain calls
-- Store ABI files separately (e.g., `contracts/`) -- don't inline large ABIs
-- Handle errors gracefully -- blockchain operations can fail (rejected by user, insufficient gas, network issues)
-- `eth-connect` must be installed as a dependency: `npm install eth-connect`
-- Use `signedFetch` for backend authentication instead of raw `fetch` -- it proves the player's identity
-- Read operations (view/pure functions) don't require gas; write operations prompt the user to sign
-- Test on Sepolia before deploying to mainnet
-- NFT URNs only work with Ethereum mainnet ERC-721 tokens
-
-For full code examples and implementation patterns, see '{baseDir}/references/blockchain-patterns.md'. For the dcl-crypto-toolkit library API, see '{baseDir}/references/crypto-library.mdc'.
+For full code examples and implementation patterns, including the dcl-crypto-toolkit library API, see '{baseDir}/references/blockchain-patterns.md'.
