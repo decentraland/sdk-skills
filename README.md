@@ -26,6 +26,16 @@ Or run the command without flags to pick skills interactively:
 npx skills add decentraland/sdk-skills
 ```
 
+## Updating Skills
+
+To update your installed skills — including downloading any new skills added to this repository since you installed — re-run the install command:
+
+```bash
+npx skills add decentraland/sdk-skills --all
+```
+
+Don't use `npx skills update` for this: it only refreshes skills you already have installed, so it won't download newly added skills.
+
 ## Available Skills
 
 | Skill | Description |
