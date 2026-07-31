@@ -9,7 +9,7 @@ src/
   components.ts   — custom tag components (VisualAmplitude, VisualBar)
   factory.ts      — entity factories for the visual elements
   index.ts        — main(): wires audio + analysis + reactive systems
-assets/scene/Audio/
+assets/Audio/
   Vexento.mp3     — source audio file
 ```
 
@@ -86,7 +86,7 @@ export function main() {
   // Audio source + analysis on the SAME entity
   const audioEntity = engine.addEntity()
   AudioSource.create(audioEntity, {
-    audioClipUrl: 'assets/scene/Audio/Vexento.mp3',
+    audioClipUrl: 'assets/Audio/Vexento.mp3',
     playing: true,
     loop: true,
   })

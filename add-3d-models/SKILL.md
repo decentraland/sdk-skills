@@ -104,7 +104,7 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 
 - **Default** for models you download yourself: `assets/Models/`.
 - **Legacy scenes** may already have models under `assets/scene/Models/` — that path still works; reuse it for any new models in those scenes instead of creating a parallel `assets/Models/` folder.
-- **Creator Hub assets**: when the user adds models through the Creator Hub UI they land in `assets/asset-packs/` (free DCL packs) or `assets/custom/` (user-imported) or `assets/scene/` (user-imported). Reference these paths as-is — never move or rename them.
+- **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new model.
 

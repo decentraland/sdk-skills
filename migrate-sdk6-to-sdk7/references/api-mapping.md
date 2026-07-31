@@ -54,7 +54,7 @@ Code-reference rewrites that must follow the move:
 
 **Rules**:
 - Use **capitalized** category folders (`Models`, `Images`, `Audio`, `Videos`) — matches the convention used by [[create-scene]], [[add-3d-models]], and [[audio-video]] for fresh SDK7 work.
-- **Reuse existing layout if present.** If the project already has `assets/scene/Models/` (Creator Hub legacy layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub UI imports), keep using those exact paths — don't create a parallel `assets/Models/`.
+- **Reuse existing layout if present.** If the project already has `assets/scene/Models/` (Creator Hub legacy layout) or `assets/asset-packs/` (Creator Hub asset packs) / `assets/custom/` (Creator Hub custom items), keep using those exact paths — don't create a parallel `assets/Models/`.
 - **Never leave dual copies.** Delete the old top-level folders once the move is done. Dual copies bloat deploy size and cause Creator Hub to index stale paths.
 - **Grep before declaring done.** Search the entire repo (including `.composite`, `.json`, `.ts`, `.tsx` files) for each old folder name (`models/`, `sounds/`, etc.) — there should be zero remaining references.
 
