@@ -234,6 +234,8 @@ bus.on('hit', (data: { damage: number }) => {
 bus.emit('hit', { damage: 10 })
 ```
 
+> **Authoritative-server scenes**: `MessageBus` is client-only — the headless server runtime does not implement the legacy comms event it relies on, and a module-scope `new MessageBus()` (as above) fails on the server with `RemoteError: not implemented`. In those scenes construct it only inside the client branch (`if (!isServer())`); see the `authoritative-server` skill.
+
 ### syncEntity vs MessageBus
 
 - `syncEntity`: late joiners get current state, automatic conflict resolution — CRDT last-write-wins, so if two players change the same component simultaneously the last write wins. The state persists as long as at least one player remains in the scene
