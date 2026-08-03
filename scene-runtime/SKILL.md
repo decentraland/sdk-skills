@@ -159,6 +159,7 @@ import {
   triggerSceneEmote,
   copyToClipboard,
   setCommunicationsAdapter,
+  openExplorerUi,
 } from "~system/RestrictedActions";
 
 // Move player within scene bounds. Optional: cameraTarget (where the
@@ -190,7 +191,48 @@ copyToClipboard({ value: "Hello from Decentraland!" });
 // include it to show the player a confirmation dialog first.
 changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
 changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
+
+// Open a native Explorer fullscreen panel (map, settings, backpack, etc.)
+const result = await openExplorerUi({ ui: 1 }); // 1 = EU_MAP
+// result.openResult: 0=UNSPECIFIED, 1=OPENED, 2=WAS_ALREADY_OPEN,
+//   3=REJECTED_NOT_CURRENT_SCENE, 4=REJECTED_FEATURE_DISABLED, 5=REJECTED_NO_USER_GESTURE
 ```
+
+### openExplorerUi
+
+Opens a native Explorer fullscreen panel from a user gesture. Import from `~system/RestrictedActions`.
+
+```typescript
+import { openExplorerUi } from "~system/RestrictedActions";
+
+const result = await openExplorerUi({ ui: 1 }); // EU_MAP
+console.log(result.openResult); // OpenExplorerUiResult enum value
+```
+
+**ExplorerUi enum** (which panel to open):
+
+| Value | Name | Panel |
+|-------|------|-------|
+| `0` | `EU_SETTINGS` | Settings |
+| `1` | `EU_MAP` | World map |
+| `2` | `EU_BACKPACK` | Backpack / inventory |
+| `3` | `EU_CAMERA_REEL` | Camera reel / screenshots |
+| `4` | `EU_COMMUNITIES` | Communities |
+| `5` | `EU_PLACES` | Places directory |
+| `6` | `EU_EVENTS` | Events |
+
+**OpenExplorerUiResult enum** (verdict):
+
+| Value | Name | Meaning |
+|-------|------|---------|
+| `0` | `UNSPECIFIED` | Default / unknown |
+| `1` | `OPENED` | Panel opened successfully |
+| `2` | `WAS_ALREADY_OPEN` | A fullscreen panel was already open |
+| `3` | `REJECTED_NOT_CURRENT_SCENE` | Standard restricted-actions current-scene gate rejected the call |
+| `4` | `REJECTED_FEATURE_DISABLED` | The requested section is hidden by feature flags or unsupported by the client |
+| `5` | `REJECTED_NO_USER_GESTURE` | Call did not originate from a user gesture |
+
+Verified against protocol `restricted_actions.proto` commit `2c475cb` and `@dcl/protocol` pin in js-sdk-toolchain commit `26cb9251`.
 
 ## Timers
 
