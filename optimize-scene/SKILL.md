@@ -311,6 +311,7 @@ When running the scene locally with `npm run start`:
 | gltf-transform CLI          | Compress GLB files with Draco, strip unused data          |
 | glTF Validator              | Check for export errors before importing into DCL         |
 | Creator Hub Scene Inspector | Visual tool for entity counts, triangle counts, placement |
+| Creator Hub "Optimize Assets" | Preview option that converts scene assets to production-like optimized asset bundles locally via an `abgen` sidecar process. Shows a progress UI while converting. Use it to preview how the scene will look after deployment (asset bundle compression can alter visual fidelity). |
 | Preview Debug Panel (P key) | Live performance metrics during `npm run start`           |
 
 ```bash
