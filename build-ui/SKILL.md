@@ -69,6 +69,24 @@ export function setupUi() {
 
 **InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* — the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored) and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). See `{baseDir}/references/ui-components.md` → InteractableArea.
 
+## UiInputBinding (bind InputActions to UI elements)
+
+The `uiInputBinding` prop on `UiEntity` binds `InputAction` values to a UI element so they fire continuously while it is pressed (touch or pointer). This is the primary mechanism for on-screen action buttons on mobile where there is no keyboard.
+
+```tsx
+import { InputAction } from '@dcl/sdk/ecs'
+
+<UiEntity
+  uiTransform={{ width: 80, height: 80 }}
+  uiBackground={{ color: Color4.Red() }}
+  uiInputBinding={{ actions: [InputAction.IA_JUMP] }}
+/>
+```
+
+While the element is held down, `InputAction.IA_JUMP` fires as if the player were pressing the spacebar. Multiple actions can be bound to one element. The underlying ECS component is `PBUiInputBinding { actions: InputAction[] }`.
+
+Combine with `TouchScreenControls` (see below) for full mobile control customization. Verified against js-sdk-toolchain commit `82368ee4`.
+
 ## Adding Independent UI Renderers (addUiRenderer)
 
 Use `ReactEcsRenderer.addUiRenderer(ownerEntity, MyWidget, { virtualWidth: 1920, virtualHeight: 1080 })` to render a UI module independently without replacing the main UI. Useful for smart items or modular scene components. Remove with `ReactEcsRenderer.removeUiRenderer(owner)`. If the owner entity is destroyed, the UI is removed automatically.
@@ -151,5 +169,6 @@ For full code examples and implementation patterns, see `{baseDir}/references/ui
 
 ## Cross-references
 
-- **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop. See the **advanced-input** skill.
+- **Mobile touch controls**: Use `TouchScreenControls` (see **advanced-input** skill) to hide/show on-screen buttons, and `UiInputBinding` (above) to bind InputActions to custom UI elements on mobile.
+- **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop.
 - **Mobile UI limitations**: `borderRadius` is unsupported on mobile. Design for touch (larger tap targets, no hover states). See the mobile considerations in the **advanced-input** skill.
