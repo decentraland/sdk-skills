@@ -268,11 +268,16 @@ After customizing the files:
 
 | Flag | Type | Description |
 |---|---|---|
+| `--web` (alias `--bevy-web`) | boolean | Open the preview in the Bevy Web browser client at `decentraland.org/bevy-web/` instead of the Desktop Explorer. Chromium 142+ requires Local Network Access permission for the page to reach the localhost preview server -- when the browser asks to access apps on your device, click "Allow". |
 | `--mcp` | boolean | Enable the MCP server in the Explorer (forwarded as a deep-link parameter) |
 | `--mcp-port` | number | Port for the MCP server in the Explorer |
 | `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
 | `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
 | `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
+
+`--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
+
+**Bevy renderer in Creator Hub:** Settings > Editor > "Scene renderer" dropdown (Babylon default / Bevy preview). Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload.
 
 **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
 

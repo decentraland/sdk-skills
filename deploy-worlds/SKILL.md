@@ -15,6 +15,19 @@ To publish to a World, the user must own either:
 
 The wallet signing the deployment must own the NAME, or have been granted permission via Access Control Lists (ACL).
 
+## Storage Budget
+
+Scenes deployed to Worlds count against a storage budget shared across all Worlds owned by the same wallet. The budget is calculated dynamically from the wallet's holdings:
+
+- Each **Decentraland NAME** owned grants **100 MB** (as well as a World).
+- Each **LAND parcel** owned grants an additional **100 MB**.
+- Every **2,000 MANA** held in the wallet grants another **100 MB**.
+- **ENS-domain Worlds** have a fixed limit of **36 MB** that cannot be expanded.
+
+The budget can be distributed across multiple Worlds however the user likes. Check usage in the **Manage** section of the Creator Hub (click **View Details** for a breakdown), or in the **Worlds** tab of the [Builder](https://decentraland.org/builder/worlds).
+
+If the budget is exceeded (e.g. after selling/transferring assets), there is a **48-hour grace period** to free space before Worlds become inaccessible. Regain access by acquiring more MANA/NAMEs/LAND or undeploying scenes.
+
 ## 1. Configure scene.json
 
 Add a `worldConfiguration` section to `scene.json`:
@@ -161,7 +174,7 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 |-------|-------|----------|
 | "NAME not found" or "NAME not owned" | The wallet signing the deployment doesn't own the NAME/ENS in `worldConfiguration.name` | Verify NAME ownership at `https://builder.decentraland.org/names`. The wallet used for signing must own the exact NAME |
 | ENS resolution fails | ENS domain not registered or expired | Check ENS registration at `https://app.ens.domains` |
-| "Scene too large" | World scenes have size limits even though parcels aren't constrained | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Worlds still enforce file size and entity limits |
+| "Scene too large" | Scene exceeds the World storage budget (see **Storage Budget** above) | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Check remaining budget in the Creator Hub **Manage** tab or the Builder **Worlds** tab |
 | Deploy succeeds but world is empty | `main` field misconfigured | Ensure `main` is `"bin/index.js"` and code compiles |
 | World not showing on Places | Propagation delay | Wait a few minutes after deployment. If opted out via `placesConfig.optOut`, it won't appear |
 
