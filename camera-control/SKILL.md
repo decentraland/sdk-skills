@@ -104,6 +104,7 @@ VirtualCamera.create(cinematicCam, {
 	defaultTransition: {
 		transitionMode: VirtualCamera.Transition.Speed(1.0),
 	},
+	// fov: 45, // optional: field of view in degrees (overrides the Explorer default)
 })
 
 // Activate the virtual camera (createOrReplace on first activation:
@@ -145,6 +146,8 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 `lookAtEntity` can be `engine.PlayerEntity` to keep the camera aimed at the moving player (verified: `2,22-virtual-cameras`). To bake a fixed look direction into the camera's own rotation instead, use `Quaternion.fromLookAt(cameraPosition, targetPosition)` in the camera's `Transform`.
 
 `VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
+
+`VirtualCamera` accepts an optional `fov?: number` field (field of view in degrees). When set, the virtual camera overrides the Explorer's default FOV for as long as it is the active `MainCamera.virtualCameraEntity`. Omitting it uses the Explorer's default. Verified against js-sdk-toolchain `PBVirtualCamera` commit `26cb9251`.
 
 **Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
 
