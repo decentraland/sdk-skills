@@ -68,7 +68,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
-| **AvatarEmoteCommand** | `emoteUrn`, `loop` | Trigger avatar emotes. |
+| **AvatarEmoteCommand** | `emoteUrn`, `loop` | Read-only. Written by the Explorer to report avatar emote playback to the scene. Appended to every player entity (local and remote). Do NOT use to trigger emotes -- use `triggerEmote`/`triggerSceneEmote` from `~system/RestrictedActions` instead. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
 | **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. `[UNVERIFIED: default values]` — the protocol documents no defaults; see `player-avatar/references/avatar-apis.md`. |
 
@@ -79,7 +79,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **CameraMode** | `mode: CameraType` | Read-only current camera mode. `CameraType`: `CT_FIRST_PERSON` (0), `CT_THIRD_PERSON` (1), `CT_CINEMATIC` (2 — reported while a `VirtualCamera` drives the view). |
 | **CameraModeArea** | `area`, `mode` | Force camera mode in an area. |
 | **MainCamera** | `virtualCameraEntity?: Entity` | Activate a `VirtualCamera` by setting this to its entity (use `MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity })`); clear it to return control. Read the live camera pose from `Transform.get(engine.CameraEntity)`. |
-| **VirtualCamera** | `lookAtEntity?`, `defaultTransition` | Create cinematic camera angles. |
+| **VirtualCamera** | `lookAtEntity?`, `defaultTransition`, `fov?: number` | Create cinematic camera angles. `fov` overrides the Explorer's default field of view (degrees) while this camera is active. |
 
 ## UI Components (React-ECS)
 
@@ -95,6 +95,13 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 | **UiDropdown** | `options: string[]`, `selectedIndex`, `onChange` | Dropdown selector. |
 | **UiDropdownResult** | Read-only | Selected dropdown value. |
 | **UiCanvasInformation** | Read-only | Screen dimensions and device pixel ratio. |
+| **UiInputBinding** | `actions: InputAction[]` | Bind `InputAction`s to a UI element so they fire while it is pressed (touch or pointer). Used as a React-ECS prop `uiInputBinding={{ actions: [InputAction.IA_JUMP] }}` on `UiEntity`. |
+
+## Touch / Mobile Controls
+
+| Component | Key Fields | Description |
+|-----------|-----------|-------------|
+| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. |
 
 ## System & Runtime
 

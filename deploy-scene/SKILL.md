@@ -31,7 +31,7 @@ Before deploying, verify:
    ```
 
 3. **Scene previews correctly**:
-   Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start --bevy-web` manually). Test with multiple browser tabs to verify multiplayer behavior.
+   Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start` manually, optionally with `--web` to preview in the Bevy Web browser client). Test with multiple browser tabs to verify multiplayer behavior.
 
 4. **Dependencies installed**:
    ```bash
