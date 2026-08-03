@@ -191,7 +191,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - [ ] **Multiplayer compatible**: Works correctly with 1 player and with 5+ simultaneous players.
 - [ ] **Within scene limits**: Triangle count, entity count, texture count, and file size all within budget for the target parcel count.
 - [ ] **Performance acceptable**: Maintains 30+ FPS during gameplay with target entity/triangle counts.
-- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Note: `borderRadius` is unsupported on mobile UI; ParticleSystem and dynamic lights are not yet available on mobile.
+- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Note: `borderRadius` is unsupported on mobile UI; ParticleSystem and dynamic lights are not yet available on mobile.
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
 
@@ -294,8 +294,8 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |
 | FPS-style / mouselook camera controls | **camera-control** | Mouselook pattern: `PrimaryPointerInfo.screenDelta` + VirtualCamera + PointerLock + InputModifier. Desktop only. |
 | Audio-reactive visuals (music visualizers, beat detection) | **audio-analysis** | `AudioAnalysis` component on `AudioSource` or `VideoPlayer` (progressive only, not HLS). Drive geometry/lights/colors from `amplitude` and 8 frequency `bands`. |
-| Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs. `UiInputBinding` prop for binding InputActions to UI elements (on-screen buttons for mobile). |
-| Mobile touch controls | **advanced-input** | `TouchScreenControls` component for hiding/showing on-screen buttons, setting main action, hiding joystick/crosshair. Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform`. |
+| Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs |
+| Mobile platform detection | **advanced-input** | Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI/controls for mobile. |
 | Open Explorer UI panels from scenes | **scene-runtime** | `openExplorerUi()` restricted action to open map, backpack, settings, etc. from a user gesture. Useful for onboarding flows and UX shortcuts. |
 | World deployment, storage budget | **deploy-worlds** | World storage budget (100 MB per NAME, 100 MB per LAND, 100 MB per 2k MANA; ENS = 36 MB fixed). Plan scene file sizes accordingly. |
 | Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques. Creator Hub "Optimize Assets" preview option for testing with production-like asset bundles. |
