@@ -152,6 +152,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
 
+### Game Mechanics
+
+**Skill: `game-mechanics`** — Implementation-level game systems: wave spawning + path-following, turn/grid systems (step/turn/realtime/freeform, board state, undo), economy/upgrades, status effects, combat AI behaviors (patrol/chase/melee/ranged, targeting, projectile prediction, enemy FSM), UI game systems (quiz/cards/dialogue/battle in React-ECS), and game-feel feedback (floating 3D text, combos).
+
 ### Deployment
 
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
