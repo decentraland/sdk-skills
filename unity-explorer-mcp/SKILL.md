@@ -7,13 +7,14 @@ description: Iterate on a local Decentraland SDK7 scene against a running Explor
 
 Drive a running Decentraland Explorer build through its MCP automation server to build and test SDK7 scenes autonomously: edit the scene, watch it hot-reload, move the camera and player, take screenshots, and verify against what the code should produce.
 
-The connected `mcp__explorer__*` tools are self-describing — each carries its name, arguments, and output shape. Treat that as the authoritative tool catalog; the names used below (`get_scene_state`, `get_scene_logs`, `screenshot`, `teleport`, `move_to`, `walk`, `look_at`, `set_camera_pose`, `set_camera_mode`, `list_scene_entities`, `get_entity_details`, `get_player_state`, `click_entity`, `send_chat`, `trigger_emote`, `reload_scene`) are the common ones.
+The connected `mcp__explorer__*` tools are self-describing — each carries its name, arguments, and output shape. Treat that as the authoritative tool catalog; the names used below (`get_scene_state`, `get_scene_logs`, `screenshot`, `teleport`, `move_to`, `walk`, `look_at`, `set_camera_pose`, `set_camera_mode`, `list_scene_entities`, `get_entity_details`, `get_player_state`, `click_entity`, `send_chat`, `trigger_emote`, `reload_scene`, `get_scene_content_stats`, `get_scene_content_breakdown`, `get_performance_stats`) are the common ones.
 
 Deeper reference, loaded only when the task reaches it:
 
 - [`reference/camera-and-movement.md`](reference/camera-and-movement.md) — before framing screenshots, free-camera sweeps, or navigating precise lines
 - [`reference/assets.md`](reference/assets.md) — before placing, downloading, converting, or exporting any 3D model
 - [`reference/visuals.md`](reference/visuals.md) — before tuning emissives/bloom, UI overlays, skybox time, or judging thin geometry
+- [`reference/performance-debugging.md`](reference/performance-debugging.md) — before answering whether a scene is within its content budget, why it runs slow, or what to optimize (`get_scene_content_stats`, `get_scene_content_breakdown`, `get_performance_stats`)
 
 ## Gates
 
@@ -110,6 +111,7 @@ Repeat until **every requirement has proof**: a screenshot or state read demonst
 3. **Read the runtime output**: `get_scene_logs` with `sinceSeq` set to the last sequence number you saw. Scene `console.log` output and exceptions land here.
 4. **Look and verify**: position the view (`teleport`, `move_to`, `walk`, `look_at` — for precise framing or free-camera sweeps read [`reference/camera-and-movement.md`](reference/camera-and-movement.md)), then `screenshot` and inspect the image against what the scene code should produce.
 5. **Exercise behavior**: `walk` into trigger areas, `click_entity` on interactables, `send_chat` for commands, `trigger_emote`, and re-screenshot to verify reactions. `list_scene_entities` + `get_entity_details` show the scene's ECS state when visuals aren't enough.
+6. **Measure budget & performance** (when the question is limits, frame rate, or what to optimize): `get_scene_content_stats` for the whole-scene counts against their soft caps, `get_scene_content_breakdown` to rank the heaviest source models (position the camera first — the visible columns are per point of view), and `get_performance_stats` to sample the real frame rate at a viewpoint. Don't prescribe from counts alone — correlate content with measured FPS. Full method and the materials-vs-shaderVariants interpretation are in [`reference/performance-debugging.md`](reference/performance-debugging.md).
 
 **Your SDK7 API memory is stale.** The SDK ships components newer than training data — native `TriggerArea` + `triggerAreaEventsSystem` (`TriggerArea.setBox(entity, ColliderLayer.CL_MAIN_PLAYER)`) among them — so failing to recall an API is no evidence it's missing, and neither is a version number you remember. When you can't recall an API exactly, or catch yourself hand-rolling a workaround (polling the player `Transform` for a trigger volume, mutating `engine.PlayerEntity` to move the player), read the topic skill that owns it *before* writing the workaround: `add-interactivity` for triggers and pointer events, `player-physics` for forces on the player, `advanced-input` for held keys, `sdk-scenes` for the component reference and the index of the rest. Reach for the official docs only where no skill covers it, and say so when you do.
 
