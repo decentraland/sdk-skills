@@ -302,6 +302,30 @@ import { stopEmote } from '~system/RestrictedActions'
 stopEmote({})
 ```
 
+### Detecting when an emote finishes
+
+Every emote lifecycle event is appended to the `AvatarEmoteCommand` grow-only set on the player entity, with a `state` field (`EmoteState` enum). Works for scene-triggered emotes (`triggerEmote`/`triggerSceneEmote`), emotes the player plays via the emote wheel, AND other players' emotes (pass their entity instead of `engine.PlayerEntity`).
+
+```typescript
+import { AvatarEmoteCommand, EmoteState } from '@dcl/sdk/ecs'
+
+AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
+	if (!cmd) return
+	switch (cmd.state ?? EmoteState.ES_STARTED) {
+		case EmoteState.ES_STARTED:     // emote started (also the value when `state` is absent — older clients)
+			break
+		case EmoteState.ES_FINISHED:    // non-looping emote played to its natural end
+			break
+		case EmoteState.ES_INTERRUPTED: // cut short: movement/jump, teleport, another emote, stopEmote(), or scene exit
+			break
+	}
+})
+```
+
+- Always default absent `state` to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) — entries from older clients omit the field, and older clients never send FINISHED/INTERRUPTED at all, so don't hard-block gameplay on a finish signal without a fallback.
+- **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation.
+- Requires a DCL 2.0 desktop client with playback-completion support.
+
 ### Emote masks (upper-body only)
 
 `triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives. Use it to restrict a looping emote to the upper body so the player can keep walking around while the upper body animates (e.g. carrying/juggling an object).

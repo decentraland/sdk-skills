@@ -56,6 +56,26 @@ audio.playing = true
 audio.currentTime = 0   // if playing/currentTime already had these values, LWW may dedup the PUT
 ```
 
+### Audio Events (playback state changes, incl. finish detection)
+
+Mirrors `videoEventsSystem`, but for `AudioSource` and `AudioStream` entities. The event's `state` is a `MediaState` enum value (`MS_NONE`, `MS_ERROR`, `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_BUFFERING`, `MS_SEEKING`, `MS_PAUSED`).
+
+```typescript
+import { audioEventsSystem, MediaState } from '@dcl/sdk/ecs'
+
+audioEventsSystem.registerAudioEventsEntity(entity, (event) => {
+  // MS_PLAYING -> MS_READY = the sound stopped (natural finish for AudioSource clips)
+  // MS_ERROR = the file failed to load
+  console.log('audio state:', event.state, 'at', event.timestamp)
+})
+
+const latest = audioEventsSystem.getAudioState(entity)  // last reported PBAudioEvent | undefined
+audioEventsSystem.hasAudioEventsEntity(entity)          // is a callback registered
+audioEventsSystem.removeAudioEventsEntity(entity)       // unregister
+```
+
+For AudioSource clips the engine also flips the component's `playing` field back to `false` on natural finish — pollable with the read-only `AudioSource.get(entity).playing` (see SKILL.md). Requires a DCL 2.0 desktop client with playback-completion support.
+
 ## AudioStream — Full Fields
 
 ```typescript
