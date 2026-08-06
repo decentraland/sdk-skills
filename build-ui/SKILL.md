@@ -50,7 +50,9 @@ export function setupUi() {
 
 ## Core Components
 
-**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`, `pointerFilter`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+
+- **These four are the complete set of UI event handlers, and each is `() => void`.** There is no `onMouseDrag`/`onMouseMove`, and **no arguments — no pointer coordinates, no event object — are passed to a handler**. All four are hardcoded to `InputAction.IA_POINTER`; you cannot bind a UI element to right-click or a key. Drag interactions are still fully possible via `PrimaryPointerInfo.screenDelta` — see "Sliders" below.
 
 - `opacity` (number 0–1): fades the element. Set on the root to fade the whole UI; **cascades multiplicatively to children**.
 - `zIndex` (number, incl. negative): controls stacking order among sibling elements. Higher = on top. Does not cross parent boundaries.
@@ -98,6 +100,8 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
 - **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
+- **No pointer coordinates in UI handlers.** `onMouseDown`/`onMouseUp`/`onMouseEnter`/`onMouseLeave` are `() => void` — the reconciler discards the `PBPointerEventsResult` before calling your callback, so "where on this element did they click" is unavailable. Track *movement* instead of position: `PrimaryPointerInfo.screenDelta` reports per-frame mouse travel and drives drag interactions fine. See `{baseDir}/references/ui-sliders.md`.
+- **UI elements with a handler become pointer-blocking.** Adding `onMouseDown` makes the element block clicks to the 3D world behind it; elements without one let clicks through. Override either way with `uiTransform.pointerFilter: 'block' | 'none'` (default `'none'`).
 
 ## Common Widgets — Build From Scratch
 
@@ -106,6 +110,7 @@ Build every widget from React-ECS primitives (`UiEntity`, `Label`, `Button`). Th
 - **Prompt / dialog / confirmation?** → full-screen overlay + centered panel + `Button`s. See the **Modal Dialog** pattern in `references/ui-components.md`.
 - **Health bar, progress bar, score?** → nested `UiEntity` with the inner one sized `width: `${pct}%``. See the **Health Bar** patterns in `references/ui-components.md` and `references/ui-patterns.md`; a score is a `Label` bound to a module-level variable.
 - **Flash announcement (timed, centered)?** → a centered `Label` gated on a module-level flag, cleared with `timers.setTimeout`. See **Timed Announcement** in `references/ui-patterns.md`.
+- **Slider / drag handle / scrub bar?** → **drag sliders work.** UI handlers get no pointer coordinates, so instead: `onMouseDown` on the track starts a drag, and a system accumulates `PrimaryPointerInfo.screenDelta.x` (divided by the UI scale factor) into the value. A full-screen `pointerFilter: 'block'` overlay rendered only while dragging catches the release. Verified in-world on both the Unity and Bevy explorers. Desktop only — `screenDelta` is always 0 on mobile, so pair the track with `-`/`+` stepper `Button`s. Full implementation in `{baseDir}/references/ui-sliders.md`.
 - **Custom panel, inventory, complex layout?** → React-ECS directly (see `references/ui-patterns.md`).
 
 ## Troubleshooting
@@ -147,7 +152,7 @@ Engine-team test scenes exercised against the real renderer (ground truth for th
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
 
-For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`.
+For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`. For sliders and the limits of UI pointer input, see `{baseDir}/references/ui-sliders.md`.
 
 ## Cross-references
 
