@@ -121,9 +121,11 @@ Before writing a fresh composite, verify:
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
+- [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards.
+
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 
-- [ ] `<id>` has been appended to the `children` array of the entity-`0` entry inside `inspector::Nodes.data["0"].json.value`, **before** the trailing `1` and `2` reserved entries.
+- [ ] `<id>` has been appended to the **end** of the `children` array of the entity-`0` entry inside `inspector::Nodes.data["0"].json.value`.
 - [ ] A new entry `{ "entity": <id>, "children": [...] }` has been appended to the `value` array of `inspector::Nodes.data["0"].json` (use `[]` if the entity has no children of its own).
 - [ ] If `<id>`'s `Transform.parent` is not `0`, then `<id>` is in the parent entity's `children` array (not the root's).
 - [ ] `core-schema::Name.data["<id>"]` has a `{ "json": { "value": "..." } }` entry — names are required for the entity to appear correctly in the entity tree and to be looked up by code.
@@ -131,12 +133,14 @@ For every NEW entity `<id>` you add, in addition to the authoring-from-scratch r
 - [ ] `entity-names.ts` is either updated to include the new name (in `EntityNames`) OR left untouched so the Creator Hub regenerates it on next save. Do NOT hand-edit the auto-generated header.
 - [ ] You did NOT delete or strip pre-existing `inspector::Nodes`, `inspector::SceneMetadata-*`, `inspector::Selection`, `inspector::TransformConfig`, `composite::root`, or `asset-packs::ActionTypes`. These are managed by the Creator Hub and must stay.
 - [ ] `inspector::SceneMetadata-*` is unchanged unless `scene.json` parcels changed (in which case the layout block must match `scene.json`).
-- [ ] Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) are still present in `inspector::Nodes` — both as the last two children of entity `0` AND as their own `{ "entity": 1, "children": [] }` / `{ "entity": 2, "children": [] }` entries.
+- [ ] Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) are still present in `inspector::Nodes` as their own top-level `{ "entity": 1, "children": [] }` / `{ "entity": 2, "children": [] }` entries. They are **separate tree roots** — they must NOT appear inside entity `0`'s `children` array (or any other `children` array).
 
 **Verification command (edit mode):** after editing, every entity ID present in `core::Transform.data` should also appear:
 
 1. As a top-level `{ "entity": <id>, ... }` entry in `inspector::Nodes.data["0"].json.value`, AND
 2. In exactly one `children` array within that same `value` list (its parent's children).
+
+Entities `0`, `1`, and `2` are the exception to rule 2 — they are tree roots and appear in no `children` array.
 
 Missing entries here are the root cause of "entity renders but is invisible in the Creator Hub entity tree".
 
