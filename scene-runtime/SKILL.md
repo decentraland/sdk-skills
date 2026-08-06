@@ -184,7 +184,7 @@ openNftDialog({
 });
 
 // Copy text to clipboard
-copyToClipboard({ value: "Hello from Decentraland!" });
+copyToClipboard({ text: "Hello from Decentraland!" });
 
 // Change realm. `message` is OPTIONAL: omit it to switch with no prompt,
 // include it to show the player a confirmation dialog first.
