@@ -231,7 +231,7 @@ TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_RESTART })
 
 ## Retrigger / replace a running tween
 
-Use `createOrReplace` when the entity may already have a tween (e.g. re-triggered mid-motion). `currentTime: 0` restarts from the beginning.
+Use `createOrReplace` when the entity may already have a tween (e.g. re-triggered mid-motion). `currentTime: 0` restarts from the beginning — i.e. from `start`, not from where the entity is now. To CONTINUE from the entity's live position instead, read the Transform for `start` — see the next section.
 
 ```typescript
 Tween.createOrReplace(platform, {
@@ -246,6 +246,33 @@ TweenSequence.createOrReplace(platform, {
   ]
 }) // omit `loop` for a one-shot there-and-back
 ```
+
+---
+
+## Move from the current position (retarget mid-travel)
+
+The engine writes the tweened entity's interpolated Transform back to the scene every frame a tween is active, so `Transform.get(entity).position` is the live mid-flight position. Passing it as `start` moves the entity from wherever it currently is — and calling the helper again while a previous tween is still running smoothly redirects it mid-travel (the `set*` helpers use `createOrReplace`, which re-triggers even with identical values). No snap, no teleport. (verified in `79,-4-tween-from-current-position`)
+
+```typescript
+import { engine, Transform, Tween, EasingFunction, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+function moveTo(target: Vector3) {
+  // start = the LIVE position — correct even while a previous tween is still mid-flight
+  Tween.setMove(mover, Transform.get(mover).position, target, 2500, EasingFunction.EF_EASEOUTQUAD)
+}
+
+// Wire several clickable pads; clicking another pad mid-travel
+// redirects the mover smoothly from wherever it currently is.
+for (const { pad, target } of pads) {
+  pointerEventsSystem.onPointerDown(
+    { entity: pad, opts: { button: InputAction.IA_POINTER, hoverText: 'Move here' } },
+    () => moveTo(target)
+  )
+}
+```
+
+**WARNING — omitting `start` is NOT "current position".** An unset `start` is treated as `(0,0,0)`: the entity teleports to the scene origin before moving. A hardcoded stale `start` likewise causes a visible teleport to that point before the motion begins. Always read `Transform.get(entity).position` when you mean "from here".
 
 ---
 
