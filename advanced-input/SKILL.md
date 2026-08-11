@@ -237,7 +237,7 @@ Key facts from the mobile docs expansion (commit `17ca7be`):
 - **`borderRadius` unsupported on mobile UI** -- avoid rounded corners in mobile-targeting scenes.
 - **Static HUD** -- the mobile client has fixed on-screen controls (joystick, action buttons) that cannot be repositioned or customized from the scene.
 - **UI designed for desktop needs ~3x scaling for mobile readability.**
-- **Use `ScreenInsetArea`** (from `@dcl/sdk/react-ecs`) to keep UI inside the device's safe area (notch, home indicator).
+- **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].
 - **SDK features not yet on mobile:** ParticleSystem, scene dynamic lights (PBPointLight), AudioAnalysis, nine-slice UI tile mode. Check the docs for the latest feature parity tracker.
 
 ## Example scenes

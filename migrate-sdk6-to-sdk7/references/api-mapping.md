@@ -577,10 +577,10 @@ UI migrations almost always need a from-scratch rewrite. See [[build-ui]].
 
 | SDK6 | SDK7 |
 |------|------|
-| UI sizes/positions are raw pixels against a **fixed** screen size (e.g. `width = 200`, `positionX = -350`) | UI lays out in raw screen pixels too, **but the real screen size varies per user** — so absolute pixel layouts drift between displays |
+| UI sizes/positions are raw pixels against a **fixed** screen size (e.g. `width = 200`, `positionX = -350`) | Pixel values are scaled against a virtual canvas. On 7.26.0+, if you don't choose one a per-platform default applies (`1920x1080`, or `1600x720` on mobile) — very likely **not** the grid the SDK6 UI was authored against. Below 7.26.0, not choosing one means no scaling at all |
 | No virtual canvas concept | `ReactEcsRenderer.setUiRenderer(ui, { virtualWidth, virtualHeight })` defines a virtual coordinate space; the engine scales it to the real screen |
 
-Without `virtualWidth` / `virtualHeight`, the engine lays out in raw screen pixels and an SDK6 UI ported verbatim will render at a different relative size on every machine. **Setting a virtual canvas makes existing SDK6 pixel values behave as coordinates inside that virtual space**, so layouts scale predictably.
+**Setting a virtual canvas makes existing SDK6 pixel values behave as coordinates inside that virtual space**, so layouts scale predictably. Pass it explicitly during a port: the default is a guess about your reference resolution, and if the SDK6 UI targeted something else, every ported coordinate lands in the wrong place by that ratio.
 
 ```ts
 ReactEcsRenderer.setUiRenderer(uiRoot, { virtualWidth: 1920, virtualHeight: 1080 })
@@ -591,13 +591,26 @@ Picking the right size:
 - Open the SDK6 source (the legacy ECS reference is https://github.com/decentraland/ecs) and read the `UICanvas`/`UIImage`/`UIText` setup to see what pixel grid the original UI was authored against.
 - Pass those numbers as `virtualWidth` / `virtualHeight`. `1920x1080` is a reasonable default and matches what most community examples assume, but if the SDK6 scene targeted a different resolution (e.g. `1280x720`), use those instead so existing pixel coordinates land in the same place.
 - Only one `setUiRenderer` call per scene — pass the virtual size there, not on individual elements. See [[build-ui]] for the full default-rule guidance.
+- On SDK 7.26.0+, beware two behaviors that can silently change the grid your coordinates land on: a **16:9 size is overridden to `1600x720` on mobile**, and a size with any value `<= 0` **disables** scaling entirely (raw canvas pixels). Neither is usually what a port wants.
 
-Signature reference (verified against [[build-ui]] skill docs):
+Signature reference — **SDK 7.26.0+** (verified against [[build-ui]] skill docs):
 
 ```ts
 ReactEcsRenderer.setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
+type UiRendererOptions = {
+  virtualWidth?: number
+  virtualHeight?: number
+  screenInset?: 'device' | 'interactable' | 'none'  // defaults to 'device'
+}
+```
+
+Below 7.26.0 both dimensions are required and there is no `screenInset` field:
+
+```ts
 type UiRendererOptions = { virtualWidth: number; virtualHeight: number }
 ```
+
+Since a port targets whatever SDK the new project installs, a fresh `create-scene` puts you on the current version — but check `@dcl/sdk` in `package.json` before emitting `screenInset`. `screenInset` is unrelated to the pixel grid; it selects which screen area the UI sits in, and its `'device'` default keeps UI clear of a phone's notch and status bar (a no-op on desktop), so ports can leave it alone. See the version gate in [[build-ui]].
 
 ## Logging
 

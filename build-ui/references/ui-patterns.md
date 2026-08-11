@@ -3,7 +3,8 @@
 ## Conventions for every example below
 
 - **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is required for reliable absolute positioning — without it, some children (e.g. `position: { top, right }`) may not render. See the "Convention" section in `build-ui/SKILL.md` for details.
-- All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default.
+- All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default. On SDK 7.26.0+ omitting it would not disable scaling — a per-platform default applies (`1920x1080`, `1600x720` on mobile) — but stating it keeps the reference resolution explicit and makes every example below behave identically on older SDKs too.
+- No example passes `screenInset`. On SDK 7.26.0+ that means they use the default `'device'`: the UI sits inside the device safe area (a no-op on desktop), and none of these roots should be wrapped in `<ScreenInsetArea>` because that would apply the inset twice. Below 7.26.0 there is no renderer-level inset, so wrapping *is* the way to inset — see the version gate in `build-ui/SKILL.md`.
 
 ## Setup
 
@@ -130,6 +131,8 @@ import { Dropdown } from '@dcl/sdk/react-ecs'
 ## addUiRenderer (Independent UI Modules)
 
 By convention, the root returned to `addUiRenderer` follows the same shape as `setUiRenderer`: a full-canvas wrapper containing any absolute-positioned children. This makes absolute positioning predictable across the project. The pattern below shows that shape.
+
+Two notes on the options: the virtual size here is **ignored** if `setUiRenderer` already passed one (it is a single scene-wide value), while `screenInset` is honored **per renderer** — so a widget can sit in `'interactable'` while the main UI stays in `'device'`. A scene that only calls `addUiRenderer` still gets both defaults.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from '@dcl/sdk/react-ecs'
