@@ -137,6 +137,7 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 - Optimize triangle count: aim for under 1,500 triangles per model for small props
 - Use texture atlases when possible to reduce draw calls
 - Materials in models should use PBR for best results
+- For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source once, session-wide. This does not reduce draw calls; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.
 
