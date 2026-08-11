@@ -185,6 +185,35 @@ Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 
 ---
 
+## Follow a constantly changing target (chase / homing)
+
+Use `setMoveContinuous`, **not** a `setMove` tween re-created every frame. The re-created-Move approach stutters: `Transform.get(entity).position` is what the renderer last wrote back over CRDT (~1-3 frames stale), and the renderer applies that `start` immediately, so the entity snaps backwards on every re-aim. A direction + speed has no scene-supplied start to disagree with the renderer, so replacing it mid-motion never snaps.
+
+```typescript
+const CHASE_SPEED = 3 // meters/second
+const STOP_DISTANCE = 1 // stop this far short of the target
+
+engine.addSystem(() => {
+  if (!Transform.has(engine.PlayerEntity)) return
+  const playerPos = Transform.get(engine.PlayerEntity).position
+  const myPos = Transform.get(chaser).position
+
+  if (Vector3.distance(myPos, playerPos) <= STOP_DISTANCE) {
+    // A continuous tween has no destination — the stop check is what ends the chase
+    if (Tween.has(chaser)) Tween.deleteFrom(chaser)
+    return
+  }
+
+  const direction = Vector3.subtract(playerPos, myPos)
+  direction.y = 0 // stay grounded even if the player jumps
+  Tween.setMoveContinuous(chaser, Vector3.normalize(direction), CHASE_SPEED)
+})
+```
+
+Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in `79,-4-tween-from-current-position`, which switches between both modes live)
+
+---
+
 ## Texture Scrolling
 
 ```typescript
