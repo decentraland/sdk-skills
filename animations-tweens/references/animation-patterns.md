@@ -210,7 +210,7 @@ engine.addSystem(() => {
 })
 ```
 
-Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in `79,-4-tween-from-current-position`, which switches between both modes live)
+Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in `79,-4-tween-following-cube`, which switches between both modes live)
 
 ---
 
@@ -280,7 +280,7 @@ TweenSequence.createOrReplace(platform, {
 
 ## Move from the current position (retarget mid-travel)
 
-The engine writes the tweened entity's interpolated Transform back to the scene every frame a tween is active, so `Transform.get(entity).position` is the live mid-flight position. Passing it as `start` moves the entity from wherever it currently is — and calling the helper again while a previous tween is still running smoothly redirects it mid-travel (the `set*` helpers use `createOrReplace`, which re-triggers even with identical values). No snap, no teleport. (verified in `79,-4-tween-from-current-position`)
+The engine writes the tweened entity's interpolated Transform back to the scene every frame a tween is active, so `Transform.get(entity).position` is the live mid-flight position. Passing it as `start` moves the entity from wherever it currently is — and calling the helper again while a previous tween is still running smoothly redirects it mid-travel (the `set*` helpers use `createOrReplace`, which re-triggers even with identical values). No snap, no teleport. (verified in `79,-4-tween-following-cube`)
 
 ```typescript
 import { engine, Transform, Tween, EasingFunction, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
