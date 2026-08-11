@@ -185,6 +185,35 @@ Tween.setRotateContinuous(entity, Quaternion.fromEulerDegrees(0, 45, 0), 1)
 
 ---
 
+## Follow a constantly changing target (chase / homing)
+
+Use `setMoveContinuous`, **not** a `setMove` tween re-created every frame. The re-created-Move approach stutters: `Transform.get(entity).position` is what the renderer last wrote back over CRDT (~1-3 frames stale), and the renderer applies that `start` immediately, so the entity snaps backwards on every re-aim. A direction + speed has no scene-supplied start to disagree with the renderer, so replacing it mid-motion never snaps.
+
+```typescript
+const CHASE_SPEED = 3 // meters/second
+const STOP_DISTANCE = 1 // stop this far short of the target
+
+engine.addSystem(() => {
+  if (!Transform.has(engine.PlayerEntity)) return
+  const playerPos = Transform.get(engine.PlayerEntity).position
+  const myPos = Transform.get(chaser).position
+
+  if (Vector3.distance(myPos, playerPos) <= STOP_DISTANCE) {
+    // A continuous tween has no destination — the stop check is what ends the chase
+    if (Tween.has(chaser)) Tween.deleteFrom(chaser)
+    return
+  }
+
+  const direction = Vector3.subtract(playerPos, myPos)
+  direction.y = 0 // stay grounded even if the player jumps
+  Tween.setMoveContinuous(chaser, Vector3.normalize(direction), CHASE_SPEED)
+})
+```
+
+Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in `79,-4-tween-following-cube`, which switches between both modes live)
+
+---
+
 ## Texture Scrolling
 
 ```typescript
@@ -231,7 +260,7 @@ TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_RESTART })
 
 ## Retrigger / replace a running tween
 
-Use `createOrReplace` when the entity may already have a tween (e.g. re-triggered mid-motion). `currentTime: 0` restarts from the beginning.
+Use `createOrReplace` when the entity may already have a tween (e.g. re-triggered mid-motion). `currentTime: 0` restarts from the beginning — i.e. from `start`, not from where the entity is now. To CONTINUE from the entity's live position instead, read the Transform for `start` — see the next section.
 
 ```typescript
 Tween.createOrReplace(platform, {
@@ -246,6 +275,33 @@ TweenSequence.createOrReplace(platform, {
   ]
 }) // omit `loop` for a one-shot there-and-back
 ```
+
+---
+
+## Move from the current position (retarget mid-travel)
+
+The engine writes the tweened entity's interpolated Transform back to the scene every frame a tween is active, so `Transform.get(entity).position` is the live mid-flight position. Passing it as `start` moves the entity from wherever it currently is — and calling the helper again while a previous tween is still running smoothly redirects it mid-travel (the `set*` helpers use `createOrReplace`, which re-triggers even with identical values). No snap, no teleport. (verified in `79,-4-tween-following-cube`)
+
+```typescript
+import { engine, Transform, Tween, EasingFunction, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+function moveTo(target: Vector3) {
+  // start = the LIVE position — correct even while a previous tween is still mid-flight
+  Tween.setMove(mover, Transform.get(mover).position, target, 2500, EasingFunction.EF_EASEOUTQUAD)
+}
+
+// Wire several clickable pads; clicking another pad mid-travel
+// redirects the mover smoothly from wherever it currently is.
+for (const { pad, target } of pads) {
+  pointerEventsSystem.onPointerDown(
+    { entity: pad, opts: { button: InputAction.IA_POINTER, hoverText: 'Move here' } },
+    () => moveTo(target)
+  )
+}
+```
+
+**WARNING — omitting `start` is NOT "current position".** An unset `start` is treated as `(0,0,0)`: the entity teleports to the scene origin before moving. A hardcoded stale `start` likewise causes a visible teleport to that point before the motion begins. Always read `Transform.get(entity).position` when you mean "from here".
 
 ---
 
