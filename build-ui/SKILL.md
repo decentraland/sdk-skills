@@ -37,6 +37,7 @@ The options argument is optional at the API level. **On SDK 7.26.0+, omitting it
 | A 16:9 size passed (e.g. `1920x1080`), mobile | overridden to `1600x720`, logged once to console |
 | A non-16:9 size passed | used as-is on every platform |
 | A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling |
+| Only one of the two dimensions passed | also **disabled** (both are required), and warns once to the console |
 
 So on 7.26.0+, `{ virtualWidth: 0, virtualHeight: 0 }` — not omitting the options — is how you opt into raw-pixel layout. Only do that if the user explicitly asks for it. **Below 7.26.0 there are no defaults: omitting the options is what disables scaling.** See the version gate below.
 
