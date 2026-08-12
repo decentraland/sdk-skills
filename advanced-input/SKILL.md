@@ -236,7 +236,7 @@ Key facts from the mobile docs expansion (commit `17ca7be`):
 - **Touch-only input** -- no mouse hover states, keyboard shortcuts, or right-click.
 - **`borderRadius` unsupported on mobile UI** -- avoid rounded corners in mobile-targeting scenes.
 - **Static HUD** -- the mobile client has fixed on-screen controls (joystick, action buttons) that cannot be repositioned or customized from the scene.
-- **UI designed for desktop needs ~3x scaling for mobile readability.**
+- **The old "~3x scaling for mobile" rule no longer applies as written.** On SDK 7.26.0+ pixel-sized UI is already ~2–3× larger on a phone than before (`devicePixelRatio` was removed from the UI scale factor), and the mobile virtual screen (`1600x720` vs desktop's `1920x1080`) adds ~1.2× more. Start from the desktop sizes, measure on a device, and scale up only what comes up short. See [[build-ui]].
 - **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].
 - **SDK features not yet on mobile:** ParticleSystem, scene dynamic lights (PBPointLight), AudioAnalysis, nine-slice UI tile mode. Check the docs for the latest feature parity tracker.
 
