@@ -244,6 +244,8 @@ Wraps children so they stay inside the renderer-reported **interactable area** �
 
 **For a whole UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area.
 
+⚠️ **Client support.** Either form needs an explorer that reports the area. It works on desktop, and on mobile from client version `1.12.1` onwards — older mobile clients report no margins, so the area falls back to the whole screen and the inset silently does nothing. Note that `1.12.1` is also the release that normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'
 
@@ -370,7 +372,9 @@ const Modal = () => {
 
 ## UiCanvasInformation (Responsive Design)
 
-Fields: `width`, `height`, `devicePixelRatio` (all numbers, in virtual/scaled units when a virtual size is set), plus `screenInsetArea` and `interactableArea` (`BorderRect` — `top`/`bottom`/`left`/`right` in canvas pixels). `devicePixelRatio` is a display-density hint, useful for picking a 1x/2x/3x texture.
+Fields: `width`, `height`, `devicePixelRatio` (all numbers), plus `screenInsetArea` and `interactableArea` (`BorderRect` — `top`/`bottom`/`left`/`right`). `devicePixelRatio` is a display-density hint, useful for picking a 1x/2x/3x texture; it does not take part in UI layout.
+
+⚠️ **`width` and `height` are RAW canvas pixels, not virtual/scaled units** — the SDK derives the UI scale factor from them (`Math.min(width / virtualWidth, height / virtualHeight)`), so they cannot already be scaled. The two `BorderRect`s are raw canvas pixels too. They are the right input for *decisions* (which layout, which texture resolution), not for computing sizes — the renderer already scales pixel values for you.
 
 ```typescript
 import { UiCanvasInformation, engine } from '@dcl/sdk/ecs'
