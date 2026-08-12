@@ -36,8 +36,8 @@ The options argument is optional at the API level. **On SDK 7.26.0+, omitting it
 | No virtual size passed, mobile | `1600x720` |
 | A 16:9 size passed (e.g. `1920x1080`), mobile | overridden to `1600x720`, logged once to console |
 | A non-16:9 size passed | used as-is on every platform |
-| A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling |
-| Only one of the two dimensions passed | also **disabled** (both are required), silently — nothing is logged |
+| A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling. Silent: this is the documented opt-out |
+| Only one of the two dimensions passed | also **disabled** (both are required), and logged once per size — it is treated as a mistake, not an opt-out |
 
 So on 7.26.0+, `{ virtualWidth: 0, virtualHeight: 0 }` — not omitting the options — is how you opt into raw-pixel layout. Only do that if the user explicitly asks for it. **Below 7.26.0 there are no defaults: omitting the options is what disables scaling.** See the version gate below.
 
@@ -45,7 +45,7 @@ Because the default rule above has you pass the size explicitly either way, gene
 
 The virtual size is scene-wide, resolved as: the size on `setUiRenderer` wins → else the first `addUiRenderer` that passed one → else the platform default. Options carrying only a `screenInset` don't count as a passed size.
 
-Note that `setUiRenderer` wins the arbitration if it mentions *either* dimension, even when the size is incomplete and therefore invalid. So `setUiRenderer(ui, { virtualWidth: 1920 })` disables the virtual screen for the whole scene and discards a valid size passed to any `addUiRenderer` — with nothing logged. Never emit a single dimension.
+Note that `setUiRenderer` wins the arbitration if it mentions *either* dimension, even when the size is incomplete and therefore invalid. So `setUiRenderer(ui, { virtualWidth: 1920 })` disables the virtual screen for the whole scene and discards a valid size passed to any `addUiRenderer`. The SDK logs it once per size, but the scene still loses its virtual screen. Never emit a single dimension.
 
 API (verified against `@dcl/react-ecs`, file `dist/system.d.ts`):
 
