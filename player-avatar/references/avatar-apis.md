@@ -177,11 +177,14 @@ import {
 	AvatarEmoteCommand,
 	AvatarBase,
 	AvatarEquippedData,
+	EmoteState,
 } from '@dcl/sdk/ecs'
 
-// Emote played
+// Emote lifecycle: each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
+// Absent state (older clients) means STARTED — always apply the ?? default.
+// See SKILL.md "Detecting when an emote finishes".
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
-	if (cmd) console.log('Emote:', cmd.emoteUrn)
+	if (cmd) console.log('Emote:', cmd.emoteUrn, 'state:', cmd.state ?? EmoteState.ES_STARTED)
 })
 
 // Appearance changed
