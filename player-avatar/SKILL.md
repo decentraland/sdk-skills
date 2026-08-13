@@ -304,7 +304,9 @@ stopEmote({})
 
 ### Emote masks (upper-body only)
 
-`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives. Use it to restrict a looping emote to the upper body so the player can keep walking around while the upper body animates (e.g. carrying/juggling an object).
+Full-body emotes are interrupted when the player walks or jumps -- the default locomotion animations take over. `AvatarMask.AM_UPPER_BODY` limits the animation to the waist up, leaving the legs controlled by locomotion. This means the player can keep walking, running, and jumping while the upper body plays your animation. Use cases: carrying a crate, holding a torch, juggling, cheering while running.
+
+`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives.
 
 ```typescript
 import { AvatarMask } from '@dcl/sdk/ecs'
@@ -316,7 +318,38 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
-- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
+- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released -- do not use them.
+
+### Emote state detection (EmoteState)
+
+`AvatarEmoteCommand` entries carry an optional `state` field (`EmoteState` enum, imported from `@dcl/sdk/ecs`) that reports the emote's lifecycle. Scenes can detect when an emote finishes naturally or is interrupted.
+
+- `EmoteState.ES_STARTED` (= 0) -- the emote started playing. This is the default when the field is absent (backward compat with older explorers).
+- `EmoteState.ES_FINISHED` (= 1) -- a non-looping emote completed its full animation.
+- `EmoteState.ES_INTERRUPTED` (= 2) -- playback was cancelled (player moved, teleported, another emote superseded it, explicit `stopEmote`, or scene change).
+
+Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
+
+```typescript
+import { AvatarEmoteCommand, EmoteState } from '@dcl/sdk/ecs'
+
+AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
+  if (!cmd) return
+  switch (cmd.state) {
+    case EmoteState.ES_FINISHED:
+      // Non-looping emote ended naturally -- clean up held items, reset state
+      break
+    case EmoteState.ES_INTERRUPTED:
+      // Emote was cancelled -- player walked, jumped, or another emote started
+      break
+    default:
+      // ES_STARTED or absent (older explorer) -- emote began
+      break
+  }
+})
+```
+
+Use cases: detect when a carry/torch emote ends to remove the held item, trigger a follow-up action after a performance emote completes, reset game state when a player interrupts an action emote.
 
 ## NPC Avatars
 
@@ -487,6 +520,7 @@ React to avatar changes in real-time:
 ```typescript
 import {
 	AvatarEmoteCommand,
+	EmoteState,
 	AvatarBase,
 	AvatarEquippedData,
 } from '@dcl/sdk/ecs'
@@ -495,8 +529,19 @@ import {
 // AvatarEmoteCommand is written BY THE EXPLORER to report emote playback
 // TO the scene -- it is NOT a signal from scene to renderer. It is appended
 // to every player entity (local and remote alike).
+// The `state` field (EmoteState enum) reports the lifecycle:
+//   ES_STARTED (0, default when absent -- backward compat with older explorers)
+//   ES_FINISHED (1, non-looping emote completed naturally)
+//   ES_INTERRUPTED (2, cancelled by movement/teleport/another emote/explicit stop)
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
-	if (cmd) console.log('Emote played:', cmd.emoteUrn)
+	if (cmd) {
+		console.log('Emote:', cmd.emoteUrn, 'state:', cmd.state)
+		if (cmd.state === EmoteState.ES_FINISHED) {
+			console.log('Emote finished naturally')
+		} else if (cmd.state === EmoteState.ES_INTERRUPTED) {
+			console.log('Emote was interrupted')
+		}
+	}
 })
 
 // Detect avatar appearance changes (wearables, skin color, etc.)

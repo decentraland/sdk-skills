@@ -59,11 +59,39 @@ Players must interact with the scene (click) before audio can play (browser auto
 
 ## AudioStream (Streaming)
 
-Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
+Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default -- plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
-Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`.
+Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` -- an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`.
 
 > **Before adding a streaming URL**: If not provided by the user, confirm the source first.
+
+## Audio Events System (audioEventsSystem)
+
+Monitor `AudioSource` and `AudioStream` media state changes. Import from `@dcl/sdk/ecs`. The system fires a callback only when the state changes (not every frame).
+
+```typescript
+import { engine, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+
+const radioEntity = engine.addEntity()
+AudioSource.create(radioEntity, { audioClipUrl: 'assets/Audio/music.mp3', playing: true })
+
+audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
+  // event is PBAudioEvent: { state: MediaState, timestamp: number }
+  console.log('Audio state changed:', event.state)
+})
+```
+
+**API** (verified against `@dcl/ecs`, commit `f858f905`):
+- `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
+- `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
+- `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
+- `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
+
+**MediaState values:** `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_PAUSED`, `MS_STOPPED`, `MS_ERROR`, `MS_SEEKING`, `MS_BUFFERING`, `MS_NONE`.
+
+The entity is auto-unregistered if it is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
+
+**Relationship to `AudioStream.getAudioState`:** `AudioStream.getAudioState` is a convenience wrapper on the `AudioStream` component itself; `audioEventsSystem.getAudioState` reads the underlying `AudioEvent` component and works for both `AudioSource` and `AudioStream`. Use `audioEventsSystem` when you need callback-driven state monitoring or when working with `AudioSource`.
 
 ## VideoPlayer
 

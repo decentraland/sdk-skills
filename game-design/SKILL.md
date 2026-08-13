@@ -289,6 +289,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 | Topic | Skill | When to Use |
 |---|---|---|
+| Follow/chase a moving target (entities tracking the player) | **animations-tweens** | `Tween.setMoveContinuous` for smooth following; do NOT re-create `setMove` tweens per-frame (causes jitter). See the `79,-4-tween-following-cube` test scene. |
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |

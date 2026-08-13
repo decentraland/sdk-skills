@@ -63,6 +63,8 @@ When **authoring a new composite from scratch**, these components are auto-gener
 
 After the user opens and saves a scene in the Creator Hub, the composite contains baked-in inspector components. Adding new entities WITHOUT updating `inspector::Nodes` is a silent bug: the entities render correctly in the running scene but are **invisible in the Creator Hub entity tree**, so the user cannot select or edit them in the editor.
 
+The Creator Hub entity tree has a **search bar** that filters entities by name (case-insensitive, auto-expands parent nodes to show matches). When helping users find entities in a complex scene, point them at this feature -- it is faster than scrolling through a large tree.
+
 ### STOP — the scene must NOT be open in the Creator Hub while you edit
 
 **If the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.

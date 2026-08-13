@@ -60,10 +60,13 @@ export const beginDrag = (a: DragArgs) => { drag = { ...a, current: a.start } }
 // screenDelta is in REAL screen pixels; the UI is laid out in virtual pixels
 // scaled by react-ecs. Undo that scaling so the drag tracks the cursor 1:1.
 // Mirrors @dcl/react-ecs's own UiScaleSystem.
+// NOTE: devicePixelRatio is NOT part of the formula -- the SDK removed DPR
+// from the scale calculation (commit 08dff786). The scale factor is a pure
+// contain-fit: Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight).
 function uiScaleFactor(): number {
   const c = UiCanvasInformation.getOrNull(engine.RootEntity)
   if (!c?.width || !c?.height) return 1
-  const s = Math.min(c.width / VIRTUAL_WIDTH, c.height / VIRTUAL_HEIGHT) / (c.devicePixelRatio || 1)
+  const s = Math.min(c.width / VIRTUAL_WIDTH, c.height / VIRTUAL_HEIGHT)
   return Number.isFinite(s) && s > 0 ? s : 1
 }
 

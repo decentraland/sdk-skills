@@ -11,7 +11,7 @@ export function setupUi() {
 }
 ```
 
-Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements — `setUiRenderer(() => [PanelA(), PanelB()])` — where later items render on top of earlier ones. The options arg (`{ virtualWidth, virtualHeight }`) is optional at the API level but should be passed by default (see SKILL.md).
+Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements -- `setUiRenderer(() => [PanelA(), PanelB()])` -- where later items render on top of earlier ones. The options arg is optional -- when omitted, platform defaults apply (desktop 1920x1080, mobile 1600x720). See SKILL.md for the full `UiRendererOptions` type including `screenInset`.
 
 ## UiEntity — All Props
 
