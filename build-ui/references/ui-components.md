@@ -11,7 +11,11 @@ export function setupUi() {
 }
 ```
 
-Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements — `setUiRenderer(() => [PanelA(), PanelB()])` — where later items render on top of earlier ones. The options arg (`{ virtualWidth, virtualHeight }`) is optional at the API level but should be passed by default (see SKILL.md).
+Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements — `setUiRenderer(() => [PanelA(), PanelB()])` — where later items render on top of earlier ones.
+
+The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
+
+⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth`/`virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `build-ui/SKILL.md`.
 
 ## UiEntity — All Props
 
@@ -169,9 +173,41 @@ Alternatively, a plain `UiEntity` with `uiText`, `uiBackground` and `onMouseDown
 
 `onChange` receives the selected **index**. With `acceptEmpty` the empty entry is index-shifted; drive `selectedIndex` from a module variable to control it externally (e.g. prev/next buttons).
 
+## screenInset (Renderer-Level Inset — Prefer This)
+
+**Requires SDK 7.26.0+.** On older versions the option does not exist and the wrapper components below are the only way to inset UI.
+
+The renderer options select the screen area a UI is positioned in. This is the primary mechanism; the `ScreenInsetArea` / `InteractableArea` components below are for the narrower case of insetting a single subtree.
+
+```ts
+type UiScreenInset = 'device' | 'interactable' | 'none'
+```
+
+| Value | Area the UI is placed in | Source |
+|---|---|---|
+| `'device'` **(default)** | Device safe area — excludes notch, status bar, home indicator, rounded corners | `UiCanvasInformation.screenInsetArea` |
+| `'interactable'` | Area free of the client's own HUD (minimap, chat, overlays) | `UiCanvasInformation.interactableArea` |
+| `'none'` | Whole screen, `0,0` at top-left | — |
+
+```ts
+ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })                        // device safe area (default)
+ReactEcsRenderer.setUiRenderer(MyUI, { screenInset: 'interactable' })                                     // clear of client HUD
+ReactEcsRenderer.setUiRenderer(MyUI, { screenInset: 'none' })                                             // whole screen
+ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })                          // per-renderer, independent of main UI
+```
+
+- Applied **per renderer**: the main UI and each `addUiRenderer` widget can use different areas simultaneously. (Contrast with the virtual size, which is scene-wide.)
+- Re-read every tick, so the UI follows the insets on rotation or when system bars appear/hide.
+- On desktop the device insets are zero, so `'device'` behaves like `'none'` there.
+- Inset values are reported in canvas pixels and are compensated for the UI scale factor internally, so they stay correct at any virtual screen size.
+
 ## ScreenInsetArea (Mobile Hardware-Safe Region)
 
 Wraps children so they stay inside the device's hardware-reserved margins — notch, status bar, home indicator, rounded corners. Mobile-only effect: on desktop the insets are `(0,0,0,0)`, so the wrapper has no effect and is safe to leave in cross-platform UI. Reacts automatically to insets reported by the device (rotation, system bars appearing/hiding).
+
+**On SDK 7.26.0+ you usually do not need this component** — `screenInset` already defaults to `'device'`, which insets the whole renderer. Use it only to inset one subtree while the renderer uses `screenInset: 'none'`. **Below 7.26.0 this component is the only mechanism available**, so wrapping is the correct pattern there and there is no double-application to worry about (ignore the `screenInset` argument in the snippet below).
+
+⚠️ **Never stack it on the matching renderer inset.** A `<ScreenInsetArea>` inside a renderer that is already using `'device'` applies the margin twice, pushing the UI inwards by double the amount. That is why the snippet below passes `screenInset: 'none'`.
 
 The component sets its own `positionType: 'absolute'` and `position` from the device insets — those two fields in `uiTransform` are reserved and ignored. All other `uiTransform`, `uiBackground`, and event props are forwarded normally.
 
@@ -195,15 +231,20 @@ export function setupUi() {
         uiBackground={{ color: Color4.create(0, 0, 0, 0.5) }}
       />
     </ScreenInsetArea>
-  ), { virtualWidth: 1920, virtualHeight: 1080 })
+    // 'none' so the component's inset is not applied on top of the renderer's default
+  ), { virtualWidth: 1920, virtualHeight: 1080, screenInset: 'none' })
 }
 ```
 
-**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls — keep those clear manually on mobile: the joystick sits on the left, the chat/profile/camera buttons on the top-right, and the interaction button on the bottom-right of the canvas.
+**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` (and `screenInset: 'device'`) only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls — keep those clear manually on mobile: the joystick sits on the left, the chat/profile/camera buttons on the top-right, and the interaction button on the bottom-right of the canvas.
 
 ## InteractableArea (Client-UI-Safe Region)
 
 Wraps children so they stay inside the renderer-reported **interactable area** — the portion of the screen *not* covered by the client's own UI (minimap, chat window, and other platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children to it via absolute positioning.
+
+**For a whole UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area.
+
+⚠️ **Client support.** Either form needs an explorer that reports the area. It works on desktop, and on mobile from client version `1.12.1` onwards — older mobile clients report no margins, so the area falls back to the whole screen and the inset silently does nothing. Note that `1.12.1` is also the release that normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'
@@ -214,7 +255,8 @@ export function setupUi() {
       {/* A child sized 100%×100% fills the interactable area exactly */}
       <UiEntity uiTransform={{ width: '100%', height: '100%' }} />
     </InteractableArea>
-  ))
+    // 'none' so the renderer's default 'device' inset is not stacked under this wrapper
+  ), { screenInset: 'none' })
 }
 ```
 
@@ -222,7 +264,7 @@ export function setupUi() {
 - The component owns `positionType: 'absolute'` and `position` (set from the reported insets) — any values you pass for those in `uiTransform` are **ignored**. All other `uiTransform`, `uiBackground`, and event props forward normally.
 - On the **Unity desktop client** the left ~25% of the screen is reserved for client UI, so children are placed within the remaining ~75%.
 - Falls back to zero insets (no-op) when `UiCanvasInformation` is unavailable.
-- **Distinct from `ScreenInsetArea`:** `InteractableArea` avoids the *client's* UI (minimap/chat/overlays); `ScreenInsetArea` avoids the *device's* hardware margins (notch/status bar). They read different sources and can be combined.
+- **Distinct from `ScreenInsetArea`:** `InteractableArea` avoids the *client's* UI (minimap/chat/overlays); `ScreenInsetArea` avoids the *device's* hardware margins (notch/status bar). They read different sources and can be nested to apply both (the renderer's `screenInset` picks only one).
 
 ## Layout Patterns
 
@@ -330,7 +372,9 @@ const Modal = () => {
 
 ## UiCanvasInformation (Responsive Design)
 
-Fields: `width`, `height`, `devicePixelRatio` (all numbers, in virtual/scaled units when a virtual size is set).
+Fields: `width`, `height`, `devicePixelRatio` (all numbers), plus `screenInsetArea` and `interactableArea` (`BorderRect` — `top`/`bottom`/`left`/`right`). `devicePixelRatio` is a display-density hint, useful for picking a 1x/2x/3x texture; it does not take part in UI layout.
+
+⚠️ **`width` and `height` are RAW canvas pixels, not virtual/scaled units** — the SDK derives the UI scale factor from them (`Math.min(width / virtualWidth, height / virtualHeight)`), so they cannot already be scaled. The two `BorderRect`s are raw canvas pixels too. They are the right input for *decisions* (which layout, which texture resolution), not for computing sizes — the renderer already scales pixel values for you.
 
 ```typescript
 import { UiCanvasInformation, engine } from '@dcl/sdk/ecs'
