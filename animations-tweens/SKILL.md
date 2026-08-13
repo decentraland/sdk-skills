@@ -156,6 +156,27 @@ The short-circuit avoids calling `getMutableOrNull()` on unchanged frames, elimi
 
 **When to prefer `Animator.playSingleAnimation`.** It's the canonical write: pauses all other states in one pass and accepts a `resetCursor` argument (defaults to `true`). It's not idempotent — but it's the right call site when the trigger is a one-shot event. The custom-helper pattern only exists when porting SDK6 code that needs lazy clip registration (see the previous PITFALL) or `noLoop + revertToIdle` semantics.
 
+## Detecting Animation Completion
+
+When a non-looping clip finishes, the engine flips that state's `playing` back to `false` — no `setTimeout(clipLength)` guessing needed. Poll with the READ-ONLY `Animator.get()` and edge-detect the `true → false` transition:
+
+```typescript
+let wasPlaying = false
+engine.addSystem(() => {
+	const state = Animator.get(entity).states.find((s) => s.clip === 'Bite')
+	const isPlaying = state?.playing ?? false
+	if (wasPlaying && !isPlaying) {
+		console.log('Bite finished')
+		Animator.playSingleAnimation(entity, 'Walk') // chain the next clip
+	}
+	wasPlaying = isPlaying
+})
+```
+
+- **Never poll with `Animator.getClip()` or `getMutable()`** — both return a mutable ref and mark the component dirty every frame (same serialization overhead as the PITFALL above). `Animator.get()` is the only safe per-frame read.
+- The engine only flips the flag when the clip ends by itself. Looping clips never flip it, `speed: 0` states never finish, and a scene-side `stopAllAnimations()` is your own write (track it yourself if you need to tell them apart).
+- Requires a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips — keep a `timers.setTimeout` fallback only if you must support them.
+
 ## Tweens (Code-Based Animation)
 
 Animate entity properties smoothly over time. Create with `Tween.create(entity, { mode: Tween.Mode.Move/Rotate/Scale({start, end}), duration, easingFunction })`. Duration is in **milliseconds** (1000 = 1 second). An entity can only have one Tween component at a time.
@@ -223,6 +244,7 @@ For complex animations, create a system with `engine.addSystem((dt) => { ... })`
 | Door/grave/lid spawns OPEN instead of closed        | The renderer auto-plays the clip and holds its final (open) frame; the model's closed pose is frame 0 of that clip                                                       | Hold frame 0 with a `playing: true, speed: 0, loop: false` state — see "Resting an animated model at its FIRST frame" above                                                                                          |
 | Unnecessary per-frame serialization overhead        | Clip-switch helper calls `getMutableOrNull` every tick with identical values (custom helper or `playSingleAnimation` called from a system / per-frame input callback)     | Track the last-applied clip and short-circuit when unchanged, or only call the helper on state transitions — see "Short-circuit clip-switch helpers" best practice above                                           |
 | Animator has no effect                              | Missing `GltfContainer`                                                                                                                                                  | `Animator` only works on entities with a loaded GLTF model                                                                                                                                                         |
+| Need to know when a non-looping clip ends           | Guessing with `timers.setTimeout(clipLength)`                                                                                                                            | Edge-detect `playing` flipping to `false` via read-only `Animator.get()` — see "Detecting Animation Completion" above                                                                                              |
 | Tween doesn't move                                  | Same start and end                                                                                                                                                       | Verify values differ in `Tween.Mode.Move()`                                                                                                                                                                        |
 | Entity teleports when a Move tween starts           | `start` doesn't match the entity's current position — omitted `start` = `(0,0,0)` (scene origin), hardcoded/stale `start` = wherever you wrote                            | Pass `Transform.get(entity).position` as `start` — it's the live position even while a previous tween is mid-flight                                                                                                |
 | Tween plays once then stops                         | No loop                                                                                                                                                                  | Add `TweenSequence` with `loop: TweenLoop.TL_YOYO`                                                                                                                                                                 |
@@ -235,6 +257,7 @@ For full code examples (Animator setup, all tween types, sequences, helpers, tex
 Engine-team test scenes (ground-truth API usage):
 
 - `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/73,-8-animator-tests-shark` — `Animator` with two states + `weight`; clicking cycles `playSingleAnimation('swim')` / `('bite')` and demonstrates concurrent blend by also setting `getClip('bite').playing = true`.
+- `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/73,-9-animation-finish` — animation-completion detection: non-looping `bite` finish flips `playing` to `false` (observed via read-only `Animator.get()`), chains into `swim`; proves looping clips never report finish.
 - `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/78,-4-tweens` — every finite mode (`setMove`/`setRotate`/`setScale`/`setTextureMove`/`setMoveRotateScale`), continuous modes, `createOrReplace`, `deleteFrom`, pause-toggle via `getMutableOrNull().playing`, and mixed-mode `TweenSequence`.
 - `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-5-tweens-moving-platforms` — `Tween.setMove` + empty-sequence `TL_YOYO` for bobbing platforms, multi-waypoint path via `sequence[]`, and `createOrReplace` retrigger from a `TriggerArea`.
 - `https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube` — a cube that chases the player, with a pad that switches live between `setMoveContinuous` (smooth, the default) and re-creating a `setMove` tween from `Transform.get(entity).position` on every re-aim (visibly jittery). Both modes share the same re-aim trigger and speed, so the difference is attributable to the tween mode alone. Also shows `Billboard` with `BM_Y` on floating labels.

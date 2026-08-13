@@ -20,45 +20,80 @@ Use React-ECS for any 2D overlay: scoreboards, health bars, dialogs, inventories
 
 ## Setup
 
-Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRenderer(MyUI)` from `setupUi()`. Call `setupUi()` from `main()` in `src/index.ts`. The SDK template already includes the required JSX settings in tsconfig.json -- do NOT modify it.
+Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })` from `setupUi()`. Call `setupUi()` from `main()` in `src/index.ts`. The SDK template already includes the required JSX settings in tsconfig.json — do NOT modify it.
 
-## Virtual Screen Size and UI Scaling
+## DEFAULT RULE: Always Set Virtual Screen Size to 1920x1080
 
-The SDK uses a virtual screen to scale UI consistently across display resolutions. When a virtual size is active, all pixel values in `uiTransform` are relative to the virtual canvas, not the physical screen.
+The SDK uses a virtual screen to scale UI consistently across display resolutions: when a virtual size is active, all pixel values in `uiTransform` are relative to the virtual canvas, not the physical screen.
 
-**Platform defaults (when no virtual size is provided):**
-- Desktop: 1920x1080
-- Mobile: 1600x720
+**Whenever you generate UI code, you MUST pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer` and `addUiRenderer` by default — without waiting for the user to ask.** Only deviate if the user explicitly requests a different reference resolution.
 
-These defaults apply automatically -- `setUiRenderer(ui)` with no options uses 1920x1080 on desktop and 1600x720 on mobile. You do NOT need to pass `{ virtualWidth: 1920, virtualHeight: 1080 }` explicitly unless you want a non-default size. Passing it explicitly is harmless on desktop (matches the default) but on mobile a 16:9 size is overridden to 1600x720 anyway (see below).
+Why: pixel values in a UI are only meaningful against a reference resolution. Stating it explicitly in the code keeps the scene's layout intent visible and pins it, instead of leaving it to a per-platform default that differs between mobile and desktop. 1920x1080 is the safe default — it matches the most common displays and the assumption made by most community examples.
 
-**Mobile 16:9 override:** any provided virtual size with a 16:9 aspect ratio (e.g. 1920x1080, 2560x1440) is silently overridden to 1600x720 on mobile. Phone screens are much wider than 16:9, so a 16:9 virtual canvas would letterbox the UI. A non-16:9 size (e.g. 1600x720, 1024x600) is used as-is on all platforms.
+The options argument is optional at the API level. **On SDK 7.26.0+, omitting it does not mean "no scaling"** — the SDK applies a platform default virtual screen instead:
 
-**Disabling the virtual screen:** pass a value <= 0 for either dimension (e.g. `{ virtualWidth: 0, virtualHeight: 0 }`) to disable UI scaling entirely -- pixel values map 1:1 to canvas pixels. Providing only one dimension (e.g. `{ virtualWidth: 1920 }` with `virtualHeight` omitted) also disables scaling and logs a warning.
+| Case | Resulting virtual screen |
+|---|---|
+| No virtual size passed, non-mobile | `1920x1080` |
+| No virtual size passed, mobile | `1600x720` |
+| A 16:9 size passed (e.g. `1920x1080`), mobile | overridden to `1600x720`, logged once to console |
+| A non-16:9 size passed | used as-is on every platform |
+| A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling. Silent: this is the documented opt-out |
+| Only one of the two dimensions passed | also **disabled** (both are required), and logged once per size — it is treated as a mistake, not an opt-out |
 
-**DPR (devicePixelRatio) is NOT part of the scaling formula.** The scale factor is `Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight)` -- a pure contain-fit. `devicePixelRatio` is a density hint for asset selection, not a layout unit.
+The mobile 16:9 override exists because phone screens are much wider than 16:9 — a 16:9 virtual canvas would letterbox the UI there.
 
-API (verified against `@dcl/react-ecs`, commit `08dff786`):
+So on 7.26.0+, `{ virtualWidth: 0, virtualHeight: 0 }` — not omitting the options — is how you opt into raw-pixel layout. Only do that if the user explicitly asks for it. **Below 7.26.0 there are no defaults: omitting the options is what disables scaling.** See the version gate below.
+
+Because the default rule above has you pass the size explicitly either way, generated code behaves identically on both sides of that boundary — which is a second reason to always pass it.
+
+The virtual size is scene-wide, resolved as: the size on `setUiRenderer` wins → else the first `addUiRenderer` that passed one → else the platform default. Options carrying only a `screenInset` don't count as a passed size.
+
+Note that `setUiRenderer` wins the arbitration if it mentions *either* dimension, even when the size is incomplete and therefore invalid. So `setUiRenderer(ui, { virtualWidth: 1920 })` disables the virtual screen for the whole scene and discards a valid size passed to any `addUiRenderer`. The SDK logs it once per size, but the scene still loses its virtual screen. Never emit a single dimension.
+
+API (verified against `@dcl/react-ecs`, file `dist/system.d.ts`):
 
 ```ts
 type UiScreenInset = 'device' | 'interactable' | 'none'
 type UiRendererOptions = {
-  virtualWidth?: number   // optional; defaults to 1920 (desktop) / 1600 (mobile)
-  virtualHeight?: number  // optional; defaults to 1080 (desktop) / 720 (mobile)
-  screenInset?: UiScreenInset  // default 'device'
+  virtualWidth?: number   // optional
+  virtualHeight?: number  // optional
+  screenInset?: UiScreenInset  // defaults to 'device'
 }
 setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
 addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): void
 ```
 
-### `screenInset` option
+### screenInset: which screen area the UI sits in
 
-Each renderer's `screenInset` selects the screen area the UI is positioned in:
-- `'device'` (default): wraps the renderer's component in a `ScreenInsetArea` -- UI stays inside the device's hardware safe area (notch, status bar, rounded corners). No-op on desktop.
-- `'interactable'`: wraps in an `InteractableArea` -- UI stays inside the area free of the Explorer's native HUD (minimap, chat).
-- `'none'`: no wrapper -- UI covers the whole screen from `(0,0)`.
+`screenInset` picks the area a renderer's UI is positioned in. It **defaults to `'device'`**, so UI is kept clear of the notch, status bar and rounded corners out of the box.
 
-Each renderer (`setUiRenderer` and each `addUiRenderer`) honors its own `screenInset` independently, so the main UI and additional renderers can use different insets simultaneously.
+| Value | Area |
+|---|---|
+| `'device'` _(default)_ | Device safe area, from `UiCanvasInformation.screenInsetArea`. Zero on desktop, so a no-op there. |
+| `'interactable'` | Area free of the client's own HUD (minimap, chat, …), from `UiCanvasInformation.interactableArea`. |
+| `'none'` | Whole screen, `0,0` at the top-left corner. |
+
+Unlike the virtual size, this is **per renderer** — the main UI and each `addUiRenderer` widget can use different areas at the same time.
+
+**Do NOT wrap UI in `<ScreenInsetArea>` / `<InteractableArea>` while leaving the matching `screenInset` on the renderer** — the inset gets applied twice and the UI is pushed inwards by double the margin. Rely on `screenInset`, or pass `screenInset: 'none'` and place the wrapper yourself.
+
+## SDK VERSION GATE: 7.26.0 changed three UI-layout behaviors
+
+**Check the scene's `@dcl/sdk` version in its `package.json` before relying on any of the three rows below.** All of them are 7.26.0+ behavior; a scene pinned below that gets the "Below 7.26.0" column instead. `"latest"`, `"^7.x"` or a fresh `create-scene` project means current, so assume 7.26.0+ unless the pin says otherwise.
+
+| Behavior | 7.26.0 and later | Below 7.26.0 |
+|---|---|---|
+| **Virtual screen default** | Omitting the size applies `1920x1080` (`1600x720` mobile); a 16:9 size is overridden to `1600x720` on mobile; `<= 0` disables scaling | No default at all — omitting the size means raw canvas pixels, no scaling. `virtualWidth`/`virtualHeight` are **required** when the options object is passed |
+| **`screenInset` option** | Exists, defaults to `'device'` — UI is inset from the device safe area automatically | **Does not exist.** Passing it is a type error. To inset UI you must wrap it in `<ScreenInsetArea>` / `<InteractableArea>` yourself |
+| **UI scale factor and `vw`/`vh`** | `Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight)`; `1vw` is 1% of canvas width, as in CSS | Both additionally divide by `devicePixelRatio`, so the same pixel value renders smaller on a high-density screen |
+
+What this means when writing code:
+
+- **Passing the virtual size explicitly (the default rule) is version-safe** — it produces the same layout on both sides. Prefer it always.
+- **`screenInset` is not version-safe.** Only emit it when the scene is on 7.26.0+. Below that, wrap in `<ScreenInsetArea>` instead — and note the wrapper is *correct* there, since there is no renderer-level inset to double up with.
+- **Any code that recomputes the scale factor by hand must match the scene's SDK version** — most commonly drag sliders. Below 7.26.0 the `devicePixelRatio` divisor belongs in that formula; from 7.26.0 it does not. Getting it wrong makes drags over- or under-shoot on high-density screens. See `{baseDir}/references/ui-sliders.md`.
+- **When migrating a scene up to 7.26.0+**, expect two visible shifts: UI that previously had no scaling now scales against a default virtual screen, and UI gains a device inset on mobile. An existing `<ScreenInsetArea>` wrapper starts double-applying — drop it or pass `screenInset: 'none'`.
 
 Canonical snippet (use this verbatim unless the user specifies otherwise):
 
@@ -66,18 +101,8 @@ Canonical snippet (use this verbatim unless the user specifies otherwise):
 import { ReactEcsRenderer } from '@dcl/sdk/react-ecs'
 
 export function setupUi() {
-  ReactEcsRenderer.setUiRenderer(MyUI)
+  ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })
 }
-```
-
-If the user wants explicit control, pass options:
-
-```tsx
-ReactEcsRenderer.setUiRenderer(MyUI, {
-  virtualWidth: 1920,
-  virtualHeight: 1080,
-  screenInset: 'device'
-})
 ```
 
 ## Core Components
@@ -99,13 +124,15 @@ ReactEcsRenderer.setUiRenderer(MyUI, {
 
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
 
-**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). On mobile, it positions itself absolutely using the insets the device reports. On desktop the insets are `(0,0,0,0)`, so it's a no-op -- safe to leave in cross-platform UI. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, ...) and components (`uiBackground`, `onMouseDown`, ...) work as usual. Wrap any mobile-sensitive HUD in it; a child sized `width: '100%', height: '100%'` fills the safe area exactly. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) -- those still need to be avoided manually; use both together. UI designed for desktop typically needs sizes scaled ~3x for mobile readability. The component auto-compensates for the UI scale factor (pre-divides insets so the parser's scale multiplication cancels out), so insets are always correct regardless of virtual screen size. Also applied automatically via the `screenInset: 'device'` option on `setUiRenderer`/`addUiRenderer` (the default).
+**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). **Usually unnecessary now: `screenInset` defaults to `'device'`, which already does this for the whole renderer.** Reach for the component only when the renderer opted out with `screenInset: 'none'` and you want to protect just one subtree — wrapping on top of the default double-applies the inset. On mobile it positions itself absolutely using the insets the device reports; on desktop the insets are `(0,0,0,0)`, so it's a no-op. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. A child sized `width: '100%', height: '100%'` fills the safe area exactly. It auto-compensates for the UI scale factor (pre-divides insets so the parser's scale multiplication cancels out), so insets are correct regardless of virtual screen size. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — avoid those with `screenInset: 'interactable'` or by hand. Do **not** apply the old "scale sizes ~3× for mobile" rule of thumb on 7.26.0+: with `devicePixelRatio` out of the scale factor, pixel-sized UI is already ~2–3× larger on a phone than it used to be, and the `1600x720` mobile virtual screen adds ~1.2× on top. Start from the desktop sizes and only scale up what actually measures too small on a device.
 
-**InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* -- the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored) and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). Auto-compensates for the UI scale factor like `ScreenInsetArea`. Also applied automatically via the `screenInset: 'interactable'` option on `setUiRenderer`/`addUiRenderer`. See `{baseDir}/references/ui-components.md` -> InteractableArea.
+**InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* — the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. **Prefer `screenInset: 'interactable'` on the renderer for a whole-UI application**; use the component for a single subtree, or when the renderer uses a different inset. Either form needs an explorer that reports the area: it works on desktop, and on mobile from client `1.12.1` onwards — older mobile clients report no margins and the inset silently does nothing. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored), auto-compensates for the UI scale factor, and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). See `{baseDir}/references/ui-components.md` → InteractableArea.
 
 ## Adding Independent UI Renderers (addUiRenderer)
 
 Use `ReactEcsRenderer.addUiRenderer(ownerEntity, MyWidget, { virtualWidth: 1920, virtualHeight: 1080 })` to render a UI module independently without replacing the main UI. Useful for smart items or modular scene components. Remove with `ReactEcsRenderer.removeUiRenderer(owner)`. If the owner entity is destroyed, the UI is removed automatically.
+
+A scene that only ever calls `addUiRenderer` (no `setUiRenderer` at all) still gets the platform default virtual screen and the default `'device'` inset — the defaults are not tied to the main renderer. The virtual size passed here is ignored if `setUiRenderer` already passed one; `screenInset` is always honored per renderer.
 
 ## State Management
 
