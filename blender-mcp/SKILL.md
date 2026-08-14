@@ -7,7 +7,7 @@ description: Edit and author 3D models for a Decentraland scene through the Blen
 
 Drive a running Blender instance through its MCP server to create and edit the GLB models of a Decentraland scene: import a model from the scene's asset folders, edit it, and export it back to the same path — the scene preview hot-reloads the file on save.
 
-The connected `mcp__blender__*` tools are self-describing — each carries its name, arguments, and output shape. Treat that as the authoritative tool catalog. The official Blender MCP server ([blender.org/lab/mcp-server](https://www.blender.org/lab/mcp-server/)) exposes inspection tools (`get_objects_summary`, `get_object_detail_summary`, `get_screenshot_of_window_as_image`, `render_viewport_to_path`), bundled documentation search (`search_api_docs`, `search_manual_docs`, `get_python_api_docs`), and a Python executor (`execute_blender_code`) that runs arbitrary `bpy` code — the bulk of real work happens through `bpy`. Community Blender MCP servers exist with different tool names (`get_scene_info`, `get_viewport_screenshot`, ...); everything in this skill applies to them equally. Ready-made `bpy` snippets for the patterns below live in [`references/blender-patterns.md`](references/blender-patterns.md).
+The connected `mcp__blender__*` tools are self-describing — each carries its name, arguments, and output shape. Treat that as the authoritative tool catalog. The official Blender MCP server ([blender.org/lab/mcp-server](https://www.blender.org/lab/mcp-server/)) exposes inspection tools (`get_objects_summary`, `get_object_detail_summary`, `get_screenshot_of_window_as_image`, `render_viewport_to_path`), bundled documentation search (`search_api_docs`, `search_manual_docs`, `get_python_api_docs`), and a Python executor (`execute_blender_code`) that runs arbitrary `bpy` code — the bulk of real work happens through `bpy`. Two distinct Blender MCPs are in circulation — read the session's tool names to tell which one is connected, since `execute_blender_code` exists on both: `get_objects_summary` / `get_object_detail_summary` / `search_api_docs` mean the **official Blender Lab** server ([projects.blender.org/lab/blender_mcp](https://projects.blender.org/lab/blender_mcp), Blender 5.1+, add-on id `mcp` — the one Setup below installs); `get_scene_info` / `get_viewport_screenshot` plus Polyhaven/Sketchfab/Hyper3D asset tools mean the **community** server ([ahujasid/blender-mcp](https://github.com/ahujasid/blender-mcp), Blender 3.0+, add-on "Blender MCP"). Everything in this skill applies to both. Ready-made `bpy` snippets for the patterns below live in [`references/blender-patterns.md`](references/blender-patterns.md).
 
 ## Intent gate — offer Blender, don't assume
 
@@ -17,6 +17,18 @@ When the user asks to **create a new model** or **edit an existing scene model**
 - **NO** — use no Blender step. Cover the need another way: free catalog models (**add-3d-models**), SDK primitives with `MeshRenderer`, or hand the user modeling guidance. Never simulate Blender edits by hand-writing GLB binary data.
 
 Running as a subagent, you cannot open this gate — there is no user to ask. Stop and report the pending decision to your caller with your recommendation instead of proceeding on your own authority.
+
+## RULE: Never fall back silently to headless Blender
+
+Blender can be driven without the MCP (`Blender --background --python script.py`), and that is sometimes the right call — but it is the **user's** call, never yours. When the Blender MCP is unavailable in the session (no `mcp__blender__*` tools, or the MCP was registered only after session start), do NOT quietly substitute headless/CLI Blender, a Python glTF library, or any other mechanism. Substituting silently hides a broken setup and leaves the user believing the MCP did the work.
+
+Stop and put the choice to the user:
+
+> The Blender MCP isn't available in this session. Two options: (a) set it up / register it — the session has to restart before its tools bind, or (b) I drive Blender headless via the CLI (`--background --python`) as a deliberate fallback, where verification is limited to rendered images written to disk instead of live viewport screenshots. Which do you want?
+
+Wait for the answer. **(a)** → Setup below. **(b)** → proceed with the CLI, and say in your first message that you are on the fallback path; every other RULE in this skill still applies.
+
+Running as a subagent, report this pending decision to your caller with your recommendation, exactly as with the intent gate above. Never choose the fallback on your own authority.
 
 ## Setup (once per session)
 
@@ -32,7 +44,7 @@ MCP client (this agent) ⇐ MCP/stdio ⇒ blender-mcp (Python process) ⇐ TCP l
    - **Answers** → everything is running; skip to the workflow.
    - **Connection error** → the client side is configured but Blender's side is down: Blender isn't running, the add-on is missing/disabled, or its bridge server isn't started. Go to step 3.
 
-   If no `mcp__blender__*` tools exist in the session, the MCP was never configured (or was registered after session start — registration only binds on a new session). Continue with step 2.
+   If no `mcp__blender__*` tools exist in the session, the MCP was never configured (or was registered after session start — registration only binds on a new session). Do **not** read this as a cue to drive Blender headless: open the headless-fallback choice above first, and continue with step 2 only if the user picks setup.
 
 2. **Install and register (first time only).** Confirm each requirement with the user rather than assuming:
    - **Blender 5.1 or newer.** The MCP add-on's manifest requires `blender_version_min = 5.1.0` — it will not install on older Blender. Check with `blender --version` or ask; if too old, the user must update via [blender.org/download](https://www.blender.org/download/).
@@ -68,7 +80,7 @@ MCP client (this agent) ⇐ MCP/stdio ⇒ blender-mcp (Python process) ⇐ TCP l
 | --- | --- | --- |
 | Add-on won't install / not listed in Get Extensions | Blender older than 5.1 | Update Blender ([blender.org/download](https://www.blender.org/download/)) |
 | Add-on error: "Online access must be enabled…" | Blender's online access is off | Preferences → System → Network → **Allow Online Access** |
-| `mcp__blender__*` tools absent from session | MCP never registered, or registered mid-session | Step 2; restart the session after registering |
+| `mcp__blender__*` tools absent from session | MCP never registered, or registered mid-session | Offer the headless-fallback choice, then step 2; restart the session after registering — never switch to CLI Blender unasked |
 | Tools exist but every call fails to connect | Blender closed, add-on disabled, or bridge not started | Step 3 — check the add-on's preferences panel for the startup error |
 | `uv: command not found` when the client launches the server | `uv` not installed | Install per [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
 | Server can't reach Blender on a custom port | Add-on port changed but server still on 9876 | Match them: add-on prefs Host/Port vs `BLENDER_MCP_HOST`/`BLENDER_MCP_PORT` env vars on the server |
