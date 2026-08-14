@@ -117,7 +117,7 @@ AvatarShape.create(npc, {
 - Always include eyebrows, mouth, and eyes wearables — the avatar won't render face features without them.
 - `id` is required and must be unique per AvatarShape entity.
 - Set `name: ''` (empty string) to suppress the name tag above the NPC's head.
-- Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween.
+- Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween. For an NPC that continuously chases the player (or another moving target), use `Tween.setMoveContinuous` — do NOT re-create `setMove` tweens every frame, which causes visible jitter. See the **animations-tweens** skill ("PITFALL — a CONSTANTLY changing target") and the `79,-4-tween-following-cube` test scene.
 - Use `expressionTriggerTimestamp` as a Lamport timestamp to replay the same emote: first play = 0, second play = 1, etc.
 - **Clone the current player's look:** read `getPlayer()` and pass `userData.wearables` and `userData.emotes` straight into `AvatarShape.create`. `getPlayer()` may return null / empty emotes on the first frames — poll in a system until `userData.emotes.length > 0` before spawning (verified pattern in test scene 4,21).
 
