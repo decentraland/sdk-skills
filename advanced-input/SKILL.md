@@ -1,6 +1,6 @@
 ---
 name: advanced-input
-description: System-level input polling and player movement control in Decentraland. Covers inputSystem, InputModifier, PointerLock, and PrimaryPointerInfo. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, or multi-key combo patterns. For event-driven clicks and hover on entities see add-interactivity.
+description: System-level input polling, player movement control, and mobile on-screen controls in Decentraland. Covers inputSystem, InputModifier, PointerLock, PrimaryPointerInfo, and TouchScreenControls. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, multi-key combo patterns, or to hide/customize the mobile joystick, crosshair, or on-screen buttons. For event-driven clicks and hover on entities see add-interactivity.
 ---
 
 # Advanced Input Handling in Decentraland
@@ -208,48 +208,9 @@ For the WASD-driven custom-entity pattern (poll `IA_FORWARD`/`IA_BACKWARD`/`IA_L
 
 For the action-bar / number-key pattern (map `IA_ACTION_3`–`IA_ACTION_6` to ability slots via `isTriggered`), see `{baseDir}/references/input-patterns.md` → "Action Bar with Number Keys".
 
-## TouchScreenControls (mobile on-screen buttons)
+## Platform detection
 
-Customize the on-screen touch controls visible on the mobile client. The component is written to `engine.RootEntity` (where the client reads it). Import from `@dcl/sdk/ecs`.
-
-```typescript
-import { TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
-
-// Hide the jump and secondary-action buttons
-TouchScreenControls.hide([InputAction.IA_JUMP, InputAction.IA_SECONDARY])
-
-// Hide every on-screen gamepad button
-TouchScreenControls.hideAll()
-
-// Show all buttons again (clears button hide list; does NOT affect joystick/crosshair)
-TouchScreenControls.showAll()
-
-// Set which action the large central button triggers
-TouchScreenControls.setMainAction(InputAction.IA_PRIMARY)
-
-// Hide/show the virtual joystick and crosshair
-TouchScreenControls.hideJoystick()
-TouchScreenControls.showJoystick()
-TouchScreenControls.hideCrosshair()
-TouchScreenControls.showCrosshair()
-```
-
-**PBTouchScreenControls fields:**
-- `touchInputs: TouchInput[]` -- per-button overrides: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`
-- `mainAction?: InputAction` -- which action the large central button triggers
-- `hideJoystick: boolean` -- hide the virtual joystick
-- `hideCrosshair: boolean` -- hide the on-screen crosshair/reticle
-
-**Helper behavior:**
-- `hide(actions)` merges into existing config, preserving any custom `icon` already set on a button (fixed in `eaa1fa58`).
-- `showAll()` clears the button hide list but does NOT change joystick/crosshair -- use `showJoystick()`/`showCrosshair()` separately.
-- All helpers write via `createOrReplace` on `engine.RootEntity`.
-
-Combine with `UiInputBinding` (see **build-ui** skill) for custom on-screen action buttons. See also `{baseDir}/../build-ui/SKILL.md` for `uiInputBinding` prop on `UiEntity`.
-
-### Platform detection
-
-Detect whether the scene is running on mobile to conditionally show/hide touch controls:
+Detect whether the scene is running on mobile to conditionally adapt controls and UI:
 
 ```typescript
 import { getPlatform, isMobile } from '@dcl/sdk/platform'
@@ -261,7 +222,7 @@ function platformCheckSystem() {
   if (getPlatform() === null) return
   engine.removeSystem(platformCheckSystem)
   if (isMobile()) {
-    TouchScreenControls.setMainAction(InputAction.IA_PRIMARY)
+    // mobile-specific setup here (e.g. larger UI, touch-friendly interactions)
   }
 }
 engine.addSystem(platformCheckSystem)
@@ -269,14 +230,67 @@ engine.addSystem(platformCheckSystem)
 
 Import from `@dcl/sdk/platform`. Verified against docs commit `17ca7be`.
 
-### Mobile considerations
+## On-screen touch controls (`TouchScreenControls`)
+
+Brief: configures the mobile client's **native** on-screen controls — the virtual joystick, the crosshair, and the gamepad buttons. SDK **7.26.0+**.
+
+```typescript
+import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
+```
+
+- Set it on **`engine.RootEntity`** — the client reads it nowhere else.
+- Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
+- **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
+- Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
+
+`PBTouchScreenControls` fields:
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `touchInputs` | `PBTouchScreenControls_TouchInput[]` | `[]` | Per-button overrides. A button not listed keeps its default (shown, default glyph). |
+| `mainAction` | `InputAction \| undefined` | `undefined` | Which action the large central button triggers. When unset, the default (`IA_JUMP`) is kept. |
+| `hideJoystick` | `boolean` | `false` | Removes the native virtual joystick. |
+| `hideCrosshair` | `boolean` | `false` | Hides the on-screen crosshair / reticle. |
+
+`TouchInput` entry: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }` — `icon` overrides the button glyph with a scene image; on `IA_JUMP` it replaces all of its dynamic states (jump / double-jump / glide).
+
+**Only gamepad actions map to an on-screen button**: `IA_POINTER` (interaction), `IA_PRIMARY` (E), `IA_SECONDARY` (F), `IA_JUMP` (central), `IA_ACTION_3`..`IA_ACTION_6` (1/2/3/4). Any other `InputAction` — movement actions, `IA_ANY`, `IA_MODIFIER`, unknown/future values — is ignored: a `touchInputs` entry naming one has no effect, and a `mainAction` that isn't a valid gamepad action falls back to `IA_JUMP`.
+
+Convenience helpers on the component (each writes `RootEntity` and merges with the current value, so they can be called from anywhere):
+
+| Helper | Effect |
+| --- | --- |
+| `TouchScreenControls.hide(actions: InputAction[])` | Hide the given buttons, merged into the current config. |
+| `TouchScreenControls.hideAll()` | Hide all eight gamepad buttons. |
+| `TouchScreenControls.showAll()` | Clear the button hide list. Does **not** touch joystick/crosshair. |
+| `TouchScreenControls.setMainAction(action: InputAction)` | Set the large central button's action. |
+| `TouchScreenControls.hideJoystick()` / `.showJoystick()` | Toggle the native virtual joystick. |
+| `TouchScreenControls.hideCrosshair()` / `.showCrosshair()` | Toggle the crosshair / reticle. |
+
+```typescript
+TouchScreenControls.hideJoystick()
+TouchScreenControls.setMainAction(InputAction.IA_PRIMARY)
+TouchScreenControls.hide([InputAction.IA_ACTION_3, InputAction.IA_ACTION_4])
+```
+
+Gotchas:
+- `showAll()` resets `touchInputs` to `[]`, which also **discards any custom `icon`** set through it. Re-apply icons afterwards.
+- Hiding a button does not disable the action — `inputSystem` still reports it if it can be triggered another way. Hiding removes the *button*, not the *input*.
+- Hiding the joystick leaves mobile players with no native way to walk; replace it with scene UI or make the scene intentionally stationary.
+- Buttons cannot be repositioned. Their slots are fixed; a scene only chooses which are visible and which one leads.
+
+Combine with `UiInputBinding` (the `uiInputBinding` prop on `UiEntity`, see **build-ui**) to build custom on-screen action buttons: hide the native buttons here, then bind the same `InputAction`s to your own scene UI.
+
+For the button priority stack and the "+" overflow rules, custom icons, and full worked examples, see `{baseDir}/references/touch-screen-controls.md`.
+
+## Mobile considerations
 
 Key facts from the mobile docs expansion (commit `17ca7be`):
 - **Touch-only input** -- no mouse hover states, keyboard shortcuts, or right-click.
 - **`borderRadius` unsupported on mobile UI** -- avoid rounded corners in mobile-targeting scenes.
-- **Static HUD** -- the mobile client has fixed on-screen controls (joystick, action buttons) that cannot yet be fully repositioned; use `TouchScreenControls` to hide/show individual buttons.
-- **UI designed for desktop needs ~3x scaling for mobile readability.**
-- **Use `ScreenInsetArea`** (from `@dcl/sdk/react-ecs`) to keep UI inside the device's safe area (notch, home indicator).
+- **On-screen controls ARE scene-configurable** on SDK 7.26.0+ via `TouchScreenControls` -- hide the joystick, the crosshair, or individual gamepad buttons, re-bind the central button, or swap a button glyph for a scene image. Their positions are still fixed. This supersedes older docs claiming the mobile HUD is static. See the `TouchScreenControls` section above.
+- **The old "~3x scaling for mobile" rule no longer applies as written.** On SDK 7.26.0+ pixel-sized UI is already ~2–3× larger on a phone than before (`devicePixelRatio` was removed from the UI scale factor), and the mobile virtual screen (`1600x720` vs desktop's `1920x1080`) adds ~1.2× more. Start from the desktop sizes, measure on a device, and scale up only what comes up short. See [[build-ui]].
+- **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].
 - **SDK features not yet on mobile:** ParticleSystem, scene dynamic lights (PBPointLight), AudioAnalysis, nine-slice UI tile mode. Check the docs for the latest feature parity tracker.
 
 ## Example scenes
@@ -293,5 +307,6 @@ Engine-team test scenes exercising these APIs (ground truth):
 ## References
 
 - `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
+- `{baseDir}/references/touch-screen-controls.md` — `TouchScreenControls`: button priority stack and "+" overflow rules, custom button icons, declutter/full-custom-HUD examples, helper semantics.
 
 For basic pointer events and click handlers, see the `add-interactivity` skill.

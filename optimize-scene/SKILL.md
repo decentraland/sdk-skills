@@ -18,6 +18,8 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 | **Textures**       | log2(n+1) x 10  | 10       | 15        | 20        | 23        | 28        | 33        | 40         | 43         |
 | **Height limit**   | log2(n+1) x 20m | 20m      | 31m       | 40m       | 46m       | 56m       | 66m       | 81m        | 87m        |
 
+**Read the Materials row with care.** The client instantiates a material per rendered object, so this number tracks how many objects a scene renders rather than how many distinct materials it authors — a scene that correctly reuses one model many times will pass this cap while doing the right thing. Treat it as a memory signal, and judge frame-time risk by `shaderVariants` instead (see *Repeated Models* below).
+
 **File limits:** 15 MB per parcel, 300 MB max total, 200 files per parcel, 50 MB max per individual file.
 
 File limits count only what is actually uploaded on deploy. Make sure `.dclignore` (at the project root) excludes all working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown docs — since these are often the bulk of a project's size and are never needed at runtime. See the `.dclignore` section in the **deploy-scene** skill.
@@ -69,6 +71,40 @@ Transform.create(child1, { position: Vector3.create(0, 1, 0), parent })
 const child2 = engine.addEntity()
 Transform.create(child2, { position: Vector3.create(1, 1, 0), parent })
 ```
+
+## Repeated Models (Reuse vs Merge)
+
+For repeated content — lamp posts, chairs, trees, fences — **default to one entity per copy, all pointing at the same `.glb`.** The engine dedups by source: one download, one asset-bundle conversion, one copy of the meshes and textures in memory, no matter how many entities use it. The dedup is global for the session, so a neighboring scene using the same file gets it for free.
+
+```typescript
+// GOOD: one file, many entities — engine shares the loaded asset
+for (const position of lampPostPositions) {
+	const lampPost = engine.addEntity()
+	Transform.create(lampPost, { position })
+	GltfContainer.create(lampPost, { src: 'assets/scene/lampPost.glb' })
+}
+
+// BAD: near-identical files — 20 downloads, 20 copies in memory
+// lampPost_01.glb, lampPost_02.glb, ... lampPost_20.glb
+```
+
+**What reuse does NOT save: draw calls.** 20 lamp posts are 20 renderers either way — whether from 20 entities or from one `.glb` with 20 lamp posts modeled into it. There is no runtime batching or GPU instancing for scene content: the client streams and builds scenes at runtime, so it cannot group repeated objects the way an engine can with pre-baked content. Draw count is fixed at author time.
+
+| Approach | Downloads | Meshes + textures | Renderers | Materials | Culling | Movable/clickable |
+| --- | --- | --- | --- | --- | --- | --- |
+| N entities, 1 shared `.glb` | 1 | 1 copy | N | N × slots | Per object | Yes |
+| 1 `.glb`, N separate objects inside | 1 | 1 copy | N | N × slots | Per object | No |
+| 1 `.glb`, meshes joined in Blender | 1 | Geometry duplicated | 1 | 1 × slots | All-or-nothing | No |
+
+Only the third row reduces draw calls, and it costs file size, memory, and per-object culling. **Recommend it only when: many small props, always co-visible in one spot, never interactive, AND a measurement showed renderer count is the bottleneck.** Otherwise recommend reuse.
+
+Middle ground for scattered props: **one `.glb` per cluster** (a street block, a room's furniture) rather than one-per-prop or one-for-the-whole-scene. Cuts renderer count while keeping clusters small enough for culling to help.
+
+Three more consequences worth knowing:
+
+- **Reuse does NOT reduce material count either.** The client instantiates a material per renderer to write the scene's boundary clipping, so `materials` in the stats tracks rendered objects, not distinct models — measured: 14 entities on one shared `.glb` report 28 renderers and 28 materials, while `geometries` and `textures` stay at one copy. Those instances share the same textures and shader variants, so this is a small memory cost, not a frame-time one. **Never recommend material dedup as a frame-time fix without checking `shaderVariants` first.**
+- **Spawning many copies at once?** Preload with `AssetLoad` first (see below) so copies come from a resident asset instead of each awaiting the same download. It does not make the copies free: building them is ~90% of a burst's cost even when the asset is already resident, so a large burst can still cost a frame.
+- **One huge model is worse than many small ones for load smoothness.** Asset creation is spread across frames under a frame-time budget, but a single enormous model cannot be split — it lands in one frame and is far more likely to cause a visible hiccup.
 
 ## Triangle Count Optimization
 
@@ -270,7 +306,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 
 | Pitfall                              | Symptom                          | Fix                                                      |
 | ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
-| Too many unique materials            | High draw calls, low FPS         | Merge into texture atlases, reuse materials              |
+| Too many unique materials            | Memory + texture budget, lost batching | Atlas textures, reuse models; check `shaderVariants` before blaming frame time |
 | Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
@@ -281,6 +317,8 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Adding entities/components in a system without guards | Entity count explodes | Systems run every frame — always check before creating  |
 | Unbounded entity queries             | CPU spike                        | Filter with specific components, cache results           |
 | All detail loaded at all distances   | Triangle budget blown            | Implement LOD system                                     |
+| Near-identical `.glb` per copy (`chair_01.glb`, `chair_02.glb`...) | Slow load, memory bloat, texture limit blown | One shared `.glb` referenced by many entities — the engine dedups by source |
+| One monolithic `.glb` for the whole scene | Load hiccup on appearance, nothing culls | Split into per-cluster models (a street block, a room) |
 | No asset preloading                  | Pop-in during gameplay           | Use AssetLoad to preload assets needed later (not startup assets) |
 
 ## Scene Statistics Monitoring
@@ -298,7 +336,7 @@ When running the scene locally with `npm run start`:
 - **FPS below 30**: Something is too expensive. Check draw calls and system execution time.
 - **Triangle count approaching limit**: Enable LOD, reduce model detail, remove hidden faces.
 - **Entity count climbing**: Likely a leak — entities being created but never destroyed. Implement pooling.
-- **Draw calls above 300 (1 parcel)**: Too many materials. Merge, atlas, and reduce transparency.
+- **Draw calls above 300 (1 parcel)**: Too many material slots being rendered. Atlas and reduce transparency to cut slots per object, and reduce the number of rendered objects. Note that draw count tracks *rendered objects × their material slots* — reusing one model across many entities does not reduce it (see **Repeated Models** above), and neither does packing many separate objects into a single `.glb`.
 
 ## Recommended Optimization Tools
 

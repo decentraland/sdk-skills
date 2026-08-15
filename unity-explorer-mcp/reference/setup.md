@@ -28,7 +28,7 @@ On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud -
 
 ## Registering in a client other than Claude Code
 
-`claude mcp add` / `/mcp` are Claude Code commands. In any other MCP client (Cursor, Cline, VS Code, a custom SDK harness), register the server the way that client documents, using these connection details — then reload/restart the client so it picks the server up:
+`claude mcp add` / `/mcp` are Claude Code commands. This section is **not** for the Claude Code VS Code extension or the Creator Hub's embedded chat — those are Claude Code and use SKILL.md step 2 (see the bind gate for their `/mcp reconnect` and new-tab differences). In any genuinely different MCP client (Cursor, Cline, a custom SDK harness), register the server the way that client documents, using these connection details — then reload/restart the client so it picks the server up:
 
 | Field | Value |
 |---|---|

@@ -63,6 +63,23 @@ When **authoring a new composite from scratch**, these components are auto-gener
 
 After the user opens and saves a scene in the Creator Hub, the composite contains baked-in inspector components. Adding new entities WITHOUT updating `inspector::Nodes` is a silent bug: the entities render correctly in the running scene but are **invisible in the Creator Hub entity tree**, so the user cannot select or edit them in the editor.
 
+The Creator Hub entity tree has a **search bar** that filters entities by name (case-insensitive, auto-expands parent nodes to show matches). When helping users find entities in a complex scene, point them at this feature -- it is faster than scrolling through a large tree.
+
+### STOP — the scene must NOT be open in the Creator Hub while you edit
+
+**If the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
+
+Why — verified in the inspector source (`packages/inspector/src/lib/data-layer/host/composite-provider.ts`):
+
+- On save the inspector calls `dumpEngineToComposite(this.engine, 'json')` and then `compositeManager.save(...)`, which **regenerates the whole file from its in-memory engine and overwrites `main.composite` wholesale**. It is not a diff or a merge, and it never reads the on-disk file first — so anything you added that the in-memory engine does not know about is gone.
+- **Autosave is on by default** (`autosaveEnabled: true`). `onTransactionComplete` saves after *any* editor transaction, throttled only by `minSaveInterval = 100` ms. The user does not have to press save — nudging the camera or selecting an entity is enough to overwrite your work.
+- There is **no file watcher** in the data layer: the inspector never re-reads `main.composite` from disk after the initial load, so it cannot pick your changes up either. The overwrite is one-directional.
+- The same `performSave` also regenerates `assets/scene/entity-names.ts`, so both files are rewritten together.
+
+Symptom when this happens: you add an entity, the write succeeds, and moments later the entity is simply absent from `main.composite` — with no error anywhere.
+
+If the user reports a hand-added entity "disappearing" from the composite, this is the cause. Recovery: close the scene in the Creator Hub, re-apply the edit, then reopen.
+
 ### Required updates when adding a new entity (entity ID `<id>`) in edit mode
 
 For every new entity you add (in addition to the normal `core::Transform`, `core-schema::Name`, and feature components):
@@ -89,13 +106,13 @@ For every new entity you add (in addition to the normal `core::Transform`, `core
     "0": {
       "json": {
         "value": [
-          { "entity": 0, "open": true, "children": [512, 513, 531, 532, 1, 2] },
+          { "entity": 0, "open": true, "children": [512, 513, 531, 532] },
+          { "entity": 1, "children": [] },
+          { "entity": 2, "children": [] },
           { "entity": 512, "children": [] },
           { "entity": 513, "children": [] },
           { "entity": 531, "children": [] },
-          { "entity": 532, "children": [] },
-          { "entity": 1,   "children": [] },
-          { "entity": 2,   "children": [] }
+          { "entity": 532, "children": [] }
         ]
       }
     }
@@ -105,8 +122,11 @@ For every new entity you add (in addition to the normal `core::Transform`, `core
 
 Notes on the structure:
 
-- The first entry is always entity `0` (RootEntity) and is the only one that carries `"open": true`.
-- Reserved entities `1` (PlayerEntity) and `2` (CameraEntity) appear at the END of the entity-`0` `children` array AND as their own entries with empty `children`. Preserve this ordering — append your new IDs **before** the trailing `1` and `2`.
+- **There are THREE independent tree roots**, not one: entity `0` (RootEntity), entity `1` (PlayerEntity), entity `2` (CameraEntity). The Inspector renders them as separate top-level trees.
+- **Entities `1` and `2` are NOT in entity `0`'s `children` array.** They are their own top-level entries in `value` — conventionally placed immediately after entity `0`'s entry, before the first scene entity — and their `children` is always `[]`. The Inspector's hierarchy builder explicitly skips `0`/`1`/`2` when filling entity `0`'s `children`. Never add `1` or `2` to any `children` array.
+- **New entity IDs are appended to the END** of the owning parent's `children` array (no trailing reserved IDs to insert before), and a matching `{ "entity": <id>, "children": [] }` entry is appended to the END of the top-level `value` array.
+- `"open"` is an optional per-node editor flag (tree row expanded). Entity `0` normally has `"open": true`, and so does **any** parent node the user has expanded in the entity panel — it is not exclusive to entity `0`. Omit it for new entities; it has no effect on the running scene.
+- **`value` order and `children` order are independent.** `value` order is insertion history; `children` order is what the entity panel displays. The Inspector's reorder/reparent operations splice `children` only and never move an entry inside `value`, so in a real saved composite the two orders drift apart. Do not try to keep them aligned — only append.
 - Every entity that exists in the composite must have its own `{ "entity": <id>, "children": [...] }` entry, even if `children` is empty.
 - If your new entity has `Transform.parent` set to another entity (e.g. `512`), append your entity ID to the `children` of that parent's entry instead of entity `0`'s.
 

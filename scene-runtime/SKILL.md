@@ -159,6 +159,7 @@ import {
   triggerSceneEmote,
   copyToClipboard,
   setCommunicationsAdapter,
+  openExplorerUi,
 } from "~system/RestrictedActions";
 
 // Move player within scene bounds. Optional: cameraTarget (where the
@@ -184,13 +185,50 @@ openNftDialog({
 });
 
 // Copy text to clipboard
-copyToClipboard({ value: "Hello from Decentraland!" });
+copyToClipboard({ text: "Hello from Decentraland!" });
 
 // Change realm. `message` is OPTIONAL: omit it to switch with no prompt,
 // include it to show the player a confirmation dialog first.
 changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
 changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
 ```
+
+### openExplorerUi -- Open Explorer Panels
+
+Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. Requires prior player interaction.
+
+```typescript
+import { openExplorerUi } from "~system/RestrictedActions";
+import { ExplorerUi } from "@dcl/sdk/ecs";
+
+// Open the map panel
+openExplorerUi({ ui: ExplorerUi.EU_MAP });
+```
+
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
+
+### ExplorerUiEventsResult -- Observe Panel Open/Close
+
+Scenes can observe when explorer panels are opened or closed. `ExplorerUiEventsResult` is a grow-only value set (APPEND semantics, max 100 entries) on `engine.RootEntity`. Each entry reports which panel and whether it opened or closed.
+
+```typescript
+import { engine, ExplorerUiEventsResult, ExplorerUi } from "@dcl/sdk/ecs";
+
+engine.addSystem(() => {
+  const results = ExplorerUiEventsResult.get(engine.RootEntity);
+  for (const entry of results.values()) {
+    if (entry.ui === ExplorerUi.EU_MAP) {
+      if (entry.event?.$case === "opened") {
+        console.log("Map was opened");
+      } else if (entry.event?.$case === "closed") {
+        console.log("Map was closed");
+      }
+    }
+  }
+});
+```
+
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220. Verified against protocol commit `86c4613` and js-sdk-toolchain commit `fc8cfc65`.
 
 ## Timers
 

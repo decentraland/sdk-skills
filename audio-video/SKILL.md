@@ -53,6 +53,19 @@ AudioSource.stopSound(entity)                            // stops, resets cursor
 
 Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
 
+**Detecting when a sound finishes:** when a non-looping clip ends on its own, the engine flips `AudioSource.playing` back to `false`. Poll it with the READ-ONLY getter and edge-detect the `true → false` transition — never poll with `getMutable` (dirties the component every frame):
+
+```typescript
+let wasPlaying = false
+engine.addSystem(() => {
+	const isPlaying = AudioSource.get(entity).playing ?? false
+	if (wasPlaying && !isPlaying) console.log('sound finished') // chain next sound/action here
+	wasPlaying = isPlaying
+})
+```
+
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback.
+
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
@@ -61,9 +74,37 @@ Players must interact with the scene (click) before audio can play (browser auto
 
 Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
-Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`.
+Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`. For callback-style state changes instead of polling, `audioEventsSystem.registerAudioEventsEntity` works on AudioStream entities too (see the AudioSource finish-detection note above).
 
 > **Before adding a streaming URL**: If not provided by the user, confirm the source first.
+
+## Audio Events System (audioEventsSystem)
+
+Monitor `AudioSource` and `AudioStream` media state changes. Import from `@dcl/sdk/ecs`. The system fires a callback only when the state changes (not every frame).
+
+```typescript
+import { engine, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+
+const radioEntity = engine.addEntity()
+AudioSource.create(radioEntity, { audioClipUrl: 'assets/Audio/music.mp3', playing: true })
+
+audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
+  // event is PBAudioEvent: { state: MediaState, timestamp: number }
+  console.log('Audio state changed:', event.state)
+})
+```
+
+**API** (verified against `@dcl/ecs`, commit `f858f905`):
+- `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
+- `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
+- `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
+- `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
+
+**MediaState values:** `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_PAUSED`, `MS_STOPPED`, `MS_ERROR`, `MS_SEEKING`, `MS_BUFFERING`, `MS_NONE`.
+
+The entity is auto-unregistered if it is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
+
+**Relationship to `AudioStream.getAudioState`:** `AudioStream.getAudioState` is a convenience wrapper on the `AudioStream` component itself; `audioEventsSystem.getAudioState` reads the underlying `AudioEvent` component and works for both `AudioSource` and `AudioStream`. Use `audioEventsSystem` when you need callback-driven state monitoring or when working with `AudioSource`.
 
 ## VideoPlayer
 
@@ -115,5 +156,6 @@ Engine-team test scenes exercised against the real explorer:
 
 - [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
 - [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
+- [audio-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-11-audio-finish) — natural-finish detection via the `playing` flip + `audioEventsSystem` callback, and how a scene-initiated stop is distinguished from a natural finish.
 
 For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.

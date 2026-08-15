@@ -58,6 +58,8 @@ TypeScript (`src/index.ts`) is ONLY for:
 
 Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
 
+**The scene must NOT be open in the Creator Hub while you edit the composite.** The inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk. Your edits will silently vanish. Ask the user to close the scene first, then reopen it when you are done.
+
 ---
 
 ## Individual Skills
@@ -94,7 +96,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Advanced Input & Movement Control
 
-**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`.
+**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`, `TouchScreenControls` (mobile on-screen joystick/crosshair/buttons).
 
 ### Player & Avatar
 
