@@ -236,7 +236,7 @@ export function setupUi() {
 }
 ```
 
-**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` (and `screenInset: 'device'`) only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls — keep those clear manually on mobile: the joystick sits on the left, the chat/profile/camera buttons on the top-right, and the interaction button on the bottom-right of the canvas.
+**Hardware insets vs. Decentraland system HUD:** `ScreenInsetArea` (and `screenInset: 'device'`) only covers the physical device's reserved regions. It does *not* avoid Decentraland's on-screen controls — keep those clear manually on mobile: the joystick sits on the left, the chat/profile/camera buttons on the top-right, and the interaction button on the bottom-right of the canvas. The *input* controls among those (joystick, crosshair, gamepad buttons) can also be hidden outright with `TouchScreenControls` on SDK 7.26.0+ — see the **advanced-input** skill. The client's own HUD (chat, profile, emote wheel) cannot.
 
 ## InteractableArea (Client-UI-Safe Region)
 
