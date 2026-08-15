@@ -96,7 +96,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Advanced Input & Movement Control
 
-**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`.
+**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`, `TouchScreenControls` (mobile on-screen joystick/crosshair/buttons).
 
 ### Player & Avatar
 
