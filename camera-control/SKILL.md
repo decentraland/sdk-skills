@@ -216,3 +216,5 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — multiple VirtualCameras: static, `Speed`/`Time` transitions, `lookAtEntity: engine.PlayerEntity`, a Tween-driven moving camera, a WASD-controllable camera (driving the VirtualCamera Transform each frame), plus `CameraModeArea` and `AvatarModifierArea`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — mouselook camera: `PrimaryPointerInfo.screenDelta` driving VirtualCamera yaw/pitch while pointer is locked, with `InputModifier` disableAll and PointerLock control. Reference implementation for the mouselook pattern.
+
+> **Spectate / observer mode?** See the **spectate-mode** skill — a complete drop-in module (two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping) built on VirtualCamera + InputModifier.
