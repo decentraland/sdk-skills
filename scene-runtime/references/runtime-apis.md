@@ -35,7 +35,7 @@ The full list, the player-interaction rule, and canonical examples (`movePlayerT
 
 ### movePlayerTo — rotate avatar in place
 
-Params are documented in SKILL.md. To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the `80,-4-restricted-actions` "Rotate Avatar" buttons).
+Params are documented in SKILL.md. To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons).
 
 ### triggerEmote — predefined emote names
 

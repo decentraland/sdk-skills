@@ -384,6 +384,7 @@ Only `console.log()` and `console.error()` are declared in the runtime — `cons
 Engine-team test scenes exercising these APIs against the real runtime:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body`, inspects the auto-added signed headers.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — `executeTask` + `getSceneInformation({})` reading the scene's own `scene.json` at runtime: `JSON.parse(sceneInfo.metadataJson)`, then walking `worldConfiguration.skyboxConfig` with a fallback to top-level `skyboxConfig`. The sibling https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json is the same code against a `worldConfiguration` deployment.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — every RestrictedAction via UI buttons: `movePlayerTo` (with `cameraTarget` and `avatarTarget`), `teleportTo`, `triggerEmote`, `triggerSceneEmote`, `openExternalUrl`, `openNftDialog`, `changeRealm` (with and without `message`).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `spawn({ ens })` / `kill({ pid })` from the spawn response; host `scene.json` has `portableExperiences: "enabled"`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
