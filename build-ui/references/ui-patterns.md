@@ -348,7 +348,7 @@ engine.addSystem((dt: number) => {
 />
 ```
 
-### Opacity & Z-Index (verified in test scene 0,6-ui-zindex-and-opacity)
+### Opacity & Z-Index (verified in test scene [`0,6-ui-zindex-and-opacity`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity))
 
 `opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top.
 

@@ -1,7 +1,7 @@
 # ParticleSystem Presets
 
 17 production-ready presets ported verbatim from the official SDK7 test scene
-(`https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0%2C7-particle-system`).
+(`https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,7-particle-system`).
 Each is a complete `ParticleSystem.create(...)` payload — drop in next to a `Transform` and it works. Most of these work best with a texture image or sprite, many of these examples are minimal to not rely on extra files.
 
 ## Imports (every preset assumes these)

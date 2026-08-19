@@ -152,7 +152,7 @@ function mouseLookSystem() {
 }
 ```
 
-Key details (verified against `32,20-virtual-camera-mouse-look` test scene and official docs):
+Key details (verified against the [`32,20-virtual-camera-mouse-look`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look) test scene and official docs):
 - `SENSITIVITY` ~0.15 deg/px is the official recommendation; adjust to taste.
 - Pitch clamped to [-85, +85] degrees prevents the camera from flipping over.
 - `delta.y` is subtracted from pitch so mouse-up = camera-up (positive screenDelta.y = cursor moved up = screen origin is bottom-left).
