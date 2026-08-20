@@ -150,6 +150,20 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 **Never ignore files the scene needs at runtime:** `bin/index.js`, `scene.json`, `assets/` (composites, .glb models, textures, sounds, video), thumbnails referenced in `scene.json`, or any file path referenced in code. Note the default ignores `*.ts`/`src` — only the compiled `bin/index.js` runs, so source code is never needed in the upload.
 
+## Post-Publish: Asset Bundle Conversion
+
+After every publish, the content servers compress all `.gltf`/`.glb` models to asset bundles — a significantly lighter format. The conversion starts immediately but is queued per platform (Windows, Mac). While it runs, players are deliberately served the **last fully-working version** of the scene.
+
+- **Typical time:** ~15 minutes, but plan for **30-60 minutes** until the new version is reliably playable by everyone.
+- **Before a live event:** publish your final version **at least 2 hours** in advance. Avoid republishing while waiting — each publish restarts the queue.
+- **Check conversion status** in a browser:
+  - `https://asset-bundle-registry.decentraland.org/entities/status/<pointer>` — replace `<pointer>` with a scene coordinate (e.g. `20,-34`) or the deployment entity ID. Shows per-platform status under `assetBundles` and LOD status under `lods`. For a World, append `?world_name=myname.dcl.eth`.
+  - `https://asset-bundle-registry.decentraland.org/queues/status` — lists all scenes currently queued for conversion, per platform.
+- **`/detectabs` chat command:** in-world, tints models green (converted) or red (not yet converted).
+- **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. After conversion completes, fully quit and relaunch Decentraland, then re-enter via jump link or `/goto`.
+
+You can also catch conversion issues **before** publishing by enabling local asset bundles in preview — see the **optimize-scene** skill ("Local Asset Bundle Preview").
+
 ## Troubleshooting
 
 | Error | Cause | Solution |
@@ -160,6 +174,11 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 | "Invalid scene.json" | Missing required fields or malformed JSON | Verify `ecs7: true`, `runtimeVersion: "7"`, valid `parcels` array, and `main: "bin/index.js"` |
 | Deploy succeeds but scene is empty | `main` field doesn't point to compiled output | Ensure `main` is `"bin/index.js"` and run `npx @dcl/sdk-commands build` first |
 | Catalyst rejection | Content violates Decentraland content policies | Review content guidelines at docs.decentraland.org |
+| Scene looks broken right after deploy | Asset bundle conversion not done yet | Type `/detectabs` in chat — red-tinted models are not yet converted. Check conversion status (see above) and wait |
+| Some players see old version, others see new | Per-platform conversion finishes at different times + client caching | Check both `windows` and `mac` under `assetBundles` in the conversion status endpoint. Once both are `complete`, affected players must fully restart Decentraland |
+| Publication stuck on Converting stage | Scene queued behind other conversions, or conversion failed | Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
+| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed 512x512 cap | `/detectabs` to check; textures in 3D models are capped to 512x512 during conversion |
+| Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing |
 
 ### Genesis City vs Worlds
 
