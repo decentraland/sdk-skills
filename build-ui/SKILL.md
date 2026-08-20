@@ -71,7 +71,7 @@ addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): voi
 | Value | Area |
 |---|---|
 | `'device'` _(default)_ | Device safe area, from `UiCanvasInformation.screenInsetArea`. Zero on desktop, so a no-op there. |
-| `'interactable'` | Area free of the client's own HUD (minimap, chat, …), from `UiCanvasInformation.interactableArea`. |
+| `'interactable'` | Area the client designates for scene UI, from `UiCanvasInformation.interactableArea`. Clears the minimap, chat, and left-side controls, but the **bottom-right action buttons are drawn over this area by design** — UI placed there competes for taps. |
 | `'none'` | Whole screen, `0,0` at the top-left corner. |
 
 Unlike the virtual size, this is **per renderer** — the main UI and each `addUiRenderer` widget can use different areas at the same time.

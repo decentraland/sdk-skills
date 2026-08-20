@@ -168,6 +168,10 @@ After enabling, the World Owner can:
 
 To deploy as a collaborator, use the normal `deploy` process — the publishing flow will let you select only the parcels you have access to.
 
+## Post-Publish Conversion
+
+Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. Plan for 30-60 minutes until the new version is reliably playable. For timing details, conversion status endpoints, and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Optimize Assets** (or `--local-ab`) in preview to catch conversion issues before publishing.
+
 ## Troubleshooting
 
 | Error | Cause | Solution |

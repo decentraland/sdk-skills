@@ -112,7 +112,15 @@ Play video on a surface. Key fields: `src` (URL or local path), `playing`, `loop
 
 **Setup requires 3 steps**: create entity with `MeshRenderer.setPlane()`, add `VideoPlayer`, create `Material.Texture.Video({ videoPlayerEntity })` and apply to material. Use `Material.setBasicMaterial` (recommended, better performance) or `Material.setPbrMaterial` with emissive for a brighter screen.
 
-Monitor playback with `videoEventsSystem.registerVideoEventsEntity()` for state callbacks, or `videoEventsSystem.getVideoState()` for polling. States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
+Monitor playback with `videoEventsSystem`:
+- `videoEventsSystem.registerVideoEventsEntity(entity, callback)` — callback receives `PBVideoEvent` on each state change.
+- `videoEventsSystem.removeVideoEventsEntity(entity)` — unregisters the callback.
+- `videoEventsSystem.hasVideoEventsEntity(entity): boolean` — check if an entity is registered.
+- `videoEventsSystem.getVideoState(entity): PBVideoEvent | undefined` — poll the latest state without a callback.
+
+States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
+
+**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same behavior applies to `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity` — re-registering preserves the count of already-reported events, avoiding duplicate callbacks. Verified against js-sdk-toolchain commit `9055b4b4`.
 
 Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 

@@ -284,7 +284,19 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 });
 ```
 
-## Utility: removeEntityWithChildren
+## Entity Removal
+
+### engine.removeEntity(entity): boolean
+
+Removes all components from an entity and releases its id for reuse. Returns `boolean`:
+- `true` — entity accepted; components purged, id released for recycling.
+- `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
+
+The return type changed from `void` to `boolean` as of js-sdk-toolchain commit `e712ef71`. Existing code that ignores the return value is unaffected.
+
+**Gotcha — avatar entity collision:** before this fix, `engine.removeEntity` could silently purge components of a live remote player's avatar entity. The engine now refuses removal of renderer-reserved ids, preventing this. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
+
+### removeEntityWithChildren
 
 Recursively remove an entity and all its children — reach for this when cleaning up complex entity hierarchies:
 
@@ -293,6 +305,8 @@ import { removeEntityWithChildren } from "@dcl/sdk/ecs";
 
 removeEntityWithChildren(engine, parentEntity);
 ```
+
+**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result. Verified against js-sdk-toolchain commit `e712ef71`.
 
 ## Portable Experiences
 

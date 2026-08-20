@@ -273,7 +273,7 @@ After customizing the files:
 | `--mcp-port` | number | Port for the MCP server in the Explorer |
 | `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
 | `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
-| `--asset-bundles` | boolean | Forward `local-ab=true` in the Explorer deep link so the Desktop Explorer converts the scene's assets to optimized asset bundles locally. Matches production rendering after asset-bundle conversion. First run may take several minutes on large scenes. |
+| `--local-ab` | boolean | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview"). |
 | `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
 
 `--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
@@ -281,7 +281,7 @@ After customizing the files:
 **Creator Hub preview settings** (equivalent to the CLI flags above, accessed from the dropdown next to the Preview button):
 - **Preview with**: Desktop Client (default) or Bevy (Web) -- equivalent to `--web`.
 - **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the SDK version supports it. See the **unity-explorer-mcp** skill.
-- **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--asset-bundles`. First run may be slow.
+- **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
 - **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
 
 **Bevy renderer in Creator Hub:** Settings > Editor > "Scene renderer" dropdown (Babylon default / Bevy preview). Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload.
@@ -304,8 +304,8 @@ The official quickstart teaches a **Script-component-first** workflow: attach a 
 
 ## Cross-References
 
-- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds)
-- Need to optimize for parcel limits? See the **optimize-scene** skill
+- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publish at least 2 hours before a live event — asset bundle conversion takes time
+- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Optimize Assets** (or `--local-ab`) to preview with production-quality asset bundles before publishing
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 
