@@ -15,10 +15,6 @@ Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (Flo
 
 Players viewing the scene from outside its parcels see nothing. Particles are not part of the scene LOD silhouette. Position emitters within parcel bounds.
 
-## RULE: Particles only work in the Unity explorer
-
-The mobile Godot explorer and the Bevy explorer don't have this feature implemented. The renderer ignores the component.
-
 ## RULE: Engine caps total particles at ~1000
 
 The engine enforces a per-scene particle budget and will scale down emission rates across all active particle systems if total live particles would exceed the limit. Cap each system with `maxParticles` and prefer fewer impactful systems over many small ones.

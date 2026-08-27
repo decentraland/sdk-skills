@@ -86,6 +86,8 @@ CameraModeArea.create(fpArea, {
 
 When the player leaves the area, the camera reverts to their preferred mode.
 
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `CameraModeArea` with a dropdown for `mode` (`First Person` / `Third Person`; Cinematic is intentionally omitted -- use `VirtualCamera` for that). A "Camera Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the camera region. Default init: `{ area: {1,1,1}, mode: CameraType.CT_FIRST_PERSON }`. Verified against creator-hub commit `a843390a`.
+
 ## VirtualCamera (Cinematic Cameras)
 
 Create scripted camera positions for cutscenes or special views:

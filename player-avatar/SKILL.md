@@ -343,6 +343,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
+- **Mobile support:** Avatar Masks (upper-body-only emotes) ship on mobile in **v1.13.0 (September 2026)**. Until then the mobile renderer plays masked emotes as full-body. Verified against docs commit `09c5818`.
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
@@ -388,6 +389,8 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 `AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
 
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
+
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the modifier region. Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
 
 ## Avatar Locomotion Settings
 
