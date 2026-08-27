@@ -579,3 +579,5 @@ const Announcement = () => {
 ```
 
 Mount `OkPrompt` and `Announcement` as children of your root UI component so they overlay the rest of the HUD.
+
+Note both full-screen wrappers deliberately carry **no** pointer handler and no `pointerFilter`: the handler sits on the `OK` `Button` only. Adding a listener to a `100%`×`100%` wrapper makes it capture clicks over the entire screen and blocks the rest of the UI and the 3D world — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If you *want* the dim backdrop to swallow clicks while the prompt is open, that is a legitimate modal backdrop: put `pointerFilter: 'block'` on it consciously, and only while the prompt renders (these components already return `null` when closed).

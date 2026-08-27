@@ -79,6 +79,7 @@ export function KitToast(props: {
 
 Points:
 
+- The root's `width: 320, height: 56` is **mandatory shape, not decoration**: a component root must declare both dimensions explicitly. Here the 56 px height is stated even though the 16 px label would auto-size the box — an unset dimension renders as 0 on the editor canvas (collapsed instance, panel reads height 0) while still laying out correctly at runtime.
 - `State` may be empty — a component whose values all arrive as props still declares the pair.
 - `` value={`${props.message}`} `` not `value={props.message}`: the template form typechecks against an optional prop and is still a recognized binding.
 - The callback prop is forwarded up with a one-line action; the child's `onPress` is wired through the same thunk shape.
@@ -131,17 +132,19 @@ function dismiss({ state }: UiAction) {
 
 /** @ui-component */
 export function GpTimerPanel(props: { hint?: string }) {
-  const root = useInteraction(
+  // The gate goes on the PANEL, never on the full-screen wrapper below: the
+  // useInteraction spread always carries all four pointer listeners, and a
+  // 100%x100% element with a listener swallows every click in the scene.
+  const panel = useInteraction(
     {
       base: {
         uiTransform: {
-          width: '100%',
-          height: '100%',
+          width: 520,
+          height: 220,
           flexDirection: 'column',
           justifyContent: 'flex-start',
           alignItems: 'center',
-          positionType: 'absolute',
-          position: { top: state.panelTop },
+          margin: { top: state.panelTop },
         },
       },
       active: { uiTransform: { display: 'none' } },
@@ -164,34 +167,174 @@ export function GpTimerPanel(props: { hint?: string }) {
     press: { uiBackground: { color: { r: 0.8, g: 0.15, b: 0.29, a: 1 } } },
   })
   return (
-    <UiEntity {...root}>
-      <UiEntity {...hint}>
-        <Label value={`${props.hint}`} fontSize={20} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 0.6 }} />
-      </UiEntity>
-      <UiEntity
-        uiTransform={{
-          width: state.panelWidth,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: { left: 20, right: 20, top: 8, bottom: 8 },
-          borderRadius: 8,
-        }}
-        uiBackground={{ color: state.panelColor }}
-      >
-        <Label value={state.label} fontSize={35} textAlign="middle-center" color={state.labelColor} />
-        <Label value={`Score: <b>${state.score}</b>`} fontSize={20} color={{ r: 1, g: 1, b: 1, a: 1 }} />
-      </UiEntity>
-      <UiEntity {...nextButton} onMouseDown={() => pressNext({ state, props })}>
-        <Label value="Next [E]" fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+    <UiEntity
+      uiTransform={{
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+      }}
+    >
+      <UiEntity {...panel}>
+        <UiEntity {...hint}>
+          <Label value={`${props.hint}`} fontSize={20} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 0.6 }} />
+        </UiEntity>
+        <UiEntity
+          uiTransform={{
+            width: state.panelWidth,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: { left: 20, right: 20, top: 8, bottom: 8 },
+            borderRadius: 8,
+          }}
+          uiBackground={{ color: state.panelColor }}
+        >
+          <Label value={state.label} fontSize={35} textAlign="middle-center" color={state.labelColor} />
+          <Label value={`Score: <b>${state.score}</b>`} fontSize={20} color={{ r: 1, g: 1, b: 1, a: 1 }} />
+        </UiEntity>
+        <UiEntity {...nextButton} onMouseDown={() => pressNext({ state, props })}>
+          <Label value="Next [E]" fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+        </UiEntity>
       </UiEntity>
     </UiEntity>
   )
 }
 ```
 
-Every dynamic value here is a bare reference: `position: { top: state.panelTop }`, `width: state.panelWidth`, `uiBackground={{ color: state.panelColor }}`, `color={state.labelColor}`, `value={state.label}`, and one mixed-text label. Nothing is computed in the file.
+Every dynamic value here is a bare reference: `margin: { top: state.panelTop }`, `width: state.panelWidth`, `uiBackground={{ color: state.panelColor }}`, `color={state.labelColor}`, `value={state.label}`, and one mixed-text label. Nothing is computed in the file.
 
-## 4. Props-driven styling (a fill bar)
+Two structural points worth copying:
+
+- **The `100%`×`100%` root is a plain literal-styled `UiEntity` with no spread and no handler.** It exists only to give the panel a full-screen box to center in. The visibility gate lives on the 520-px panel. Reversing that — `{...panel}` on the root — is the top-severity mistake in editable UI: the spread's four listeners would make the whole screen capture clicks (see the rule in `SKILL.md` → **Interaction layers**), and the bug is invisible in a screenshot because the panel is what you look at.
+- **The slide-in animates `margin.top`, not `position.top`.** With the panel in flow inside a centering wrapper, a bound `margin` member gives the same eased drop while keeping horizontal centering for free — and `margin` members are a recognized binding position, exactly like `position` members.
+
+## 4. Dialog: full-screen wrapper + gated panel (before/after)
+
+A dialog is where the pointer-blocking mistake actually gets made, because a dialog *is* a small panel inside a full-screen layout box. Shipped, in-world-verified shape:
+
+```tsx
+// BEFORE — BROKEN. The gate is on the layout wrapper.
+// useInteraction returns onMouseDown/Up/Enter/Leave unconditionally, even for a
+// base+active gate, so this 100%x100% element captures pointer input over the
+// entire screen: no other UI element and nothing in the world can be clicked.
+const root = useInteraction(
+  {
+    base: { uiTransform: { width: '100%', height: '100%', justifyContent: 'flex-end', alignItems: 'center' } },
+    active: { uiTransform: { display: 'none' } },
+  },
+  state.visible !== true,
+)
+return (
+  <UiEntity {...root}>
+    <UiEntity uiTransform={{ width: 720, flexDirection: 'column' }}>…</UiEntity>
+  </UiEntity>
+)
+```
+
+```tsx
+// AFTER — the wrapper is plain; the gate moved onto the 720px panel.
+/** @jsx ReactEcs.createElement */
+import ReactEcs, { Label, UiEntity } from '@dcl/sdk/react-ecs'
+import { useInteraction } from './interaction'
+
+export interface State {
+  visible: boolean
+}
+export const state: State = {
+  visible: true,
+}
+
+type UiAction = { state: State; props: Parameters<typeof WizardDialog>[0]; value?: unknown }
+
+/** @ui-action */
+function closeDialog({ state }: UiAction) {
+  state.visible = false
+}
+
+export function WizardDialog(props: {}) {
+  // The visibility gate lives on the panel itself — never on the full-screen
+  // wrapper: useInteraction attaches pointer handlers to the element it styles,
+  // and a 100%x100% element with handlers blocks clicks to the world and to
+  // every other UI.
+  const panel = useInteraction(
+    {
+      base: {
+        uiTransform: {
+          width: 720,
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: { left: 28, right: 28, top: 20, bottom: 20 },
+          borderRadius: 16,
+          borderWidth: 2,
+          borderColor: { r: 0.85, g: 0.7, b: 0.35, a: 1 },
+        },
+        uiBackground: { color: { r: 0.07, g: 0.05, b: 0.14, a: 0.92 } },
+      },
+      active: { uiTransform: { display: 'none' } },
+    },
+    state.visible !== true,
+  )
+  const okButton = useInteraction({
+    base: {
+      uiTransform: {
+        width: 180,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 10,
+        margin: { top: 20 },
+      },
+      uiBackground: { color: { r: 0.45, g: 0.3, b: 0.75, a: 1 } },
+    },
+    hover: { uiBackground: { color: { r: 0.55, g: 0.4, b: 0.88, a: 1 } } },
+    press: { uiBackground: { color: { r: 0.35, g: 0.22, b: 0.6, a: 1 } } },
+  })
+  return (
+    <UiEntity
+      uiTransform={{
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        padding: { bottom: 48 },
+      }}
+    >
+      <UiEntity {...panel}>
+        <Label
+          value="Eldrin the Wizard"
+          fontSize={24}
+          textAlign="middle-left"
+          textWrap="wrap"
+          color={{ r: 0.95, g: 0.8, b: 0.4, a: 1 }}
+          uiTransform={{ width: '100%', margin: { bottom: 10 } }}
+        />
+        <Label
+          value="Welcome, traveler. You stand within a magical forest, alive with ancient enchantments."
+          fontSize={20}
+          textAlign="middle-left"
+          textWrap="wrap"
+          color={{ r: 0.95, g: 0.95, b: 0.98, a: 1 }}
+          uiTransform={{ width: '100%' }}
+        />
+        <UiEntity {...okButton} onMouseDown={() => closeDialog({ state, props })}>
+          <Label value="Understood" fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+        </UiEntity>
+      </UiEntity>
+    </UiEntity>
+  )
+}
+```
+
+Points:
+
+- The full-screen wrapper does all the positioning (bottom-anchored, horizontally centered, 48 px off the bottom edge) with plain literals. It has no spread, no listener, no `pointerFilter` — so it is pointer-transparent and clicks pass through to the world and to other UI.
+- The panel carries both its own styling and the `active` display gate. Only its 720-px box captures clicks, and only while the dialog is open — once `state.visible` is false the panel is `display: 'none'` and captures nothing.
+- The panel needs no explicit `height`: the self-check's explicit-`width`/`height` rule applies to a `/** @ui-component */` root and to wrappers around component refs. Here the component root is the full-screen wrapper (`100%`×`100%`, both stated) and the panel is an ordinary in-flow child, free to auto-size to its wrapped labels.
+- `textWrap="wrap"` plus `uiTransform={{ width: '100%' }}` on each `Label` is what makes the body copy wrap inside the panel instead of running off in one line.
+
+## 5. Props-driven styling (a fill bar)
 
 A `props.x` reference binds a style key inside a component, so one file serves many differently-sized instances.
 
@@ -205,7 +348,7 @@ export const state: State = {}
 /** @ui-component */
 export function KitProgressBar(props: { label?: string; percent?: number; fillPx?: number }) {
   return (
-    <UiEntity uiTransform={{ width: 560, flexDirection: 'column' }}>
+    <UiEntity uiTransform={{ width: 560, height: 36, flexDirection: 'column' }}>
       <UiEntity
         uiTransform={{ width: '100%', height: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
       >
@@ -228,7 +371,9 @@ export function KitProgressBar(props: { label?: string; percent?: number; fillPx
 
 The px width is what binds — the driver derives `fillPx` from a percent against this track's literal 560 px width. `` value={`${props.percent}%`} `` is a mixed-text binding (bare reference + literal suffix), not a computed value.
 
-## 5. Unrolled visual variants (no color props)
+The root's `height: 36` is the sum of its two fixed-height children (24 + 12). Omitting it — letting the column auto-size — is the single most common editor bug: correct in-world, height 0 on the canvas.
+
+## 6. Unrolled visual variants (no color props)
 
 A `variant` prop cannot pick a color. Author every variant as a sibling and gate the unused ones off:
 
@@ -264,7 +409,7 @@ export function KitButton(props: { label?: string; variant?: string; onPress?: (
     (props.variant ?? 'primary') !== 'danger',
   )
   return (
-    <UiEntity uiTransform={{ flexDirection: 'row' }}>
+    <UiEntity uiTransform={{ width: 180, height: 48, flexDirection: 'row' }}>
       <UiEntity {...primary} onMouseDown={() => press({ state, props })}>
         <Label value={`${props.label}`} fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
       </UiEntity>
@@ -278,9 +423,11 @@ export function KitButton(props: { label?: string; variant?: string; onPress?: (
 
 The `active` expression may be any code, so the coalescing default and the comparison live there safely — only **style values** must stay bare references. The repetition is paid once inside the component instead of at every use site.
 
-## 6. The screen that composes them
+The root repeats the variants' `180x48` box explicitly. Since exactly one variant is ever displayed, the root's own size cannot be inferred from its children — state it.
 
-A top-level root (no `@ui-component` marker) is pure composition. Each instance that needs positioning gets a wrapper `UiEntity`, because a component ref cannot be moved or sized from outside.
+## 7. The screen that composes them
+
+A top-level root (no `@ui-component` marker) is pure composition. Each instance that needs positioning gets a wrapper `UiEntity`, because a component ref cannot be moved or sized from outside. Every such wrapper carries explicit `width`/`height` matching the wrapped component's root box — a wrapper holding only `position` or `margin` collapses to 0 on the editor canvas and takes the instance's preview with it.
 
 ```tsx
 /** @jsx ReactEcs.createElement */
@@ -311,10 +458,14 @@ export function MyHud(props: {}) {
   return (
     <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
       <GpTimerPanel hint="REACH THE TOP" />
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { left: 40, bottom: 40 } }}>
+      <UiEntity
+        uiTransform={{ width: 560, height: 36, positionType: 'absolute', position: { left: 40, bottom: 40 } }}
+      >
         <KitProgressBar label="Download" percent={42} fillPx={state.downloadPx560} />
       </UiEntity>
-      <UiEntity uiTransform={{ positionType: 'absolute', position: { right: 24, top: 24 } }}>
+      <UiEntity
+        uiTransform={{ width: 320, height: 56, positionType: 'absolute', position: { right: 24, top: 24 } }}
+      >
         <KitToast
           message={state.toastMessage}
           visible={state.toastVisible}
@@ -329,7 +480,7 @@ export function MyHud(props: {}) {
 
 Instance props take literals (`label="Download"`, `percent={42}`) or bare state references (`fillPx={state.downloadPx560}`) — both are editable per instance from the panel.
 
-## 7. The aggregator
+## 8. The aggregator
 
 Generated; reproduce it exactly and never hand-edit it (it is rewritten when the editor opens the scene and on every root add/rename/remove).
 

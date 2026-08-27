@@ -97,14 +97,18 @@ The module-level flags and their pointer plumbing disappear entirely.
 ```
 
 ```tsx
-// AFTER
-const root = useInteraction(
-  { base: { uiTransform: { display: 'flex', width: '100%', height: '100%' } },
+// AFTER — the gate goes on the element being hidden, sized to its own box
+const panel = useInteraction(
+  { base: { uiTransform: { display: 'flex', width: 720, height: 260 } },
     active: { uiTransform: { display: 'none' } } },
   state.visible !== true,
 )
-<UiEntity {...root}>
+<UiEntity uiTransform={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+  <UiEntity {...panel}>…</UiEntity>
+</UiEntity>
 ```
+
+**Do not put the gate on the enclosing `100%`×`100%` wrapper**, even though the conditional you are replacing wrapped the whole subtree. `useInteraction` returns all four pointer listeners unconditionally — a base+active gate is still a handler-bearing element — and a full-screen element with a listener captures clicks over the entire screen, so the player can no longer click any other UI or anything in the world. The wrapper stays a plain literal-styled `UiEntity` doing positioning only; the gate sizes itself to the panel it hides. This was a real top-severity bug in a shipped scene; see `SKILL.md` → **Interaction layers** and `component-template.md` §4.
 
 If the original kept rendering during a fade/shrink-out, use the two-variable pattern (`visible` intent + driver-owned `hidden` gate) so the exit animation stays visible — see `driver-pattern.md` §3.
 

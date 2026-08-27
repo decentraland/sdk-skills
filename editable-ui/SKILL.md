@@ -36,12 +36,12 @@ Prerequisite knowledge: the **build-ui** skill (React-ECS elements, `uiTransform
 1. Split the UI into one file per component under `src/ui/`; move any non-JSX logic (helpers, clocks, math, data) out to a `.ts` file outside `src/ui/`.
 2. Mechanically eliminate the five blockers, in this order — see `{baseDir}/references/adapting-coded-ui.md` for before/after code on each:
    - `.map()` / loops → unroll every item as sibling elements.
-   - `{cond && <X/>}` and `cond ? <A/> : <B/>` → `useInteraction` `active` layer with `display: 'none'` (the only exception: the desktop/mobile platform variant, which is a supported construct).
+   - `{cond && <X/>}` and `cond ? <A/> : <B/>` → `useInteraction` `active` layer with `display: 'none'` (the only exception: the desktop/mobile platform variant, which is a supported construct). Put each gate on the element being hidden, never on an enclosing full-screen wrapper — the spread carries pointer handlers (see **Interaction layers**).
    - computed style values (arithmetic, `Math.*`, calls, string concat, ternaries, shared theme identifiers) → one driver-maintained bound state variable per derived value, or an inline literal.
    - inline-interpolated text → mixed-text segment bindings, with the formatting moved into the driver.
    - hand-tracked hover/press booleans → `hover` / `press` layers.
 3. Replace tween/animation code that computes style values in render with a driver that eases the finished value into a bound state variable.
-4. Every size and position value becomes a plain px **number** (see **Sizing and mobile**).
+4. Every size and position value becomes a plain px **number**, and every component root and component-ref wrapper gains an explicit `width`/`height` — coded UI routinely auto-sizes containers from their children, which survives the port and then renders as height 0 on the canvas (see **Sizing and mobile**).
 5. Re-run the self-check list.
 
 Expect the adapted file to be **larger** than the original: unrolling loops and variants is the price of editability. Report that trade-off to the user rather than silently half-porting.
@@ -105,10 +105,10 @@ Only these five element names are modeled: **`UiEntity`, `Label`, `Input`, `Drop
 
 The one additional first-class element is a **reference to another root file** in `src/ui/` — `<MyWidget />`. That is the sanctioned reuse unit: selectable, movable, with per-instance editable props. Any other element name (a local helper component, a library component, `ScreenInsetArea`) is opaque.
 
-- Text lives on `Label` / `Button` only: `value`, `fontSize`, `textAlign`, `color`, `font`, `textWrap`. A `uiText={{...}}` bag on a `UiEntity` is **not modeled** — restructure it as a `Label` child.
+- Text lives on `Label` / `Button` only: `value`, `fontSize`, `textAlign`, `color`, `font`, `textWrap`. A `uiText={{...}}` bag on a `UiEntity` is **not modeled** — restructure it as a `Label` child. **No emoji in any text value** (see **Sizing and mobile**).
 - `Input` props: `placeholder`, `value`, `color`, `placeholderColor`, `disabled`, `textAlign`, `font`, `fontSize`.
 - `Dropdown` props: `acceptEmpty`, `emptyLabel`, `options`, `selectedIndex`, `disabled`, `color`, `textAlign`, `font`, `fontSize`.
-- A `<MyWidget />` instance cannot be moved or sized from outside — give each instance a wrapper `UiEntity` when it needs margins or positioning.
+- A `<MyWidget />` instance cannot be moved or sized from outside — give each instance a wrapper `UiEntity` when it needs margins or positioning. That wrapper needs explicit `width`/`height` too, not just a margin (see **Sizing and mobile**).
 - Component refs accept **no nested JSX children** — there is no slot/`children` mechanism, so a generic `<Card>` wrapper is not expressible.
 
 ### State: the binding surface
@@ -200,6 +200,7 @@ Rules:
 - **Visibility is always an `active` display gate.** Never `{state.visible && <X/>}` (opaque) and never `display: state.visible ? 'flex' : 'none'` (frozen).
 - **Hover/press feedback is always a `hover`/`press` layer.** Never hand-tracked booleans with `onMouseEnter`/`onMouseLeave`.
 - `{...someInteractionConst}` is the **only** spread the parser accepts. Any other spread makes the node opaque. Extra attributes may sit alongside the spread (`<UiEntity {...panel} onMouseDown={…}>`).
+- **The spread carries pointer handlers, so it must never land on a full-screen wrapper.** `useInteraction` returns all four listeners (`onMouseDown`/`Up`/`Enter`/`Leave`) unconditionally — it needs them to track hover and press — **even when you called it purely as a visibility gate with only `base` + `active` layers**. A UI element with any listener captures pointer input across its whole rect, so `{...gate}` on a `100%`×`100%` layout wrapper makes the entire screen swallow clicks: no other UI element and nothing in the 3D world can be clicked, while the UI still looks correct because the visible panel is small. **Put the gate on the panel** — the smallest element the visibility decision applies to — and leave the full-screen wrapper as a plain literal-styled `UiEntity` that only does positioning. See the dialog before/after in `{baseDir}/references/component-template.md` §4 and the recipe in `{baseDir}/references/adapting-coded-ui.md` §4. Two deliberately-blocking full-screen overlays are sanctioned — a modal backdrop meant to swallow clicks, and a drag-release catcher gated off while no drag runs (`{baseDir}/references/drag-slider.md`) — the rule is that blocking is always an explicit, gated decision, never a side effect of where a spread was placed.
 - Elements are hidden, not unmounted — everything is present in the tree at all times, and the canvas renders the `base` layer, so all states appear stacked while editing. That is expected.
 - For UI that animates **out** before disappearing, use the two-variable pattern: `visible` (intent, flipped by actions) plus `hidden` (render gate, cleared by the driver only after the exit animation finishes). Gate on `state.hidden === true`.
 
@@ -278,10 +279,14 @@ Full examples (eased open/close, formatted timer label, two-variable exit gate, 
 
 ## Sizing and mobile
 
+- **The root element of every `/** @ui-component */` file declares explicit `width` AND `height`** — px numbers or percent literals. Never rely on auto/fit-content sizing from children. The canvas renders a component instance from its *declared* box, so an unset dimension reads as **0**: the instance looks collapsed in the preview and the panel shows height 0, even though Yoga lays it out correctly at runtime. This is the failure mode's whole shape — a root with `width: 400` and a 26 px label row plus a 44 px track auto-sizes to 70 px in-world and to nothing on the canvas. Declare `height: 70`.
+- **Wrapper `UiEntity`s around a component ref need the same treatment**: explicit `width`/`height` matching the component's root size, alongside the margin or position they exist for. A wrapper carrying only `margin`/`position` collapses identically.
+- Because in-flow children with fixed sizes lay out fine at runtime, both failures are invisible until someone opens the editor — which is the entire point of writing to this contract.
 - **Every bound size or position is a plain px `number`.** No arithmetic in the value, no percent strings. Static percent literals in unbound keys are fine and are the best tool for fluid layout.
 - Design against the two default virtual canvases: **desktop `1920x1080`, mobile `1600x720`**. The mobile canvas is 33% shorter, so tall stacked layouts that fit desktop can overflow on a phone. Anchor to edges and use flex/percent literals for the fluid axis instead of absolute offsets computed for one height.
 - Touch targets: give every pressable element a real box of at least ~48 px on the virtual canvas — never rely on text-sized hit areas.
 - Text: body copy at `fontSize` ≥ 16, and prefer ≥ 20 for anything a mobile player must read while moving. Set `textWrap="wrap"` plus an explicit width on any label that can grow.
+- **No emoji in any text value** — `Label`/`Button` `value`, `Input` `placeholder`, `Dropdown` options, and any state variable a text value binds to. Emoji glyphs come from the fonts the explorer bundles, not from the SDK, and **the Unity explorer ships none**, so they render as a missing-glyph box or as nothing. Verified in-world: a `value="✨ Particles"` menu button lost its sparkle on Unity. This is engine-dependent, so seeing it render in one client proves nothing. For a pictorial affordance use a small `UiEntity` with `uiBackground={{ texture: { src: 'images/icon.png' } }}` beside the label — `texture.src` is a first-class binding, so the icon stays editable and swappable from the panel, which an emoji baked into a string never was.
 - Reach for the platform variant when the mobile layout genuinely differs in structure (a bottom sheet instead of a side rail, fewer visible columns) rather than shrinking a desktop layout until it fits.
 - Hover layers do nothing on touch: never make a `hover` layer the only affordance or the only way to read a value.
 
@@ -299,13 +304,15 @@ Run this over **every** `.tsx` file you write or adapt. Each item is a silent ed
 8. Every template literal in a prop interpolates only bare references.
 9. The only spread on any element is a single `{...someUseInteractionConst}`.
 10. Visibility is a `useInteraction` `active` layer setting `display: 'none'`; hover/press are `hover`/`press` layers.
-11. `export interface State` + `export const state: State` present; every property is `number`, `string`, `boolean`, `string[]`, or a structural `{ r, g, b, a }` color.
-12. Declared props are an inline object type of optional `number` / `string` / `boolean` / callback members only.
-13. Every handler is a `/** @ui-action */` function taking `({ state, props, value }: UiAction)`, wired through a thunk.
-14. All bound sizes/positions are px numbers; no percent strings in bound values.
-15. No clock, `Date.now()`, `setTimeout`, easing, rounding or string formatting anywhere in `src/ui/` — it all lives in the driver.
-16. `src/ui/index.tsx` matches the generated shape exactly, each root wrapped in `ScreenInsetArea` unless full-canvas control was explicitly requested.
-17. Mobile pass: layout survives a 1600x720 canvas, touch targets ≥ ~48 px, no hover-only affordances.
+11. **No pointer handler and no `{...useInteraction}` spread on any `100%`×`100%` element.** Grep every element sized `width: '100%', height: '100%'` (and every element with no explicit size that fills the screen) and confirm it has no `onMouse*` attribute, no spread, and no `pointerFilter: 'block'`. The spread counts because `useInteraction` always returns all four listeners, including when used only as a visibility gate — and any listener makes the element capture clicks over its whole rect, killing every other click in the scene. Gates and handlers belong on the panel/button; full-screen wrappers stay plain positioning containers. Sole exceptions, both of which must be gated off when idle: a modal backdrop meant to swallow clicks, and a drag-release catcher.
+12. `export interface State` + `export const state: State` present; every property is `number`, `string`, `boolean`, `string[]`, or a structural `{ r, g, b, a }` color.
+13. Declared props are an inline object type of optional `number` / `string` / `boolean` / callback members only.
+14. Every handler is a `/** @ui-action */` function taking `({ state, props, value }: UiAction)`, wired through a thunk.
+15. All bound sizes/positions are px numbers; no percent strings in bound values.
+16. The component's root element declares both `width` and `height` explicitly (px numbers or percent literals) — no auto-sizing from children — and every wrapper `UiEntity` around a component ref does too, matching that component's root size. An unset dimension renders as 0 on the editor canvas while still laying out correctly at runtime.
+17. No clock, `Date.now()`, `setTimeout`, easing, rounding or string formatting anywhere in `src/ui/` — it all lives in the driver.
+18. `src/ui/index.tsx` matches the generated shape exactly, each root wrapped in `ScreenInsetArea` unless full-canvas control was explicitly requested.
+19. Mobile pass: layout survives a 1600x720 canvas, touch targets ≥ ~48 px, no hover-only affordances.
 
 ## References
 
@@ -313,3 +320,4 @@ Run this over **every** `.tsx` file you write or adapt. Each item is a silent ed
 - `{baseDir}/references/component-template.md` — a minimal editable component, a fully-featured one (bindings, actions, hover, gates, platform variant), and the composed screen + aggregator.
 - `{baseDir}/references/driver-pattern.md` — driver examples: eased open/close, formatted timer, two-variable exit gate, one-shot animations, naming conventions.
 - `{baseDir}/references/adapting-coded-ui.md` — before/after recipes for porting a production coded UI, and what to tell the user cannot be ported.
+- `{baseDir}/references/drag-slider.md` — worked, in-world-verified drag slider under this contract: reusable hybrid tap-to-step + drag component, the always-present gated release catcher, and the driver's drag section. Read it for any slider, scrub bar or drag handle in an editable UI.

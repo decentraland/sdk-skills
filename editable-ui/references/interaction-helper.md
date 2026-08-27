@@ -96,6 +96,7 @@ export function useInteraction<T extends InteractionLayer = InteractionLayer>(
 
 Notes:
 
+- **The helper attaches all four pointer listeners unconditionally.** The returned bag always ends with `onMouseEnter`/`onMouseLeave`/`onMouseDown`/`onMouseUp` — it has to, since it cannot know at call time whether a `hover` or `press` layer exists, and the trackers must run either way. So a call used purely as a visibility gate (`base` + `active` only, no hover/press) still makes its element handler-bearing, and a handler-bearing element captures pointer input across its **whole rect**. Consequence: **`{...someGate}` must never land on a `100%`×`100%` layout wrapper** — that captures every click on screen and locks the player out of all other UI and the 3D world. The helper is kept **verbatim** (the parser recognizes this exact shape), so the mitigation is never editing it to skip the listeners: it is *where you place the spread*. Put gates and handlers on the panel or button; leave full-screen wrappers as plain literal-styled `UiEntity`s. See `SKILL.md` → **Interaction layers** and `component-template.md` §4.
 - `useState` is exported on the `ReactEcs` **namespace**, not as a named export of `@dcl/sdk/react-ecs` — hence `ReactEcs.useState`. A bare `import { useState }` does not resolve.
 - The file contains no JSX, so it needs no `@jsx` pragma; `ReactEcs` is imported purely for the hook.
 - Import it in UI files as `import { useInteraction } from './interaction'`.

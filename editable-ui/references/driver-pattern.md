@@ -18,6 +18,7 @@ Put the driver in `src/ui-behaviors.ts` (or any `.ts` file **outside** `src/ui/`
 | percent → px conversion for a fill bar | be arithmetic → frozen node |
 | state machines, sequencing, queues | need conditionals → opaque or frozen |
 | reading the ECS (player position, camera, component data) | not be expressible at all |
+| pointer-drag accumulation (`PrimaryPointerInfo.screenDelta`, UI scale correction, clamping) | not be expressible at all — UI handlers receive no coordinates. See `drag-slider.md` |
 
 ## 1. Eased open/close on a bound width and alpha
 

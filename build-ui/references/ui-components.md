@@ -102,6 +102,8 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every f
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
+⚠️ **Never put emoji in a `value` string.** Emoji glyph coverage is not part of the SDK — it depends on the fonts the explorer bundles, and the Unity explorer has no emoji glyphs, so an emoji renders as a missing-glyph box or as nothing at all. Verified in-world: `value="✨ Particles"` showed no sparkle on the Unity explorer. Use plain text, and put pictorial affordances in a `uiBackground.texture` on a `UiEntity` beside the label.
+
 ## Button
 
 ```tsx
@@ -303,6 +305,8 @@ const Modal = () => {
   )
 }
 ```
+
+The `100%`×`100%` backdrop deliberately has **no** pointer handler and no `pointerFilter`: only the `Close` button does. Putting a listener on a full-screen element makes it capture clicks over the entire screen, blocking every other UI element and the 3D world behind it — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If the modal should swallow background clicks while open, add `pointerFilter: 'block'` to the backdrop as a conscious choice; it is safe here only because the component returns `null` when closed, so the blocking rect does not exist the rest of the time.
 
 ### Scrollable Container
 
