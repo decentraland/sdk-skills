@@ -55,8 +55,20 @@ export function KitSlider(props: {
           alignItems: 'center',
         }}
       >
-        <Label value={`${props.label}`} fontSize={16} color={{ r: 0.95, g: 0.95, b: 0.98, a: 0.9 }} />
-        <Label value={`${props.valueText}`} fontSize={16} color={{ r: 0.95, g: 0.8, b: 0.4, a: 1 }} />
+        <Label
+          value={`${props.label}`}
+          fontSize={16}
+          textAlign="middle-left"
+          color={{ r: 0.95, g: 0.95, b: 0.98, a: 0.9 }}
+          uiTransform={{ width: 200, height: 26 }}
+        />
+        <Label
+          value={`${props.valueText}`}
+          fontSize={16}
+          textAlign="middle-right"
+          color={{ r: 0.95, g: 0.8, b: 0.4, a: 1 }}
+          uiTransform={{ width: 180, height: 26 }}
+        />
       </UiEntity>
       <UiEntity uiTransform={{ width: '100%', height: 44 }}>
         <UiEntity
@@ -109,6 +121,7 @@ Why it is shaped this way:
 - **10 unrolled zones, 40 px each = the 400-px track.** No `.map()` exists here; the repetition is the price of editability, and it is what carries the step value: `value: 0…9` is passed straight into the action and out through `props.onChange`.
 - **The zone layer is a `100%`×`100%` sibling rendered after the groove**, so it sits on top and takes the clicks. The groove is `positionType: 'absolute'`, so it consumes no flow space and the zones fill the row. Net effect: a **44-px tall hit area** over a 12-px visible groove — comfortably tappable on mobile.
 - **These handlers belong exactly here.** The zones are the smallest elements that need them (40×44 px each), which is the Lesson-1 rule applied correctly: never the wrapper, always the smallest element.
+- **Both header labels declare an explicit `200`/`180` × `26` box** and align inside it (`middle-left` / `middle-right`) rather than relying on `justifyContent: 'space-between'` alone. Text intrinsic sizing is engine-dependent — an unset text dimension contributes ~0 to layout on the Unity explorer — so a label without a box is a cross-engine layout bug. See `SKILL.md` → **Sizing and mobile**.
 - `props.fillPx` is a bare-reference binding; the driver derives it. `` value={`${props.valueText}`} `` is a mixed-text binding, so the formatting also lives in the driver.
 
 ## 2. The screen: state, actions, and the drag catcher

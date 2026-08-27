@@ -69,7 +69,9 @@ export function KitToast(props: {
       <Label
         value={`${props.message}`}
         fontSize={16}
+        textAlign="middle-left"
         color={{ r: 0.973, g: 0.976, b: 0.98, a: 1 }}
+        uiTransform={{ width: 240, height: 24 }}
       />
       <KitCloseButton onPress={(value?: unknown) => forwardClose({ state, props, value })} />
     </UiEntity>
@@ -79,6 +81,7 @@ export function KitToast(props: {
 
 Points:
 
+- The message `Label` carries its own `240`×`24` box: an unset text dimension contributes ~0 to layout on the Unity explorer, so a boxless label breaks the row on that engine (see `SKILL.md` → **Sizing and mobile**).
 - The root's `width: 320, height: 56` is **mandatory shape, not decoration**: a component root must declare both dimensions explicitly. Here the 56 px height is stated even though the 16 px label would auto-size the box — an unset dimension renders as 0 on the editor canvas (collapsed instance, panel reads height 0) while still laying out correctly at runtime.
 - `State` may be empty — a component whose values all arrive as props still declares the pair.
 - `` value={`${props.message}`} `` not `value={props.message}`: the template form typechecks against an optional prop and is still a recognized binding.
@@ -153,7 +156,9 @@ export function GpTimerPanel(props: { hint?: string }) {
   )
   const hint = useInteraction(
     {
-      base: { uiTransform: { justifyContent: 'center', alignItems: 'center', margin: { bottom: 4 } } },
+      base: {
+        uiTransform: { width: 520, height: 26, justifyContent: 'center', alignItems: 'center', margin: { bottom: 4 } },
+      },
       active: { uiTransform: { display: 'none' } },
     },
     state.hintVisible !== true,
@@ -178,11 +183,19 @@ export function GpTimerPanel(props: { hint?: string }) {
     >
       <UiEntity {...panel}>
         <UiEntity {...hint}>
-          <Label value={`${props.hint}`} fontSize={20} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 0.6 }} />
+          <Label
+            value={`${props.hint}`}
+            fontSize={20}
+            textAlign="middle-center"
+            color={{ r: 1, g: 1, b: 1, a: 0.6 }}
+            uiTransform={{ width: '100%', height: '100%' }}
+          />
         </UiEntity>
         <UiEntity
           uiTransform={{
             width: state.panelWidth,
+            height: 96,
+            flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
             padding: { left: 20, right: 20, top: 8, bottom: 8 },
@@ -190,11 +203,29 @@ export function GpTimerPanel(props: { hint?: string }) {
           }}
           uiBackground={{ color: state.panelColor }}
         >
-          <Label value={state.label} fontSize={35} textAlign="middle-center" color={state.labelColor} />
-          <Label value={`Score: <b>${state.score}</b>`} fontSize={20} color={{ r: 1, g: 1, b: 1, a: 1 }} />
+          <Label
+            value={state.label}
+            fontSize={35}
+            textAlign="middle-center"
+            color={state.labelColor}
+            uiTransform={{ width: '100%', height: 44 }}
+          />
+          <Label
+            value={`Score: <b>${state.score}</b>`}
+            fontSize={20}
+            textAlign="middle-center"
+            color={{ r: 1, g: 1, b: 1, a: 1 }}
+            uiTransform={{ width: '100%', height: 28 }}
+          />
         </UiEntity>
         <UiEntity {...nextButton} onMouseDown={() => pressNext({ state, props })}>
-          <Label value="Next [E]" fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+          <Label
+            value="Next [E]"
+            fontSize={18}
+            textAlign="middle-center"
+            color={{ r: 1, g: 1, b: 1, a: 1 }}
+            uiTransform={{ width: '100%', height: '100%' }}
+          />
         </UiEntity>
       </UiEntity>
     </UiEntity>
@@ -203,6 +234,8 @@ export function GpTimerPanel(props: { hint?: string }) {
 ```
 
 Every dynamic value here is a bare reference: `margin: { top: state.panelTop }`, `width: state.panelWidth`, `uiBackground={{ color: state.panelColor }}`, `color={state.labelColor}`, `value={state.label}`, and one mixed-text label. Nothing is computed in the file.
+
+Note every box in this tree is explicit — the panel (`520`×`220`), the hint wrapper (`520`×`26`), the readout column (`state.panelWidth`×`96`, `flexDirection: 'column'`) and each of the four labels. Only the bound `panelWidth` varies. Nothing auto-sizes from text, because an unset text dimension lays out as ~0 on the Unity explorer (labels overlap, parents collapse) even though Bevy measures it correctly.
 
 Two structural points worth copying:
 
@@ -227,7 +260,7 @@ const root = useInteraction(
 )
 return (
   <UiEntity {...root}>
-    <UiEntity uiTransform={{ width: 720, flexDirection: 'column' }}>…</UiEntity>
+    <UiEntity uiTransform={{ width: 720, height: 210, flexDirection: 'column' }}>…</UiEntity>
   </UiEntity>
 )
 ```
@@ -262,6 +295,7 @@ export function WizardDialog(props: {}) {
       base: {
         uiTransform: {
           width: 720,
+          height: 210,
           flexDirection: 'column',
           alignItems: 'center',
           padding: { left: 28, right: 28, top: 20, bottom: 20 },
@@ -308,18 +342,24 @@ export function WizardDialog(props: {}) {
           textAlign="middle-left"
           textWrap="wrap"
           color={{ r: 0.95, g: 0.8, b: 0.4, a: 1 }}
-          uiTransform={{ width: '100%', margin: { bottom: 10 } }}
+          uiTransform={{ width: '100%', height: 30, margin: { bottom: 10 } }}
         />
         <Label
-          value="Welcome, traveler. You stand within a magical forest, alive with ancient enchantments."
+          value="Welcome, traveler. You stand within a magical forest, alive with ancient enchantments. But heed my warning: do not come here at night."
           fontSize={20}
           textAlign="middle-left"
           textWrap="wrap"
           color={{ r: 0.95, g: 0.95, b: 0.98, a: 1 }}
-          uiTransform={{ width: '100%' }}
+          uiTransform={{ width: '100%', height: 60 }}
         />
         <UiEntity {...okButton} onMouseDown={() => closeDialog({ state, props })}>
-          <Label value="Understood" fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+          <Label
+            value="Understood"
+            fontSize={18}
+            textAlign="middle-center"
+            color={{ r: 1, g: 1, b: 1, a: 1 }}
+            uiTransform={{ width: '100%', height: '100%' }}
+          />
         </UiEntity>
       </UiEntity>
     </UiEntity>
@@ -331,8 +371,8 @@ Points:
 
 - The full-screen wrapper does all the positioning (bottom-anchored, horizontally centered, 48 px off the bottom edge) with plain literals. It has no spread, no listener, no `pointerFilter` — so it is pointer-transparent and clicks pass through to the world and to other UI.
 - The panel carries both its own styling and the `active` display gate. Only its 720-px box captures clicks, and only while the dialog is open — once `state.visible` is false the panel is `display: 'none'` and captures nothing.
-- The panel needs no explicit `height`: the self-check's explicit-`width`/`height` rule applies to a `/** @ui-component */` root and to wrappers around component refs. Here the component root is the full-screen wrapper (`100%`×`100%`, both stated) and the panel is an ordinary in-flow child, free to auto-size to its wrapped labels.
-- `textWrap="wrap"` plus `uiTransform={{ width: '100%' }}` on each `Label` is what makes the body copy wrap inside the panel instead of running off in one line.
+- **The panel states `height: 210`, and every `Label` states a box** — `height: 30` for the one-line name, `height: 60` for the two-line wrapped body, `100%`/`100%` for the button's centered text. Do **not** let the panel auto-size to its text children: text intrinsic sizing is engine-dependent, and on the Unity explorer an unset text dimension contributes ~0 to layout while the glyphs still draw, so the earlier version of this dialog (no panel height, labels with `width: '100%'` only) rendered correctly on Bevy and came out squashed on Unity with both labels overlapping. See `SKILL.md` → **Sizing and mobile**.
+- `textWrap="wrap"` plus an explicit `width` **and** `height` on each `Label` is what makes the body copy wrap inside the panel instead of running off in one line — the width gives it something to wrap against, the height reserves the two lines it wraps into.
 
 ## 5. Props-driven styling (a fill bar)
 
@@ -352,8 +392,20 @@ export function KitProgressBar(props: { label?: string; percent?: number; fillPx
       <UiEntity
         uiTransform={{ width: '100%', height: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
       >
-        <Label value={`${props.label}`} fontSize={14} color={{ r: 0.973, g: 0.976, b: 0.98, a: 0.9 }} />
-        <Label value={`${props.percent}%`} fontSize={14} color={{ r: 0.973, g: 0.976, b: 0.98, a: 0.7 }} />
+        <Label
+          value={`${props.label}`}
+          fontSize={14}
+          textAlign="middle-left"
+          color={{ r: 0.973, g: 0.976, b: 0.98, a: 0.9 }}
+          uiTransform={{ width: 400, height: 24 }}
+        />
+        <Label
+          value={`${props.percent}%`}
+          fontSize={14}
+          textAlign="middle-right"
+          color={{ r: 0.973, g: 0.976, b: 0.98, a: 0.7 }}
+          uiTransform={{ width: 140, height: 24 }}
+        />
       </UiEntity>
       <UiEntity
         uiTransform={{ width: '100%', height: 12, borderRadius: 6 }}
@@ -411,10 +463,22 @@ export function KitButton(props: { label?: string; variant?: string; onPress?: (
   return (
     <UiEntity uiTransform={{ width: 180, height: 48, flexDirection: 'row' }}>
       <UiEntity {...primary} onMouseDown={() => press({ state, props })}>
-        <Label value={`${props.label}`} fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+        <Label
+          value={`${props.label}`}
+          fontSize={18}
+          textAlign="middle-center"
+          color={{ r: 1, g: 1, b: 1, a: 1 }}
+          uiTransform={{ width: '100%', height: '100%' }}
+        />
       </UiEntity>
       <UiEntity {...danger} onMouseDown={() => press({ state, props })}>
-        <Label value={`${props.label}`} fontSize={18} textAlign="middle-center" color={{ r: 1, g: 1, b: 1, a: 1 }} />
+        <Label
+          value={`${props.label}`}
+          fontSize={18}
+          textAlign="middle-center"
+          color={{ r: 1, g: 1, b: 1, a: 1 }}
+          uiTransform={{ width: '100%', height: '100%' }}
+        />
       </UiEntity>
     </UiEntity>
   )

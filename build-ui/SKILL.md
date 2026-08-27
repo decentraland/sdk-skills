@@ -116,7 +116,7 @@ export function setupUi() {
 - `borderWidth` / `borderColor` (`Color4`) / `borderRadius`: also valid on `Button`, `Input`, `Dropdown` via their `uiTransform`.
 - `width`/`height` accept a number (px), `'50%'`, `'400px'`, or `'auto'`. `position`/`padding`/`margin` values accept the same string forms; `margin` also accepts a CSS shorthand string, e.g. `margin: '16px 0 8px 270px'`.
 
-**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **No emoji in `value`** — see the gotcha below.
+**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **Always give it an explicit `width`/`height` in `uiTransform`, and no emoji in `value`** — see the gotchas below.
 
 **Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `uiTransform`.
 
@@ -176,6 +176,21 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
+- **Give every `Label` an explicit `uiTransform` box — text intrinsic sizing is engine-dependent.** A `Label` with an unset `width`/`height` is sized from its rendered glyphs on some engines and contributes **~0 to layout** on others, while its glyphs still draw anchored on the zero-height node. Consequences on the engines that don't measure: labels stacked in a column **overlap each other**, and any parent auto-sizing from text children **collapses** to its padding. Verified in-world with side-by-side screenshots: a dialog whose labels had `width: '100%'`, `textWrap="wrap"` and no `height`, inside an auto-sized panel, rendered correctly on the **Bevy** explorer and came out squashed on the **Unity** explorer — both labels drawn on top of each other, the panel collapsed to padding + button height.
+
+  | Engine | Unset text dimension |
+  |---|---|
+  | Bevy explorer | measures rendered text, feeds intrinsic height back into flex layout — looks correct |
+  | Unity explorer | contributes ~0 to layout; glyphs still render on the zero-height node → overlap and collapse |
+  | Creator Hub UI editor canvas | shows the unset dimension as 0 (a third behavior — see the **editable-ui** skill) |
+
+  Rules that follow:
+  - Every `Label` (and `Button` text) that participates in layout declares a px or percent `width` **AND** `height`.
+  - A wrapped multi-line label needs a height sized for its line count — two lines at `fontSize: 20` → `height: 60`.
+  - A label that fills a fixed-size parent can just use `width: '100%', height: '100%'`.
+  - **Containers that stack labels in a column carry explicit heights too** rather than auto-sizing from their text children.
+
+  Like the emoji gotcha below, this is engine-dependent, so **a preview that looks right in one explorer proves nothing about the others** — the layout is only correct once the boxes are explicit.
 - **Never put emoji in UI text.** No emoji in any `Label`/`Button` `value`, `uiText.value`, `Input` `placeholder`, or `Dropdown` option. Emoji glyph coverage is not provided by the SDK — it depends on the fonts each explorer bundles, and **the Unity explorer has no emoji glyphs**, so an emoji renders as a missing-glyph box or silently as nothing. This varies per engine, which makes it a trap: the same string can look correct in one explorer and be broken or invisible in another, so a preview in one client proves nothing. Verified in-world: `value="✨ Particles"` rendered without the sparkle on the Unity explorer. Use plain text for the label, and get pictorial affordances from art you ship: a `uiBackground` with `texture: { src: 'images/icon.png' }` on a small `UiEntity` beside the text, or a sprite from an atlas via `uvs`. The same caution applies to other decorative Unicode (arrows, box-drawing, dingbats) — stick to ASCII plus the accented letters your copy actually needs.
 - **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
 - **No pointer coordinates in UI handlers.** `onMouseDown`/`onMouseUp`/`onMouseEnter`/`onMouseLeave` are `() => void` — the reconciler discards the `PBPointerEventsResult` before calling your callback, so "where on this element did they click" is unavailable. Track *movement* instead of position: `PrimaryPointerInfo.screenDelta` reports per-frame mouse travel and drives drag interactions fine. See `{baseDir}/references/ui-sliders.md`.
@@ -208,6 +223,7 @@ Work through the wiring causes in this table in order before speculating about l
 | **Nothing on screen is clickable any more** — other UI elements dead, 3D world unclickable, cursor does nothing | A full-screen (`100%`×`100%`) wrapper carries a pointer handler or `pointerFilter: 'block'`. Its rect is the whole screen, so it captures every click even though only a small panel is visible | Strip all listeners and `pointerFilter: 'block'` from the layout wrapper; move them onto the panel/button that actually needs them. See the pointer-blocking gotchas above |
 | JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
 | Text not visible                                               | Text color matches background                                                                                        | Set contrasting `color` on Label or `uiText`                                                                                                 |
+| **UI looks right on one explorer but labels overlap / the panel is squashed on another (Unity)** | `Label`s with no explicit `width`/`height`, and/or a container auto-sizing from its text children. Bevy measures text and lays it out; Unity gives the unset dimension ~0 while still drawing the glyphs, so stacked labels collide and the parent collapses | Give every `Label` an explicit `uiTransform` box (wrapped text: height = line count × line height) and an explicit height to every container stacking labels. See the text-sizing gotcha above |
 | Part of a string missing, or shows as an empty/□ box — often an icon character | Emoji or other decorative Unicode in the text. The explorer has no glyph for it (the Unity explorer ships no emoji glyphs) and renders nothing or a missing-glyph box | Remove the emoji; use a `uiBackground.texture` icon on a small `UiEntity` beside the label instead. Engine-dependent, so verify on the target explorer, not just one |
 
 ## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`

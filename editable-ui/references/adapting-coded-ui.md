@@ -171,6 +171,8 @@ Static percent **literals** in unbound keys (`width: '90%'`, `position: { left: 
 
 Write every size and position as a plain px number against the virtual canvas (desktop `1920x1080`, mobile `1600x720`) — any arithmetic in a style value freezes the node. If the source computed its sizes, evaluate the arithmetic once at the reference resolution and write the resulting number. The virtual canvas handles resolution scaling at runtime, so nothing needs to scale sizes in code.
 
+**This includes every `Label`**: give each one an explicit `uiTransform` `width` **and** `height`, and an explicit height to any container that stacks labels — never auto-size a panel from its text children. Coded UI leans on text intrinsic sizing constantly, and that is engine-dependent: Bevy measures rendered text into the layout, Unity gives an unset text dimension ~0 while still drawing the glyphs, so ported labels overlap and panels collapse on Unity while looking correct on Bevy. Wrapped text needs a height for its line count. The `<Label value={…} />` fragments earlier in this file show only the attribute under discussion and omit the box for brevity — real code always carries it.
+
 While you are re-deriving the numbers, do the mobile pass: pressables at least ~48 px, body text ≥ 16 (≥ 20 for anything read while moving), and check that the vertical stack survives the shorter `1600x720` canvas. Where the structure genuinely cannot survive it, add a platform variant instead of shrinking everything.
 
 ## 10. What survives untouched
