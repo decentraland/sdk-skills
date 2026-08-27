@@ -234,6 +234,7 @@ For full code examples and implementation patterns, see `{baseDir}/references/ui
 
 ## Cross-references
 
+- **UI that must be editable in the Creator Hub**: the Creator Hub's 2D UI editor (UI Designer) parses the scene's real `.tsx` files under `src/ui/` as its document, and only a subset of React-ECS code round-trips. If the user wants to design or restyle the UI visually in the Creator Hub, follow the **editable-ui** skill instead of writing free-form React-ECS — computed style values, loops, conditionals and unknown elements silently become read-only there.
 - **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop. See the **advanced-input** skill.
 - **Mobile UI limitations**: `borderRadius` is unsupported on mobile. Design for touch (larger tap targets, no hover states). See the mobile considerations in the **advanced-input** skill.
 - **Replacing the native mobile controls**: the on-screen joystick, crosshair, and gamepad buttons are not fixed — `TouchScreenControls` (SDK 7.26.0+, see **advanced-input**) hides any of them so scene UI can take their place, with `UiInputBinding` (above) wiring the replacement buttons to InputActions.

@@ -118,6 +118,8 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
 
+**Skill: `editable-ui`** — Write that UI so the Creator Hub's 2D UI editor (UI Designer) can read and edit it: the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach. Use whenever the user wants UI editable in the Creator Hub, or wants an existing coded UI adapted for it.
+
 ### Audio & Video
 
 **Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.
