@@ -261,6 +261,14 @@ Constraints:
 
 > **Need advanced material effects?** See the **advanced-rendering** skill for metallic, roughness, transparency, texture maps, texture tweens, and texture modes.
 
+## Platform Support
+
+- **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows).
+- **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) ships in **v1.13.0 (September 2026)**. Until then the mobile renderer ignores the component.
+- **Bevy explorer:** Full support (point lights, spot lights, shadows).
+
+Verified against docs commit `09c5818` (mobile parity tracker, Aug 2026).
+
 ## Gotchas
 
 - `range` left unset (`-1`) is auto-derived from intensity as `intensity^0.25` — small intensities give surprisingly short range. Set `range` explicitly for predictable falloff.

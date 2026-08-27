@@ -335,6 +335,10 @@ onLeaveScene((userId) => {
 })
 ```
 
+### SDK Observables (low-level)
+
+The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above. Recent fixes to be aware of:
+
 ## Multiplayer Testing
 
 Open multiple browser windows to test multiplayer locally. Each window is a separate player.

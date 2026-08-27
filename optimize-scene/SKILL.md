@@ -386,3 +386,4 @@ Engine-team stress-test scenes (treat as ground truth for API shape):
 - **add-3d-models** — model loading, colliders, and file organization
 - **game-design** — performance budgets, design patterns, and MVP planning
 - **advanced-rendering** — texture modes, material reuse, and LOD with VisibilityComponent
+- **scene-runtime** — `EngineInfo.sceneHidden` to pause expensive systems when the scene is hidden behind fullscreen Explorer UI

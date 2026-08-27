@@ -68,6 +68,8 @@ The engine only flips the flag on natural completion — a scene-initiated `stop
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
+**Pause audio when the scene is hidden:** when `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` is `true`, the scene is covered by a fullscreen Explorer UI (map, backpack, loading screen). Pause or mute audio sources in that state and resume when `sceneHidden` returns to `false`. See the **scene-runtime** skill (`EngineInfo.sceneHidden`).
+
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
 ## AudioStream (Streaming)

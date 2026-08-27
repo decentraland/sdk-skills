@@ -73,7 +73,7 @@ engine.addSystem(readPointer)
 ### Field details
 
 - `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the bottom-left corner of the screen** (positive Y = up). When the cursor is locked, freezes at the screen center.
-- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = up (bottom-left origin). **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). Desktop only — always reports 0 on mobile.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = up (bottom-left origin). **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
 - `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
 - `pointerType` — `0` for none, `1` for mouse.
 
