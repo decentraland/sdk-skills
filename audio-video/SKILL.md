@@ -68,6 +68,8 @@ The engine only flips the flag on natural completion — a scene-initiated `stop
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
+A sound started at scene startup plays **behind the Explorer's loading screen** and the player misses it. For welcome VO, an intro sting, or music that should land on the first look at the scene, wait for `EngineInfo.sceneHidden` to flip to `false` (the loading-screen fade-out) before setting `playing: true` — see the **scene-runtime** skill.
+
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
 ## AudioStream (Streaming)
