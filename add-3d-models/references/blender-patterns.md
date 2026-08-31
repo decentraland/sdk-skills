@@ -1,6 +1,6 @@
-# Blender MCP `bpy` patterns for Decentraland models
+# Blender `bpy` patterns for Decentraland models
 
-Snippets for `execute_blender_code`. All of them assume Blender 3.x/4.x Python (`bpy`).
+Snippets for the Blender MCP's `execute_blender_code` or for headless `blender --background --python` scripts (see [`blender-authoring.md`](blender-authoring.md) for both paths). All of them assume Blender 3.x/4.x/5.x Python (`bpy`).
 
 ## Start clean (delete default cube, light, camera)
 

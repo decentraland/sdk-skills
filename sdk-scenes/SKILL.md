@@ -72,7 +72,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### 3D Models
 
-**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models).
+**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models). Also authoring and editing custom models by driving Blender (headless CLI or Blender MCP).
 
 ### Animations & Tweens
 
