@@ -42,7 +42,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 |-------|-------------|
 | `sdk-scenes` | **Entry point.** Agent behavioral guidelines, composite-first rule, and index of all topic skills. |
 | `create-scene` | Scaffold a new SDK7 scene project (scene.json, package.json, tsconfig, index.ts). |
-| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. |
+| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. Also authoring/editing custom models by driving Blender (headless or MCP). |
 | `add-interactivity` | Event-driven interactivity — pointer events, triggers, raycasts. |
 | `advanced-input` | System-level input polling and player movement control. |
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |

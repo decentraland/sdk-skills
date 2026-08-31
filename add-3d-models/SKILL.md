@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer, including 8,800+ free assets from the OpenDCL catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering) or model animations (see animations-tweens).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -107,6 +107,30 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 - **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new model.
+
+## RULE: New models — offer the catalog AND custom authoring in Blender
+
+When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
+
+> "I can download the best match from the free catalog (8,800+ ready-made models), or create a custom model for you in Blender. Which do you prefer?"
+
+- **Catalog** → the workflow in the next section (search → review → download).
+- **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
+
+Running as a subagent, you cannot ask — report the choice to your caller with your recommendation instead of picking on your own authority.
+
+### Two ways to drive Blender
+
+|  | Headless CLI (`blender --background --python`) | Blender MCP |
+| --- | --- | --- |
+| Extra installs | None — just Blender itself | Blender 5.1+, MCP add-on, `uv` + server package, client registration, session restart |
+| Availability | Any session where Blender is installed | Only when `mcp__blender__*` tools are bound at session start |
+| Interaction model | Batch: one script per run, state resets between runs | Live: incremental edits in a running Blender, state persists |
+| Visual verification | Rendered stills written to disk (temp camera) | Screenshots of the real viewport |
+| User involvement | Sees results only | Watches — and can co-edit — in the open Blender GUI |
+| Best for | Conversions, decimation, batch optimization, scripted model building | Iterative modeling sessions, working on the user's open file |
+
+**Pick like this:** if `mcp__blender__*` tools are already connected, use them. If not, recommend headless — it's the easiest path, needing no installation beyond Blender itself — while mentioning that the Blender MCP exists as an option and can be set up (see the reference) if the user wants a live session they can watch and join. Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
 
 ## Free 3D Models — OpenDCL Catalog (8,800+ models)
 
