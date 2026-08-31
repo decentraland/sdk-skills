@@ -49,9 +49,9 @@ MCP client (this agent) ⇐ MCP/stdio ⇒ blender-mcp (Python process) ⇐ TCP l
 
 1. **Probe.** If `mcp__blender__*` tools are available in the session, call a cheap read-only one (`get_objects_summary` or equivalent):
    - **Answers** → everything is running; skip to the workflow.
-   - **Connection error** → the client side is configured but Blender's side is down: Blender isn't running, the add-on is missing/disabled, or its bridge server isn't started. Go to step 3.
+   - **Connection error** → the client side is configured but Blender's side is down: Blender isn't running, the add-on is missing/disabled, or its bridge server isn't started. **Ask the user whether to open Blender so the MCP can connect — do not silently fall back to headless** (see the RULE in the parent SKILL.md). If they say yes, go to step 3.
 
-   If no `mcp__blender__*` tools exist in the session, the MCP was never configured (or was registered after session start — registration only binds on a new session). Tell the user and recommend the headless path (Path A — no installs); continue with step 2 only if they want the MCP set up.
+   If no `mcp__blender__*` tools exist in the session, the MCP was never configured (or was registered after session start — registration only binds on a new session). Don't ask the user to install it — proceed headless (Path A — no installs) and mention in your report that the MCP exists as an option for live, interactive editing; continue with step 2 only if they ask for it.
 
 2. **Install and register (first time only).** Confirm each requirement with the user rather than assuming:
    - **Blender 5.1 or newer.** The MCP add-on's manifest requires `blender_version_min = 5.1.0` — it will not install on older Blender. Check with `blender --version` or ask; if too old, the user must update via [blender.org/download](https://www.blender.org/download/).

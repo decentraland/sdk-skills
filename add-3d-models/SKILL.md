@@ -130,7 +130,20 @@ Running as a subagent, you cannot ask — report the choice to your caller with 
 | User involvement | Sees results only | Watches — and can co-edit — in the open Blender GUI |
 | Best for | Conversions, decimation, batch optimization, scripted model building | Iterative modeling sessions, working on the user's open file |
 
-**Pick like this:** if `mcp__blender__*` tools are already connected, use them. If not, recommend headless — it's the easiest path, needing no installation beyond Blender itself — while mentioning that the Blender MCP exists as an option and can be set up (see the reference) if the user wants a live session they can watch and join. Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
+### RULE: never fall back to headless silently
+
+Whenever a task creates or edits a model in Blender and the MCP could possibly be used, pick by which of these three states the session is in:
+
+1. **MCP connected and working** — a read-only probe (`get_objects_summary` or equivalent) answers → **use it.** No need to ask.
+2. **MCP configured but not connected** — `mcp__blender__*` tools exist in the session, but the probe errors (Blender isn't running, the add-on is disabled, or its bridge server is down) → **ASK before going headless:**
+   > "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
+
+   The user does not mind opening Blender, and may want to work on the model together. Only fall back to headless if the user says so, or if you genuinely cannot ask (fully non-interactive context — as a subagent, report the pending choice to your caller instead of deciding).
+3. **MCP not installed at all** — no `mcp__blender__*` tools in the session → **don't ask the user to install it** (that's a big setup effort). Proceed headless, but **mention in your report** that the Blender MCP exists as an option for live, interactive model editing, and that setup steps are in `{baseDir}/references/blender-authoring.md`.
+
+**Why:** the MCP is what makes model work collaborative — the user watching and iterating on the model in their own Blender session. A silent headless fallback takes that away without giving them the choice.
+
+Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
 
 ## Free 3D Models — OpenDCL Catalog (8,800+ models)
 
