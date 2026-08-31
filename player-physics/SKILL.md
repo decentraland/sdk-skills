@@ -81,7 +81,7 @@ Convert local direction to world space with `Transform.localToWorldDirection(ent
 
 ## Trigger-zone collider layers — which player fires the trigger
 
-`Physics.*` always affects the **local** player. When you drive forces from a `TriggerArea`, the collider mask decides which avatars fire the callback (verified in test scene `5,5-collider-layers`):
+`Physics.*` always affects the **local** player. When you drive forces from a `TriggerArea`, the collider mask decides which avatars fire the callback (verified in test scene [`5,5-collider-layers`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,5-collider-layers)):
 
 | Mask | Fires for |
 |------|-----------|

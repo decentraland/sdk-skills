@@ -33,6 +33,8 @@ So you cannot compute a value from *where* the click landed. You **can** track h
 2. A system accumulates `screenDelta.x` into the value each frame while the drag is active.
 3. A full-screen, pointer-blocking overlay rendered **only while dragging** catches the release, so letting go outside the narrow track still ends the drag.
 
+Step 3 is one of the two sanctioned exceptions to build-ui's rule that a `100%`×`100%` wrapper must never be pointer-blocking. It is safe *only* because it is gated: `{isDragging() && …}` means the blocking rect exists for the duration of a drag and is gone the rest of the time. Never hoist that `pointerFilter: 'block'` / `onMouseUp` onto a permanent full-screen wrapper to "simplify" — that blocks every click in the scene forever.
+
 ### Drag state + system
 
 ```ts
@@ -136,6 +138,15 @@ function Slider(props: { value: number; min: number; max: number; onChange: (v: 
 - **Desktop only.** `screenDelta` always reports 0 on mobile (no free-moving cursor), and `pointerType` only has `POT_NONE`/`POT_MOUSE`. Pair the track with `-`/`+` stepper `Button`s — they give fine adjustment on desktop and are the whole interface on mobile. Branch with `isMobile()` from `@dcl/sdk/platform` if you want to hide the track entirely.
 - **Read `screenDelta` inside a system.** It only holds one frame of movement, and touching `engine.RootEntity` during initial scene load can error.
 - **Vertical sliders**: the SDK docs state the screen origin is bottom-left, so positive `delta.y` means the mouse moved up — invert it for a top-down track. Horizontal drags need no such adjustment.
+
+## Porting this to an editor-editable UI
+
+The mechanic ports cleanly to UI that the Creator Hub's UI Designer can read and edit — verified in-world in a real scene. The drag machinery is unaffected (it lives in the driver, outside `src/ui/`); only two things change shape:
+
+- Starting a drag becomes a `/** @ui-action */` body that sets both the value and a `state.dragTarget` selector — action bodies are free-form, so nothing is lost.
+- The conditionally-rendered release catcher above is **not** expressible there (`{cond && <X/>}` makes the subtree opaque). It becomes an always-present full-screen overlay whose `useInteraction` `active` layer sets `display: 'none'` while no drag is running — same gating, different mechanism.
+
+Full worked implementation (reusable slider component, hybrid tap-to-step + drag, driver): see the **editable-ui** skill, `references/drag-slider.md`.
 
 ## Why not `screenCoordinates`
 

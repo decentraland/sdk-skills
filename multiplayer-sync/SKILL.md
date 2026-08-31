@@ -335,6 +335,10 @@ onLeaveScene((userId) => {
 })
 ```
 
+### SDK Observables (low-level)
+
+The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above. Recent fixes to be aware of:
+
 ## Multiplayer Testing
 
 Open multiple browser windows to test multiplayer locally. Each window is a separate player.
@@ -361,10 +365,14 @@ For Decentraland Worlds that do not need multiplayer:
 | State not ready on join                                  | Reading synced state before sync completes                             | Guard with `if (!isStateSyncronized()) return` in your system                                                                                                                                   |
 | MessageBus messages lost                                 | Late joiner expecting past messages                                    | MessageBus is fire-and-forget. Use `syncEntity` for persistent state                                                                                                                            |
 
-> **Need guaranteed consistency, server-side validation, or anti-cheat?** `syncEntity` and `MessageBus` are not entirely reliable — if it's important that all players see the same state change, see the **authoritative-server** skill for the headless server pattern. For a complete competitive game architecture (anti-cheat with server-side proximity validation, checkpoint-only Storage persistence, atomic component splits by change rate), see the Gem Rush reference scene (`92,-9-authoritative-server-gem-rush`).
+> **Need guaranteed consistency, server-side validation, or anti-cheat?** `syncEntity` and `MessageBus` are not entirely reliable — if it's important that all players see the same state change, see the **authoritative-server** skill for the headless server pattern. For a complete competitive game architecture (anti-cheat with server-side proximity validation, checkpoint-only Storage persistence, atomic component splits by change rate), see the Gem Rush reference scene ([`92,-9-authoritative-server-gem-rush`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/92,-9-authoritative-server-gem-rush)).
 
 ## Example scenes
 
-No serverless `syncEntity`/`MessageBus` reference scene is available in the engine-team test set yet. For contrast, the closest multiplayer scene is server-authoritative (use it to see how the authoritative pattern differs from the serverless one described here):
+Engine-team test scenes exercised against the real engine:
+
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks — **serverless** `syncEntity`, the pattern this skill documents: an `enum SyncId` giving two singletons stable IDs, `syncEntity(crateAnchorEntity, [AvatarAttach.componentId], SyncId.CRATE_ANCHOR)` and `syncEntity(crateEntity, [Transform.componentId], SyncId.CRATE)`, plus `parentEntity`/`removeParent` from `@dcl/sdk/network` to hand a shared crate between players. Any client may mutate it — there is no `validateBeforeChange` and no `isServer()` branch. (The scene's headline feature is emote masks; the sync is the supporting half of it.)
+
+For contrast, the other multiplayer scene in the set is server-authoritative — use it to see how that pattern differs from the serverless one described here:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — **authoritative** (NOT serverless): only the server calls `syncEntity`, and synced components are locked with `validateBeforeChange` so clients can only read them and send messages. If you instead want any client to mutate shared state directly (the pattern this skill documents), each client calls `syncEntity` on its own and there is no `validateBeforeChange`. See the **authoritative-server** skill for that scene's full breakdown.

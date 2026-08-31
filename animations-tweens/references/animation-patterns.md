@@ -210,7 +210,7 @@ engine.addSystem(() => {
 })
 ```
 
-Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in `79,-4-tween-following-cube`, which switches between both modes live)
+Notes: re-aim only when the direction has changed materially, or this sends a CRDT update every frame. Because the stop check has to round-trip to the renderer, the entity can drift slightly inside `STOP_DISTANCE` before halting. Discrete retargeting (clicks, waypoints) is still fine with `setMove` — see "Move from the current position". (verified in [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube), which switches between both modes live)
 
 ---
 

@@ -325,10 +325,13 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 - Always default absent `state` to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) — entries from older clients omit the field, and older clients never send FINISHED/INTERRUPTED at all, so don't hard-block gameplay on a finish signal without a fallback.
 - **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation.
 - Requires a DCL 2.0 desktop client with playback-completion support.
+- Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
 
 ### Emote masks (upper-body only)
 
-`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives. Use it to restrict a looping emote to the upper body so the player can keep walking around while the upper body animates (e.g. carrying/juggling an object).
+Full-body emotes are interrupted when the player walks or jumps — the default locomotion animations take over. `AvatarMask.AM_UPPER_BODY` limits the animation to the waist up, leaving the legs controlled by locomotion. This means the player can keep walking, running, and jumping while the upper body plays your animation. Use cases: carrying a crate, holding a torch, juggling, cheering while running.
+
+`triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives.
 
 ```typescript
 import { AvatarMask } from '@dcl/sdk/ecs'
@@ -340,6 +343,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
+- **Mobile support:** Avatar Masks (upper-body-only emotes) ship on mobile in **v1.13.0 (September 2026)**. Until then the mobile renderer plays masked emotes as full-body. Verified against docs commit `09c5818`.
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
@@ -385,6 +389,8 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 `AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
 
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
+
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the modifier region. Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
 
 ## Avatar Locomotion Settings
 
@@ -511,6 +517,7 @@ React to avatar changes in real-time:
 ```typescript
 import {
 	AvatarEmoteCommand,
+	EmoteState,
 	AvatarBase,
 	AvatarEquippedData,
 } from '@dcl/sdk/ecs'
@@ -519,8 +526,10 @@ import {
 // AvatarEmoteCommand is written BY THE EXPLORER to report emote playback
 // TO the scene -- it is NOT a signal from scene to renderer. It is appended
 // to every player entity (local and remote alike).
+// Each entry carries an optional `state` field (EmoteState enum) — see
+// "Detecting when an emote finishes" above.
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
-	if (cmd) console.log('Emote played:', cmd.emoteUrn)
+	if (cmd) console.log('Emote:', cmd.emoteUrn, 'state:', cmd.state ?? EmoteState.ES_STARTED)
 })
 
 // Detect avatar appearance changes (wearables, skin color, etc.)
@@ -551,7 +560,8 @@ Beyond the commonly used anchor points, the full list includes:
 Engine-team test scenes (exercised against the real engine):
 
 - [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
-- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes) — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
+- [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes)
+- [4,23-emote-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,23-emote-finish) — emote **completion** detection: `AvatarEmoteCommand.onChange(engine.PlayerEntity, ...)` logging every appended entry as `STARTED` / `FINISHED` / `INTERRUPTED`, with absent `state` defaulting to `ES_STARTED` for older explorers. Play an emote out fully to see `FINISHED`; walk away mid-playback to see `INTERRUPTED`. Covers both `triggerEmote` (predefined) and a non-looping `triggerSceneEmote`. — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.

@@ -22,7 +22,9 @@ const MyUI = () => (
       alignItems: 'center'
     }}
   >
-    <Label value="Hello Decentraland!" fontSize={24} />
+    {/* Labels always declare an explicit box — an unset text dimension is
+        measured on Bevy but contributes 0 to layout on Unity. */}
+    <Label value="Hello Decentraland!" fontSize={24} uiTransform={{ width: 400, height: 40 }} />
   </UiEntity>
 )
 
@@ -140,8 +142,8 @@ import { engine } from '@dcl/sdk/ecs'
 
 const MyWidget = () => (
   <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
-    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 } }}>
-      <Label value="Widget" fontSize={16} />
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 }, width: 120, height: 24 }}>
+      <Label value="Widget" fontSize={16} uiTransform={{ width: '100%', height: '100%' }} />
     </UiEntity>
   </UiEntity>
 )
@@ -173,6 +175,8 @@ const GameUI = () => (
       value={`Score: ${score}`}
       fontSize={20}
       uiTransform={{
+        width: 240,
+        height: 30,
         positionType: 'absolute',
         position: { top: 10, left: 10 }
       }}
@@ -189,7 +193,7 @@ const GameUI = () => (
         }}
         uiBackground={{ color: Color4.create(0.1, 0.1, 0.1, 0.9) }}
       >
-        <Label value="Game Menu" fontSize={24} />
+        <Label value="Game Menu" fontSize={24} uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
         <Button
           value="Resume"
           variant="primary"
@@ -348,7 +352,7 @@ engine.addSystem((dt: number) => {
 />
 ```
 
-### Opacity & Z-Index (verified in test scene 0,6-ui-zindex-and-opacity)
+### Opacity & Z-Index (verified in test scene [`0,6-ui-zindex-and-opacity`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity))
 
 `opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top.
 
@@ -463,7 +467,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 <UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
   {/* Fixed header */}
   <UiEntity uiTransform={{ width: '100%', height: 60 }}>
-    <Label value="Inventory" fontSize={20} />
+    <Label value="Inventory" fontSize={20} uiTransform={{ width: '100%', height: '100%' }} />
   </UiEntity>
   {/* Scrollable body fills remaining space */}
   <UiEntity
@@ -476,7 +480,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
   >
     {items.map((item, i) => (
       <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
-        <Label value={item.name} fontSize={14} />
+        <Label value={item.name} fontSize={14} uiTransform={{ width: '100%', height: '100%' }} />
       </UiEntity>
     ))}
   </UiEntity>
@@ -566,12 +570,20 @@ const Announcement = () => {
     <UiEntity
       uiTransform={{ width: '100%', height: '100%', positionType: 'absolute', alignItems: 'center', justifyContent: 'center' }}
     >
-      {/* Dark backing panel keeps white text legible over any background */}
+      {/* Dark backing panel keeps white text legible over any background.
+          Explicit sizes, not auto-sizing from the text: an unset text dimension
+          contributes 0 to layout on the Unity explorer and the panel collapses. */}
       <UiEntity
-        uiTransform={{ padding: { top: 8, bottom: 8, left: 24, right: 24 } }}
+        uiTransform={{ width: 900, height: 64, padding: { top: 8, bottom: 8, left: 24, right: 24 } }}
         uiBackground={{ color: Color4.create(0, 0, 0, 0.6) }}
       >
-        <Label value={announcement} fontSize={40} color={Color4.White()} textAlign="middle-center" />
+        <Label
+          value={announcement}
+          fontSize={40}
+          color={Color4.White()}
+          textAlign="middle-center"
+          uiTransform={{ width: '100%', height: '100%' }}
+        />
       </UiEntity>
     </UiEntity>
   )
@@ -579,3 +591,5 @@ const Announcement = () => {
 ```
 
 Mount `OkPrompt` and `Announcement` as children of your root UI component so they overlay the rest of the HUD.
+
+Note both full-screen wrappers deliberately carry **no** pointer handler and no `pointerFilter`: the handler sits on the `OK` `Button` only. Adding a listener to a `100%`×`100%` wrapper makes it capture clicks over the entire screen and blocks the rest of the UI and the 3D world — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If you *want* the dim backdrop to swallow clicks while the prompt is open, that is a legitimate modal backdrop: put `pointerFilter: 'block'` on it consciously, and only while the prompt renders (these components already return `null` when closed).

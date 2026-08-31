@@ -108,18 +108,35 @@ executeTask(async () => {
 
 ## EngineInfo Component
 
-Access frame-level timing:
+Access frame-level timing and scene visibility state:
 
 ```typescript
-import { EngineInfo } from "@dcl/sdk/ecs";
+import { EngineInfo, engine } from "@dcl/sdk/ecs";
 
 engine.addSystem(() => {
   const info = EngineInfo.getOrNull(engine.RootEntity);
   if (info) {
     console.log(info.frameNumber, info.tickNumber, info.totalRuntime);
+    // info.sceneHidden: true when a fullscreen Explorer UI (map, backpack,
+    // settings, loading screen, etc.) covers the scene viewport.
+    if (info.sceneHidden) {
+      // Pause expensive work, audio, animations — the player cannot see or
+      // interact with the scene while it is hidden.
+    }
   }
 });
 ```
+
+### EngineInfo fields
+
+| Field | Type | Description |
+|---|---|---|
+| `frameNumber` | `number` | Frame counter of the engine |
+| `tickNumber` | `number` | Tick counter of the scene (per ADR-148) |
+| `totalRuntime` | `number` | Total runtime of this scene in seconds |
+| `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
+
+Verified against protocol commit `0b3d285` (field 4 `bool scene_hidden` in `PBEngineInfo`, component id 1048) and js-sdk-toolchain commit `ffb26183` (exposed as `sceneHidden: boolean` on `PBEngineInfo`).
 
 ## System Execution Order & Priority
 
@@ -159,6 +176,7 @@ import {
   triggerSceneEmote,
   copyToClipboard,
   setCommunicationsAdapter,
+  openExplorerUi,
 } from "~system/RestrictedActions";
 
 // Move player within scene bounds. Optional: cameraTarget (where the
@@ -192,6 +210,43 @@ changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
 changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
 ```
 
+### openExplorerUi -- Open Explorer Panels
+
+Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. Requires prior player interaction.
+
+```typescript
+import { openExplorerUi } from "~system/RestrictedActions";
+import { ExplorerUi } from "@dcl/sdk/ecs";
+
+// Open the map panel
+openExplorerUi({ ui: ExplorerUi.EU_MAP });
+```
+
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
+
+### ExplorerUiEventsResult -- Observe Panel Open/Close
+
+Scenes can observe when explorer panels are opened or closed. `ExplorerUiEventsResult` is a grow-only value set (APPEND semantics, max 100 entries) on `engine.RootEntity`. Each entry reports which panel and whether it opened or closed.
+
+```typescript
+import { engine, ExplorerUiEventsResult, ExplorerUi } from "@dcl/sdk/ecs";
+
+engine.addSystem(() => {
+  const results = ExplorerUiEventsResult.get(engine.RootEntity);
+  for (const entry of results.values()) {
+    if (entry.ui === ExplorerUi.EU_MAP) {
+      if (entry.event?.$case === "opened") {
+        console.log("Map was opened");
+      } else if (entry.event?.$case === "closed") {
+        console.log("Map was closed");
+      }
+    }
+  }
+});
+```
+
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220. Verified against protocol commit `86c4613` and js-sdk-toolchain commit `fc8cfc65`.
+
 ## Timers
 
 **Always use the engine-bound `timers` object from `@dcl/sdk/ecs`.** Do NOT use the native JS `setTimeout` / `setInterval` globals. Although the QuickJS runtime exposes JS-standard `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` as globals (declared in `@dcl/js-runtime/index.d.ts`), calling them in a Decentraland scene may appear to work but can introduce subtle problems — they are not bound to the scene's engine. Use `timers.setTimeout` instead.
@@ -216,6 +271,8 @@ timers.clearInterval(timerId: number): void
 ```
 
 **Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+
+**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers. Verified against js-sdk-toolchain commit `a2ccd0b1`.
 
 **Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The SDK already ships `timers`. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
 
@@ -246,7 +303,19 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 });
 ```
 
-## Utility: removeEntityWithChildren
+## Entity Removal
+
+### engine.removeEntity(entity): boolean
+
+Removes all components from an entity and releases its id for reuse. Returns `boolean`:
+- `true` — entity accepted; components purged, id released for recycling.
+- `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
+
+The return type changed from `void` to `boolean` as of js-sdk-toolchain commit `e712ef71`. Existing code that ignores the return value is unaffected.
+
+**Gotcha — avatar entity collision:** before this fix, `engine.removeEntity` could silently purge components of a live remote player's avatar entity. The engine now refuses removal of renderer-reserved ids, preventing this. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
+
+### removeEntityWithChildren
 
 Recursively remove an entity and all its children — reach for this when cleaning up complex entity hierarchies:
 
@@ -255,6 +324,8 @@ import { removeEntityWithChildren } from "@dcl/sdk/ecs";
 
 removeEntityWithChildren(engine, parentEntity);
 ```
+
+**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result. Verified against js-sdk-toolchain commit `e712ef71`.
 
 ## Portable Experiences
 
@@ -346,6 +417,7 @@ Only `console.log()` and `console.error()` are declared in the runtime — `cons
 Engine-team test scenes exercising these APIs against the real runtime:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body`, inspects the auto-added signed headers.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — `executeTask` + `getSceneInformation({})` reading the scene's own `scene.json` at runtime: `JSON.parse(sceneInfo.metadataJson)`, then walking `worldConfiguration.skyboxConfig` with a fallback to top-level `skyboxConfig`. The sibling https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json is the same code against a `worldConfiguration` deployment.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — every RestrictedAction via UI buttons: `movePlayerTo` (with `cameraTarget` and `avatarTarget`), `teleportTo`, `triggerEmote`, `triggerSceneEmote`, `openExternalUrl`, `openNftDialog`, `changeRealm` (with and without `message`).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `spawn({ ens })` / `kill({ pid })` from the spawn response; host `scene.json` has `portableExperiences: "enabled"`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).

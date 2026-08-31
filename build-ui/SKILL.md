@@ -24,6 +24,8 @@ Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRende
 
 ## DEFAULT RULE: Always Set Virtual Screen Size to 1920x1080
 
+The SDK uses a virtual screen to scale UI consistently across display resolutions: when a virtual size is active, all pixel values in `uiTransform` are relative to the virtual canvas, not the physical screen.
+
 **Whenever you generate UI code, you MUST pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer` and `addUiRenderer` by default — without waiting for the user to ask.** Only deviate if the user explicitly requests a different reference resolution.
 
 Why: pixel values in a UI are only meaningful against a reference resolution. Stating it explicitly in the code keeps the scene's layout intent visible and pins it, instead of leaving it to a per-platform default that differs between mobile and desktop. 1920x1080 is the safe default — it matches the most common displays and the assumption made by most community examples.
@@ -38,6 +40,8 @@ The options argument is optional at the API level. **On SDK 7.26.0+, omitting it
 | A non-16:9 size passed | used as-is on every platform |
 | A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling. Silent: this is the documented opt-out |
 | Only one of the two dimensions passed | also **disabled** (both are required), and logged once per size — it is treated as a mistake, not an opt-out |
+
+The mobile 16:9 override exists because phone screens are much wider than 16:9 — a 16:9 virtual canvas would letterbox the UI there.
 
 So on 7.26.0+, `{ virtualWidth: 0, virtualHeight: 0 }` — not omitting the options — is how you opt into raw-pixel layout. Only do that if the user explicitly asks for it. **Below 7.26.0 there are no defaults: omitting the options is what disables scaling.** See the version gate below.
 
@@ -67,7 +71,7 @@ addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): voi
 | Value | Area |
 |---|---|
 | `'device'` _(default)_ | Device safe area, from `UiCanvasInformation.screenInsetArea`. Zero on desktop, so a no-op there. |
-| `'interactable'` | Area free of the client's own HUD (minimap, chat, …), from `UiCanvasInformation.interactableArea`. |
+| `'interactable'` | Area the client designates for scene UI, from `UiCanvasInformation.interactableArea`. Clears the minimap, chat, and left-side controls, but the **bottom-right action buttons are drawn over this area by design** — UI placed there competes for taps. |
 | `'none'` | Whole screen, `0,0` at the top-left corner. |
 
 Unlike the virtual size, this is **per renderer** — the main UI and each `addUiRenderer` widget can use different areas at the same time.
@@ -112,7 +116,7 @@ export function setupUi() {
 - `borderWidth` / `borderColor` (`Color4`) / `borderRadius`: also valid on `Button`, `Input`, `Dropdown` via their `uiTransform`.
 - `width`/`height` accept a number (px), `'50%'`, `'400px'`, or `'auto'`. `position`/`padding`/`margin` values accept the same string forms; `margin` also accepts a CSS shorthand string, e.g. `margin: '16px 0 8px 270px'`.
 
-**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`.
+**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **Always give it an explicit `width`/`height` in `uiTransform`, and no emoji in `value`** — see the gotchas below.
 
 **Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `uiTransform`.
 
@@ -120,9 +124,27 @@ export function setupUi() {
 
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
 
-**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). **Usually unnecessary now: `screenInset` defaults to `'device'`, which already does this for the whole renderer.** Reach for the component only when the renderer opted out with `screenInset: 'none'` and you want to protect just one subtree — wrapping on top of the default double-applies the inset. On mobile it positions itself absolutely using the insets the device reports; on desktop the insets are `(0,0,0,0)`, so it's a no-op. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. A child sized `width: '100%', height: '100%'` fills the safe area exactly. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — avoid those with `screenInset: 'interactable'` or by hand. Do **not** apply the old "scale sizes ~3× for mobile" rule of thumb on 7.26.0+: with `devicePixelRatio` out of the scale factor, pixel-sized UI is already ~2–3× larger on a phone than it used to be, and the `1600x720` mobile virtual screen adds ~1.2× on top. Start from the desktop sizes and only scale up what actually measures too small on a device.
+**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). **Usually unnecessary now: `screenInset` defaults to `'device'`, which already does this for the whole renderer.** Reach for the component only when the renderer opted out with `screenInset: 'none'` and you want to protect just one subtree — wrapping on top of the default double-applies the inset. On mobile it positions itself absolutely using the insets the device reports; on desktop the insets are `(0,0,0,0)`, so it's a no-op. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. A child sized `width: '100%', height: '100%'` fills the safe area exactly. It auto-compensates for the UI scale factor (pre-divides insets so the parser's scale multiplication cancels out), so insets are correct regardless of virtual screen size. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — avoid those with `screenInset: 'interactable'` or by hand, or, for the mobile input controls specifically, hide them outright with `TouchScreenControls` (see **advanced-input**). Do **not** apply the old "scale sizes ~3× for mobile" rule of thumb on 7.26.0+: with `devicePixelRatio` out of the scale factor, pixel-sized UI is already ~2–3× larger on a phone than it used to be, and the `1600x720` mobile virtual screen adds ~1.2× on top. Start from the desktop sizes and only scale up what actually measures too small on a device.
 
-**InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* — the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. **Prefer `screenInset: 'interactable'` on the renderer for a whole-UI application**; use the component for a single subtree, or when the renderer uses a different inset. Either form needs an explorer that reports the area: it works on desktop, and on mobile from client `1.12.1` onwards — older mobile clients report no margins and the inset silently does nothing. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored) and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). See `{baseDir}/references/ui-components.md` → InteractableArea.
+**InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* — the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. **Prefer `screenInset: 'interactable'` on the renderer for a whole-UI application**; use the component for a single subtree, or when the renderer uses a different inset. Either form needs an explorer that reports the area: it works on desktop, and on mobile from client `1.12.1` onwards — older mobile clients report no margins and the inset silently does nothing. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored), auto-compensates for the UI scale factor, and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). See `{baseDir}/references/ui-components.md` → InteractableArea.
+
+## UiInputBinding (bind InputActions to UI elements)
+
+The `uiInputBinding` prop on `UiEntity` binds `InputAction` values to a UI element so they fire continuously while it is pressed (touch or pointer). This is the primary mechanism for on-screen action buttons on mobile where there is no keyboard.
+
+```tsx
+import { InputAction } from '@dcl/sdk/ecs'
+
+<UiEntity
+  uiTransform={{ width: 80, height: 80 }}
+  uiBackground={{ color: Color4.Red() }}
+  uiInputBinding={{ actions: [InputAction.IA_JUMP] }}
+/>
+```
+
+While the element is held down, `InputAction.IA_JUMP` fires as if the player were pressing the spacebar. Multiple actions can be bound to one element. The underlying ECS component is `PBUiInputBinding { actions: InputAction[] }`.
+
+Combine with `TouchScreenControls` (see the **advanced-input** skill) for full mobile control customization: hide the native on-screen buttons, then bind the same actions to your own UI. Verified against js-sdk-toolchain commit `82368ee4`.
 
 ## Adding Independent UI Renderers (addUiRenderer)
 
@@ -154,9 +176,26 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
+- **Give every `Label` an explicit `uiTransform` box — text intrinsic sizing is engine-dependent.** A `Label` with an unset `width`/`height` is sized from its rendered glyphs on some engines and contributes **~0 to layout** on others, while its glyphs still draw anchored on the zero-height node. Consequences on the engines that don't measure: labels stacked in a column **overlap each other**, and any parent auto-sizing from text children **collapses** to its padding. Verified in-world with side-by-side screenshots: a dialog whose labels had `width: '100%'`, `textWrap="wrap"` and no `height`, inside an auto-sized panel, rendered correctly on the **Bevy** explorer and came out squashed on the **Unity** explorer — both labels drawn on top of each other, the panel collapsed to padding + button height.
+
+  | Engine | Unset text dimension |
+  |---|---|
+  | Bevy explorer | measures rendered text, feeds intrinsic height back into flex layout — looks correct |
+  | Unity explorer | contributes ~0 to layout; glyphs still render on the zero-height node → overlap and collapse |
+  | Creator Hub UI editor canvas | shows the unset dimension as 0 (a third behavior — see the **editable-ui** skill) |
+
+  Rules that follow:
+  - Every `Label` (and `Button` text) that participates in layout declares a px or percent `width` **AND** `height`.
+  - A wrapped multi-line label needs a height sized for its line count — two lines at `fontSize: 20` → `height: 60`.
+  - A label that fills a fixed-size parent can just use `width: '100%', height: '100%'`.
+  - **Containers that stack labels in a column carry explicit heights too** rather than auto-sizing from their text children.
+
+  Like the emoji gotcha below, this is engine-dependent, so **a preview that looks right in one explorer proves nothing about the others** — the layout is only correct once the boxes are explicit.
+- **Never put emoji in UI text.** No emoji in any `Label`/`Button` `value`, `uiText.value`, `Input` `placeholder`, or `Dropdown` option. Emoji glyph coverage is not provided by the SDK — it depends on the fonts each explorer bundles, and **the Unity explorer has no emoji glyphs**, so an emoji renders as a missing-glyph box or silently as nothing. This varies per engine, which makes it a trap: the same string can look correct in one explorer and be broken or invisible in another, so a preview in one client proves nothing. Verified in-world: `value="✨ Particles"` rendered without the sparkle on the Unity explorer. Use plain text for the label, and get pictorial affordances from art you ship: a `uiBackground` with `texture: { src: 'images/icon.png' }` on a small `UiEntity` beside the text, or a sprite from an atlas via `uvs`. The same caution applies to other decorative Unicode (arrows, box-drawing, dingbats) — stick to ASCII plus the accented letters your copy actually needs.
 - **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
 - **No pointer coordinates in UI handlers.** `onMouseDown`/`onMouseUp`/`onMouseEnter`/`onMouseLeave` are `() => void` — the reconciler discards the `PBPointerEventsResult` before calling your callback, so "where on this element did they click" is unavailable. Track *movement* instead of position: `PrimaryPointerInfo.screenDelta` reports per-frame mouse travel and drives drag interactions fine. See `{baseDir}/references/ui-sliders.md`.
-- **UI elements with a handler become pointer-blocking.** Adding `onMouseDown` makes the element block clicks to the 3D world behind it; elements without one let clicks through. Override either way with `uiTransform.pointerFilter: 'block' | 'none'` (default `'none'`).
+- **UI elements with a handler become pointer-blocking, over their WHOLE rect.** Adding any one of the four listeners makes the element capture pointer input across its entire box — not just where its visible pixels are — blocking clicks to the 3D world and to every UI element behind it. An element with no listeners and the default `pointerFilter: 'none'` lets clicks through. `pointerFilter: 'block'` does the same capture without a listener. A transparent background changes nothing: capture follows the layout box, not visibility.
+- **NEVER put a pointer handler (or `pointerFilter: 'block'`) on a full-screen `100%`×`100%` wrapper.** This is the single highest-severity UI mistake: the wrapper's rect is the whole screen, so one stray `onMouseDown` on the layout root makes the player unable to click any other UI element or anything in the world — while the UI still *looks* correct, because the visible panel occupies a fraction of the screen. Attach handlers only to the smallest element that needs them: the panel, the button, the row. Layout wrappers stay handler-free. Two blocking full-screen overlays are legitimate, and both must be a deliberate, gated decision rather than a side effect: a **modal backdrop** that is supposed to swallow clicks while it is open, and a **drag-release catcher** that exists only while a drag is active (see `{baseDir}/references/ui-sliders.md`).
 
 ## Common Widgets — Build From Scratch
 
@@ -181,14 +220,19 @@ Work through the wiring causes in this table in order before speculating about l
 | Absolute-positioned children laid out unexpectedly             | Root `<UiEntity>` has no `width`/`height` — without a full-canvas root, some absolute-positioned children may not render | Add `uiTransform={{ width: '100%', height: '100%' }}` to the root — see "Convention" section below for empirical evidence.                   |
 | UI elements overlapping                                        | Missing `flexDirection` or wrong layout                                                                              | Set `flexDirection: 'column'` on the parent container                                                                                        |
 | Button clicks not registering                                  | Missing `onMouseDown` handler                                                                                        | Add `onMouseDown={() => { ... }}` to the Button or UiEntity                                                                                  |
+| **Nothing on screen is clickable any more** — other UI elements dead, 3D world unclickable, cursor does nothing | A full-screen (`100%`×`100%`) wrapper carries a pointer handler or `pointerFilter: 'block'`. Its rect is the whole screen, so it captures every click even though only a small panel is visible | Strip all listeners and `pointerFilter: 'block'` from the layout wrapper; move them onto the panel/button that actually needs them. See the pointer-blocking gotchas above |
 | JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
 | Text not visible                                               | Text color matches background                                                                                        | Set contrasting `color` on Label or `uiText`                                                                                                 |
+| **UI looks right on one explorer but labels overlap / the panel is squashed on another (Unity)** | `Label`s with no explicit `width`/`height`, and/or a container auto-sizing from its text children. Bevy measures text and lays it out; Unity gives the unset dimension ~0 while still drawing the glyphs, so stacked labels collide and the parent collapses | Give every `Label` an explicit `uiTransform` box (wrapped text: height = line count × line height) and an explicit height to every container stacking labels. See the text-sizing gotcha above |
+| Part of a string missing, or shows as an empty/□ box — often an icon character | Emoji or other decorative Unicode in the text. The explorer has no glyph for it (the Unity explorer ships no emoji glyphs) and renders nothing or a missing-glyph box | Remove the emoji; use a `uiBackground.texture` icon on a small `UiEntity` beside the label instead. Engine-dependent, so verify on the target explorer, not just one |
 
 ## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`
 
 Set `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer` whenever the UI uses absolute positioning. Do this by default.
 
 Note: this is required specifically so absolute-positioned children get a full-screen positioning context. Some engine test scenes that lay everything out with flow/`margin` (no absolute children) use a smaller root (e.g. `90%` or `50%`) and render fine — but a full-canvas root is the safe default and never hurts.
+
+**The corollary: that full-canvas root — and every other `100%`×`100%` wrapper the convention produces — must stay pointer-transparent.** It exists to define a positioning context, nothing else. Give it `uiTransform` and `uiBackground` only; never a listener, never `pointerFilter: 'block'`. A handler there captures pointer input over the entire screen and silently kills every other click in the scene (see the pointer-blocking gotchas above). This is the trap the convention creates, so check it every time you add a handler: is this element the smallest one that needs it?
 
 Rationale (**empirically verified** — tested in-engine June 2026):
 
@@ -205,11 +249,14 @@ Engine-team test scenes exercised against the real renderer (ground truth for th
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-3-ui — `Label`/`Input`/`Dropdown`/`Button` end to end, `uiText` on `UiEntity`, `margin` CSS-shorthand strings, `'auto'` sizing, `UiCanvasInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-3-ui-2 — array-return of stacked panels, `disabled` toggling, border props (`borderWidth`/`borderColor`/`borderRadius`) on Input/Dropdown/Button, uncontrolled-input clear trick, textured `Button` (nine-slices) vs. clickable `UiEntity`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-2-ui-screen-inset-area — the three `screenInset` modes of `setUiRenderer`/`addUiRenderer` (`'none'`, `'device'`, `'interactable'`) as three coexisting renderers, each framing the area it is positioned in and printing the live `UiCanvasInformation.screenInsetArea` / `.interactableArea` values.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
 
 For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`. For sliders and the limits of UI pointer input, see `{baseDir}/references/ui-sliders.md`.
 
 ## Cross-references
 
+- **UI that must be editable in the Creator Hub**: the Creator Hub's 2D UI editor (UI Designer) parses the scene's real `.tsx` files under `src/ui/` as its document, and only a subset of React-ECS code round-trips. If the user wants to design or restyle the UI visually in the Creator Hub, follow the **editable-ui** skill instead of writing free-form React-ECS — computed style values, loops, conditionals and unknown elements silently become read-only there.
 - **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop. See the **advanced-input** skill.
 - **Mobile UI limitations**: `borderRadius` is unsupported on mobile. Design for touch (larger tap targets, no hover states). See the mobile considerations in the **advanced-input** skill.
+- **Replacing the native mobile controls**: the on-screen joystick, crosshair, and gamepad buttons are not fixed — `TouchScreenControls` (SDK 7.26.0+, see **advanced-input**) hides any of them so scene UI can take their place, with `UiInputBinding` (above) wiring the replacement buttons to InputActions.

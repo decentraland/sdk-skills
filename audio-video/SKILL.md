@@ -64,9 +64,11 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` (callback per `MediaState` change, works for `AudioSource` AND `AudioStream` entities; `MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load): `audioEventsSystem.registerAudioEventsEntity(entity, (e) => {...})`, plus `getAudioState(entity)` / `removeAudioEventsEntity(entity)` — same shape as `videoEventsSystem`. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
+
+**Pause audio when the scene is hidden:** when `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` is `true`, the scene is covered by a fullscreen Explorer UI (map, backpack, loading screen). Pause or mute audio sources in that state and resume when `sceneHidden` returns to `false`. See the **scene-runtime** skill (`EngineInfo.sceneHidden`).
 
 > **Before adding audio**: Confirm with the user before fetching audio from external sources.
 
@@ -78,13 +80,49 @@ Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEve
 
 > **Before adding a streaming URL**: If not provided by the user, confirm the source first.
 
+## Audio Events System (audioEventsSystem)
+
+Monitor `AudioSource` and `AudioStream` media state changes. Import from `@dcl/sdk/ecs`. The system fires a callback only when the state changes (not every frame).
+
+```typescript
+import { engine, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+
+const radioEntity = engine.addEntity()
+AudioSource.create(radioEntity, { audioClipUrl: 'assets/Audio/music.mp3', playing: true })
+
+audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
+  // event is PBAudioEvent: { state: MediaState, timestamp: number }
+  console.log('Audio state changed:', event.state)
+})
+```
+
+**API** (verified against `@dcl/ecs`, commit `f858f905`):
+- `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
+- `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
+- `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
+- `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
+
+**MediaState values:** `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_PAUSED`, `MS_STOPPED`, `MS_ERROR`, `MS_SEEKING`, `MS_BUFFERING`, `MS_NONE`.
+
+The entity is auto-unregistered if it is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
+
+**Relationship to `AudioStream.getAudioState`:** `AudioStream.getAudioState` is a convenience wrapper on the `AudioStream` component itself; `audioEventsSystem.getAudioState` reads the underlying `AudioEvent` component and works for both `AudioSource` and `AudioStream`. Use `audioEventsSystem` when you need callback-driven state monitoring or when working with `AudioSource`.
+
 ## VideoPlayer
 
 Play video on a surface. Key fields: `src` (URL or local path), `playing`, `loop`, `volume`, `playbackRate`, `position` (start time in seconds). Non-spatial by default — set `spatial: true` with min/max distances for positional audio.
 
 **Setup requires 3 steps**: create entity with `MeshRenderer.setPlane()`, add `VideoPlayer`, create `Material.Texture.Video({ videoPlayerEntity })` and apply to material. Use `Material.setBasicMaterial` (recommended, better performance) or `Material.setPbrMaterial` with emissive for a brighter screen.
 
-Monitor playback with `videoEventsSystem.registerVideoEventsEntity()` for state callbacks, or `videoEventsSystem.getVideoState()` for polling. States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
+Monitor playback with `videoEventsSystem`:
+- `videoEventsSystem.registerVideoEventsEntity(entity, callback)` — callback receives `PBVideoEvent` on each state change.
+- `videoEventsSystem.removeVideoEventsEntity(entity)` — unregisters the callback.
+- `videoEventsSystem.hasVideoEventsEntity(entity): boolean` — check if an entity is registered.
+- `videoEventsSystem.getVideoState(entity): PBVideoEvent | undefined` — poll the latest state without a callback.
+
+States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
+
+**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same behavior applies to `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity` — re-registering preserves the count of already-reported events, avoiding duplicate callbacks. Verified against js-sdk-toolchain commit `9055b4b4`.
 
 Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 
@@ -129,5 +167,7 @@ Engine-team test scenes exercised against the real explorer:
 - [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
 - [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
 - [audio-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-11-audio-finish) — natural-finish detection via the `playing` flip + `audioEventsSystem` callback, and how a scene-initiated stop is distinguished from a natural finish.
+- [asset-load](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load) — `AssetLoad` pre-loading an mp3 alongside a texture, video and glb, with per-asset `assetLoadLoadingStateSystem` state callbacks (including a missing path resolving to `NOT_FOUND`). This is the pattern behind pre-loading audio so it is ready the instant the player first clicks.
+- [gltfnodemodifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier) — `VideoPlayer` on a GLB rather than a primitive: an HLS `.m3u8` stream driven onto specific GLTF nodes with `GltfNodeModifiers` video textures. The ground truth for the curved-screen / non-primitive case above.
 
 For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.

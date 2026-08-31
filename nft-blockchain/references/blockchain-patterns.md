@@ -273,6 +273,10 @@ executeTask(async () => {
 })
 ```
 
+### Estate Fingerprint Verification
+
+When building marketplace integrations that list or verify Estate NFTs, use `getFingerprintV2(uint256 estateId)` on the Estate smart contract to obtain the fingerprint at listing time, and `verifyFingerprint(uint256 estateId, bytes fingerprint)` at execution time. The older `getFingerprint` method is deprecated: starting **26 November 2026**, `verifyFingerprint` stops accepting values produced by it. New integrations must use `getFingerprintV2`. Verified against docs commit `e8e76fd`.
+
 ### Sign Message
 
 `crypto.ethereum.signMessageAdvanced` is the only signing export (EIP-712 typed data).

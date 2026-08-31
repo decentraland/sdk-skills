@@ -196,7 +196,7 @@ These are the exact 7 permission strings the runtime recognizes (the protocol en
 | `USE_WEBSOCKET`                     | WebSocket connections                                |
 | `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)         |
 
-> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The `66,6-signed-fetch` scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
+> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The [`66,6-signed-fetch`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch) scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
 
 `[LEGACY]` `ALLOW_MEDIA_HOSTNAMES` and `allowedMediaHostnames` are **not required** — do not add them for new scenes. The permission string still exists in `@dcl/schemas`, but no current client enforces it: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, which is set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all. Only the retired web client enforced it. Current clients play external media without it. If a legacy scene still declares it, whitelist the domains as follows:
 
@@ -273,9 +273,16 @@ After customizing the files:
 | `--mcp-port` | number | Port for the MCP server in the Explorer |
 | `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
 | `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
+| `--local-ab` | boolean | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview"). |
 | `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
 
 `--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
+
+**Creator Hub preview settings** (equivalent to the CLI flags above, accessed from the dropdown next to the Preview button):
+- **Preview with**: Desktop Client (default) or Bevy (Web) -- equivalent to `--web`.
+- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the SDK version supports it. See the **unity-explorer-mcp** skill.
+- **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
+- **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
 
 **Bevy renderer in Creator Hub:** Settings > Editor > "Scene renderer" dropdown (Babylon default / Bevy preview). Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload.
 
@@ -288,15 +295,17 @@ After customizing the files:
 AI assistants (Cursor, Claude Code, etc.) can build entire scenes from plain-language prompts. Install Decentraland SDK skills first so the AI knows SDK patterns:
 
 ```bash
-npx skills add decentraland/sdk-skills
+npx skills add decentraland/sdk-skills --all
 ```
+
+To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
 
 The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 
 ## Cross-References
 
-- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds)
-- Need to optimize for parcel limits? See the **optimize-scene** skill
+- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publish at least 2 hours before a live event — asset bundle conversion takes time
+- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Optimize Assets** (or `--local-ab`) to preview with production-quality asset bundles before publishing
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 

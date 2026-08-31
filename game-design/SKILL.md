@@ -191,7 +191,7 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - [ ] **Multiplayer compatible**: Works correctly with 1 player and with 5+ simultaneous players.
 - [ ] **Within scene limits**: Triangle count, entity count, texture count, and file size all within budget for the target parcel count.
 - [ ] **Performance acceptable**: Maintains 30+ FPS during gameplay with target entity/triangle counts.
-- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Note: `borderRadius` is unsupported on mobile UI; ParticleSystem and dynamic lights are not yet available on mobile.
+- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Note: `borderRadius` is unsupported on mobile UI; `LightSource` (dynamic lights) ships on mobile v1.13.0 (Sept 2026). Smart Items are not officially supported on mobile.
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
 
@@ -289,15 +289,21 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 
 | Topic | Skill | When to Use |
 |---|---|---|
+| Follow/chase a moving target (entities tracking the player) | **animations-tweens** | `Tween.setMoveContinuous` for smooth following; do NOT re-create `setMove` tweens per-frame (causes jitter). See the [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube) test scene. |
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |
 | FPS-style / mouselook camera controls | **camera-control** | Mouselook pattern: `PrimaryPointerInfo.screenDelta` + VirtualCamera + PointerLock + InputModifier. Desktop only. |
+| Spectate / observer / director camera | **camera-control** | Spectate Mode pattern: free or player-following camera, WASD/E/F/1/2 controls, parcel-bounds clamping, player roster. Combine with an admin check (authoritative-server) to restrict who can enter spectate mode. |
 | Audio-reactive visuals (music visualizers, beat detection) | **audio-analysis** | `AudioAnalysis` component on `AudioSource` or `VideoPlayer` (progressive only, not HLS). Drive geometry/lights/colors from `amplitude` and 8 frequency `bands`. |
-| Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs |
-| Mobile platform detection | **advanced-input** | Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI/controls for mobile. |
+| Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs. `UiInputBinding` prop for binding InputActions to UI elements (on-screen buttons for mobile). |
+| Mobile touch controls | **advanced-input** | `TouchScreenControls` component for hiding/showing on-screen buttons, setting main action, hiding joystick/crosshair. Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform`. |
 | Open Explorer UI panels from scenes | **scene-runtime** | `openExplorerUi()` restricted action to open map, backpack, settings, etc. from a user gesture. Useful for onboarding flows and UX shortcuts. |
+| Deployment timing & post-publish troubleshooting | **deploy-scene** | Asset bundle conversion takes ~15 min (plan 30-60 min). Publish 2+ hours before live events. `/detectabs` checks conversion status in-world. Conversion status URLs for monitoring. |
+| Local asset bundle preview | **optimize-scene** | "Optimize Assets" in Creator Hub or `--local-ab` CLI flag reproduces production asset bundle conversion locally. Catches texture/model issues before publishing. |
+| Pause gameplay when scene is hidden | **scene-runtime** | `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` is `true` when a fullscreen Explorer UI (map, backpack, loading screen) covers the scene. Use to pause game loops, audio, and expensive systems so they don't run while the player can't see or interact with the scene. |
+| Entity removal returns boolean | **scene-runtime** | `engine.removeEntity(entity)` now returns `boolean` — `false` for renderer-reserved (avatar) entities, where components are left untouched. Check the return when despawning entities in game loops to avoid silently failing to remove an entity. |
 | World deployment, storage budget | **deploy-worlds** | World storage budget (100 MB per NAME, 100 MB per LAND, 100 MB per 2k MANA; ENS = 36 MB fixed). Plan scene file sizes accordingly. |
-| Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques. Creator Hub "Optimize Assets" preview option for testing with production-like asset bundles. |
+| Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques, local asset bundle preview, gltf reuse-vs-merge benchmark. |
 
 This skill focuses on the **design decisions and optimization constraints** that shape implementations. For detailed code patterns, see the referenced skills.

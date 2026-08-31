@@ -26,6 +26,10 @@ No arguments. Returns the whole-scene counts — `entities`, `triangles`, `bodie
 - **`shaderVariants` is a lower-bound proxy.** It counts distinct variant bins, not per-frame SetPass calls; the batcher only merges *consecutive* same-variant draws, so interleaving can cause more switches than the bin count. A low count reliably proves material dedup won't buy frame time; a high one flags shader churn worth consolidating.
 - **Caps are soft.** The documented per-parcel limits are warnings ("strong recommendations"), not enforced budgets — over a cap degrades performance but nothing is blocked. Correlate with measured cost before prescribing anything.
 
+## Scene Stats panel (human-visible, no MCP needed)
+
+When running a scene in preview on the desktop client, a stats panel icon in the top-right corner (next to console and debug icons) opens a live panel showing triangles, entities, bodies, and textures against their per-parcel limits, with percentage usage. Values turn orange at 80%. Also shows plain counts of materials, geometries, colliders, videos, and audios. Hover over the info icon next to each metric for an explanation. This is the same data `get_scene_content_stats` reads programmatically -- point the user at the panel if they want a quick visual check without the MCP loop.
+
 ## The measurement loop
 
 Don't prescribe an optimization from counts alone — **correlate content with measured frame rate**:
