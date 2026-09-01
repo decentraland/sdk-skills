@@ -25,22 +25,28 @@ Before deploying, verify:
    - Valid `base` parcel
    - `main: "bin/index.js"`
 
-2. **Code compiles**:
+2. **Discovery metadata is complete** — these four fields decide whether anyone finds and enters the scene, and they are frequently left at template defaults. Check each one and fill in what you can infer from the scene itself; ask the user only for what you can't:
+   - `display.title` — the scene name, shown under the minimap in-world and in the map modal
+   - `display.description` — one or two sentences on what the scene is
+   - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`. Infer them from the scene's theme (see the **create-scene** skill, "Tags (scene categories)")
+   - `display.navmapThumbnail` — see **Thumbnail image** below
+
+3. **Code compiles**:
    ```bash
    npx tsc --noEmit
    ```
 
-3. **Scene previews correctly**:
+4. **Scene previews correctly**:
    Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start` manually, optionally with `--web` to preview in the Bevy Web browser client). Test with multiple browser tabs to verify multiplayer behavior.
 
-4. **Dependencies installed**:
+5. **Dependencies installed**:
    ```bash
    npm install
    ```
 
-5. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
+6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
 
-6. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
+7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
 ## Deployment Process
 
@@ -71,6 +77,7 @@ npx @dcl/sdk-commands deploy
     "description": "A description for the marketplace",
     "navmapThumbnail": "images/thumbnail.png"
   },
+  "tags": ["art", "social"],
   "scene": {
     "parcels": ["0,0", "0,1"],
     "base": "0,0"
@@ -79,7 +86,30 @@ npx @dcl/sdk-commands deploy
 }
 ```
 
-`display.navmapThumbnail` sets the image shown for the scene on the Genesis City map — always provide one, and write a clear `display.description` for discovery.
+`tags` is root-level, not under `display`. See the checklist item above for the valid category values.
+
+### Thumbnail image
+
+`display.navmapThumbnail` is the image players see in the map modal when they select the scene's parcels, and in the confirmation screen when another scene teleports them there. Always provide one.
+
+Spec:
+
+- `.png`, recommended **228x160 px**, minimum **196x143 px**
+- Non-matching proportions are stretched, so crop to 228:160 rather than letting the client distort the image
+- Value is a path inside the project (e.g. `images/thumbnail.png`) or a URL to an externally hosted image — an external host must serve permissive CORS headers
+
+To produce one: if the **unity-explorer MCP** is available (see the **unity-explorer-mcp** skill), run the scene in preview, frame a shot that shows what the scene is about, and capture a UI-less PNG with the bundled script — `{baseDir}/../unity-explorer-mcp/scripts/screenshot.sh --world-only --png -o images/thumbnail.png`. Then crop and resize to 228x160:
+
+```bash
+# macOS, no extra tooling: center-crop 1280x720 to 228:160, then resample
+sips -c 720 1026 images/thumbnail.png --out images/thumbnail.png
+sips -z 160 228 images/thumbnail.png
+
+# or with ImageMagick, in one step
+magick images/thumbnail.png -resize 228x160^ -gravity center -extent 228x160 images/thumbnail.png
+```
+
+Point `display.navmapThumbnail` at the resulting path. If the MCP isn't available, ask the user for an image instead of shipping the scene without one. Make sure `.dclignore` doesn't exclude the thumbnail — it must be uploaded with the scene.
 
 ### Spawn Points
 

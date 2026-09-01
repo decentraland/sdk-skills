@@ -60,6 +60,7 @@ Update the `display` fields and parcels:
 
 - `display.title` — set to the scene name
 - `display.description` — set to a short description
+- `tags` — root-level array, 1-3 categories from the predefined list (see **Tags (scene categories)** below). **Always set this**, even if the user never mentions categories: infer them from the scene's theme and purpose (shooting gallery → `["game"]`, art installation → `["art"]`, dance club → `["music", "social"]`). These drive discovery in the Places dApp; a scene with no tags is uncategorized there
 - `scene.parcels` — for multi-parcel scenes, list all parcels (e.g., `["0,0", "0,1", "1,0", "1,1"]` for 2x2)
 - `scene.base` — set to the southwest corner parcel
 
@@ -164,7 +165,8 @@ All valid `scene.json` fields:
 | `main`                     | Yes         | Must be `"bin/index.js"` — the compiled output path                   |
 | `display.title`            | Recommended | Scene name shown in the map and Places                                |
 | `display.description`      | Recommended | Short description for discovery                                       |
-| `display.navmapThumbnail`  | Optional    | Image path for the Genesis City minimap                               |
+| `display.navmapThumbnail`  | Recommended | Thumbnail shown in the map modal and teleport confirmation. `.png`, 228x160 px recommended — see the **deploy-scene** skill for the spec and a capture procedure |
+| `tags`                     | Recommended | Root-level `string[]`. The scene's categories in the Places dApp. Max 3, values from the predefined list (see below) |
 | `scene.parcels`            | Yes         | Array of `"x,y"` coordinate strings                                   |
 | `scene.base`               | Yes         | The origin parcel (usually southwest corner)                          |
 | `spawnPoints`              | Optional    | Where players appear when entering (see below)                        |
@@ -174,11 +176,20 @@ All valid `scene.json` fields:
 | `worldConfiguration`       | Optional    | For Worlds deployment (see **deploy-worlds** skill)                   |
 | `landscapeTerrain`         | Optional    | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
 
-### Tags
+### Tags (scene categories)
 
-Valid values for the `tags` array:
+The root-level `tags` array holds the scene's **categories**. The [Places dApp](https://places.decentraland.org) uses them to group places so players can browse by interest — untagged scenes show up in no category.
+
+Rules:
+
+- Max **3** categories per scene.
+- Values must come from this predefined list — arbitrary strings are not categories:
 
 `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
+
+```json
+"tags": ["game", "casino"]
+```
 
 ### Required Permissions
 
