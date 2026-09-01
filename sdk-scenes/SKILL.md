@@ -9,7 +9,7 @@ description: Build, extend, and deploy Decentraland SDK7 scenes. This is the ent
 
 ## Agent Behavioral Guidelines
 
-Before taking any significant action, check whether it falls into one of the three categories below and **confirm with the user first**.
+Before taking any significant action, check whether it falls into one of the four categories below and **confirm with the user first**.
 
 **How to ask:** Phrase the question in plain, non-technical language that describes _what will happen to the scene_, not the underlying command.
 
@@ -37,6 +37,14 @@ For streaming references (`AudioStream`, `VideoPlayer`): these don't download fi
 Introduces `isServer()`, `registerMessages()`, `Storage`, `EnvVar`, or switches to `@dcl/sdk@auth-server`. This feature requires switching to an alternative SDK branch (`@dcl/sdk@auth-server`). Many users who want "multiplayer" only need the simpler `multiplayer-sync` skill (no server). Confirm before implementing:
 
 > "To handle multiplayer this way I'd need to add the Multiplayer Server — that requires switching to the `@dcl/sdk@auth-server` SDK branch instead of the standard one. Is that what you're after, or would simpler peer-to-peer sync work for your use case?"
+
+### 4. Falling back from the Blender MCP to headless Blender
+
+If `mcp__blender__*` tools exist in the session but aren't connected (Blender isn't running, add-on disabled), **never silently switch to headless Blender CLI** — ask first:
+
+> "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
+
+The MCP is what makes model work collaborative; a silent fallback removes that choice. If the MCP isn't installed at all, don't ask the user to install it — go headless and just mention the MCP as an option in your report. Full rule in **add-3d-models**.
 
 ### General principle
 
@@ -72,7 +80,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### 3D Models
 
-**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models).
+**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models). Also authoring and editing custom models by driving Blender (headless CLI or Blender MCP).
 
 ### Animations & Tweens
 
@@ -117,6 +125,8 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Screen-Space UI
 
 **Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
+
+**Skill: `editable-ui`** — Write that UI so the Creator Hub's 2D UI editor (UI Designer) can read and edit it: the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach. Use whenever the user wants UI editable in the Creator Hub, or wants an existing coded UI adapted for it.
 
 ### Audio & Video
 

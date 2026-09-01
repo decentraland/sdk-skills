@@ -15,10 +15,6 @@ Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (Flo
 
 Players viewing the scene from outside its parcels see nothing. Particles are not part of the scene LOD silhouette. Position emitters within parcel bounds.
 
-## RULE: Particles only work in the Unity explorer
-
-The mobile Godot explorer and the Bevy explorer don't have this feature implemented. The renderer ignores the component.
-
 ## RULE: Engine caps total particles at ~1000
 
 The engine enforces a per-scene particle budget and will scale down emission rates across all active particle systems if total live particles would exceed the limit. Cap each system with `maxParticles` and prefer fewer impactful systems over many small ones.
@@ -134,6 +130,21 @@ ParticleSystem.create(emitter, {
 ```
 
 For full production-ready configurations, see `{baseDir}/references/particle-presets.md` — 17 presets: Fire Ember, Magic Aura, Snowfall, Vortex Spiral, Gravity Fountain, Bat Swarm, Tumbling Leaves, Lightning Sparks, Heavy Rain, One-Shot Burst, Asteroid Trail, Purple Swirl, Bee Swarm, Fireworks Loop, Campfire, Flame Wisps, Moving Trail. The explosion/pickup VFX (Point/Cone + ADD fire, one-shot Sphere burst) all live there — e.g. **Fire Ember** (preset 1), the **One-Shot Burst** explosion (preset 10), and looping **Fireworks Loop** (preset 14).
+
+## Creator Hub editor integration
+
+The Creator Hub inspector has a dedicated **ParticleSystem panel** (verified source: `ParticleSystemInspector.tsx`, multiEntity-capable, registered in `EntityInspector.tsx`). The recommended way to create and tune particle effects in Creator Hub scenes is:
+
+1. Add a `ParticleSystem` component to an entity in the editor.
+2. Tweak all fields live in the inspector panel -- no code, no scene reload.
+
+Reserve code (`ParticleSystem.create`/`getMutable` in `src/` or via a Script component) for dynamic runtime behavior only: toggling emitters from game logic, wiring play/stop to triggers/actions, or computing configs at runtime.
+
+### Programmatic / composite component name
+
+- Component name: `core::ParticleSystem` (component id `1217`).
+- `shape` is a protobuf oneof, serialized as `{"$case":"sphere","sphere":{"radius":1}}`, `{"$case":"cone","cone":{"angle":25,"radius":1}}`, `{"$case":"box","box":{"size":{"x":1,"y":1,"z":1}}}`, or `{"$case":"point","point":{}}`.
+- `texture` is a flat `Texture` (NOT `TextureUnion`), serialized as `{"src":"assets/images/spark.png"}`. The `$case`/`tex` wrapper used by `Material` does not apply here.
 
 ## Playback control
 

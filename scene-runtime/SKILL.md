@@ -111,22 +111,32 @@ executeTask(async () => {
 Frame-level timing plus scene visibility, on `engine.RootEntity`:
 
 ```typescript
-import { EngineInfo } from "@dcl/sdk/ecs";
+import { EngineInfo, engine } from "@dcl/sdk/ecs";
 
 engine.addSystem(() => {
   const info = EngineInfo.getOrNull(engine.RootEntity);
   if (info) {
     console.log(info.frameNumber, info.tickNumber, info.totalRuntime);
+    // info.sceneHidden: true when a fullscreen Explorer UI (map, backpack,
+    // settings, loading screen, etc.) covers the scene viewport.
+    if (info.sceneHidden) {
+      // Pause expensive work, audio, animations — the player cannot see or
+      // interact with the scene while it is hidden.
+    }
   }
 });
 ```
 
-| Field | Meaning |
-|-------|---------|
-| `frameNumber` | Engine frame counter |
-| `tickNumber` | Scene tick counter (ADR-148) |
-| `totalRuntime` | Seconds this scene has been running |
-| `sceneHidden` | `true` while the scene is covered by the Explorer's fullscreen UI |
+### EngineInfo fields
+
+| Field | Type | Description |
+|---|---|---|
+| `frameNumber` | `number` | Frame counter of the engine |
+| `tickNumber` | `number` | Tick counter of the scene (per ADR-148) |
+| `totalRuntime` | `number` | Total runtime of this scene in seconds |
+| `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
+
+Verified against protocol commit `0b3d285` (field 4 `bool scene_hidden` in `PBEngineInfo`, component id 1048) and js-sdk-toolchain commit `ffb26183` (exposed as `sceneHidden: boolean` on `PBEngineInfo`).
 
 ### Detecting when the loading screen fades out
 
@@ -284,6 +294,8 @@ timers.clearInterval(timerId: number): void
 ```
 
 **Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+
+**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers. Verified against js-sdk-toolchain commit `a2ccd0b1`.
 
 **Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The SDK already ships `timers`. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
 

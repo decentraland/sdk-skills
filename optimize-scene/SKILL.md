@@ -151,6 +151,18 @@ MeshRenderer.setSphere(entity) // Cheap
 MeshRenderer.setPlane(entity) // Very cheap
 ```
 
+## Fix Heavy Models in Blender
+
+When the stats point at specific models — a prop with tens of thousands of triangles, a GLB carrying 2048+ textures, meshes full of faces the player never sees — fix the asset itself by driving Blender rather than compensating in SDK code. The full guide (headless CLI vs Blender MCP, setup, export rules) is in `{baseDir}/../add-3d-models/references/blender-authoring.md`, with ready-made `bpy` scripts in `{baseDir}/../add-3d-models/references/blender-patterns.md`. Typical rescue edits:
+
+- **Decimate modifier** to cut triangle count on imported or over-detailed models (a rescue tool for existing assets — new models should be modeled low-poly from the start).
+- **Resize textures** to power-of-two, 1024×1024 or less, and repack them into the GLB.
+- **Delete never-visible faces** (undersides, occluded backs) and enable back-face culling instead of doubling geometry.
+- **Merge per-color materials** into a single palette-texture material, and per-part textures into one atlas.
+- **Strip lights, cameras, and materials on `_collider` meshes** — dead weight the engine ignores or pays for twice.
+
+Audit before and after with the triangle-count and material-audit scripts in the patterns file, export back to the same path (the preview hot-reloads the file), and re-check the stats panel. For a quick non-Blender pass, `gltf-transform` (below) can compress and strip a GLB without touching its geometry choices.
+
 ## Texture Optimization
 
 - **Dimensions must be power-of-two**: 256, 512, 1024
@@ -357,7 +369,7 @@ When running the scene locally with `npm run start`:
 
 | Tool                        | Purpose                                                   |
 | --------------------------- | --------------------------------------------------------- |
-| Blender Decimate modifier   | Reduce triangle count on imported models                  |
+| Blender Decimate modifier   | Reduce triangle count on imported models (drive it headless or via MCP — see *Fix Heavy Models in Blender*) |
 | Blender Limited Dissolve    | Remove unnecessary vertices from flat surfaces            |
 | Squoosh (squoosh.app)       | Convert images to WebP, resize to power-of-two            |
 | TexturePacker               | Create texture atlases from multiple images               |
@@ -383,6 +395,7 @@ Engine-team stress-test scenes (treat as ground truth for API shape):
 ## Cross-References
 
 - **deploy-scene** — post-publish asset bundle conversion timing, troubleshooting, `/detectabs` command
-- **add-3d-models** — model loading, colliders, and file organization
+- **add-3d-models** — model loading, colliders, file organization, and driving Blender to fix or author models (`references/blender-authoring.md`)
 - **game-design** — performance budgets, design patterns, and MVP planning
 - **advanced-rendering** — texture modes, material reuse, and LOD with VisibilityComponent
+- **scene-runtime** — `EngineInfo.sceneHidden` to pause expensive systems when the scene is hidden behind fullscreen Explorer UI

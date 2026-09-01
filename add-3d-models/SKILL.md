@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer, including 8,800+ free assets from the OpenDCL catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering) or model animations (see animations-tweens).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -107,6 +107,43 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 - **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new model.
+
+## RULE: New models — offer the catalog AND custom authoring in Blender
+
+When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
+
+> "I can download the best match from the free catalog (8,800+ ready-made models), or create a custom model for you in Blender. Which do you prefer?"
+
+- **Catalog** → the workflow in the next section (search → review → download).
+- **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
+
+Running as a subagent, you cannot ask — report the choice to your caller with your recommendation instead of picking on your own authority.
+
+### Two ways to drive Blender
+
+|  | Headless CLI (`blender --background --python`) | Blender MCP |
+| --- | --- | --- |
+| Extra installs | None — just Blender itself | Blender 5.1+, MCP add-on, `uv` + server package, client registration, session restart |
+| Availability | Any session where Blender is installed | Only when `mcp__blender__*` tools are bound at session start |
+| Interaction model | Batch: one script per run, state resets between runs | Live: incremental edits in a running Blender, state persists |
+| Visual verification | Rendered stills written to disk (temp camera) | Screenshots of the real viewport |
+| User involvement | Sees results only | Watches — and can co-edit — in the open Blender GUI |
+| Best for | Conversions, decimation, batch optimization, scripted model building | Iterative modeling sessions, working on the user's open file |
+
+### RULE: never fall back to headless silently
+
+Whenever a task creates or edits a model in Blender and the MCP could possibly be used, pick by which of these three states the session is in:
+
+1. **MCP connected and working** — a read-only probe (`get_objects_summary` or equivalent) answers → **use it.** No need to ask.
+2. **MCP configured but not connected** — `mcp__blender__*` tools exist in the session, but the probe errors (Blender isn't running, the add-on is disabled, or its bridge server is down) → **ASK before going headless:**
+   > "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
+
+   The user does not mind opening Blender, and may want to work on the model together. Only fall back to headless if the user says so, or if you genuinely cannot ask (fully non-interactive context — as a subagent, report the pending choice to your caller instead of deciding).
+3. **MCP not installed at all** — no `mcp__blender__*` tools in the session → **don't ask the user to install it** (that's a big setup effort). Proceed headless, but **mention in your report** that the Blender MCP exists as an option for live, interactive model editing, and that setup steps are in `{baseDir}/references/blender-authoring.md`.
+
+**Why:** the MCP is what makes model work collaborative — the user watching and iterating on the model in their own Blender session. A silent headless fallback takes that away without giving them the choice.
+
+Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
 
 ## Free 3D Models — OpenDCL Catalog (8,800+ models)
 

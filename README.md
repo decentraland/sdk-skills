@@ -42,7 +42,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 |-------|-------------|
 | `sdk-scenes` | **Entry point.** Agent behavioral guidelines, composite-first rule, and index of all topic skills. |
 | `create-scene` | Scaffold a new SDK7 scene project (scene.json, package.json, tsconfig, index.ts). |
-| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. |
+| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. Also authoring/editing custom models by driving Blender (headless or MCP). |
 | `add-interactivity` | Event-driven interactivity — pointer events, triggers, raycasts. |
 | `advanced-input` | System-level input polling and player movement control. |
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |
@@ -55,6 +55,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `composites` | Composite file format reference for static scene content. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
+| `editable-ui` | Write React-ECS UI that stays fully editable in the Creator Hub's 2D UI editor (UI Designer). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |

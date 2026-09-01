@@ -102,6 +102,10 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every f
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
+⚠️ **Always give a `Label` an explicit `width` and `height` in `uiTransform`** (as above). Text intrinsic sizing is engine-dependent: the Bevy explorer measures the rendered text and feeds its height into flex layout, the Unity explorer gives an unset dimension ~0 while still drawing the glyphs. So on Unity, labels stacked in a column overlap and any parent auto-sizing from text children collapses to its padding — while the same code looks correct on Bevy. Wrapped text needs a height for its line count (two lines at `fontSize: 20` → 60); a label filling a fixed-size parent can use `width: '100%', height: '100%'`. Containers that stack labels need explicit heights too. Verified in-world with side-by-side screenshots.
+
+⚠️ **Never put emoji in a `value` string.** Emoji glyph coverage is not part of the SDK — it depends on the fonts the explorer bundles, and the Unity explorer has no emoji glyphs, so an emoji renders as a missing-glyph box or as nothing at all. Verified in-world: `value="✨ Particles"` showed no sparkle on the Unity explorer. Use plain text, and put pictorial affordances in a `uiBackground.texture` on a `UiEntity` beside the label.
+
 ## Button
 
 ```tsx
@@ -296,13 +300,15 @@ const Modal = () => {
         uiTransform={{ width: 400, height: 300, flexDirection: 'column', alignItems: 'center', padding: 20 }}
         uiBackground={{ color: Color4.create(0.2, 0.2, 0.2, 1) }}
       >
-        <Label value="Title" fontSize={24} />
+        <Label value="Title" fontSize={24} uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
         <Button value="Close" variant="primary" onMouseDown={() => { isOpen = false }} uiTransform={{ width: 100, height: 40 }} />
       </UiEntity>
     </UiEntity>
   )
 }
 ```
+
+The `100%`×`100%` backdrop deliberately has **no** pointer handler and no `pointerFilter`: only the `Close` button does. Putting a listener on a full-screen element makes it capture clicks over the entire screen, blocking every other UI element and the 3D world behind it — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If the modal should swallow background clicks while open, add `pointerFilter: 'block'` to the backdrop as a conscious choice; it is safe here only because the component returns `null` when closed, so the blocking rect does not exist the rest of the time.
 
 ### Scrollable Container
 
@@ -334,7 +340,7 @@ const Modal = () => {
 <UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
   {/* Fixed header */}
   <UiEntity uiTransform={{ width: '100%', height: 60 }}>
-    <Label value="Inventory" fontSize={20} />
+    <Label value="Inventory" fontSize={20} uiTransform={{ width: '100%', height: '100%' }} />
   </UiEntity>
   {/* Scrollable body fills remaining space */}
   <UiEntity
@@ -347,7 +353,7 @@ const Modal = () => {
   >
     {items.map((item, i) => (
       <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
-        <Label value={item.name} fontSize={14} />
+        <Label value={item.name} fontSize={14} uiTransform={{ width: '100%', height: '100%' }} />
       </UiEntity>
     ))}
   </UiEntity>
@@ -418,7 +424,7 @@ let showMenu = false
 
 const UI = () => (
   <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
-    <Label value={`Score: ${score}`} fontSize={20} />
+    <Label value={`Score: ${score}`} fontSize={20} uiTransform={{ width: 240, height: 30 }} />
     {showMenu && <MenuPanel />}
   </UiEntity>
 )

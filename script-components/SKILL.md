@@ -117,6 +117,32 @@ constructor(
 ) {}
 ```
 
+### The `layout` field — how params are stored and resolved at runtime
+
+The `asset-packs::Script` component value has the shape `{ value: [{ path: string, priority: number, layout?: string }] }`. The `layout` field is a JSON string:
+
+```json
+{"params":{"paramName":{"type":"string|number|boolean|action","value":<value>}}}
+```
+
+At runtime, `@dcl/sdk-commands/dist/logic/runtime-script.js` resolves params like this:
+
+1. `JSON.parse(layout)` to get a `ScriptLayout` object.
+2. `Object.values(layout.params)` extracts param values **in insertion order**.
+3. The values are spread **positionally** into the constructor: `new ScriptClass(src, entity, ...params)`.
+
+**CRITICAL gotcha — params are positional, not named.** The key insertion order in the layout JSON MUST match the constructor parameter order (after `src` and `entity`). You cannot skip earlier params to set later ones — every param from `src`/`entity` onward must be present in order.
+
+Params with `type: "action"` have `value: {entity: Entity, action: string}` and are converted to `ActionCallback` functions via `createActionCallback` (which calls `getActionEvents(entity).emit(action, {})` when invoked).
+
+This is relevant for agents/MCP tools setting Script params programmatically via `set_component` on `asset-packs::Script` — the full ordered params object must be provided. Example layout for a script with 14 constructor params (after `src`/`entity`):
+
+```json
+{"params":{"colorA":{"type":"string","value":"#ff33e6"},"colorB":{"type":"string","value":"#33e6ff"},"rate":{"type":"number","value":35},"lifetime":{"type":"number","value":2.5},"sizeMin":{"type":"number","value":0.3},"sizeMax":{"type":"number","value":0.6},"speedMin":{"type":"number","value":2.5},"speedMax":{"type":"number","value":4},"gravity":{"type":"number","value":-0.3},"spin":{"type":"number","value":0},"shape":{"type":"string","value":"sphere"},"shapeSize":{"type":"number","value":0.4},"maxParticles":{"type":"number","value":150},"startPlaying":{"type":"boolean","value":true}}}
+```
+
+**Verified in:** `@dcl/sdk-commands/dist/logic/runtime-script.js` — `resolveScriptParams` uses `Object.values(params).map(...)` and the result is spread as `new ScriptClass(src, entity, ...params)`.
+
 ## Referencing assets with `this.src`
 
 If your script uses additional assets that are only loaded via code (sound files, textures, models, etc.), they won't be automatically included in the custom item folder. You must add those files manually.

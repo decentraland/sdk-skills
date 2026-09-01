@@ -57,6 +57,15 @@ All Worlds are automatically listed on the [Places page](https://places.decentra
 }
 ```
 
+### Discovery metadata
+
+Worlds are listed on Places unless opted out, so the same metadata that drives discovery in Genesis City applies here. Before publishing, verify all four are set — fill in what you can infer from the scene, ask the user only for the rest:
+
+- `display.title` — the World's name
+- `display.description` — one or two sentences on what it is
+- `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
+- `display.navmapThumbnail` — `.png`, 228x160 px recommended, 196x143 minimum. For the full spec and a capture procedure, see the **deploy-scene** skill ("Thumbnail image")
+
 ## 2. Deploy
 
 **Use the `/deploy` command** — it auto-detects the `worldConfiguration` in scene.json and deploys to the Worlds content server automatically.
@@ -99,8 +108,10 @@ From inside Decentraland, use the chatbox command:
   "runtimeVersion": "7",
   "display": {
     "title": "My World",
-    "description": "A personal 3D space"
+    "description": "A personal 3D space",
+    "navmapThumbnail": "images/thumbnail.png"
   },
+  "tags": ["social"],
   "scene": {
     "parcels": ["0,0"],
     "base": "0,0"

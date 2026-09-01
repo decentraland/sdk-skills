@@ -116,7 +116,7 @@ export function setupUi() {
 - `borderWidth` / `borderColor` (`Color4`) / `borderRadius`: also valid on `Button`, `Input`, `Dropdown` via their `uiTransform`.
 - `width`/`height` accept a number (px), `'50%'`, `'400px'`, or `'auto'`. `position`/`padding`/`margin` values accept the same string forms; `margin` also accepts a CSS shorthand string, e.g. `margin: '16px 0 8px 270px'`.
 
-**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`.
+**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **Always give it an explicit `width`/`height` in `uiTransform`, and no emoji in `value`** — see the gotchas below.
 
 **Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `uiTransform`.
 
@@ -176,9 +176,26 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
+- **Give every `Label` an explicit `uiTransform` box — text intrinsic sizing is engine-dependent.** A `Label` with an unset `width`/`height` is sized from its rendered glyphs on some engines and contributes **~0 to layout** on others, while its glyphs still draw anchored on the zero-height node. Consequences on the engines that don't measure: labels stacked in a column **overlap each other**, and any parent auto-sizing from text children **collapses** to its padding. Verified in-world with side-by-side screenshots: a dialog whose labels had `width: '100%'`, `textWrap="wrap"` and no `height`, inside an auto-sized panel, rendered correctly on the **Bevy** explorer and came out squashed on the **Unity** explorer — both labels drawn on top of each other, the panel collapsed to padding + button height.
+
+  | Engine | Unset text dimension |
+  |---|---|
+  | Bevy explorer | measures rendered text, feeds intrinsic height back into flex layout — looks correct |
+  | Unity explorer | contributes ~0 to layout; glyphs still render on the zero-height node → overlap and collapse |
+  | Creator Hub UI editor canvas | shows the unset dimension as 0 (a third behavior — see the **editable-ui** skill) |
+
+  Rules that follow:
+  - Every `Label` (and `Button` text) that participates in layout declares a px or percent `width` **AND** `height`.
+  - A wrapped multi-line label needs a height sized for its line count — two lines at `fontSize: 20` → `height: 60`.
+  - A label that fills a fixed-size parent can just use `width: '100%', height: '100%'`.
+  - **Containers that stack labels in a column carry explicit heights too** rather than auto-sizing from their text children.
+
+  Like the emoji gotcha below, this is engine-dependent, so **a preview that looks right in one explorer proves nothing about the others** — the layout is only correct once the boxes are explicit.
+- **Never put emoji in UI text.** No emoji in any `Label`/`Button` `value`, `uiText.value`, `Input` `placeholder`, or `Dropdown` option. Emoji glyph coverage is not provided by the SDK — it depends on the fonts each explorer bundles, and **the Unity explorer has no emoji glyphs**, so an emoji renders as a missing-glyph box or silently as nothing. This varies per engine, which makes it a trap: the same string can look correct in one explorer and be broken or invisible in another, so a preview in one client proves nothing. Verified in-world: `value="✨ Particles"` rendered without the sparkle on the Unity explorer. Use plain text for the label, and get pictorial affordances from art you ship: a `uiBackground` with `texture: { src: 'images/icon.png' }` on a small `UiEntity` beside the text, or a sprite from an atlas via `uvs`. The same caution applies to other decorative Unicode (arrows, box-drawing, dingbats) — stick to ASCII plus the accented letters your copy actually needs.
 - **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
 - **No pointer coordinates in UI handlers.** `onMouseDown`/`onMouseUp`/`onMouseEnter`/`onMouseLeave` are `() => void` — the reconciler discards the `PBPointerEventsResult` before calling your callback, so "where on this element did they click" is unavailable. Track *movement* instead of position: `PrimaryPointerInfo.screenDelta` reports per-frame mouse travel and drives drag interactions fine. See `{baseDir}/references/ui-sliders.md`.
-- **UI elements with a handler become pointer-blocking.** Adding `onMouseDown` makes the element block clicks to the 3D world behind it; elements without one let clicks through. Override either way with `uiTransform.pointerFilter: 'block' | 'none'` (default `'none'`).
+- **UI elements with a handler become pointer-blocking, over their WHOLE rect.** Adding any one of the four listeners makes the element capture pointer input across its entire box — not just where its visible pixels are — blocking clicks to the 3D world and to every UI element behind it. An element with no listeners and the default `pointerFilter: 'none'` lets clicks through. `pointerFilter: 'block'` does the same capture without a listener. A transparent background changes nothing: capture follows the layout box, not visibility.
+- **NEVER put a pointer handler (or `pointerFilter: 'block'`) on a full-screen `100%`×`100%` wrapper.** This is the single highest-severity UI mistake: the wrapper's rect is the whole screen, so one stray `onMouseDown` on the layout root makes the player unable to click any other UI element or anything in the world — while the UI still *looks* correct, because the visible panel occupies a fraction of the screen. Attach handlers only to the smallest element that needs them: the panel, the button, the row. Layout wrappers stay handler-free. Two blocking full-screen overlays are legitimate, and both must be a deliberate, gated decision rather than a side effect: a **modal backdrop** that is supposed to swallow clicks while it is open, and a **drag-release catcher** that exists only while a drag is active (see `{baseDir}/references/ui-sliders.md`).
 
 ## Common Widgets — Build From Scratch
 
@@ -203,14 +220,19 @@ Work through the wiring causes in this table in order before speculating about l
 | Absolute-positioned children laid out unexpectedly             | Root `<UiEntity>` has no `width`/`height` — without a full-canvas root, some absolute-positioned children may not render | Add `uiTransform={{ width: '100%', height: '100%' }}` to the root — see "Convention" section below for empirical evidence.                   |
 | UI elements overlapping                                        | Missing `flexDirection` or wrong layout                                                                              | Set `flexDirection: 'column'` on the parent container                                                                                        |
 | Button clicks not registering                                  | Missing `onMouseDown` handler                                                                                        | Add `onMouseDown={() => { ... }}` to the Button or UiEntity                                                                                  |
+| **Nothing on screen is clickable any more** — other UI elements dead, 3D world unclickable, cursor does nothing | A full-screen (`100%`×`100%`) wrapper carries a pointer handler or `pointerFilter: 'block'`. Its rect is the whole screen, so it captures every click even though only a small panel is visible | Strip all listeners and `pointerFilter: 'block'` from the layout wrapper; move them onto the panel/button that actually needs them. See the pointer-blocking gotchas above |
 | JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
 | Text not visible                                               | Text color matches background                                                                                        | Set contrasting `color` on Label or `uiText`                                                                                                 |
+| **UI looks right on one explorer but labels overlap / the panel is squashed on another (Unity)** | `Label`s with no explicit `width`/`height`, and/or a container auto-sizing from its text children. Bevy measures text and lays it out; Unity gives the unset dimension ~0 while still drawing the glyphs, so stacked labels collide and the parent collapses | Give every `Label` an explicit `uiTransform` box (wrapped text: height = line count × line height) and an explicit height to every container stacking labels. See the text-sizing gotcha above |
+| Part of a string missing, or shows as an empty/□ box — often an icon character | Emoji or other decorative Unicode in the text. The explorer has no glyph for it (the Unity explorer ships no emoji glyphs) and renders nothing or a missing-glyph box | Remove the emoji; use a `uiBackground.texture` icon on a small `UiEntity` beside the label instead. Engine-dependent, so verify on the target explorer, not just one |
 
 ## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`
 
 Set `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer` whenever the UI uses absolute positioning. Do this by default.
 
 Note: this is required specifically so absolute-positioned children get a full-screen positioning context. Some engine test scenes that lay everything out with flow/`margin` (no absolute children) use a smaller root (e.g. `90%` or `50%`) and render fine — but a full-canvas root is the safe default and never hurts.
+
+**The corollary: that full-canvas root — and every other `100%`×`100%` wrapper the convention produces — must stay pointer-transparent.** It exists to define a positioning context, nothing else. Give it `uiTransform` and `uiBackground` only; never a listener, never `pointerFilter: 'block'`. A handler there captures pointer input over the entire screen and silently kills every other click in the scene (see the pointer-blocking gotchas above). This is the trap the convention creates, so check it every time you add a handler: is this element the smallest one that needs it?
 
 Rationale (**empirically verified** — tested in-engine June 2026):
 
@@ -234,6 +256,7 @@ For full code examples and implementation patterns, see `{baseDir}/references/ui
 
 ## Cross-references
 
+- **UI that must be editable in the Creator Hub**: the Creator Hub's 2D UI editor (UI Designer) parses the scene's real `.tsx` files under `src/ui/` as its document, and only a subset of React-ECS code round-trips. If the user wants to design or restyle the UI visually in the Creator Hub, follow the **editable-ui** skill instead of writing free-form React-ECS — computed style values, loops, conditionals and unknown elements silently become read-only there.
 - **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop. See the **advanced-input** skill.
 - **Mobile UI limitations**: `borderRadius` is unsupported on mobile. Design for touch (larger tap targets, no hover states). See the mobile considerations in the **advanced-input** skill.
 - **Replacing the native mobile controls**: the on-screen joystick, crosshair, and gamepad buttons are not fixed — `TouchScreenControls` (SDK 7.26.0+, see **advanced-input**) hides any of them so scene UI can take their place, with `UiInputBinding` (above) wiring the replacement buttons to InputActions.

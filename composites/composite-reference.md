@@ -558,6 +558,43 @@ Assigns one or more tags to an entity. Tags are used to group entities for batch
 
 An entity can have multiple tags. The entity `0` `tags` array must be the union of all tags used across all entities.
 
+### core::AvatarModifierArea
+
+```json
+{
+	"name": "core::AvatarModifierArea",
+	"data": {
+		"512": {
+			"json": {
+				"area": { "x": 4, "y": 3, "z": 4 },
+				"modifiers": [0],
+				"excludeIds": []
+			}
+		}
+	}
+}
+```
+
+`modifiers` is an array of `AvatarModifierType` enum values: `0` = `AMT_HIDE_AVATARS`, `1` = `AMT_DISABLE_PASSPORTS`. `excludeIds` is an array of wallet address strings unaffected by the modifier. `area` is the region size in meters (Vector3). In the Creator Hub, the `area` field is kept in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`). Default init: `{ area: {1,1,1}, modifiers: [], excludeIds: [] }`.
+
+### core::CameraModeArea
+
+```json
+{
+	"name": "core::CameraModeArea",
+	"data": {
+		"512": {
+			"json": {
+				"area": { "x": 6, "y": 4, "z": 6 },
+				"mode": 0
+			}
+		}
+	}
+}
+```
+
+`mode` is a `CameraType` enum value: `0` = `CT_FIRST_PERSON`, `1` = `CT_THIRD_PERSON`. Cinematic mode is not applicable (use VirtualCamera). `area` is the region size in meters (Vector3). In the Creator Hub, the `area` field is kept in sync with the entity's `Transform.scale`. Default init: `{ area: {1,1,1}, mode: 0 }`.
+
 ### core::NftShape
 
 ```json
