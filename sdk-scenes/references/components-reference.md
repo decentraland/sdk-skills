@@ -107,7 +107,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber` | Engine timing information. |
+| **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber`, `sceneHidden` | Engine timing information. `sceneHidden` is `true` while the Explorer's fullscreen UI (the loading screen) covers the scene — watch for it flipping to `false` to time intros to the loading screen fade-out. See `scene-runtime`. |
 | **RealmInfo** | Read-only: `realmName`, `networkId`, `baseUrl` | Current realm/server info. |
 | **SkyboxTime** | `fixedTime: number`, `transitionMode?: TransitionMode` | Fix the time of day (seconds since 00:00; 43200 = noon, 86400 = full day). |
 | **AssetLoad** | `assets: string[]` | Pre-request loading of asset files (paths). Loading state is reported separately via `AssetLoadLoadingState`. |
