@@ -33,6 +33,8 @@ Decentraland uses a **Y-up** coordinate system — test model orientation after 
 
 To add behavior to a composite model, fetch it in `index.ts` by name or tag — do NOT re-create it.
 
+**When the scene is open in the Creator Hub and its MCP tools are available, add the model through them instead of writing the composite** (skill: **creator-hub-mcp**): `search_catalog` + `place_smart_item` for a catalog item (the catalog covers static items as well as Smart Items and downloads the files for you), or `create_entity` + `set_component` `Transform` + `set_component` `core::GltfContainer` for a GLB you placed under `assets/Models/`. The bounding-box, collider-mask, and Animator rules in this skill apply either way.
+
 ## RULE: Swapping a model `src` requires fresh Transform — never inherit scale/position
 
 When you change the `src` of an existing `GltfContainer` (in a composite, in code, or via builder asset replacement), the entity's existing `Transform.scale`, `Transform.position`, and often `rotation` were tuned for the **previous model's native dimensions and pivot**. They are almost never correct for the new model — applying them blindly can produce buildings that overshoot scene bounds, props at wrong heights, or models visibly shifted from where the user expected them.
@@ -50,6 +52,8 @@ This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...
 **Runtime swap mechanics**: to change a model in place, mutate the field directly — `GltfContainer.getMutable(entity).src = newSrc` — the engine reloads the GLB on the same entity. Other `GltfContainer` fields (e.g. `visibleMeshesCollisionMask`) can also be mutated live the same way. Reusing the Transform is only safe when the two models share the same native size and pivot; otherwise re-audit per the steps above.
 
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
+
+This rule is for hand-editing the file, which you should only do when the Creator Hub MCP is unavailable (see **creator-hub-mcp** — its `create_entity` does this registration for you, and hand-editing while the scene is open in the Creator Hub loses the edit).
 
 If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
 

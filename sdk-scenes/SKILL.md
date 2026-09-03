@@ -64,9 +64,12 @@ TypeScript (`src/index.ts`) is ONLY for:
 
 ## CRITICAL RULE — Editing an existing composite
 
-Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
+**If the Creator Hub MCP is available, use it — never hand-edit the file.** The Creator Hub ships an MCP server (skill: **creator-hub-mcp**) whose tools (`scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, …) edit the open scene live, with autosave, undo, and the editor bookkeeping handled for you. It is pre-wired inside the Creator Hub's own AI assistant, and any other MCP-capable tool (Claude Code, Cursor, Codex, Claude Desktop) can connect to it via Settings > Experimental > *Expose AI assistant MCP server*. Use it for `scene.json` changes too (`set_scene_settings`). Editing the file while the scene is open in the Creator Hub loses your work silently: the inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk.
 
-**The scene must NOT be open in the Creator Hub while you edit the composite.** The inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk. Your edits will silently vanish. Ask the user to close the scene first, then reopen it when you are done.
+Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
+
+- **The scene must NOT be open in the Creator Hub while you edit the file.** Ask the user to close the scene first, then reopen it when you are done.
+- Scan the file for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
 
 ---
 
@@ -151,6 +154,14 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Script Components (Creator Hub)
 
 **Skill: `script-components`** — Writing `.ts` script files for the Creator Hub Script component, constructor parameters, `@action` JSDoc tags (never decorator syntax).
+
+### Creator Hub MCP (live scene editing)
+
+**Skill: `creator-hub-mcp`** — Editing the scene that is open in the Creator Hub through its MCP server: tool catalog (`scene_state`, `create_entity`, `set_component`, `place_smart_item`, `attach_script`, `set_scene_settings`, `launch_preview`, …), read-before-write workflow, placing catalog items and custom models, and how to connect an external agent (Claude Code, Cursor, Codex) to it. The preferred way to change entities whenever the scene is open in the Creator Hub — instead of editing `main.composite`.
+
+### Testing in the Explorer (MCP)
+
+**Skill: `unity-explorer-mcp`** — Driving a running Decentraland Explorer through its MCP automation server: launch, camera and player movement, screenshots, logs, performance stats. Inside the Creator Hub the same tools arrive through the Creator Hub MCP's `launch_preview` / `explorer_*`.
 
 ### Async, HTTP, WebSocket, Timers
 

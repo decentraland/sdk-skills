@@ -9,6 +9,8 @@ Drive a running Decentraland Explorer build through its MCP automation server to
 
 The connected `mcp__explorer__*` tools are self-describing — each carries its name, arguments, and output shape. Treat that as the authoritative tool catalog; the names used below (`get_scene_state`, `get_scene_logs`, `screenshot`, `teleport`, `move_to`, `walk`, `look_at`, `set_camera_pose`, `set_camera_mode`, `list_scene_entities`, `get_entity_details`, `get_player_state`, `click_entity`, `send_chat`, `trigger_emote`, `reload_scene`, `get_scene_content_stats`, `get_scene_content_breakdown`, `get_performance_stats`) are the common ones.
 
+**Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no `claude mcp add`, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged.
+
 Deeper reference, loaded only when the task reaches it:
 
 - [`reference/camera-and-movement.md`](reference/camera-and-movement.md) — before framing screenshots, free-camera sweeps, or navigating precise lines

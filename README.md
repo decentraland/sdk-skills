@@ -53,6 +53,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
+| `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `editable-ui` | Write React-ECS UI that stays fully editable in the Creator Hub's 2D UI editor (UI Designer). |
@@ -68,6 +69,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
+| `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
 
 ## What Are Skills?
 

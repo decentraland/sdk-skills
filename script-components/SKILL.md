@@ -135,7 +135,7 @@ At runtime, `@dcl/sdk-commands/dist/logic/runtime-script.js` resolves params lik
 
 Params with `type: "action"` have `value: {entity: Entity, action: string}` and are converted to `ActionCallback` functions via `createActionCallback` (which calls `getActionEvents(entity).emit(action, {})` when invoked).
 
-This is relevant for agents/MCP tools setting Script params programmatically via `set_component` on `asset-packs::Script` — the full ordered params object must be provided. Example layout for a script with 14 constructor params (after `src`/`entity`):
+This is relevant for agents/MCP tools setting Script params programmatically via `set_component` on `asset-packs::Script` — the full ordered params object must be provided. (When the scene is open in the Creator Hub, prefer its MCP `attach_script` tool — write the script file, then call it with the path and it builds the component for you; see **creator-hub-mcp**.) Example layout for a script with 14 constructor params (after `src`/`entity`):
 
 ```json
 {"params":{"colorA":{"type":"string","value":"#ff33e6"},"colorB":{"type":"string","value":"#33e6ff"},"rate":{"type":"number","value":35},"lifetime":{"type":"number","value":2.5},"sizeMin":{"type":"number","value":0.3},"sizeMax":{"type":"number","value":0.6},"speedMin":{"type":"number","value":2.5},"speedMax":{"type":"number","value":4},"gravity":{"type":"number","value":-0.3},"spin":{"type":"number","value":0},"shape":{"type":"string","value":"sphere"},"shapeSize":{"type":"number","value":0.4},"maxParticles":{"type":"number","value":150},"startPlaying":{"type":"boolean","value":true}}}
