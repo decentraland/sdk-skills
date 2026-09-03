@@ -81,7 +81,7 @@ Update the `display` fields and parcels:
 
 Create `assets/scene/main.composite` with the initial scene entities. See `{baseDir}/../composites/composite-reference.md` for the full format.
 
-> **Editing an existing scene? Read the "Editing an existing composite (edit mode)" section of the composite reference FIRST.** If the scene has been opened in the Creator Hub, `main.composite` already contains `inspector::*` components; adding new entities without registering them in `inspector::Nodes` leaves them rendering in-world but invisible and un-selectable in the Creator Hub entity tree. The reference spells out the exact procedure.
+> **Editing an existing scene?** If it is open in the Creator Hub, change it through the Creator Hub MCP (skill: **creator-hub-mcp**) — never by editing the file, which the editor's autosave overwrites. Only without the MCP: read the "Editing an existing composite (edit mode)" section of the composite reference FIRST. If the scene has been opened in the Creator Hub, `main.composite` already contains `inspector::*` components; adding new entities without registering them in `inspector::Nodes` leaves them rendering in-world but invisible and un-selectable in the Creator Hub entity tree. The reference spells out the exact procedure.
 
 Minimal example — a single named box. Components share entity IDs across their `data` maps, so all of entity `512`'s data lives under the `"512"` key:
 
@@ -310,6 +310,8 @@ npx skills add decentraland/sdk-skills --all
 ```
 
 To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
+
+The Creator Hub also has a built-in **AI scene assistant** (Settings > Experimental > *AI scene assistant*, off by default) that drives the user's own installed `claude` or `codex` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > Experimental. See the **creator-hub-mcp** skill.
 
 The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 

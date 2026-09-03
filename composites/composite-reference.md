@@ -10,7 +10,7 @@ This file must exist at `assets/scene/main.composite`.
 
 Two file forms carry initial-scene entity state; do not confuse them:
 
-- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. Edit this.
+- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. This is the file to author when creating a scene from scratch. For an existing scene that is open in the Creator Hub, change it through the Creator Hub MCP (skill: **creator-hub-mcp**) rather than by editing the file — see "Editing an existing composite" below.
 - **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
 
 The rest of this document describes the `main.composite` JSON format.
@@ -65,9 +65,11 @@ After the user opens and saves a scene in the Creator Hub, the composite contain
 
 The Creator Hub entity tree has a **search bar** that filters entities by name (case-insensitive, auto-expands parent nodes to show matches). When helping users find entities in a complex scene, point them at this feature -- it is faster than scrolling through a large tree.
 
-### STOP — the scene must NOT be open in the Creator Hub while you edit
+### STOP — prefer the Creator Hub MCP; never edit the file while the scene is open
 
-**If the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
+**The right tool for a scene that is open in the Creator Hub is its MCP server** (skill: **creator-hub-mcp**): `create_entity`, `set_component`, `remove_entity`, `set_parent`, `place_smart_item`, `attach_script`, … apply to the live engine, the editor autosaves the composite itself, and all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section is done for you. Use it whenever it is available — inside the Creator Hub's AI assistant it always is; from another tool the user can expose it via Settings > Experimental.
+
+**If you must edit the file and the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
 
 Why — verified in the inspector source (`packages/inspector/src/lib/data-layer/host/composite-provider.ts`):
 
@@ -78,7 +80,7 @@ Why — verified in the inspector source (`packages/inspector/src/lib/data-layer
 
 Symptom when this happens: you add an entity, the write succeeds, and moments later the entity is simply absent from `main.composite` — with no error anywhere.
 
-If the user reports a hand-added entity "disappearing" from the composite, this is the cause. Recovery: close the scene in the Creator Hub, re-apply the edit, then reopen.
+If the user reports a hand-added entity "disappearing" from the composite, this is the cause. Recovery: re-apply the change through the Creator Hub MCP with the scene open (preferred), or close the scene in the Creator Hub, re-apply the file edit, then reopen.
 
 ### Required updates when adding a new entity (entity ID `<id>`) in edit mode
 
