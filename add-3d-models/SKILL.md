@@ -170,6 +170,11 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
 | Click through walls         | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`)      |
+| Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
+
+## RULE: 3D model light fixtures do not emit real light
+
+Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a GLB are **purely decorative** -- they do not cast dynamic light on surrounding objects. The Decentraland renderer treats them as normal geometry (with optional emissive material for a self-glow effect). To get actual illumination from a fixture model, add a `LightSource` component to the same entity or a child entity positioned at the light source. When the Creator Hub MCP is available, prefer `search_catalog` for a Smart Item light (e.g. Spotlight or Point Light from category `lights`) which bundles the model, `LightSource`, and toggle actions together -- see **lighting-environment** for details.
 
 ## Model Best Practices
 

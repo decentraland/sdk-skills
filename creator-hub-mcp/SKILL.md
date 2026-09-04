@@ -33,6 +33,22 @@ Decision ladder — pick the first row that matches:
 
 What still lives in files and is yours to edit directly: `src/**` (scene code; saving triggers a rebuild automatically), `assets/Scripts/*.tsx` (script components — write the file, then `attach_script`), and asset files you add under `assets/Models/`, `assets/Images/`, etc.
 
+## RULE — search the catalog before manually building any standard object
+
+Before creating an entity and manually assembling its components with `create_entity` + `set_component`, **always `search_catalog` first** to check whether a Smart Item already exists for the object. This applies especially to:
+
+- **Lights** — the catalog has Spotlight and Point Light Smart Items (category `lights`) that bundle a real GLB model, a pre-configured `LightSource` component, and built-in Turn On / Turn Off / Toggle actions. Manually creating a `LightSource` entity misses the visual model, inspector integration, and action wiring.
+- **Interactive furniture** — doors, chairs, platforms, chests, buttons, levers, etc.
+- **Media** — screens, image displays, NFT frames.
+- **Triggers** — trigger areas, click triggers.
+
+`place_smart_item` handles all the boilerplate that manual `set_component` calls miss:
+- Downloads the item's GLB files and resolves `asset-packs::Placeholder` with the real on-disk path (e.g. `assets/asset-packs/spotlight/spotlight.glb`).
+- Sets up `asset-packs::Script`, `asset-packs::Actions`, and `inspector::Config` components so the item works in the Creator Hub UI with configurable actions and triggers.
+- Registers the entity in `inspector::Nodes` automatically.
+
+**Only build manually** when no catalog item fits the requirement.
+
 ## Tool catalog
 
 Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/modules/scene-mcp.ts`).
@@ -66,6 +82,7 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 
 - *Catalog item* → `search_catalog` then `place_smart_item`. Files land in `assets/asset-packs/<pkg>/` automatically.
 - *Model the user already has, or one you authored* → put the GLB under `assets/Models/` (see the **add-3d-models** skill for Blender authoring and the bounding-box audit), then `create_entity` (with a `name`), `set_component` `Transform` (`{position:{x,y,z}, rotation:{x,y,z,w}, scale:{x,y,z}}`), and `set_component` `core::GltfContainer` (`{src, visibleMeshesCollisionMask, invisibleMeshesCollisionMask}` — mask rules and the animation/collider checks from **add-3d-models** still apply; add `core::Animator` when the GLB has clips).
+- *Lights* → `search_catalog` with category `lights` to find Spotlight and Point Light Smart Items, then `place_smart_item`. These include the light model, `LightSource`, and toggle actions. Only create a bare `LightSource` entity manually when you need an invisible light source or non-standard parameters -- see **lighting-environment** for the full `LightSource` API and the Smart Item rule.
 - *Behaviour on it* → a Smart Item if one fits (`search_catalog` first), otherwise write a script under `assets/Scripts/` and `attach_script` (rules in **script-components**), or reference the entity by name from `src/` code (`engine.getEntityOrNullByName`).
 
 **Component shapes.** `set_component` validates against the real schema. Before your first write of a component type, `entity_detail` on any entity that already has it — or read its entry in the **composites** format catalog. For `asset-packs::Script`, params are positional inside `layout` (see **script-components**); prefer `attach_script` and let the editor build the layout.
@@ -83,3 +100,4 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 - **`scene_state` caps at 200 entities.** For big scenes filter by name via `entity_detail` or read the composite from disk.
 - **Skill denylist inside the Creator Hub.** The app links `decentraland/sdk-skills` into the scene as `.claude/skills` / `.agents/skills`, but drops the `SKILL.md` of `create-scene`, `deploy-scene`, `deploy-worlds`, and `migrate-sdk6-to-sdk7`: scaffolding, publishing, and SDK6 migration are the app's own flows there. Their reference files still resolve for cross-links.
 - **The Explorer `--mcp` preview checkbox is a different server.** The Creator Hub's Preview dropdown *Enable MCP Server* launches the Explorer with its own MCP on port 8123 (the **unity-explorer-mcp** skill). The Creator Hub MCP described here is the editor's server; when it is connected, use its `launch_preview` instead of that checkbox.
+- **`asset-packs::Placeholder` `src` needs a resolved file path, not a template variable.** The catalog stores paths with `{assetPath}/model.glb` as a template; setting that string literally via `set_component` produces an invisible or broken gizmo because the engine cannot resolve the variable. `place_smart_item` resolves the path automatically (e.g. to `assets/asset-packs/spotlight/spotlight.glb`). If you must set `Placeholder` manually, use the real on-disk path to the GLB file.
