@@ -7,7 +7,7 @@ The paths a minority of sessions take, reached from Setup steps 1 and 2.
 When the user wants to keep the already-running scene server and its Explorer untouched, start a second stack on its own ports — a different dev-server port (`--port`; the launched client follows it automatically), a different MCP port (`--mcp-port`, implies `--mcp`), and `--multi-instance` so a second Explorer instance can run concurrently:
 
 ```bash
-npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124
+npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
 From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name (e.g. `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`; the tools then surface as `mcp__explorer2__*`).
