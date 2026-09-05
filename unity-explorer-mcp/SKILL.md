@@ -5,20 +5,11 @@ description: Set up, launch and drive a Decentraland Explorer through its MCP au
 
 # Unity Explorer MCP Scene Iteration
 
-Drive a running Decentraland Explorer build through its MCP automation server to build and test SDK7 scenes autonomously: edit the scene, watch it hot-reload, move the camera and player, take screenshots, and verify against what the code should produce.
+Drive a running Decentraland Explorer through its MCP automation server to build and test SDK7 scenes: edit the scene, watch it hot-reload, move the player and camera, screenshot, and verify against what the code should produce.
 
-**A failed or missing `explorer` MCP connection is the expected starting state, not a blocker.** The MCP server lives *inside* the Explorer process, so a session that starts before the Explorer is running finds the `explorer` server `ConnectionRefused` — or, on a machine where this has never been set up, no `explorer` server at all — with no `mcp__explorer__*` tools bound. That is this skill's normal entry point, not its answer: continue into the intent gate below — the user decides whether to proceed, and Setup launches the Explorer and gets the tools bound.
+**A failed or missing `explorer` MCP connection is the expected starting state, not a blocker.** The MCP server lives *inside* the Explorer process, so `ConnectionRefused` or no `explorer` server at all only means the Explorer is not running yet — continue into the intent gate below, and Setup launches it and binds the tools.
 
-The connected `mcp__explorer__*` tools are self-describing — each carries its name, arguments, and output shape. They are the authoritative tool catalog; read it there rather than assuming a tool is missing.
-
-Deeper reference, loaded only when the task reaches it:
-
-- [`reference/camera-and-movement.md`](reference/camera-and-movement.md) — before framing screenshots, free-camera sweeps, or navigating precise lines
-- [`reference/interaction.md`](reference/interaction.md) — before the first click, hover, key press, or scene-UI call
-- [`reference/assets.md`](reference/assets.md) — before placing, downloading, converting, or exporting any 3D model
-- [`reference/visuals.md`](reference/visuals.md) — before tuning emissives/bloom, UI overlays, skybox time, or judging thin geometry
-- [`reference/performance-debugging.md`](reference/performance-debugging.md) — before answering whether a scene is within its content budget, why it runs slow, or what to optimize (`get_scene_content_stats`, `get_scene_content_breakdown`, `get_performance_stats`)
-- [`reference/recovery.md`](reference/recovery.md) — when the scene has dropped out, the player is off-parcel, or the client is wedged
+The connected `mcp__explorer__*` tools are self-describing and are the authoritative tool catalog — read names, arguments, and output shapes there rather than assuming a tool is missing.
 
 ## Gates
 
@@ -48,7 +39,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
 ## Setup (once per session)
 
-1. **Probe for an already-running MCP server, then start the scene.** Check through the harness first: if `mcp__explorer__*` tools are available in the session, call `get_scene_state` — an answer means the server is up. Fall back to curl **only if the tools are absent**:
+1. **Probe for an already-running MCP server, then start the scene.** Harness first: if `mcp__explorer__*` tools are available in the session, call `get_scene_state` — an answer means the server is up. Fall back to curl **only if the tools are absent**:
 
    ```bash
    curl -s -m 2 http://127.0.0.1:8123/unity-explorer-mcp -X POST \
@@ -56,7 +47,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
    ```
 
-   Two launch paths produce the same server, and you cannot tell them apart from the probe: `npm run start -- --mcp --skip-auth-screen true` from the CLI, and the **Creator Hub**'s scene **Preview** button with the **"Enable MCP Server"** checkbox ticked in the preview settings (it passes `--mcp` to the same preview process; the checkbox only appears when the scene's `@dcl/sdk-commands` version supports the flag). Same endpoint, same tools, same behaviour — a Creator Hub launch is never the reason a connection fails, so recognise it as a normal setup rather than an anomaly to relaunch out of, and it is a valid answer whenever a launch is needed below.
+   The **Creator Hub**'s scene **Preview** with **"Enable MCP Server"** ticked launches this same server as the CLI does — same endpoint, tools, and behaviour, indistinguishable from the probe. It is a normal setup, never the reason a connection fails, and a valid answer wherever a launch is needed below.
 
    **Server found** (tool answer or `serverInfo` result) — **launch/kill gate**: use the already-running Explorer, or start the scene from scratch with the MCP flag?
    - *Use it*: launch nothing. If port 8000 isn't serving the target scene folder (`lsof -nP -i :8000 -sTCP:LISTEN`, then check the PID's cwd), kill whatever holds it and run `npm run start -- --no-client`. Skip step 2 if the tools are already available.
@@ -70,9 +61,9 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
    npm install && npm run start -- --mcp --skip-auth-screen true
    ```
 
-   This serves the scene at `http://127.0.0.1:8000`, auto-launches the installed Decentraland client connected to it with the MCP server enabled (port 8123; `--mcp-port <port>` picks another and implies `--mcp` — adjust the 8123 URLs in steps 1 and 2 to match), and hot-reloads the scene whenever a source file changes. Useful extra flags: `--port <port>` (dev-server port; the launched client follows it automatically), `--position x,y` (spawn parcel), `-n` (force a new client instance), `--multi-instance` (allow concurrent Explorer instances). Anything after a second standalone `--` is forwarded verbatim into the Explorer launch as extra parameters, e.g. `npm run start -- --mcp --skip-auth-screen true -- --windowed-mode --resolution 1280x720` (npm consumes the first `--`). If the command rejects `--mcp` as an unknown option, the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet — update it from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand ("Launching a specific Explorer build manually" in [`reference/setup.md`](reference/setup.md)). If the CLI prints "Please download & install the Decentraland Desktop Client" the dev server is fine but no client is installed — install one, or point the launch at a specific build the same way.
+   This serves the scene at `http://127.0.0.1:8000`, launches the installed Decentraland client against it with the MCP server on port 8123, and hot-reloads the scene whenever a source file changes. Port overrides, the other launch flags, and the two launch errors (`--mcp` rejected as an unknown option; "Please download & install the Decentraland Desktop Client") are under "Launch flags and errors" in [`reference/setup.md`](reference/setup.md).
 
-   **A freshly launched Explorer may still need the user to log in.** `--skip-auth-screen true` goes straight into the world *when a valid identity is cached from a previous session*; a missing or expired login shows the auth screen anyway, and extra `--multi-instance` instances always ask. So treat step 3's polling as the test: while it is not succeeding, the client is sitting on the auth screen — tell the user to log in and wait for them, and only then continue working on the scene through the MCP server.
+   **A freshly launched Explorer may still need the user to log in.** `--skip-auth-screen true` skips the auth screen only when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask. Step 3's polling is the test: while it is not succeeding, the client is sitting on the auth screen — tell the user to log in, wait for them, then continue.
 
 2. **Register the MCP server, then confirm its tools are actually bound** (default port 8123). Registration and binding are two different things — you need both.
 
@@ -80,9 +71,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
    claude mcp add --transport http --scope user explorer http://127.0.0.1:8123/unity-explorer-mcp
    ```
 
-   Errors with "already exists in local config" if a previous session registered it — that's fine and expected; registration is persistent config, nothing to do.
-
-   **This command can hang with no output in non-terminal harnesses** (observed in the Claude Code VS Code extension: >2 min, no result, no error). Run it with a short timeout — `timeout 15 claude mcp add ...` — and read a hang as *probably already registered*, not as a failure: registration persists across sessions, so a prior session's `claude mcp add` still counts. Don't retry it; confirm the endpoint with the step 1 probe instead and move on to the bind gate.
+   "already exists in local config" means a previous session registered it — registration is persistent config, nothing to do. **The command can hang with no output in non-terminal harnesses** (observed in the Claude Code VS Code extension: >2 min, no result, no error). Run it as `timeout 15 claude mcp add ...`, read a hang as *probably already registered*, and move on to the bind gate without retrying — the step 1 probe already confirmed the endpoint.
 
    **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** Claude Code opens its MCP connections once, at session startup, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its one connection attempt, and `mcp__explorer__*` tools will never appear on their own. Mid-session, only an explicit `/mcp` reconnect re-binds them; alternatively, starting a fresh Claude session while the Explorer keeps running binds them automatically at that session's startup. Both are user actions: there is nothing you can run instead, so ask rather than trying to engineer around it.
 
@@ -112,12 +101,12 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
 Repeat until **every requirement has proof**: a screenshot or state read demonstrating it, captured from a retail camera mode (`first_person`/`third_person`, not the free camera), with `get_scene_state` healthy and no unexplained errors in the logs.
 
-1. **Edit** the scene TypeScript in `src/` — read the owning topic skill before writing an API you can't recall exactly (see **Stale memory** below). **One write per change**: each save triggers a rebuild, and two saves seconds apart can make the Explorer load a **torn bundle** — a `SyntaxError` at scene start that drops the scene out permanently, recoverable only by the user restarting the client ([`reference/recovery.md`](reference/recovery.md)). Batch multi-part changes into ONE write, write new modules before wiring them in, and verify `get_scene_state` still shows a scene before saving again. The dev server hot-reloads within a few seconds; call `reload_scene` when you need a deterministic reset instead.
+1. **Edit** the scene TypeScript in `src/` — read the owning topic skill before writing an API you can't recall exactly (**stale memory**, below). **One write per change**: batch multi-part changes into ONE write, write new modules before wiring them in, and verify `get_scene_state` still shows a scene before saving again — two saves seconds apart can load a **torn bundle**, a scene drop only the user can recover by restarting the client ([`reference/recovery.md`](reference/recovery.md)). The dev server hot-reloads within a few seconds; `reload_scene` gives a deterministic reset. Before placing, downloading, converting, or exporting a 3D model read [`reference/assets.md`](reference/assets.md); before tuning emissives/bloom, UI overlays, skybox time, or thin geometry read [`reference/visuals.md`](reference/visuals.md).
 2. **Confirm the scene is healthy**: `get_scene_state` — a `state` of `JavaScriptError` or `EcsError` means your code crashed the scene runtime.
-3. **Read the runtime output**: `get_scene_logs` with `sinceSeq` set to the last sequence number you saw. Scene `console.log` output and exceptions land here.
-4. **Look and verify**: position the view (`teleport`, `move_to`, `walk`, `look_at` — `look_at` is the tool that sets your facing — `move_to`'s `lookAt*` aims the camera only on clients built after 2026-09-04 (its result then carries `cameraRotationEuler`; a result without that field means it did nothing), and `walk` follows the camera; for precise framing or free-camera sweeps read [`reference/camera-and-movement.md`](reference/camera-and-movement.md)), then `screenshot` and inspect the image against what the scene code should produce.
-5. **Exercise behavior**: `walk` into trigger areas, `click_entity`/`click_at` on interactables, `sweep_pointer` for a held pointer dragged across the world, `hover_entity` for hover reactions, `press_input` for input listeners, `send_chat` for commands, `trigger_emote`, and `ui_list` + `ui_click`/`ui_set_text`/`ui_scroll` for the scene's own 2D UI — then re-screenshot to verify reactions. Every one of these has a silent failure mode: read [`reference/interaction.md`](reference/interaction.md) before the first click, hover, key press, or UI call. `list_scene_entities` + `get_entity_details` show the scene's ECS state when visuals aren't enough.
-6. **Measure budget & performance** (when the question is limits, frame rate, or what to optimize): `get_scene_content_stats` for the whole-scene counts against their soft caps, `get_scene_content_breakdown` to rank the heaviest source models (position the camera first — the visible columns are per point of view), and `get_performance_stats` to sample the real frame rate at a viewpoint. Don't prescribe from counts alone — correlate content with measured FPS. Full method and the materials-vs-shaderVariants interpretation are in [`reference/performance-debugging.md`](reference/performance-debugging.md).
+3. **Read the runtime output**: `get_scene_logs` with `sinceSeq` set to the last sequence number you saw, rather than re-reading the whole buffer. Scene `console.log` output and exceptions land here, and errors survive in the buffer after they scroll by.
+4. **Look and verify**: position the view (`teleport`, `move_to`, `walk`, `look_at`) — `look_at` is the tool that sets your facing, and `walk` and `screenshot` follow the camera. Then `screenshot` and inspect the image against what the scene code should produce. Before framing shots, free-camera sweeps, or navigating precise lines, read [`reference/camera-and-movement.md`](reference/camera-and-movement.md).
+5. **Exercise behavior**: `walk` into trigger areas, `click_entity`/`click_at`, `hover_entity`, `press_input`, `sweep_pointer` for a held pointer dragged across the world, `send_chat`, `trigger_emote`, and the `ui_*` tools for the scene's own 2D UI — then re-screenshot to verify reactions. Every one of these has a silent failure mode: read [`reference/interaction.md`](reference/interaction.md) before the first click, hover, key press, or UI call. `list_scene_entities` + `get_entity_details` show the scene's ECS state when visuals aren't enough.
+6. **Measure budget & performance** when the question is limits, frame rate, or what to optimize: `get_scene_content_stats`, `get_scene_content_breakdown`, and `get_performance_stats` close a measurement loop — correlate content with measured FPS at a real viewpoint before prescribing anything. Method and interpretation are in [`reference/performance-debugging.md`](reference/performance-debugging.md).
 
 **Stale memory — your SDK7 API recall is out of date.** The SDK ships components newer than training data — native `TriggerArea` + `triggerAreaEventsSystem` (`TriggerArea.setBox(entity, ColliderLayer.CL_MAIN_PLAYER)`) among them — so failing to recall an API is no evidence it's missing, and neither is a version number you remember. When you can't recall an API exactly, or catch yourself hand-rolling a workaround (polling the player `Transform` for a trigger volume, mutating `engine.PlayerEntity` to move the player), read the topic skill that owns it *before* writing the workaround: `add-interactivity` for triggers and pointer events, `player-physics` for forces on the player, `advanced-input` for held keys, `sdk-scenes` for the component reference and the index of the rest. Reach for the official docs only where no skill covers it, and say so when you do.
 
@@ -127,9 +116,7 @@ Repeat until **every requirement has proof**: a screenshot or state read demonst
 
 ## Screenshot frequency & cost
 
-Every screenshot returned by the MCP `screenshot` tool lands in your context as an image (~1.2k tokens at 1280×720, scaling with pixel count). Occasional captures through the tool are fine; **frequent or burst captures must go through the bundled script instead**, which saves frames to disk (zero context cost) and prints only the caption.
-
-Call it by absolute path — your cwd is the scene folder, not this skill's. `<skill-dir>` is the base directory reported when this skill loads (`.claude/skills/unity-explorer-mcp/` scene-local, `~/.claude/skills/unity-explorer-mcp/` global); `-h` prints the full flag list.
+Every screenshot returned by the MCP `screenshot` tool lands in your context as an image (~1.2k tokens at 1280×720, scaling with pixel count). Occasional captures through the tool are fine; **frequent or burst captures go through the bundled script instead**, which saves frames to disk at zero context cost and prints only the caption. Call it by absolute path — your cwd is the scene folder, not this skill's; `<skill-dir>` is the base directory reported when this skill loaded, and `-h` prints the full flag list.
 
 ```bash
 <skill-dir>/scripts/screenshot.sh -o /tmp/shot.jpg     # single frame to a file
@@ -137,20 +124,17 @@ Call it by absolute path — your cwd is the scene folder, not this skill's. `<s
 ```
 
 - Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: anything left in the project gets uploaded on deploy and counts against the per-parcel MB limits. Keep `-d`/`-o` targets out of the scene too — or add the directory to `.dclignore` if the user wants the frames kept beside their scene.
-- `Read` only the frames you actually need to inspect — capture many, look at few. For before/after comparisons, capture both to disk and read just those two.
-- `-w 640` for quick checks, 1280 only for final verification. `--png` + `--world-only` for a UI-less lossless frame.
-- Requires curl + python3; pass `-p <port>` when not on 8123. Captures are serialized server-side (concurrent requests are rejected), so keep burst intervals ≥ 0.2s.
+- Capture many, `Read` few: for before/after comparisons, capture both to disk and read just those two. `-w 640` for quick checks, 1280 only for final verification.
 
 ## Scene health
 
-- Sequence-poll logs (`sinceSeq`) instead of re-reading the whole buffer; errors survive in the buffer even if they scrolled by.
 - `scene.json` changes (parcels, spawn points) are not hot-reloaded — restart the `npm run start` process, then `reload_scene`.
-- After `teleport` or `reload_scene`, always re-check `get_scene_state` before interacting; readiness can lag a few seconds.
+- After `teleport` or `reload_scene`, re-check `get_scene_state` before interacting; readiness can lag a few seconds.
 - One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position 0,0` spawns at parcel 0,0.
-- The `teleport` tool silently no-ops in local-scene-development mode: `/goto` teleports are disallowed there (chat shows "Teleport is not allowed in local scene development mode") but the tool still answers "Arrived at (x,y)". Use `move_to` for repositioning in local-scene sessions.
+- `teleport` silently no-ops in local-scene-development mode: `/goto` is disallowed there (chat shows "Teleport is not allowed in local scene development mode") but the tool still answers "Arrived at (x,y)". Use `move_to` for repositioning in local-scene sessions.
 - **Missing tools**: `mcp__explorer__*` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (`/mcp` menu in the terminal CLI, `/mcp reconnect explorer` in the VS Code extension) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.
 - **Scene dropped out, player off-parcel, connection lost, or a wedged client**: [`reference/recovery.md`](reference/recovery.md).
 
 ## When a capability is missing
 
-If the loop is blocked because no connected MCP tool can do what you need (e.g. pressing a specific key, reading a value no tool exposes), stop and hand it to the user: name the concrete action you're blocked on and why the existing tools can't cover it, and let them decide how to extend the setup. The MCP server and Explorer live outside this scene's repo — extending them is the user's call, not something to work around from here.
+If the loop is blocked because no connected MCP tool can do what you need (pressing a specific key, reading a value no tool exposes), stop and hand it to the user: name the concrete action you're blocked on and why the existing tools can't cover it, and let them decide how to extend the setup. The MCP server and Explorer live outside this scene's repo — extending them is the user's call.

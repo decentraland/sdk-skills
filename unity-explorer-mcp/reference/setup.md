@@ -2,9 +2,26 @@
 
 The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
+## Launch flags and errors
+
+`npm run start -- --mcp --skip-auth-screen true` takes these extra flags:
+
+- `--mcp-port <port>` — MCP server port (implies `--mcp`); adjust the 8123 URLs in Setup steps 1 and 2 to match.
+- `--port <port>` — dev-server port; the launched client follows it automatically.
+- `--position x,y` — spawn parcel.
+- `-n` — force a new client instance; `--multi-instance` — allow concurrent Explorer instances.
+- Anything after a second standalone `--` is forwarded verbatim into the Explorer launch as extra parameters, e.g. `npm run start -- --mcp --skip-auth-screen true -- --windowed-mode --resolution 1280x720` (npm consumes the first `--`).
+
+Two launch errors:
+
+- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
+- **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
+
+The Creator Hub's scene **Preview** button offers the same launch: its **"Enable MCP Server"** checkbox in the preview settings passes `--mcp` to the same preview process, and appears only when the scene's `@dcl/sdk-commands` version supports the flag.
+
 ## Running a second stack alongside an existing one
 
-When the user wants to keep the already-running scene server and its Explorer untouched, start a second stack on its own ports — a different dev-server port (`--port`; the launched client follows it automatically), a different MCP port (`--mcp-port`, implies `--mcp`), and `--multi-instance` so a second Explorer instance can run concurrently:
+When the user wants to keep the already-running scene server and its Explorer untouched, start a second stack on its own ports — a different dev-server port, a different MCP port, and `--multi-instance` so a second Explorer instance can run concurrently:
 
 ```bash
 npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
