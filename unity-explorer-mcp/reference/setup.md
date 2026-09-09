@@ -17,7 +17,7 @@ Two launch errors:
 - **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
 - **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
 
-The Creator Hub's scene **Preview** button offers the same launch: its **"Enable MCP Server"** checkbox in the preview settings passes `--mcp` to the same preview process, and appears only when the scene's `@dcl/sdk-commands` version supports the flag.
+The Creator Hub's Preview **"Enable MCP Server"** checkbox passes `--mcp` to this same process, and appears only when the scene's `@dcl/sdk-commands` supports the flag — a missing checkbox is the first error above in another guise.
 
 ## Running a second stack alongside an existing one
 
@@ -45,7 +45,7 @@ On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud -
 
 ## Registering in a client other than Claude Code
 
-`claude mcp add` / `/mcp` are Claude Code commands. This section is **not** for the Claude Code VS Code extension or the Creator Hub's embedded chat — those are Claude Code and use SKILL.md step 2 (see the bind gate for their `/mcp reconnect` and new-tab differences). In any genuinely different MCP client (Cursor, Cline, a custom SDK harness), register the server the way that client documents, using these connection details — then reload/restart the client so it picks the server up:
+For a genuinely different MCP client (Cursor, Cline, a custom SDK harness — the Claude Code VS Code extension and the Creator Hub's embedded chat are Claude Code and take SKILL.md step 2), register the server the way that client documents, using these connection details, then reload/restart the client so it picks the server up:
 
 | Field | Value |
 |---|---|

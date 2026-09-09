@@ -1,6 +1,6 @@
 # Recovery reference
 
-Reached when the scene, the client, or the connection has gone wrong. The everyday invariants stay in `SKILL.md` under "Scene health"; these are the branches a minority of sessions hit.
+Reached when the scene, the client, or the connection has gone wrong.
 
 ## Torn bundle (an unrecoverable scene drop)
 
