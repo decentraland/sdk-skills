@@ -33,6 +33,14 @@ executeTask(async () => {
 
 The full list, the player-interaction rule, and canonical examples (`movePlayerTo`, `teleportTo`, `triggerEmote`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md. Details below extend those.
 
+### teleportTo — signature
+
+```typescript
+teleportTo({ worldCoordinates?: Vector2, realm?: string }): Promise<TeleportToResponse>
+```
+
+Both fields optional (`@dcl/js-runtime` 7.28.0+). `realm` = World name (`foo.dcl.eth`) or realm URL; setting it forces a full reconnect, then lands on the parcel. `realm` with no `worldCoordinates` = that realm's default spawn. `changeRealm` is `[DEPRECATED]` in favor of this — see SKILL.md for the race condition it fixes.
+
 ### movePlayerTo — rotate avatar in place
 
 Params are documented in SKILL.md. To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons).

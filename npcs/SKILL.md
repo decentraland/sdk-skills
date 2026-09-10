@@ -133,7 +133,7 @@ AvatarNametag.create(npcEntity, { label: 'Shopkeeper' })
 
 Combine with `name: ''` on the `AvatarShape` to show **only** the plate, with no empty native name box under it — handy for labeling an NPC with a title alone.
 
-`label` is required; `labelColor`, `backgroundColor` and `borderColor` are optional `Color3` fields that fall back to the client's native nametag colors. For the full field table and gotchas, see the **player-avatar** skill ("Custom Nametag Plates") and `{baseDir}/../player-avatar/references/avatar-nametag.md`.
+`label` is required; `labelColor`, `backgroundColor` and `borderColor` are optional `Color3` fields that fall back to the client's native nametag colors. Requires `@dcl/sdk` 7.28.0+. For the full field table and gotchas, see the **player-avatar** skill ("Custom Nametag Plates") and `{baseDir}/../player-avatar/references/avatar-nametag.md`.
 
 ### Playing expressions on an AvatarShape NPC
 
