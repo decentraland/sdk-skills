@@ -128,8 +128,8 @@ Notes on the pattern:
   a player `Entity` for a later write.
 - Do not store per-player state keyed by `Entity`; key it by `PlayerIdentityData.address`.
 
-Adapted from sdk7-test-scenes `4,24-avatar-nametag`, `src/modules/multiplayerRoster.ts`
-(branch `feat/avatar-nametag-test-scene`).
+Adapted from sdk7-test-scenes [`4,24-avatar-nametag`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag),
+`src/modules/multiplayerRoster.ts`.
 
 ## Per-player plates from `onEnterScene`
 
@@ -164,6 +164,6 @@ export function main() {
 ## Sources
 
 - Protocol: `proto/decentraland/sdk/components/avatar_nametag.proto` (`ecs_component_id 1221`).
-- SDK: js-sdk-toolchain PR #1600 (merged 2026-09-07, commit `b8264fb`).
+- SDK: `@dcl/sdk` 7.28.0 (released 2026-09-10). js-sdk-toolchain PR #1600 (merged 2026-09-07, commit `b8264fb`).
 - Renderer: unity-explorer `5cb52d6` — "feat: sdk | scene name tag (#9829)", 2026-09-04.
-- Test scene: sdk7-test-scenes `scenes/4,24-avatar-nametag` (branch `feat/avatar-nametag-test-scene`).
+- Test scene: sdk7-test-scenes [`scenes/4,24-avatar-nametag`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag).
