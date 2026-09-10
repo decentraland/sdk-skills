@@ -12,7 +12,7 @@ Two ways you can be running:
 | You are… | How the tools reach you |
 | --- | --- |
 | **Inside the Creator Hub's AI assistant** (Settings > Experimental > *AI scene assistant*; off by default) | Pre-wired. The app launches your `claude` / `codex` CLI with the server registered as `creator-hub`, links these skills into the scene, and injects the same rules as this skill. Nothing to set up. |
-| **In another tool** (Claude Code terminal or VS Code extension, Cursor, Codex, Claude Desktop, …) | Connect to the running Creator Hub — see [`reference/connect.md`](reference/connect.md). The user copies a JSON snippet from Settings > Experimental > *Expose AI assistant MCP server*. |
+| **In another tool** (Claude Code terminal or VS Code extension, Cursor, Codex, Claude Desktop, …) | Connect to the running Creator Hub — see [`reference/connect.md`](reference/connect.md). The user copies a JSON snippet from Settings > Experimental > *Expose AI assistant MCP server*. Skills are **not** wired up for you here — see [Where the skills come from](#where-the-skills-come-from). |
 
 In Claude Code the tools appear as `mcp__creator-hub__<tool>`; inside the Creator Hub's assistant and in other clients they appear under their bare names (`scene_state`, `create_entity`, …). The connected tools are self-describing — treat the live catalog as authoritative over the table below.
 
@@ -67,7 +67,7 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 | Mutate | `set_component` | Create or update a component. `component` accepts short (`Transform`) or full (`core::GltfContainer`) names; `value` is the same JSON the composite stores. On update the keys you pass are **merged**. |
 | Mutate | `remove_component` | Removes a component by name. |
 | Assets | `search_catalog` | Search the Creator Hub asset-packs catalog by name/category/tag. Despite the name it covers **static items as well as Smart Items**. Omit `query` to list everything. |
-| Assets | `place_smart_item` | Place a catalog item by `assetId` at a world `position` (default 8,0,8). Downloads the item's files into `assets/asset-packs/<pkg>/` and spawns it — Smart Items arrive with their behaviour. |
+| Assets | `place_smart_item` | Place a catalog item by `assetId` at a world `position` (default 8,0,8). Downloads the item's files into `assets/asset-packs/<pkg>/` and spawns it — Smart Items arrive with their behaviour. Most items now arrive as `asset-packs::Script` code (no `Triggers`); configure them through the Script's params, and wire "When X" hooks via their optional `ActionCallback` params. See **script-components**. |
 | Scripts | `attach_script` | Adds an `asset-packs::Script` component pointing at a file. **Write the file first** (under `assets/Scripts/`), then call this. Optional `priority`. |
 | Settings | `get_scene_settings` / `set_scene_settings` | Read / change scene.json fields (name, description, categories, tags, age rating, spawn points, skybox, terrain, `layout.parcels`, flags). Each passed field replaces the current one wholesale — read first. The `thumbnail` is editor-managed; leave it. |
 | Preview | `launch_preview`, `preview_status`, `stop_preview` | Start / poll / stop the scene in the Decentraland Explorer with its MCP server on. |
@@ -90,6 +90,35 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 **After writing.** Read-after-write is safe: the server waits for the autosave before returning from a mutation, so a following `scene_state` is fresh. Check `get_scene_metrics` when you added geometry. `editor_screenshot` shows the result without a preview; `launch_preview` + `explorer_*` when you need the running scene (walk, click, logs, FPS). The iteration loop, camera framing, and performance references in the **unity-explorer-mcp** skill apply to the `explorer_*` tools unchanged — skip that skill's Setup section (no `claude mcp add`, no bind gate) because the tools arrive through the `creator-hub` server. When done, leave the camera in third person and `stop_preview` if you launched it only to check.
 
 **Mistakes.** Undo is the user's — tell them what to undo, or `remove_entity` / `set_component` back to the previous value. Never "repair" a mistake by editing `main.composite`.
+
+## Where the skills come from
+
+How these skills reach the agent depends on which of the two setups above you are in.
+
+**Inside the Creator Hub's AI assistant the app installs them — never hand-copy them.** The installer lives in `packages/creator-hub/main/src/modules/skills.ts`:
+
+- It downloads `decentraland/sdk-skills` **main** into a per-user cache (keyed on the upstream commit SHA plus the app version, swapped atomically, tolerant of being offline).
+- It **symlinks** that cache into the open scene as **`.claude/skills`** and **`.agents/skills`**. Links the app created are added to a `.gitignore`. If the user already has a real `skills` directory, it links each skill in individually and skips names the user already owns.
+
+In that setup, do not copy skill directories into the scene and do not tell the user to: a hand-placed copy shadows the managed symlink and then silently goes stale; the app is the updater.
+
+**From an external client (Claude Code CLI or VS Code extension, Cursor, Codex, Claude Desktop, …) the skills are the user's to install.** The MCP snippet only connects the tools; it does not bring the skills along. Two cases:
+
+- If the Creator Hub currently has the scene open, the app-managed `.claude/skills` / `.agents/skills` symlinks already exist in the scene folder, so a Claude Code session started **in that folder** picks them up. Do not duplicate them.
+- Otherwise (a different working directory, the scene not open in the Creator Hub, or a client that reads skills from elsewhere), install them the normal way, from the scene folder or the user's skills root:
+
+  ```bash
+  npx skills add decentraland/sdk-skills --all
+  ```
+
+  Re-run the same command to update; `npx skills update` only refreshes skills already present and misses newly added ones. See the repo [README](../README.md) for per-skill installs.
+
+**Four skills are deliberately denylisted inside the Creator Hub agent:** `create-scene`, `deploy-scene`, `deploy-worlds`, `migrate-sdk6-to-sdk7`. The Creator Hub owns scaffolding and publishing through its own UI, and it is SDK7-only. The installer handles them in two ways:
+
+- A denylisted skill that has supporting files (`create-scene`, `migrate-sdk6-to-sdk7`) ships **without its `SKILL.md`** — its `references/` stay resolvable from other skills' relative paths, but the skill itself can never trigger.
+- A denylisted skill whose directory holds **nothing but `SKILL.md`** (`deploy-scene`, `deploy-worlds`) is **skipped entirely**.
+
+If a user inside the Creator Hub asks to scaffold a project or publish, point them at the app's own flow rather than trying to load or reconstruct those skills. A manual `npx skills add` install from an external client is not denylisted: all four skills are available there.
 
 ## Gotchas
 

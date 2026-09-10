@@ -89,7 +89,7 @@ pointerEventsSystem.onProximityDown(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: 'Press E',
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   () => { console.log('Player pressed button near entity') }
@@ -101,7 +101,7 @@ pointerEventsSystem.onProximityUp(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: 'Release E',
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   () => { console.log('Player released button near entity') }
@@ -113,7 +113,7 @@ pointerEventsSystem.onProximityUp(
 pointerEventsSystem.onProximityEnter(
   {
     entity: myEntity,
-    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxPlayerDistance: 5 },
+    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxDistance: 5 },
   },
   () => { console.log('Player entered proximity') }
 )
@@ -121,7 +121,7 @@ pointerEventsSystem.onProximityEnter(
 pointerEventsSystem.onProximityLeave(
   {
     entity: myEntity,
-    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxPlayerDistance: 5 },
+    opts: { button: InputAction.IA_POINTER, hoverText: 'Nearby', maxDistance: 5 },
   },
   () => { console.log('Player left proximity') }
 )
@@ -132,7 +132,7 @@ pointerEventsSystem.onProximityLeave(
 pointerEventsSystem.onProximityDown(
   {
     entity: doorEntity,
-    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open door', maxPlayerDistance: 5, priority: 2 },
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open door', maxDistance: 5, priority: 2 },
   },
   () => { console.log('Door activated') }
 )
@@ -140,7 +140,7 @@ pointerEventsSystem.onProximityDown(
 pointerEventsSystem.onProximityDown(
   {
     entity: floorEntity,
-    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Step here', maxPlayerDistance: 5, priority: 1 },
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Step here', maxDistance: 5, priority: 1 },
   },
   () => { console.log('Floor activated') }
 )
@@ -170,7 +170,7 @@ const openRot = Quaternion.fromEulerDegrees(0, 90, 0)
 pointerEventsSystem.onProximityDown(
   {
     entity: door,
-    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open / Close', maxPlayerDistance: 5, priority: 1 },
+    opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open / Close', maxDistance: 5, priority: 1 },
   },
   () => {
     if (isDoorOpen) {
@@ -188,7 +188,9 @@ pointerEventsSystem.onProximityDown(
 
 For more control, use the system-based approach with `InteractionType.PROXIMITY`:
 
-> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`. For proximity range, set `maxPlayerDistance` inside `eventInfo` (measured from the avatar); `maxDistance` is the cursor ray range and does nothing for proximity events.
+> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`.
+>
+> For range, set `maxDistance` inside `eventInfo`: it is **avatar distance** (default `10`) on both the cursor and the proximity path. `maxPlayerDistance` is a `[DEPRECATED]` alias of it (larger of the two wins if both are set). `maxCameraDistance` measures from the active camera and is **ignored entirely on the proximity path**. See `add-interactivity/SKILL.md` > "Distance rules".
 
 ```typescript
 import { PointerEvents, InteractionType, inputSystem, PointerEventType } from '@dcl/sdk/ecs'
@@ -201,7 +203,7 @@ PointerEvents.create(myEntity, {
       eventInfo: {
         button: InputAction.IA_PRIMARY,
         hoverText: 'Press E',
-        maxPlayerDistance: 5,
+        maxDistance: 5,
       },
     },
   ],
@@ -227,7 +229,7 @@ PointerEvents.create(myEntity, {
     {
       eventType: PointerEventType.PET_DOWN,
       interactionType: InteractionType.PROXIMITY,
-      eventInfo: { button: InputAction.IA_SECONDARY, hoverText: 'Press F nearby', maxPlayerDistance: 5 },
+      eventInfo: { button: InputAction.IA_SECONDARY, hoverText: 'Press F nearby', maxDistance: 5 },
     },
   ],
 })

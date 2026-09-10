@@ -64,12 +64,35 @@ The Creator Hub Script component has a `priority` field (separate from construct
 
 Parameters declared in the constructor are exposed in the Creator Hub UI and can be configured per-entity. Allowed types:
 
-- `string`
-- `number`
-- `boolean`
-- `Entity` (lets the user pick another entity from the scene)
+| Type | Editor UI |
+|---|---|
+| `string` | text field |
+| `number` | number field |
+| `boolean` | checkbox |
+| `Entity` | entity picker (lets the user pick another entity from the scene) |
+| `ActionCallback` | action picker — see "ActionCallback parameters" |
+| `Slider<Min, Max, Step>` | **slider plus a number box** — see below |
 
 Both `public` and `private` parameters are exposed to Creator Hub. Use `this.<paramName>` to access values in your code.
+
+### `Slider<Min, Max, Step>` — a number edited with a slider
+
+```ts
+public speed: Slider<0, 10, 0.5> = 1
+```
+
+- **The runtime value is a plain `number`** — the type is a pure alias (`type Slider<Min, Max, Step = 1> = number`), so nothing changes in your code or in serialization. It only tells the editor to render a slider.
+- **`Step` defaults to `1`** — `Slider<0, 100>` steps by 1.
+- **An invalid declaration degrades to a plain number field** (no error): missing bounds, `min >= max`, or `step <= 0`. Negative bounds and negative defaults are fine.
+- A default outside the range is **clamped**; if you later widen or narrow the bounds, the stored value is re-clamped into the new range on script reload.
+- **Exported from `@dcl/asset-packs`**, next to `ActionCallback`. Scenes cannot import it yet, so the Creator Hub's script template declares a local alias — copy this line into your script file:
+
+  ```ts
+  // A number edited with a slider in the Creator Hub UI: Slider<min, max, step>
+  type Slider<Min extends number, Max extends number, Step extends number = 1> = number
+  ```
+
+  (`~sdk/script-utils` is its eventual home; until then the local alias is the supported form.)
 
 ### Default values
 
@@ -266,6 +289,26 @@ export class Padlock {
 }
 ```
 
+### Unwired `ActionCallback` params are `undefined` (sdk-commands fix `8da580d5`)
+
+An **optional** `ActionCallback` the user never assigns in the editor now resolves to **`undefined`**, so the obvious guard works:
+
+```ts
+constructor(
+  public src: string,
+  public entity: Entity,
+  public onUnlock?: ActionCallback,   // ActionCallback | undefined
+) {}
+
+solve() {
+  if (this.onUnlock) this.onUnlock()   // safe: no-op when unwired
+}
+```
+
+**Previously** an unassigned param resolved to a truthy placeholder (`{ entity: 0, action: '' }` wrapped into a callable), so `if (this.onUnlock)` always passed and calling it logged a `console.error`. If you wrote a workaround around that — checking `entity !== 0`, or swallowing the error — remove it. On an older `@dcl/sdk-commands` the old behavior is still live, so a truthiness guard alone is not a safety net there.
+
+Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one.
+
 ## Calling other scripts from code
 
 Use the runtime utilities in `~sdk/script-utils` to call methods on other Script component instances:
@@ -284,3 +327,20 @@ const instance = getScriptInstance(entity, 'assets/scripts/Padlock.ts')
 const allOnEntity = getAllScriptInstances(entity)
 const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
+
+
+## Smart Items are now Script-based (creator-hub `658f4daf`, PR #1354)
+
+Most catalog Smart Items were migrated from the Actions/Triggers no-code graph to **`asset-packs::Script` code with `@action`-tagged methods** — the same mechanism this skill documents. What that means when you inspect or extend one:
+
+- **A migrated item carries no `asset-packs::Triggers`.** Do not look for a trigger graph; the behavior is in the `.ts` file the `Script` component points at (`Door.ts`, `Seat.ts`, `Button.ts`, `Lever.ts`, `Bell.ts`, `Teleport.ts`, `Sign.ts`, …).
+- **The `Actions` that remain are `call_script_method` pointers** that preserve the old public action names, so existing scenes that referenced "Open" / "Close" / "Open or Close" / "Sit Here" keep working. Their `jsonPayload` is `{"scriptPath": "{assetPath}/Door.ts", "methodName": "open", "params": {}}`.
+- **The Script's params ARE the configuration UI** — the `inspector::Config` panel was removed from the migrated items. It survives on the items that were *not* migrated: the lights, the screen/media family, `camera`, `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family. (Do not state that Config was removed everywhere — it was not.)
+- **"When X happens" hooks are optional `ActionCallback` params.** Real names in the shipped items: `onClick`, `onActivate` / `onDeactivate`, `onReachStart` / `onReachEnd` (the two most common, on the moving-platform family), `onRing` (bell), and `onOpen` / `onClose` (the open/closed sign — not the doors). Wire them the way this skill's ActionCallback section describes.
+- **State lives in a synced `asset-packs::States` component** listed in `core-schema::Sync-Components` (`{"componentIds": ["asset-packs::States"]}`). E.g. a door creates `States` with `value: ['Open','Closed'], defaultValue: 'Closed'` in `start()`; a chair carries `['Free','Taken']` per sit spot. Read and write state through `States`, not through script instance fields, or it will not replicate.
+
+**Not migrated** (still Actions/Triggers): `click_area`, `trigger_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers). `video_player` is **`[DEPRECATED]`** (moved to the `deprecated` category) — use one of the video screen items instead.
+
+**`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
+
+**Behavior changes worth knowing:** a seat frees itself when the sitter walks more than **1.5 m** away; `sit()` picks the **nearest free** spot; with no spot free the item shows its `takenMessage` (default **"Seat is taken"**). The avatar is moved *before* the sitting emote plays — reversing that order cancels the emote.

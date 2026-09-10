@@ -2,12 +2,14 @@
 
 For sessions that are **not** the Creator Hub's own AI assistant (that one is pre-wired). Any MCP client that speaks Streamable HTTP with a custom header can connect.
 
+Connecting the MCP gives the agent the **tools**, not the **skills**. The Creator Hub links `decentraland/sdk-skills` into a scene only for its own embedded assistant (and those links are only present in the scene folder while the app has it open). From an external client, install the skills yourself with `npx skills add decentraland/sdk-skills --all` unless your session already runs inside a scene folder the Creator Hub has open — details in the main skill under *Where the skills come from*.
+
 ## Where the connection details come from
 
 The server is localhost-only and gated by a bearer token. Both the **port and the token are random and change every time the Creator Hub starts**, so they are never something you can hard-code — the user copies them from the app:
 
-1. Creator Hub → **Settings > Experimental** → tick **Expose AI assistant MCP server**.
-2. A read-only JSON snippet appears with a **Copy configuration** button. It has this shape:
+1. Creator Hub → **Settings > Experimental** → tick **Expose AI assistant MCP server** (help text: *"Let an AI agent running outside Creator Hub control the open scene. Paste this into the agent's MCP configuration."*).
+2. A read-only JSON snippet appears with a **Copy configuration** button, under the note *"Localhost only. The URL and token change each time Creator Hub restarts."* It has this shape:
 
 ```json
 {
@@ -21,7 +23,22 @@ The server is localhost-only and gated by a bearer token. Both the **port and th
 }
 ```
 
-The same snippet is offered in the AI assistant panel under *"No CLI? Connect a tool you already use"* when no `claude`/`codex` CLI is detected.
+The same snippet is offered in the AI assistant panel when no `claude`/`codex` CLI is detected.
+
+### The rest of Settings > Experimental (labels as of creator-hub `ce935a53`)
+
+The panel was redesigned; these are the current strings, in case a user reads you a different one:
+
+| Control | Note |
+| --- | --- |
+| **Enable AI Assistant** | The master switch for the embedded assistant. (Renamed — it read "AI scene assistant" at first release.) Help text warns it runs the installed Claude or Codex CLI with full machine access. |
+| **Bill this to an API key instead** | Off by default. Uses `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` from the environment rather than the signed-in subscription. |
+| **Connect** (accordion) | Shows **Connected**, or **Sign in** / **Sign out**. A **Via Terminal** section gives the install and sign-in commands: Claude → `npm i -g @anthropic-ai/claude-code` then `claude`; Codex → `npm i -g @openai/codex` then `codex login`. |
+| **Expose AI assistant MCP server** | The setting described above. |
+| **Enable UI Editor** | Unrelated to the MCP — gates the UI Designer (see **editable-ui**). |
+| **Enable Bevy Scene Renderer** | Renderer dropdown: **Babylon (default)** / **Bevy (experimental)**. |
+
+**Out-of-date CLI warning.** The assistant refuses to use newer models behind an old CLI and shows: *"Your Claude CLI (vX) is out of date — run `claude update` in a terminal to use the latest models."* The minimum is Claude CLI **2.1.251**. If a user reports this, the fix is `claude update` in a terminal, not anything in the Creator Hub. An unreadable version string is treated as up to date.
 
 | Field | Value |
 | --- | --- |

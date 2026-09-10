@@ -186,6 +186,19 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ---
 
+## Terminology — deprecated tool names
+
+Older names still circulate in tutorials, forum posts, and model-generated answers. Do not offer these to users, and translate them when a user says one:
+
+| Deprecated name | What it was | Say / use instead |
+|---|---|---|
+| **Web Editor** | browser-based scene editor | the **Creator Hub** |
+| **Decentraland Editor** | a Visual Studio Code extension | the **Creator Hub** |
+| **SDK6** | the previous SDK; its code does not run on current Decentraland | **SDK7** (to port an old scene, see the `migrate-sdk6-to-sdk7` skill) |
+| **`dclcontext` folder** | downloaded AI context files inside scene projects | **SDK Skills** (these skills) |
+
+Current names: Creator Hub, Scene Editor, SDK7, SDK Skills. Verified against docs glossary commit `4b6733c`.
+
 ## Shared References
 
 These reference files are used across multiple skills. Load them when you need detailed component APIs, validation rules, or asset catalogs.

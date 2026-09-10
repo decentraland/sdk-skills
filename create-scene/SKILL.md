@@ -119,7 +119,7 @@ For multi-entity scenes, GLB models with collision masks, tags, and the full com
 > **IMPORTANT**: When placing a floor entity, always set the y position to 0.01 or higher so that it doesn't z-fight with the default ground.
 
 - Center of a single-parcel scene is (8, 0, 8) at ground level.
-- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities *can* be placed at negative Y — positioning objects underground is a legitimate technique for hiding them.
+- Y axis is up; ground level is Y=0. Floors and walkable surfaces belong at Y ≥ 0 because players cannot descend below ground, but entities _can_ be placed at negative Y — positioning objects underground is a legitimate technique for hiding them.
 
 ### src/index.ts
 
@@ -158,23 +158,23 @@ To fetch groups of entities by tag (`engine.getEntitiesByTag`) or add/remove tag
 
 All valid `scene.json` fields:
 
-| Field                      | Required    | Description                                                           |
-| -------------------------- | ----------- | --------------------------------------------------------------------- |
-| `ecs7`                     | Conventional | `true` in SDK7 scenes. Written by `init`; the build only validates `runtimeVersion`, but keep it for tooling compatibility |
-| `runtimeVersion`           | Yes         | Must be `"7"`                                                         |
-| `main`                     | Yes         | Must be `"bin/index.js"` — the compiled output path                   |
-| `display.title`            | Recommended | Scene name shown in the map and Places                                |
-| `display.description`      | Recommended | Short description for discovery                                       |
-| `display.navmapThumbnail`  | Recommended | Thumbnail shown in the map modal and teleport confirmation. `.png`, 228x160 px recommended — see the **deploy-scene** skill for the spec and a capture procedure |
-| `tags`                     | Recommended | Root-level `string[]`. The scene's categories in the Places dApp. Max 3, values from the predefined list (see below) |
-| `scene.parcels`            | Yes         | Array of `"x,y"` coordinate strings                                   |
-| `scene.base`               | Yes         | The origin parcel (usually southwest corner)                          |
-| `spawnPoints`              | Optional    | Where players appear when entering (see below)                        |
-| `requiredPermissions`      | Optional    | Array of permissions (e.g., `"ALLOW_MEDIA_HOSTNAMES"`)                |
-| `allowedMediaHostnames`    | Optional    | Whitelisted domains for external media                                |
-| `featureToggles`           | Optional    | Enable/disable SDK features                                           |
-| `worldConfiguration`       | Optional    | For Worlds deployment (see **deploy-worlds** skill)                   |
-| `landscapeTerrain`         | Optional    | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
+| Field                     | Required     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ecs7`                    | Conventional | `true` in SDK7 scenes. Written by `init`; the build only validates `runtimeVersion`, but keep it for tooling compatibility                                                                                                                                                                                                                                                                                                                               |
+| `runtimeVersion`          | Yes          | Must be `"7"`                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `main`                    | Yes          | Must be `"bin/index.js"` — the compiled output path                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `display.title`           | Recommended  | Scene name shown in the map and Places                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `display.description`     | Recommended  | Short description for discovery                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `display.navmapThumbnail` | Recommended  | Thumbnail shown in the map modal and teleport confirmation. `.png`, 228x160 px recommended — see the **deploy-scene** skill for the spec and a capture procedure                                                                                                                                                                                                                                                                                         |
+| `tags`                    | Recommended  | Root-level `string[]`. The scene's categories in the Places dApp. Max 3, values from the predefined list (see below)                                                                                                                                                                                                                                                                                                                                     |
+| `scene.parcels`           | Yes          | Array of `"x,y"` coordinate strings                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `scene.base`              | Yes          | The origin parcel (usually southwest corner)                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `spawnPoints`             | Optional     | Where players appear when entering (see below)                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `requiredPermissions`     | Optional     | Array of permissions (e.g., `"ALLOW_MEDIA_HOSTNAMES"`)                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `allowedMediaHostnames`   | Optional     | Whitelisted domains for external media                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `featureToggles`          | Optional     | Enable/disable SDK features                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `worldConfiguration`      | Optional     | For Worlds deployment (see **deploy-worlds** skill)                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `landscapeTerrain`        | Optional     | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
 
 ### Tags (scene categories)
 
@@ -197,17 +197,17 @@ Add to `requiredPermissions` when your scene uses these features:
 
 These are the exact 7 permission strings the runtime recognizes (the protocol enum names drop the `PI_` prefix):
 
-| Permission                          | When needed                                          |
-| ----------------------------------- | ---------------------------------------------------- |
-| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)        |
-| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`               |
+| Permission                          | When needed                                                 |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)               |
+| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`                      |
 | `ALLOW_MEDIA_HOSTNAMES` `[LEGACY]`  | External video/audio streams — **not required** (see below) |
-| `USE_WEB3_API`                      | Blockchain interactions                              |
-| `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)              |
-| `USE_WEBSOCKET`                     | WebSocket connections                                |
-| `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)         |
+| `USE_WEB3_API`                      | Blockchain interactions                                     |
+| `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)                     |
+| `USE_WEBSOCKET`                     | WebSocket connections                                       |
+| `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)                |
 
-> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for *intent* rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The [`66,6-signed-fetch`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch) scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission.
+> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for _intent_ rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The [`66,6-signed-fetch`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch) scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission — and that stays true for the newer `teleportTo({ realm })` form, which subsumes `[DEPRECATED]` `changeRealm` (see `scene-runtime`); neither has a permission of its own.
 
 `[LEGACY]` `ALLOW_MEDIA_HOSTNAMES` and `allowedMediaHostnames` are **not required** — do not add them for new scenes. The permission string still exists in `@dcl/schemas`, but no current client enforces it: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, which is set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all. Only the retired web client enforced it. Current clients play external media without it. If a legacy scene still declares it, whitelist the domains as follows:
 
@@ -277,25 +277,32 @@ After customizing the files:
 
 ### Preview CLI flags
 
-| Flag | Type | Description |
-|---|---|---|
-| `--web` (alias `--bevy-web`) | boolean | Open the preview in the Bevy Web browser client at `decentraland.org/bevy-web/` instead of the Desktop Explorer. Chromium 142+ requires Local Network Access permission for the page to reach the localhost preview server -- when the browser asks to access apps on your device, click "Allow". |
-| `--mcp` | boolean | Enable the MCP server in the Explorer (forwarded as a deep-link parameter) |
-| `--mcp-port` | number | Port for the MCP server in the Explorer |
-| `--multi-instance` | boolean | Allow running multiple Explorer instances simultaneously |
-| `--no-client` | boolean | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own |
-| `--local-ab` | boolean | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview"). |
-| `-- <args>` | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true) |
+| Flag                         | Type        | Description                                                                                                                                                                                                                                                                                       |
+| ---------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--web` (alias `--bevy-web`) | boolean     | Open the preview in the Bevy Web browser client at `decentraland.org/bevy-web/` instead of the Desktop Explorer. Chromium 142+ requires Local Network Access permission for the page to reach the localhost preview server -- when the browser asks to access apps on your device, click "Allow". |
+| `--mcp`                      | boolean     | Enable the MCP server in the Explorer (forwarded as a deep-link parameter)                                                                                                                                                                                                                        |
+| `--mcp-port`                 | number      | Port for the MCP server in the Explorer                                                                                                                                                                                                                                                           |
+| `--multi-instance`           | boolean     | Allow running multiple Explorer instances simultaneously                                                                                                                                                                                                                                          |
+| `--no-client`                | boolean     | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own                                                                                                                                                         |
+| `--local-ab`                 | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview").    |
+| `-- <args>`                  | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true)                                                                                                                                          |
 
 `--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
 
 **Creator Hub preview settings** (equivalent to the CLI flags above, accessed from the dropdown next to the Preview button):
+
 - **Preview with**: Desktop Client (default) or Bevy (Web) -- equivalent to `--web`.
 - **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the SDK version supports it. See the **unity-explorer-mcp** skill.
 - **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
 - **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
 
-**Bevy renderer in Creator Hub:** Settings > Editor > "Scene renderer" dropdown (Babylon default / Bevy preview). Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload.
+**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
+
+Bevy editor limitations to know before recommending it:
+
+- **The Metrics tab is disabled** ("Scene metrics are only available with the Babylon renderer"). Run the scene preview to view the metrics.
+- **`editor_screenshot` (Creator Hub MCP) errors under Bevy.**
+- **Opening the UI Editor's 2D mode freezes the scene** (see **editable-ui**).
 
 **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
 
@@ -311,13 +318,13 @@ npx skills add decentraland/sdk-skills --all
 
 To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
 
-The Creator Hub also has a built-in **AI scene assistant** (Settings > Experimental > *AI scene assistant*, off by default) that drives the user's own installed `claude` or `codex` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > Experimental. See the **creator-hub-mcp** skill.
+The Creator Hub also has a built-in **AI scene assistant** (Settings > Experimental > _AI scene assistant_, off by default) that drives the user's own installed `claude` or `codex` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > Experimental. See the **creator-hub-mcp** skill.
 
 The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 
 ## Cross-References
 
-- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publish at least 2 hours before a live event — asset bundle conversion takes time
+- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publishing to a World? A World has its **own** name/description/thumbnail separate from `scene.json` — in a single-scene World every publish overwrites the World's with the scene's; see **deploy-worlds** > "World metadata vs scene metadata". Publish at least **one hour** before a live event — asset bundle conversion itself usually takes seconds, but the margin covers anything unexpected
 - Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Optimize Assets** (or `--local-ab`) to preview with production-quality asset bundles before publishing
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations

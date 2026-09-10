@@ -18,7 +18,38 @@ Both are silent. Write to the contract below and neither happens.
 
 Prerequisite knowledge: the **build-ui** skill (React-ECS elements, `uiTransform`/`uiBackground`, flex layout). This skill only covers what makes that code editor-editable.
 
-[EXPERIMENTAL] The UI editor is opt-in: the user enables **Settings > Experimental > UI Editor** in the Creator Hub, and the scene must be on `@dcl/sdk` **7.26.0+** (the version that ships `ScreenInsetArea` / `InteractableArea` and the per-device default virtual screen). The 2D/3D mode switch is hidden otherwise. Code written to this contract is ordinary React-ECS and runs anywhere regardless.
+[EXPERIMENTAL] The UI editor is opt-in: the user ticks **Settings > Experimental > "Enable UI Editor"** in the Creator Hub (setting key `settings.guiEditor`, **off by default**), and the scene must be on `@dcl/sdk` **7.26.0+** (the version that ships `ScreenInsetArea` / `InteractableArea` and the per-device default virtual screen). Below that version the editor shows an SDK-upgrade notice instead; with the setting off, the 2D/3D mode switch is hidden entirely. Code written to this contract is ordinary React-ECS and runs anywhere regardless.
+
+## How the editor behaves (so your code matches what it writes)
+
+Verified against creator-hub `docs/UIDesigner.md` and the implementing commits (`35cd6fa7`, `33134497`, `30207181`, `abb88456`, `6753eda9`).
+
+**Saving is immediate.** Every visual edit is spliced into the `.tsx` on the spot; the badge reads **"All changes saved"** and there is no manual save. There is no separate document to keep in sync — treat the file as live while the editor is open.
+
+**The layout model is two independent axes.** Do not conflate them:
+
+| Axis | Panel control | Property written |
+|---|---|---|
+| Flow | **Flow** (row / column / **Free**) | `flexDirection` only. **Free means no `flexDirection` at all** — the key is absent, not set to a "free" value. |
+| Escape from flow | **Ignore Layout Flow** | `positionType` (`'absolute'`) |
+
+Consequences worth writing code around:
+
+- A newly dropped child is seeded `positionType: 'absolute'` **only if its parent is Free**, and it lands at the drop point (`position: { top, left }` from the rounded coordinates). Under a row/column parent it joins the flow instead.
+- **Roots are always absolute.**
+- **Switching a parent to Free pins every existing child** at its measured position, in one batched edit. Expect a diff that adds `positionType`/`position` to children you did not touch.
+
+**Widget presets.** The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` x `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper, use the same pair. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — see **Interaction layers**.)
+
+**Scene Inset.** A dropdown with `device` / `interactable` / `none` wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing. Default is `device`. This is the same setting as the renderer's `screenInset` option (see **build-ui**), applied structurally in the source.
+
+**Opacity, not Transparency.** The style field was renamed **Opacity** and reads as a percentage, default **100%** (100% opaque, 0% transparent). Older notes calling it "Transparency" are stale — "Transparency" now survives only in the unrelated material inspector.
+
+**Canvas affordances:** artboard framing kicks in when the root has a fixed **px** width **and** height (both in points); the snap grid is **10px** and **Shift overrides** it; tool modes are **Free / Move / Resize** (Free combines drag-move and resize handles; the rotate button exists but is disabled).
+
+**Mode persistence.** The 2D/3D mode is stored **per scene in `.editor/project.json`** as `uiDesignerOpen`, **not in the composite**. Do not look for it in `inspector::UIState` — that field was removed. This matters when hand-editing project files: `.editor/project.json` is editor state, not scene content.
+
+**Under the Bevy renderer, opening 2D mode freezes the scene** (and resumes on returning to 3D if it had been running). Expect no ticks while the user is laying out UI on Bevy — a driver's clock does not advance.
 
 ## Two workflows
 

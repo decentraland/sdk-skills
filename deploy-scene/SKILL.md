@@ -5,6 +5,9 @@ description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when 
 
 # Deploying to Genesis City
 
+> **Not installed inside the Creator Hub agent.** The Creator Hub's skill installer denylists this skill, and because the directory holds nothing but `SKILL.md` it is skipped entirely — it never reaches the app's embedded AI assistant. The Creator Hub owns publishing through its own UI. If you are the Creator Hub assistant and a user asks to publish, point them at the app's Publish flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
+
+
 Deploy to specific parcels you own or have permission to deploy to.
 
 **Use the `/deploy` command** to deploy. It runs `npx @dcl/sdk-commands deploy` and handles the full process:
@@ -184,13 +187,15 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 After every publish, the content servers compress all `.gltf`/`.glb` models to asset bundles — a significantly lighter format. The conversion starts immediately but is queued per platform (Windows, Mac). While it runs, players are deliberately served the **last fully-working version** of the scene.
 
-- **Typical time:** ~15 minutes, but plan for **30-60 minutes** until the new version is reliably playable by everyone.
-- **Before a live event:** publish your final version **at least 2 hours** in advance. Avoid republishing while waiting — each publish restarts the queue.
+- **Typical time:** **seconds.** Longer for very large scenes or when the conversion servers are busy. (This was previously documented as ~15 minutes / 30-60 minutes; corrected in docs commit `2dfbb00`.)
+- **A conversion running more than a couple of minutes is a failure signal**, not normal queuing — check the status endpoint rather than continuing to wait.
+- **The Jump In button appears as soon as the scene is playable**, once upload and conversion are done.
+- **Before a live event:** publish your final version **at least one hour** in advance, to leave room for anything unexpected. Avoid republishing while waiting — each publish restarts the queue.
 - **Check conversion status** in a browser:
   - `https://asset-bundle-registry.decentraland.org/entities/status/<pointer>` — replace `<pointer>` with a scene coordinate (e.g. `20,-34`) or the deployment entity ID. Shows per-platform status under `assetBundles` and LOD status under `lods`. For a World, append `?world_name=myname.dcl.eth`.
   - `https://asset-bundle-registry.decentraland.org/queues/status` — lists all scenes currently queued for conversion, per platform.
 - **`/detectabs` chat command:** in-world, tints models green (converted) or red (not yet converted).
-- **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. After conversion completes, fully quit and relaunch Decentraland, then re-enter via jump link or `/goto`.
+- **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. **Any player who already loaded the scene this session keeps seeing the cached version until they fully close and re-enter Decentraland.** That includes you: after conversion completes, quit and relaunch, then re-enter via jump link or `/goto`.
 
 You can also catch conversion issues **before** publishing by enabling local asset bundles in preview — see the **optimize-scene** skill ("Local Asset Bundle Preview").
 
@@ -206,8 +211,8 @@ You can also catch conversion issues **before** publishing by enabling local ass
 | Catalyst rejection | Content violates Decentraland content policies | Review content guidelines at docs.decentraland.org |
 | Scene looks broken right after deploy | Asset bundle conversion not done yet | Type `/detectabs` in chat — red-tinted models are not yet converted. Check conversion status (see above) and wait |
 | Some players see old version, others see new | Per-platform conversion finishes at different times + client caching | Check both `windows` and `mac` under `assetBundles` in the conversion status endpoint. Once both are `complete`, affected players must fully restart Decentraland |
-| Publication stuck on Converting stage | Scene queued behind other conversions, or conversion failed | Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
-| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed 512x512 cap | `/detectabs` to check; textures in 3D models are capped to 512x512 during conversion |
+| Publication stuck on Converting stage | Conversion failed, or the scene is queued behind others | Conversion normally takes seconds, so more than a couple of minutes points at a failure rather than a queue. Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
+| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed the conversion cap | `/detectabs` to check; textures in 3D models are capped to **1024x1024** during conversion (not 512x512 — that figure is out of date) |
 | Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing |
 
 ### Genesis City vs Worlds

@@ -157,10 +157,25 @@ Requires curl + python3; pass `-p <port>` when not on 8123. `Read` only the fram
 
 ## Interaction testing
 
-- `click_entity` presses a pointer button on a scene entity (get ids from `list_scene_entities`). The target needs a `PointerEvents` component and a collider; the aim is validated by a real camera-origin raycast, so occluders return `hit:false` + `blockedBy*` (reposition and retry) and the entity's `maxDistance` (default 10 m) applies — get close first. `upRayMissed: true` means the target moved between press and release (e.g. a door starting to swing) and the release was delivered with the press-frame hit. For GLTF entities whose collider sits away from the pivot, pass an explicit `x/y/z` aim point. The player must be standing on the scene's parcel — off-parcel clicks fail with "no running current scene".
+- **`entityId` is the Explorer's Arch ECS id, NOT your scene's CRDT entity id.** `click_entity` / `hover_entity` take the id that `list_scene_entities` returns (`entity.Id`), which lives in a different id space from the entity ids your scene code logs. Passing a CRDT id addresses the wrong entity or nothing. The bridge: a successful `click_entity` / `hover_entity` result reports **both** `entityId` and `crdtEntityId`, so one world-aimed click on a known target tells you its Arch id for every subsequent id-addressed call. Within one session the offset between the two is constant (one measured session: `arch = crdt - 508`), but **it is per-session and does not survive a reload** — re-derive it after every reload rather than caching it.
+- `click_entity` presses a pointer button on a scene entity (get ids from `list_scene_entities`). The target needs a `PointerEvents` component and a collider; the aim is validated by a real camera-origin raycast, so occluders return `hit:false` + `blockedBy*` (reposition and retry). The raycast originates at the camera, but the entity's `maxDistance` gate (default 10 m) is measured from the **avatar**, so move the avatar close — a camera that can see the target is not enough. `upRayMissed: true` means the target moved between press and release (e.g. a door starting to swing) and the release was delivered with the press-frame hit. For GLTF entities whose collider sits away from the pivot, pass an explicit `x/y/z` aim point. The player must be standing on the scene's parcel — off-parcel clicks fail with "no running current scene".
 - `walk` moves relative to the camera and requires an explicit direction: pass `directionY: 1` for forward (`directionX` strafes); omitting both errors with "directionX and directionY must not both be zero".
 - Collider checks beat pixels for physics (cross-examine): `look_at` straight at the target, `walk` forward, then compare `get_player_state` positions to prove passage or blockage.
 - Trigger areas fire `onTriggerEnter` immediately after `reload_scene` if the player is already standing inside one — reposition the player outside all triggers before testing enter/exit sequencing (and treat post-reload trigger logs as stale state, not gameplay).
+
+## Regression rig: `149,149-synthetic-input-showcase`
+
+`sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built specifically to be driven by this MCP. Ten self-contained stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout so a wrong result is visible rather than inferred.
+
+Use it to:
+
+- **Sanity-check the MCP itself** before concluding a scene under test is broken. If a station misbehaves, the tool or the Explorer is the suspect, not your scene.
+- Look up known-open client issues. Its `MCP_SHOWCASE.md` carries a "Known open issues" table with owners, plus per-step driving notes (e.g. the Arch/CRDT id offset above, and that a controlled `<Input />` does not follow a programmatic reset).
+
+Two findings from it worth carrying into any scene you test through this MCP:
+
+- A `move_to` teleport across two trigger volumes delivers the destination's **enter before** the origin's **exit** — and the order is **not deterministic in either direction**, so assert on neither. See `add-interactivity` for the occupancy-recompute pattern that makes it moot.
+- Entity-less `inputSystem.isTriggered` / `getInputCommand` cannot measure scene-root input; it answers from every entity. Three live runs misread that as broken input suppression. See `advanced-input`.
 
 ## When a capability is missing
 

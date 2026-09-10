@@ -111,7 +111,7 @@ For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove
 ### Design Considerations
 - Mouse wheel is **not available** as an input
 - Always design for both **desktop and mobile**. Mobile has no keyboard — rely on pointer and on-screen buttons
-- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene
+- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene. It is **avatar** distance (default 10), not camera distance, so it reads the way a player experiences reach. Keep proximity interactions inside ~3m: the explorer's proximity broad phase is a hard-coded 3m sphere that clamps larger values. See `add-interactivity` > "Distance rules".
 - Use `hoverText` to communicate what an interaction does before the player commits
 
 ## 7. State Management Patterns
