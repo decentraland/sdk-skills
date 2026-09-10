@@ -59,7 +59,7 @@ type UiRendererOptions = {
   virtualWidth?: number   // optional
   virtualHeight?: number  // optional
   screenInset?: UiScreenInset  // defaults to 'device'
-  zIndex?: number              // 7.29.0+; stacking between renderers, higher in front. Default: registration order
+  zIndex?: number              // 7.29.0+; stacking between renderers, higher in front. Default: first-render order, main UI at the back within a tick
 }
 setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
 addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): void
@@ -81,7 +81,7 @@ Unlike the virtual size, this is **per renderer** — the main UI and each `addU
 
 ### zIndex: stacking order between renderers
 
-Renderers stack in registration order, last registered on top. The `zIndex` renderer option (SDK 7.29.0+) overrides that: higher renders in front regardless of registration order, `0` keeps the registration order. Per renderer, valid on `setUiRenderer` and `addUiRenderer` alike. It orders whole renderers against each other; the `uiTransform.zIndex` of elements inside a renderer is unaffected. Re-register the same owner entity with new options to change it at runtime — the renderer keeps its place.
+Renderers stack in the order they first render, later ones on top; among those first rendered in the same tick (everything registered before the first frame, typically) the main UI goes at the back, then the added ones in order. The `zIndex` renderer option (SDK 7.29.0+) overrides that: higher renders in front regardless, `0` keeps the default order. Per renderer, valid on `setUiRenderer` and `addUiRenderer` alike. It orders whole renderers against each other; the `uiTransform.zIndex` of elements inside a renderer is unaffected. Re-register the same owner entity with new options to change it at runtime — the renderer keeps its place.
 
 ## SDK VERSION GATE: 7.26.0 changed three UI-layout behaviors
 

@@ -151,7 +151,7 @@ By convention, the root returned to `addUiRenderer` follows the same shape as `s
 
 Two notes on the options: the virtual size here is **ignored** if `setUiRenderer` already passed one (it is a single scene-wide value), while `screenInset` is honored **per renderer** — so a widget can sit in `'interactable'` while the main UI stays in `'device'`. A scene that only calls `addUiRenderer` still gets both defaults.
 
-Renderers stack in registration order, the last one on top. To pin a module in front or behind regardless of when it was registered, pass `zIndex` in the options (SDK 7.29.0+):
+Renderers stack in the order they first render, the latest on top (main UI at the back within a tick). To pin a module in front or behind regardless, pass `zIndex` in the options (SDK 7.29.0+):
 
 ```tsx
 // A modal registered at module load, but meant to cover every later HUD element

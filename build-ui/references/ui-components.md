@@ -209,7 +209,7 @@ ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })
 
 ## Renderer zIndex (Stacking Between Renderers)
 
-SDK 7.29.0+. Renderers stack in registration order, the last registered on top. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of registration order; `0` keeps the registration order.
+SDK 7.29.0+. Renderers stack in the order they first render, the latest on top; among those first rendered in the same tick, the main UI goes at the back, then the added ones in order. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of that; `0` keeps the default order.
 
 ```ts
 ReactEcsRenderer.setUiRenderer(MainHud, { zIndex: -10 })          // behind every module
