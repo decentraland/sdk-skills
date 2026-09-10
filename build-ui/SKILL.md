@@ -118,9 +118,9 @@ export function setupUi() {
 
 **Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **Always give it an explicit `width`/`height` in `uiTransform`, and no emoji in `value`** — see the gotchas below.
 
-**Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `uiTransform`.
+**Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `onMouseUp`, `disabled`, `uiTransform`.
 
-**Input** — Text input field. Key props: `placeholder`, `fontSize`, `color`, `onChange`, `onSubmit`, `uiTransform`.
+**Input** — Text input field. Key props: `placeholder`, `value`, `disabled`, `fontSize`, `color`, `onChange`, `onSubmit`, `uiTransform`.
 
 **Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
 
@@ -172,7 +172,9 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 
 ## Gotchas (verified against engine test scenes)
 
-- **`Input` and `Dropdown` are uncontrolled.** `onChange`/`onSubmit` fire with the current value, but the field does not read back from the `value`/`selectedIndex` prop you pass each frame the way React does. To programmatically clear an `Input`, briefly set `value` to a non-empty sentinel (e.g. `' '`) for one frame, then back to `''`. Do not expect setting `value` to force the displayed text every frame.
+- **`Input` and `Dropdown` do not behave like React controlled components.** `onChange`/`onSubmit` fire with the current value, but the field does not read back from the `value`/`selectedIndex` prop every frame the way React does. To programmatically clear an `Input`, briefly set `value` to a non-empty sentinel (e.g. `' '`) for one frame, then back to `''`. Do not expect setting `value` to force the displayed text every frame.
+  - **Known issue (client-side, open):** a controlled `Input` **does not follow a programmatic reset.** It displays a value the scene writes, but when the scene later clears it the box keeps showing the old string while the scene's own state is correctly empty — so a form can submit `""` from boxes that still look populated. A follow-on consequence: re-writing the *same* string after such a reset fires **no `onChange` at all**, because the client still believes the box holds it. Verified in `149,149-synthetic-input-showcase` (station S9). Trust your scene state, never the rendered field, and label the read-back value separately if the player needs to see it.
+- **`Input`: `onChange` vs `onSubmit`.** `onChange` fires on edits; `onSubmit` fires on Enter. A submit **commits and clears the field** (as pressing Enter does) — that is correct behavior, not a bug; a plain edit leaves the text visible. On submit the client emits **`onSubmit` first, then `onChange`** — the reverse of the intuitive order — so a submit also bumps any change counter. A `disabled` `Input` accepts no writes and fires neither callback.
 - **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.

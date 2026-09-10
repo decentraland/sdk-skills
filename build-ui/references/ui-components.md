@@ -13,6 +13,8 @@ export function setupUi() {
 
 Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements — `setUiRenderer(() => [PanelA(), PanelB()])` — where later items render on top of earlier ones.
 
+**A second `setUiRenderer` call does not throw — it silently overwrites the first**, so only the last root renders and the earlier UI simply vanishes with no error. Verified in `@dcl/react-ecs/src/system.ts`: `setUiRenderer` just assigns `uiComponent = ui`. If you need genuinely independent UI modules (separate files, separate lifetimes), that is what `ReactEcsRenderer.addUiRenderer(entity, ui, options)` / `removeUiRenderer(entity)` are for — they render alongside the main root rather than replacing it.
+
 The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
 
 ⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth`/`virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `build-ui/SKILL.md`.
@@ -439,7 +441,7 @@ The UI re-renders every frame, so module-level variable changes are reflected im
 ## Important Rules
 
 - File must be `.tsx` for JSX support
-- Only one `ReactEcsRenderer.setUiRenderer()` per scene
+- Only one `ReactEcsRenderer.setUiRenderer()` per scene (a second call silently overwrites the first — use `addUiRenderer` for extra roots)
 - No React hooks — use module-level variables
 - Use `display: 'none'` to hide elements without removing them
 - UI renders as a 2D overlay on top of the 3D scene

@@ -4,11 +4,12 @@
 
 - **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is required for reliable absolute positioning — without it, some children (e.g. `position: { top, right }`) may not render. See the "Convention" section in `build-ui/SKILL.md` for details.
 - All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default. On SDK 7.26.0+ omitting it would not disable scaling — a per-platform default applies (`1920x1080`, `1600x720` on mobile) — but stating it keeps the reference resolution explicit and makes every example below behave identically on older SDKs too.
-- No example passes `screenInset`. On SDK 7.26.0+ that means they use the default `'device'`: the UI sits inside the device safe area (a no-op on desktop), and none of these roots should be wrapped in `<ScreenInsetArea>` because that would apply the inset twice. Below 7.26.0 there is no renderer-level inset, so wrapping *is* the way to inset — see the version gate in `build-ui/SKILL.md`.
+- No example passes `screenInset`. On SDK 7.26.0+ that means they use the default `'device'`: the UI sits inside the device safe area (a no-op on desktop), and none of these roots should be wrapped in `<ScreenInsetArea>` because that would apply the inset twice. Below 7.26.0 there is no renderer-level inset, so wrapping _is_ the way to inset — see the version gate in `build-ui/SKILL.md`.
 
 ## Setup
 
 ### File: src/ui.tsx
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 
@@ -34,6 +35,7 @@ export function setupUi() {
 ```
 
 ### File: src/index.ts
+
 ```typescript
 import { setupUi } from './ui'
 
@@ -45,6 +47,7 @@ export function main() {
 ## Core Component Examples
 
 ### UiEntity (Container)
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -68,6 +71,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Label (Text)
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -82,6 +86,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Button
+
 ```tsx
 <Button
   value="Click Me"
@@ -94,7 +99,16 @@ import { Color4 } from '@dcl/sdk/math'
 />
 ```
 
+#### `disabled` Button — what it actually does
+
+- Halves the alpha of the button's text and background colors (visual dimming only).
+- Sets `onMouseDown` and `onMouseUp` to `undefined`. **`onMouseEnter` / `onMouseLeave` still pass through** — a disabled Button can still run hover handlers, so guard them yourself if that matters.
+- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.28.1+, see `add-interactivity`), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
+
+> If your code clones palette colors before passing them to a `Button` purely to survive this, that workaround is no longer needed on 7.28.0+. It is still needed if you are pinned below it.
+
 ### Input
+
 ```tsx
 import { Input } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
@@ -114,6 +128,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Dropdown
+
 ```tsx
 import { Dropdown } from '@dcl/sdk/react-ecs'
 
@@ -220,6 +235,7 @@ export function toggleMenu() {
 ## Common UI Patterns
 
 ### Health Bar
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -243,6 +259,7 @@ const HealthBar = () => (
 ```
 
 ### Image Background
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 200, height: 200 }}
@@ -254,6 +271,7 @@ const HealthBar = () => (
 ```
 
 ### Screen Dimensions
+
 ```typescript
 import { UiCanvasInformation } from '@dcl/sdk/ecs'
 
@@ -266,6 +284,7 @@ engine.addSystem(() => {
 ```
 
 ### Nine-Slice Textures
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 200, height: 100 }}
@@ -282,6 +301,7 @@ engine.addSystem(() => {
 Use `uvs` to display a specific region of a texture. The field takes 8 numbers (4 UV pairs): bottom-left, top-left, top-right, bottom-right. Values range 0-1. Set `textureMode: 'stretch'`.
 
 **Sprites from a sprite sheet:**
+
 ```tsx
 // Display the left half of a texture
 <UiEntity
@@ -295,6 +315,7 @@ Use `uvs` to display a specific region of a texture. The field takes 8 numbers (
 ```
 
 **Grid sprite sheet helper:**
+
 ```tsx
 function getFrameUVs(col: number, row: number, totalCols: number, totalRows: number): number[] {
   const stepU = 1 / totalCols
@@ -318,6 +339,7 @@ function getFrameUVs(col: number, row: number, totalCols: number, totalRows: num
 ```
 
 **Rotating an image with UVs:**
+
 ```tsx
 function rotate2D(angle: number, x: number, y: number, cx: number, cy: number): number[] {
   const cos = Math.cos(angle)
@@ -418,6 +440,7 @@ function Panel() {
 ```
 
 ### Hover Events
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 100, height: 40 }}
@@ -428,6 +451,7 @@ function Panel() {
 ```
 
 ### Flex Wrap
+
 ```tsx
 <UiEntity uiTransform={{ flexWrap: 'wrap', width: 300 }}>
   {items.map(item => (
@@ -488,6 +512,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 ```
 
 ### Dropdown Extras
+
 ```tsx
 <Dropdown
   options={['Option A', 'Option B', 'Option C']}
@@ -592,4 +617,4 @@ const Announcement = () => {
 
 Mount `OkPrompt` and `Announcement` as children of your root UI component so they overlay the rest of the HUD.
 
-Note both full-screen wrappers deliberately carry **no** pointer handler and no `pointerFilter`: the handler sits on the `OK` `Button` only. Adding a listener to a `100%`×`100%` wrapper makes it capture clicks over the entire screen and blocks the rest of the UI and the 3D world — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If you *want* the dim backdrop to swallow clicks while the prompt is open, that is a legitimate modal backdrop: put `pointerFilter: 'block'` on it consciously, and only while the prompt renders (these components already return `null` when closed).
+Note both full-screen wrappers deliberately carry **no** pointer handler and no `pointerFilter`: the handler sits on the `OK` `Button` only. Adding a listener to a `100%`×`100%` wrapper makes it capture clicks over the entire screen and blocks the rest of the UI and the 3D world — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If you _want_ the dim backdrop to swallow clicks while the prompt is open, that is a legitimate modal backdrop: put `pointerFilter: 'block'` on it consciously, and only while the prompt renders (these components already return `null` when closed).
