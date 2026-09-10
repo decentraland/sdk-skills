@@ -15,7 +15,7 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into
 
 **A second `setUiRenderer` call does not throw — it silently overwrites the first**, so only the last root renders and the earlier UI simply vanishes with no error. Verified in `@dcl/react-ecs/src/system.ts`: `setUiRenderer` just assigns `uiComponent = ui`. If you need genuinely independent UI modules (separate files, separate lifetimes), that is what `ReactEcsRenderer.addUiRenderer(entity, ui, options)` / `removeUiRenderer(entity)` are for — they render alongside the main root rather than replacing it.
 
-The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
+The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
 
 ⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth`/`virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `build-ui/SKILL.md`.
 
@@ -55,7 +55,7 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every f
 
     // Layering
     opacity: 1,                  // 0–1; on the root fades whole UI, cascades multiplicatively to children
-    zIndex: 0,                   // stacking among siblings; negatives allowed; does not cross parents
+    zIndex: 0,                   // stacking among siblings; negatives allowed; does not cross parents (whole renderers: zIndex renderer option)
 
     // Border (also valid on Button / Input / Dropdown uiTransform)
     borderWidth: 2,
@@ -206,6 +206,20 @@ ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })
 - Re-read every tick, so the UI follows the insets on rotation or when system bars appear/hide.
 - On desktop the device insets are zero, so `'device'` behaves like `'none'` there.
 - Inset values are reported in canvas pixels and are compensated for the UI scale factor internally, so they stay correct at any virtual screen size.
+
+## Renderer zIndex (Stacking Between Renderers)
+
+SDK 7.29.0+. Renderers stack in registration order, the last registered on top. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of registration order; `0` keeps the registration order.
+
+```ts
+ReactEcsRenderer.setUiRenderer(MainHud, { zIndex: -10 })          // behind every module
+ReactEcsRenderer.addUiRenderer(owner, Inventory, { zIndex: 10 })  // in front, however early it was registered
+ReactEcsRenderer.addUiRenderer(owner, Inventory, { zIndex: 20 })  // same owner: replaced in place, new zIndex applied
+```
+
+- Per renderer, on `setUiRenderer` and `addUiRenderer` alike.
+- Orders renderers against each other only; `uiTransform.zIndex` inside a renderer keeps ordering its own siblings.
+- Applied to the renderer's root container. With `screenInset: 'none'` a whole-screen root is added to carry it, so the renderer's own root becomes a child of it.
 
 ## ScreenInsetArea (Mobile Hardware-Safe Region)
 

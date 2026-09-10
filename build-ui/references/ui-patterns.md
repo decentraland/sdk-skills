@@ -151,6 +151,13 @@ By convention, the root returned to `addUiRenderer` follows the same shape as `s
 
 Two notes on the options: the virtual size here is **ignored** if `setUiRenderer` already passed one (it is a single scene-wide value), while `screenInset` is honored **per renderer** — so a widget can sit in `'interactable'` while the main UI stays in `'device'`. A scene that only calls `addUiRenderer` still gets both defaults.
 
+Renderers stack in registration order, the last one on top. To pin a module in front or behind regardless of when it was registered, pass `zIndex` in the options (SDK 7.29.0+):
+
+```tsx
+// A modal registered at module load, but meant to cover every later HUD element
+ReactEcsRenderer.addUiRenderer(owner, Modal, { virtualWidth: 1920, virtualHeight: 1080, zIndex: 100 })
+```
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from '@dcl/sdk/react-ecs'
 import { engine } from '@dcl/sdk/ecs'
@@ -376,7 +383,7 @@ engine.addSystem((dt: number) => {
 
 ### Opacity & Z-Index (verified in test scene [`0,6-ui-zindex-and-opacity`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity))
 
-`opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top.
+`opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top. The same scene stacks three separate `addUiRenderer` panels with the `zIndex` *renderer option* (see `ui-components.md` → Renderer zIndex).
 
 ```tsx
 <UiEntity uiTransform={{ width: '100%', height: '100%', opacity: rootOpacity }}>
