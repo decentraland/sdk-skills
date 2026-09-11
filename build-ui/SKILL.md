@@ -59,6 +59,7 @@ type UiRendererOptions = {
   virtualWidth?: number   // optional
   virtualHeight?: number  // optional
   screenInset?: UiScreenInset  // defaults to 'device'
+  zIndex?: number              // 7.29.0+; stacking between renderers, higher in front. Default: first-render order, main UI at the back within a tick
 }
 setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
 addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): void
@@ -77,6 +78,10 @@ addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): voi
 Unlike the virtual size, this is **per renderer** — the main UI and each `addUiRenderer` widget can use different areas at the same time.
 
 **Do NOT wrap UI in `<ScreenInsetArea>` / `<InteractableArea>` while leaving the matching `screenInset` on the renderer** — the inset gets applied twice and the UI is pushed inwards by double the margin. Rely on `screenInset`, or pass `screenInset: 'none'` and place the wrapper yourself.
+
+### zIndex: stacking order between renderers
+
+Renderers stack in the order they first render, later ones on top; among those first rendered in the same tick (everything registered before the first frame, typically) the main UI goes at the back, then the added ones in order. The `zIndex` renderer option (SDK 7.29.0+) overrides that: higher renders in front regardless, `0` keeps the default order. Per renderer, valid on `setUiRenderer` and `addUiRenderer` alike. It orders whole renderers against each other; the `uiTransform.zIndex` of elements inside a renderer is unaffected. Re-register the same owner entity with new options to change it at runtime — the renderer keeps its place.
 
 ## SDK VERSION GATE: 7.26.0 changed three UI-layout behaviors
 
@@ -150,7 +155,7 @@ Combine with `TouchScreenControls` (see the **advanced-input** skill) for full m
 
 Use `ReactEcsRenderer.addUiRenderer(ownerEntity, MyWidget, { virtualWidth: 1920, virtualHeight: 1080 })` to render a UI module independently without replacing the main UI. Useful for smart items or modular scene components. Remove with `ReactEcsRenderer.removeUiRenderer(owner)`. If the owner entity is destroyed, the UI is removed automatically.
 
-A scene that only ever calls `addUiRenderer` (no `setUiRenderer` at all) still gets the platform default virtual screen and the default `'device'` inset — the defaults are not tied to the main renderer. The virtual size passed here is ignored if `setUiRenderer` already passed one; `screenInset` is always honored per renderer.
+A scene that only ever calls `addUiRenderer` (no `setUiRenderer` at all) still gets the platform default virtual screen and the default `'device'` inset — the defaults are not tied to the main renderer. The virtual size passed here is ignored if `setUiRenderer` already passed one; `screenInset` and `zIndex` are always honored per renderer.
 
 ## State Management
 
@@ -175,7 +180,7 @@ Use module-level variables for UI state — React hooks (`useState`, `useEffect`
 - **`Input` and `Dropdown` do not behave like React controlled components.** `onChange`/`onSubmit` fire with the current value, but the field does not read back from the `value`/`selectedIndex` prop every frame the way React does. To programmatically clear an `Input`, briefly set `value` to a non-empty sentinel (e.g. `' '`) for one frame, then back to `''`. Do not expect setting `value` to force the displayed text every frame.
   - **Known issue (client-side, open):** a controlled `Input` **does not follow a programmatic reset.** It displays a value the scene writes, but when the scene later clears it the box keeps showing the old string while the scene's own state is correctly empty — so a form can submit `""` from boxes that still look populated. A follow-on consequence: re-writing the *same* string after such a reset fires **no `onChange` at all**, because the client still believes the box holds it. Verified in `149,149-synthetic-input-showcase` (station S9). Trust your scene state, never the rendered field, and label the read-back value separately if the player needs to see it.
 - **`Input`: `onChange` vs `onSubmit`.** `onChange` fires on edits; `onSubmit` fires on Enter. A submit **commits and clears the field** (as pressing Enter does) — that is correct behavior, not a bug; a plain edit leaves the text visible. On submit the client emits **`onSubmit` first, then `onChange`** — the reverse of the intuitive order — so a submit also bumps any change counter. A `disabled` `Input` accepts no writes and fires neither callback.
-- **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking.
+- **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking, and the `zIndex` *renderer option* to stack whole renderers against each other.
 - **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
 - **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
 - **Give every `Label` an explicit `uiTransform` box — text intrinsic sizing is engine-dependent.** A `Label` with an unset `width`/`height` is sized from its rendered glyphs on some engines and contributes **~0 to layout** on others, while its glyphs still draw anchored on the zero-height node. Consequences on the engines that don't measure: labels stacked in a column **overlap each other**, and any parent auto-sizing from text children **collapses** to its padding. Verified in-world with side-by-side screenshots: a dialog whose labels had `width: '100%'`, `textWrap="wrap"` and no `height`, inside an auto-sized panel, rendered correctly on the **Bevy** explorer and came out squashed on the **Unity** explorer — both labels drawn on top of each other, the panel collapsed to padding + button height.
@@ -246,7 +251,7 @@ Rationale (**empirically verified** — tested in-engine June 2026):
 
 Engine-team test scenes exercised against the real renderer (ground truth for the APIs above):
 
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity — `zIndex` (incl. negative) and `opacity` on `uiTransform`, including root-level opacity cascade; buttons cycle values.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity — `zIndex` (incl. negative) and `opacity` on `uiTransform`, including root-level opacity cascade; buttons cycle values. Also the `zIndex` *renderer option*: three overlapping panels, one per `addUiRenderer`, re-registered with a new `zIndex` on click.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/70,-9-sdk7-ui-backgrounds — every `uiBackground` texture mode (`stretch`, `nine-slices`, `center`), color tinting over textures, `avatarTexture`, and `textureSlices`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-3-ui — `Label`/`Input`/`Dropdown`/`Button` end to end, `uiText` on `UiEntity`, `margin` CSS-shorthand strings, `'auto'` sizing, `UiCanvasInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-3-ui-2 — array-return of stacked panels, `disabled` toggling, border props (`borderWidth`/`borderColor`/`borderRadius`) on Input/Dropdown/Button, uncontrolled-input clear trick, textured `Button` (nine-slices) vs. clickable `UiEntity`.
