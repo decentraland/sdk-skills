@@ -29,7 +29,7 @@ All components are imported from `@dcl/sdk/ecs`.
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **PointerEvents** | `pointerEvents: Array<{ eventType, eventInfo: { button, hoverText, maxDistance } }>` | Define clickable/hoverable areas. Use `pointerEventsSystem.onPointerDown()` helper. |
+| **PointerEvents** | `pointerEvents: Array<{ eventType, interactionType?, eventInfo: { button, hoverText, maxDistance, maxCameraDistance?, showFeedback?, showHighlight?, priority? } }>` | Define clickable/hoverable areas. Use `pointerEventsSystem.onPointerDown()` helper. `maxDistance` (default `10`) is **avatar** distance, not camera distance; `maxCameraDistance` (7.28.0+, unset by default) is the camera-origin check and ORs with it. See `add-interactivity`. |
 | **PointerEventsResult** | Read-only | Results of pointer events (which button, hit point). |
 | **PointerLock** | `isPointerLocked: boolean` | Whether pointer is locked (first-person mode). |
 | **PrimaryPointerInfo** | Read-only: `pointerType`, `screenCoordinates`, `screenDelta`, `worldRayDirection` | Screen coordinates and world ray of the primary pointer. It has no entity field — get the hovered/hit entity from `PointerEventsResult` or a raycast. |
@@ -68,6 +68,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
+| **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Read-only. Written by the Explorer to report avatar emote playback to the scene. Appended to every player entity (local and remote). Do NOT use to trigger emotes -- use `triggerEmote`/`triggerSceneEmote` from `~system/RestrictedActions` instead. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
 | **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. `[UNVERIFIED: default values]` — the protocol documents no defaults; see `player-avatar/references/avatar-apis.md`. |

@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -67,6 +67,24 @@ function proximityCheck() {
 
 engine.addSystem(proximityCheck)
 ```
+
+### GOTCHA: remote players' Transforms are in WORLD coordinates
+
+`Transform.get(engine.PlayerEntity).position` for the **local** player is **scene-local** (relative to the scene's base parcel). Another player's entity — the one you get from `engine.getEntitiesWith(PlayerIdentityData)` — reports its position in **world** coordinates. Mixing them silently puts remote players hundreds of metres away.
+
+Convert by subtracting the base parcel times 16:
+
+```typescript
+import { Vector3 } from '@dcl/sdk/math'
+
+// scene.json base parcel 33,20
+const SCENE_ORIGIN = Vector3.create(33 * 16, 0, 20 * 16)
+const sceneLocal = Vector3.subtract(worldPosition, SCENE_ORIGIN)
+```
+
+`33,20-spectate-mode` applies the subtraction **conditionally** — only when the position falls outside the scene's AABB — which is how it handles the local and remote players through one code path without needing to know which is which. If you always know the entity is a remote player, subtract unconditionally.
+
+Read the base parcel from `scene.json` rather than hardcoding it, or the conversion breaks the moment the scene is redeployed elsewhere.
 
 ## Player Profile Data
 
@@ -350,6 +368,54 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
 
+## Custom Nametag Plates (`AvatarNametag`)
+
+Draws a plate with scene-provided text **above** an avatar's native nametag — for a rank, role, team, or title the scene assigns ("VIP", "Team Red", "Club Owner"). It does not replace the native nametag. Requires `@dcl/sdk` **7.28.0+** (not in 7.27.0 or earlier).
+
+```typescript
+import { AvatarNametag, engine } from '@dcl/sdk/ecs'
+
+AvatarNametag.createOrReplace(engine.PlayerEntity, { label: 'Club Owner' })
+```
+
+A plain LWW component from `@dcl/sdk/ecs` — standard `create` / `createOrReplace` / `getMutable` / `getOrNull` / `deleteFrom`, no helper functions. `label: string` is required; `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag's colors (border defaults to the background, so no visible border). Full field table, `label` edge cases, component ids, and the multiplayer roster pattern: `{baseDir}/references/avatar-nametag.md`.
+
+**Valid targets:** `engine.PlayerEntity`, any remote player entity (the ones carrying `PlayerIdentityData`), and any entity with an `AvatarShape` (NPCs — see the **npcs** skill). Writes to **any other entity are silently ignored** — no error, no plate.
+
+### Attaching to other players
+
+Remote players are ordinary entities, so both idioms are one-liners:
+
+```typescript
+import { onEnterScene } from '@dcl/sdk/src/players'
+import { AvatarNametag } from '@dcl/sdk/ecs'
+
+onEnterScene((player) => {
+	AvatarNametag.createOrReplace(player.entity, { label: rankFor(player.userId) })
+})
+```
+
+```typescript
+import { engine, AvatarNametag, PlayerIdentityData } from '@dcl/sdk/ecs'
+
+for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+	AvatarNametag.createOrReplace(entity, { label: rankFor(identity.address) })
+}
+```
+
+`AvatarNametag.deleteFrom(entity)` removes the plate immediately; the native nametag is unaffected. To revert a color to its native default, use `createOrReplace` and omit the field — it clears fields you leave out, whereas `getMutable` keeps them.
+
+### Gotchas
+
+- **No avatar-readiness dance.** Writing to a still-loading avatar is fine — the renderer retries internally and applies the plate when the avatar is ready. Do NOT poll, delay, or try to detect avatar readiness before writing.
+- **The plate is client-local and is never relayed.** Each client computes its own plates. For everyone to see the same tags, derive them deterministically from shared data (e.g. wallet addresses sorted the same way on every client — the roster pattern in the reference) or sync the assignment explicitly (see the **multiplayer-sync** skill).
+- **Player entity ids are recycled across disconnects.** A write to a cached entity can land on whoever holds that id next. Resolve the entity from the user id / query on *every* write; never cache a player `Entity`. Both idioms above do this naturally.
+- **Never call `createOrReplace` while iterating `engine.getEntitiesWith(...)`.** Replacing a component can move the entity to a different archetype and invalidate the live iterator. Collect entities into an array first, then write.
+- **Don't rewrite the component every tick.** Compare against `AvatarNametag.getOrNull(entity)` before writing, or the scene emits a CRDT message per player per frame.
+- **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. For a bare colored plate with no text, use a spaces-only label (`label: '    '`; more spaces = wider plate). Setting `labelColor` equal to `backgroundColor` does **not** hide the text — the rendered text color is not an exact match to the plate, so the word stays faintly visible.
+- **Colors have no alpha.** `Color3` only; there is no opacity field.
+- Plates are hidden along with the native nametag inside an `AvatarModifierArea` using `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` (see below). There is no way to keep the plate while hiding the native tag.
+
 ## Avatar Modifier Areas
 
 Modify how avatars appear or behave in a region.
@@ -386,7 +452,7 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 
 `modifiers` is an array — combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
 
-`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
+`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Both modifiers also hide any `AvatarNametag` plate (see above); there is no way to hide the native tag while keeping the plate. Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
 
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
@@ -565,9 +631,11 @@ Engine-team test scenes (exercised against the real engine):
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
+- [4,24-avatar-nametag](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag) — `AvatarNametag` on the local player, remote players, and an `AvatarShape` NPC: every color field and its fallback, label edge cases, `deleteFrom`, `AMT_HIDE_NAMETAGS`, plus the multiplayer roster module (`src/modules/multiplayerRoster.ts`) documented in `references/avatar-nametag.md`.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
 - [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Also includes `loop: false` + mask pair (plays once then returns upper body to locomotion) and `loop: true` + mask pair (repeats until stopped) for verifying the masked-emote loop flag is respected.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
+For `AvatarNametag` fields, edge cases, and the multiplayer roster pattern, see `{baseDir}/references/avatar-nametag.md`.
