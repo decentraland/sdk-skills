@@ -1,7 +1,9 @@
 # AvatarNametag Reference
 
 Companion to the `AvatarNametag` section in `player-avatar/SKILL.md`. Read that first — this file
-holds the full field table, the multiplayer roster pattern, and the edge-case behaviors.
+is the single source of truth for the field table, the `label` edge cases, the valid targets, the
+multiplayer roster pattern, and interactions with other components. Other skills point here rather
+than repeating it.
 
 ## Component
 
@@ -44,9 +46,11 @@ opacity field.
 | ---------------------------------- | -------------------------------------------------------------------------- |
 | Normal text                        | Single line. No wrapping.                                                    |
 | Very long text                     | Truncated with an ellipsis.                                                  |
-| `''` (empty)                       | The plate is drawn with no text — a bare colored pill.                       |
-| `'    '` (spaces only)             | Spaces are preserved, so the bare plate is **widened** to that width.        |
-| Any text, `labelColor === backgroundColor` | Plate sized exactly to the word, word invisible. Use this instead of a spaces-only label when you want a plate sized to a specific word. |
+| `''` (empty)                       | The plate is drawn with no text — a minimal bare colored pill.                |
+| `'    '` (spaces only)             | Spaces are preserved, so the bare plate is **widened** to that width. **This is the way to show a colored plate with no text** (team badge, status marker) — pick the number of spaces to set the width. |
+| Any text, `labelColor === backgroundColor` | Plate sized to the word, but the word is **not** hidden — the rendered text color is not a 1:1 match to the plate color, so it stays faintly visible. Do not rely on this; use a spaces-only label instead. |
+
+`label` is required (typed `string`, not optional) but may be whitespace-only, as above.
 
 ## Valid target entities
 
@@ -131,34 +135,16 @@ Notes on the pattern:
 Adapted from sdk7-test-scenes [`4,24-avatar-nametag`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag),
 `src/modules/multiplayerRoster.ts`.
 
-## Per-player plates from `onEnterScene`
-
-Simpler alternative when the label depends only on the player, not on the roster as a whole:
-
-```typescript
-import { onEnterScene, onLeaveScene } from '@dcl/sdk/src/players'
-import { AvatarNametag, engine, PlayerIdentityData } from '@dcl/sdk/ecs'
-
-export function main() {
-	onEnterScene((player) => {
-		AvatarNametag.createOrReplace(player.entity, { label: rankFor(player.userId) })
-	})
-	// Not strictly required (the entity is torn down on leave), but explicit cleanup keeps the
-	// scene honest if it also tracks per-player state.
-	onLeaveScene((userId) => {
-		/* drop any scene-side state keyed by userId */
-	})
-}
-```
-
-`player.entity` is fresh on every call, so this idiom never touches a stale entity id.
+For the simpler per-player idiom (`onEnterScene` → `createOrReplace(player.entity, …)`), see the
+"Attaching to other players" subsection in `player-avatar/SKILL.md`. `player.entity` is fresh on every
+call, so it never touches a stale entity id.
 
 ## Interaction with other components
 
 - `AvatarModifierArea` with `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` hides the plate together with
   the native nametag. There is no way to keep the plate while hiding the native tag.
 - `AvatarShape` with `name: ''` on an NPC: only the plate renders, with no empty native name box
-  beneath it. Use this to label an NPC with a title alone.
+  beneath it. Use this to label an NPC with a title alone (see the **npcs** skill).
 - `AvatarNametag.deleteFrom(entity)` removes the plate immediately. The native nametag is untouched.
 
 ## Sources

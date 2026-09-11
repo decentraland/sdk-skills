@@ -370,7 +370,7 @@ For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skil
 
 ## Custom Nametag Plates (`AvatarNametag`)
 
-Draws a plate with scene-provided text **above** an avatar's native nametag — for a rank, role, team, or title the scene assigns ("VIP", "Team Red", "Club Owner"). It does not replace the native nametag. Requires `@dcl/sdk` **7.28.0+**.
+Draws a plate with scene-provided text **above** an avatar's native nametag — for a rank, role, team, or title the scene assigns ("VIP", "Team Red", "Club Owner"). It does not replace the native nametag. Requires `@dcl/sdk` **7.28.0+** (not in 7.27.0 or earlier).
 
 ```typescript
 import { AvatarNametag, engine } from '@dcl/sdk/ecs'
@@ -378,17 +378,9 @@ import { AvatarNametag, engine } from '@dcl/sdk/ecs'
 AvatarNametag.createOrReplace(engine.PlayerEntity, { label: 'Club Owner' })
 ```
 
-`AvatarNametag` is a plain LWW component (`LastWriteWinElementSetComponentDefinition<PBAvatarNametag>`) exported from `@dcl/sdk/ecs`. There are no helper functions — use `create` / `createOrReplace` / `getMutable` / `getOrNull` / `deleteFrom` like any other component. `PBAvatarNametag` is exported for typing. Composite/`engine.getComponent` name: `"core::AvatarNametag"`. Protocol `ecs_component_id`: `1221`.
+A plain LWW component from `@dcl/sdk/ecs` — standard `create` / `createOrReplace` / `getMutable` / `getOrNull` / `deleteFrom`, no helper functions. `label: string` is required; `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag's colors (border defaults to the background, so no visible border). Full field table, `label` edge cases, component ids, and the multiplayer roster pattern: `{baseDir}/references/avatar-nametag.md`.
 
-**Fields** — `label: string` (required) plus three optional `Color3` fields:
-
-| Field             | Default when omitted                                     |
-| ----------------- | -------------------------------------------------------- |
-| `labelColor`      | the client's native nametag text color                    |
-| `backgroundColor` | the client's native nametag background color              |
-| `borderColor`     | `backgroundColor` — so the plate has no visible border     |
-
-**Valid targets:** `engine.PlayerEntity`, any remote player entity (the ones carrying `PlayerIdentityData`), and any entity with an `AvatarShape` (NPCs). Writes to **any other entity are silently ignored** — no error, no plate.
+**Valid targets:** `engine.PlayerEntity`, any remote player entity (the ones carrying `PlayerIdentityData`), and any entity with an `AvatarShape` (NPCs — see the **npcs** skill). Writes to **any other entity are silently ignored** — no error, no plate.
 
 ### Attaching to other players
 
@@ -416,18 +408,13 @@ for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
 ### Gotchas
 
 - **No avatar-readiness dance.** Writing to a still-loading avatar is fine — the renderer retries internally and applies the plate when the avatar is ready. Do NOT poll, delay, or try to detect avatar readiness before writing.
-- **The plate is client-local and is never relayed.** Each client computes its own plates. For everyone to see the same tags, either derive them deterministically from shared data (e.g. wallet addresses sorted the same way on every client) or sync the assignment explicitly (see the **multiplayer-sync** skill).
-- **Player entity ids are recycled across disconnects.** A write to a cached entity can land on whoever holds that id next. Resolve the entity from the user id / query on *every* write, and `deleteFrom` on leave. Both idioms above do this naturally — `onEnterScene` hands you a fresh entity, a query never holds stale ones.
+- **The plate is client-local and is never relayed.** Each client computes its own plates. For everyone to see the same tags, derive them deterministically from shared data (e.g. wallet addresses sorted the same way on every client — the roster pattern in the reference) or sync the assignment explicitly (see the **multiplayer-sync** skill).
+- **Player entity ids are recycled across disconnects.** A write to a cached entity can land on whoever holds that id next. Resolve the entity from the user id / query on *every* write; never cache a player `Entity`. Both idioms above do this naturally.
 - **Never call `createOrReplace` while iterating `engine.getEntitiesWith(...)`.** Replacing a component can move the entity to a different archetype and invalidate the live iterator. Collect entities into an array first, then write.
 - **Don't rewrite the component every tick.** Compare against `AvatarNametag.getOrNull(entity)` before writing, or the scene emits a CRDT message per player per frame.
-- **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. `label: ''` draws a bare plate with no text. Spaces are preserved, so a spaces-only label widens the bare plate. To size a plate to a specific word without showing it, set `labelColor` equal to `backgroundColor` instead.
+- **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. For a bare colored plate with no text, use a spaces-only label (`label: '    '`; more spaces = wider plate). Setting `labelColor` equal to `backgroundColor` does **not** hide the text — the rendered text color is not an exact match to the plate, so the word stays faintly visible.
 - **Colors have no alpha.** `Color3` only; there is no opacity field.
 - Plates are hidden along with the native nametag inside an `AvatarModifierArea` using `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` (see below). There is no way to keep the plate while hiding the native tag.
-- On an `AvatarShape` NPC with `name: ''`, only the plate shows — no empty native name box beneath it.
-
-**Availability:** `@dcl/sdk` **7.28.0** (released 2026-09-10; js-sdk-toolchain PR #1600, commit `b8264fb`). Not present in 7.27.0 or earlier. Renderer support in unity-explorer `5cb52d6` (#9829, 2026-09-04).
-
-For the full field table, `label` edge-case matrix, and the multiplayer roster pattern (deterministic wallet-sorted assignment with a diff check and a throttled system), see `{baseDir}/references/avatar-nametag.md`.
 
 ## Avatar Modifier Areas
 
@@ -644,7 +631,7 @@ Engine-team test scenes (exercised against the real engine):
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
-- [4,24-avatar-nametag](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag) — `AvatarNametag` on the local player, remote players, and an `AvatarShape` NPC (including one with an empty native name): every color field and its native-default fallback, empty / spaces-only / overlong labels, `labelColor === backgroundColor`, `deleteFrom`, `AMT_HIDE_NAMETAGS` hiding the plates, plus `src/modules/multiplayerRoster.ts` with the deterministic wallet-sorted roster, the `nametagsEqual` diff check, and a 1s throttled system that picks up late joiners.
+- [4,24-avatar-nametag](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag) — `AvatarNametag` on the local player, remote players, and an `AvatarShape` NPC: every color field and its fallback, label edge cases, `deleteFrom`, `AMT_HIDE_NAMETAGS`, plus the multiplayer roster module (`src/modules/multiplayerRoster.ts`) documented in `references/avatar-nametag.md`.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
 - [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Also includes `loop: false` + mask pair (plays once then returns upper body to locomotion) and `loop: true` + mask pair (repeats until stopped) for verifying the masked-emote loop flag is respected.

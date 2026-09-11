@@ -134,9 +134,7 @@ engine.addSystem(() => {
 })
 ```
 
-Note: writes to a player's entity are **client-local**. The `AvatarNametag` plate (see the **player-avatar** skill) is rendered only on the client that wrote it and is never relayed to other players — if all players must see the same plates, derive them deterministically from shared data (e.g. wallet addresses sorted identically on every client) or sync the assignment yourself.
-
-Player entity ids are also recycled when players disconnect, so never cache a player `Entity` for a later write. Key per-player state by `PlayerIdentityData.address` and re-resolve the entity each time.
+Note: writes to a player's entity (e.g. an `AvatarNametag` plate) are **client-local** and never relayed, and player entity ids are recycled on disconnect — key per-player state by `PlayerIdentityData.address`, never by a cached `Entity`. Details and a deterministic-assignment pattern: **player-avatar** skill, `references/avatar-nametag.md`.
 
 ## Schema Types
 
