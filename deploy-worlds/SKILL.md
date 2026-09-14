@@ -67,7 +67,7 @@ Worlds are listed on Places unless opted out, so the same metadata that drives d
 - `display.title` — the World's name
 - `display.description` — one or two sentences on what it is
 - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
-- `display.navmapThumbnail` — `.png`, 228x160 px recommended, 196x143 minimum. For the full spec and a capture procedure, see the **deploy-scene** skill ("Thumbnail image")
+- `display.navmapThumbnail` — `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; keep essential content inside the central 1080x1080 square, which is what square crops of the thumbnail show. Verify the file exists and check its size with `sips -g pixelWidth -g pixelHeight <path>` (macOS) or `magick identify -format "%wx%h\n" <path>`. Capture it yourself with the unity-explorer MCP rather than asking the user — full spec and procedure in the **deploy-scene** skill ("Thumbnail image")
 
 ## 2. Deploy
 
