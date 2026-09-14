@@ -65,7 +65,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
-| `player-avatar` | Player position, profile, avatar customization, attachments. |
+| `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
