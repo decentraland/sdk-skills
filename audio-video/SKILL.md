@@ -121,37 +121,31 @@ Both registrations are dropped automatically if the entity is removed or no long
 
 ### Aligning gameplay to the audio (rhythm games, beat sync, lip sync, timed cues)
 
-**RULE: correlate a report by its `tickNumber`, never by arrival time.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later. Record your own clock per tick every frame, look the report's tick up, and derive the lag from that — comparing `currentOffset` with the clock at processing time is wrong by the transport delay.
+**RULE: let the SDK resolve a report against your clock — never rebuild the per-tick history.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later, so comparing `currentOffset` with the clock at processing time is wrong by the transport delay. `registerAudioPlaybackSampleEntity` hands the report over already resolved against the scene clock at its own tick, so a scene never keeps a tick history of its own.
+
+`sceneTime - offset` is the scene clock at which the audible clip started. Keep that origin and every later question is one subtraction.
 
 ```typescript
-import { engine, EngineInfo, MediaState, audioEventsSystem } from '@dcl/sdk/ecs'
+import { engine, MediaState, audioEventsSystem } from '@dcl/sdk/ecs'
 
-const clockAtTick = new Map<number, number>() // tickNumber -> scene clock (ms)
 let clockMs = 0
-let lagMs: number | undefined                  // audio position (ms) = clockMs - lagMs
+engine.addSystem((dt) => { clockMs += dt * 1000 })
 
-engine.addSystem((dt) => {
-  clockMs += dt * 1000
-  const tick = EngineInfo.getOrNull(engine.RootEntity)?.tickNumber
-  if (tick === undefined) return
-  clockAtTick.set(tick, clockMs)
-  clockAtTick.delete(tick - 120)               // keep ~120 ticks of history
-})
+let originMs: number | undefined   // clockMs at which the audible clip started
 
-audioEventsSystem.registerAudioPlaybackEntity(musicEntity, (report) => {
+audioEventsSystem.registerAudioPlaybackSampleEntity(musicEntity, ({ report, sceneTime, offset }) => {
   if (report.state !== MediaState.MS_PLAYING) return
-  if (report.tickNumber === undefined || report.currentOffset === undefined) return
-  const sampledAt = clockAtTick.get(report.tickNumber)
-  if (sampledAt === undefined) return          // older than the history window
-  lagMs = sampledAt - report.currentOffset * 1000
+  originMs = sceneTime * 1000 - offset * 1000
 })
 
-// gameplay: const audioMs = lagMs === undefined ? undefined : clockMs - lagMs
+// gameplay: const audioMs = originMs === undefined ? undefined : clockMs - originMs
 ```
 
-`lagMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each report and smooth if it jitters.
+`originMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each sample and smooth if it jitters. A scene that prefers raw reports can call `getSceneTimeAtTick(report.tickNumber)` for the same lookup; it resolves `PBVideoEvent` reports too.
 
-**RULE: degrade gracefully.** Renderers without the feature never set a position (`lagMs` stays `undefined`, `getAudioPlayback` returns `undefined`): fall back to a fixed lead (about 150 ms) or a tap-to-calibrate step, and never hard-block waiting for a report.
+**RULE: degrade gracefully.** Renderers without the feature never set a position, so the sample callback never fires (`originMs` stays `undefined`, `getAudioPlayback` returns `undefined`): fall back to a fixed lead (about 150 ms) or a tap-to-calibrate step, and never hard-block waiting for a report.
+
+**RULE: know the floor.** `currentOffset` is the decoder's read position, not the moment a sample leaves the speaker. The mixer buffer, driver and device add tens of milliseconds that no field carries, consistently signed and roughly constant per device. Calibrate it once per session if the scene needs alignment finer than a tick.
 
 **Where vs. how loud:** playback reports say *where* the audio is; `AudioAnalysis` (the `audio-analysis` skill) says *how loud* it is right now. Take timing from the reports, visuals from the analysis.
 
