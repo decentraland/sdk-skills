@@ -40,7 +40,9 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (seek position in seconds, default 0 — write-only, see RULE below), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+
+**RULE: `currentTime` is write-only — never read it as a playhead.** Writing it seeks; the renderer never writes the real position back, so `AudioSource.get(entity).currentTime` is just whatever the scene last wrote (usually `0`). A put re-sends the whole component, so the renderer cannot tell a re-sent value from a new seek either. And "time since I set `playing: true`" is not the playhead: renderers start a clip 100–250 ms after being asked, and the delay varies per start. To learn where the audio actually is, use the playback-position reports from `audioEventsSystem` (see **Aligning gameplay to the audio** below).
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
@@ -84,7 +86,7 @@ Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEve
 
 ## Audio Events System (audioEventsSystem)
 
-Monitor `AudioSource` and `AudioStream` media state changes. Import from `@dcl/sdk/ecs`. The system fires a callback only when the state changes (not every frame).
+Monitor `AudioSource` and `AudioStream` media state changes and, on renderers that report it, the clip's playback position. Import from `@dcl/sdk/ecs`. `registerAudioEventsEntity` fires only when the state changes (not every frame); `registerAudioPlaybackEntity` fires on every report.
 
 ```typescript
 import { engine, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
@@ -93,22 +95,67 @@ const radioEntity = engine.addEntity()
 AudioSource.create(radioEntity, { audioClipUrl: 'assets/Audio/music.mp3', playing: true })
 
 audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
-  // event is PBAudioEvent: { state: MediaState, timestamp: number }
+  // event is PBAudioEvent: { state: MediaState, timestamp: number, tickNumber?, currentOffset?, clipLength? }
   console.log('Audio state changed:', event.state)
 })
 ```
 
-**API** (verified against `@dcl/ecs`, commit `f858f905`):
-- `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
+**API** (verified against `@dcl/ecs`, commit `f858f905`; playback additions against js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624)):
+- `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes — position-only reports (same `state`, new `tickNumber`/`currentOffset`) do NOT trigger it.
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
 - `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
+- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback for EVERY report the renderer writes, including the periodic position reports it emits while a clip plays (Unity explorer: every 15 ticks, about twice a second). Same `(event: PBAudioEvent) => void` callback type. Independent of `registerAudioEventsEntity` — an entity can hold both.
+- `audioEventsSystem.removeAudioPlaybackEntity(entity)` -- unregisters the playback callback.
+- `audioEventsSystem.getAudioPlayback(entity)` -- returns the latest `PBAudioEvent` that carries a `currentOffset`, or `undefined` if the renderer has never reported a position (poll form; stays `undefined` forever on renderers without the feature).
+
+**`PBAudioEvent` fields:** `state: MediaState`; `timestamp: number` — a per-entity monotonic report counter, NOT a time; and, optional, only on playback reports: `tickNumber?: number` (the scene tick the position was sampled in, equals `EngineInfo.tickNumber`), `currentOffset?: number` (clip position in seconds at that tick), `clipLength?: number` (total clip length in seconds when known; `undefined` for streams). Mirrors `PBVideoEvent.tickNumber`/`currentOffset`.
 
 **MediaState values:** `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_PAUSED`, `MS_STOPPED`, `MS_ERROR`, `MS_SEEKING`, `MS_BUFFERING`, `MS_NONE`.
 
-The entity is auto-unregistered if it is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
+Both registrations are dropped automatically if the entity is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
 
 **Relationship to `AudioStream.getAudioState`:** `AudioStream.getAudioState` is a convenience wrapper on the `AudioStream` component itself; `audioEventsSystem.getAudioState` reads the underlying `AudioEvent` component and works for both `AudioSource` and `AudioStream`. Use `audioEventsSystem` when you need callback-driven state monitoring or when working with `AudioSource`.
+
+### Aligning gameplay to the audio (rhythm games, beat sync, lip sync, timed cues)
+
+**RULE: correlate a report by its `tickNumber`, never by arrival time.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later. Record your own clock per tick every frame, look the report's tick up, and derive the lag from that — comparing `currentOffset` with the clock at processing time is wrong by the transport delay.
+
+```typescript
+import { engine, EngineInfo, MediaState, audioEventsSystem } from '@dcl/sdk/ecs'
+
+const clockAtTick = new Map<number, number>() // tickNumber -> scene clock (ms)
+let clockMs = 0
+let lagMs: number | undefined                  // audio position (ms) = clockMs - lagMs
+
+engine.addSystem((dt) => {
+  clockMs += dt * 1000
+  const tick = EngineInfo.getOrNull(engine.RootEntity)?.tickNumber
+  if (tick === undefined) return
+  clockAtTick.set(tick, clockMs)
+  clockAtTick.delete(tick - 120)               // keep ~120 ticks of history
+})
+
+audioEventsSystem.registerAudioPlaybackEntity(musicEntity, (report) => {
+  if (report.state !== MediaState.MS_PLAYING) return
+  if (report.tickNumber === undefined || report.currentOffset === undefined) return
+  const sampledAt = clockAtTick.get(report.tickNumber)
+  if (sampledAt === undefined) return          // older than the history window
+  lagMs = sampledAt - report.currentOffset * 1000
+})
+
+// gameplay: const audioMs = lagMs === undefined ? undefined : clockMs - lagMs
+```
+
+`lagMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each report and smooth if it jitters. While `lagMs` is `undefined` the scene has never received a position: fall back (below) — do not derive the position from `AudioSource.currentTime` (write-only, see the RULE in the AudioSource section).
+
+**RULE: degrade gracefully when no report ever carries a position.** Renderers without the feature leave `tickNumber`/`currentOffset` `undefined`, `getAudioPlayback` stays `undefined`, and the playback callback still runs on state changes only. Timing-dependent gameplay must fall back to a fixed lead (assume ~150 ms start delay) or a manual calibration step ("tap on the beat"), and must never hard-block waiting for a position. `clipLength` may be `undefined` even when positions arrive (streams).
+
+**Where vs. how loud:** playback reports tell you *where* the audio is (timing, sync). `AudioAnalysis` (the `audio-analysis` skill) tells you *how loud / which bands* right now (visualizers, reactive geometry). A rhythm game takes note timing from the reports and, optionally, visuals from `AudioAnalysis` — never the other way round.
+
+### SDK VERSION GATE: playback-position reports
+
+**Check the scene's `@dcl/sdk` pin in `package.json` before emitting `tickNumber`/`currentOffset`/`clipLength`, `registerAudioPlaybackEntity`, `removeAudioPlaybackEntity` or `getAudioPlayback`.** They need an `@dcl/sdk` release that includes js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624) (protocol [#488](https://github.com/decentraland/protocol/pull/488), [ADR-318](https://github.com/decentraland/adr/pull/324)) — unreleased at the time of writing; on an older SDK they are type errors. A scene on `"latest"`/`"^7.x"` picks the feature up once released; a pinned older version does not. On the renderer side, today only the Unity explorer writes position reports (unity-explorer [#10123](https://github.com/decentraland/unity-explorer/pull/10123)); everywhere else the scene lands in the degradation path above, so always ship the fallback.
 
 ## VideoPlayer
 
@@ -148,7 +195,7 @@ Always check the scene's existing folders before deciding where to put a new fil
 
 ## Audio-reactive scenes (visualizers, beat sync)
 
-For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles. That is *how loud* the audio is, not *where* it is — for beat/rhythm timing and cue alignment use the playback-position reports in **Aligning gameplay to the audio** above.
 
 ## Permission for External Media
 
@@ -169,6 +216,7 @@ Engine-team test scenes exercised against the real explorer:
 - [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
 - [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
 - [audio-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-11-audio-finish) — natural-finish detection via the `playing` flip + `audioEventsSystem` callback, and how a scene-initiated stop is distinguished from a natural finish.
+- [audio-playback-position](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-12-audio-playback-position) — `registerAudioPlaybackEntity` position reports correlated with `EngineInfo.tickNumber` to measure the renderer's start lag and keep a cue aligned with the audio actually heard; shows `registerAudioEventsEntity` staying silent on position-only reports and the fallback when `getAudioPlayback` stays `undefined`.
 - [asset-load](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load) — `AssetLoad` pre-loading an mp3 alongside a texture, video and glb, with per-asset `assetLoadLoadingStateSystem` state callbacks (including a missing path resolving to `NOT_FOUND`). This is the pattern behind pre-loading audio so it is ready the instant the player first clicks.
 - [gltfnodemodifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier) — `VideoPlayer` on a GLB rather than a primitive: an HLS `.m3u8` stream driven onto specific GLTF nodes with `GltfNodeModifiers` video textures. The ground truth for the curved-screen / non-primitive case above.
 

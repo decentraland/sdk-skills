@@ -318,9 +318,68 @@ engine.addSystem(() => {
   const event = AudioEvent.getOrNull(audioEntity)
   if (event) {
     console.log('Audio state:', event.state)
+    // Playback reports (Unity explorer, while playing) also carry:
+    // event.tickNumber, event.currentOffset (s), event.clipLength (s, when known)
   }
 })
 ```
+
+---
+
+## Align Gameplay to Audio (playback-position reports)
+
+`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports and correlate them by `tickNumber` — never by the time the report is processed.
+
+```typescript
+import { engine, EngineInfo, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+
+const music = engine.addEntity()
+AudioSource.create(music, { audioClipUrl: 'assets/Audio/track.mp3', playing: true, global: true })
+
+// 1. Scene clock remembered per tick — the renderer reports "position X at tick N" a few frames late
+const clockAtTick = new Map<number, number>()
+let clockMs = 0
+engine.addSystem((dt) => {
+  clockMs += dt * 1000
+  const tick = EngineInfo.getOrNull(engine.RootEntity)?.tickNumber
+  if (tick === undefined) return
+  clockAtTick.set(tick, clockMs)
+  clockAtTick.delete(tick - 120)
+})
+
+// 2. Lag between the scene clock and the audio actually heard, refreshed on every report
+let lagMs: number | undefined
+audioEventsSystem.registerAudioPlaybackEntity(music, (report) => {
+  if (report.state !== MediaState.MS_PLAYING) return
+  if (report.tickNumber === undefined || report.currentOffset === undefined) return
+  const sampledAt = clockAtTick.get(report.tickNumber)
+  if (sampledAt === undefined) return
+  lagMs = sampledAt - report.currentOffset * 1000
+})
+
+// 3. Gameplay reads the audio position, with a fixed-lead fallback for renderers that never report
+const FALLBACK_LEAD_MS = 150
+const startedAtMs = clockMs
+function audioPositionMs(): number {
+  return lagMs !== undefined ? clockMs - lagMs : clockMs - startedAtMs - FALLBACK_LEAD_MS
+}
+
+// e.g. fire a cue on every beat of a 120 BPM track
+const BEAT_MS = 500
+let nextBeatMs = 0
+engine.addSystem(() => {
+  const pos = audioPositionMs()
+  if (pos >= nextBeatMs) {
+    nextBeatMs = Math.floor(pos / BEAT_MS) * BEAT_MS + BEAT_MS
+    // trigger the beat visual here
+  }
+})
+```
+
+Notes:
+- `registerAudioEventsEntity` does not run on position-only reports — use `registerAudioPlaybackEntity` (callback) or `audioEventsSystem.getAudioPlayback(music)` (poll) for positions.
+- The Unity explorer reports every 15 ticks (about twice a second) while playing. Other renderers leave `currentOffset` undefined, so `lagMs` stays `undefined` and the fallback branch runs — keep it.
+- Needs an `@dcl/sdk` release containing js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624); check the scene's `@dcl/sdk` pin before emitting these calls.
 
 ---
 
