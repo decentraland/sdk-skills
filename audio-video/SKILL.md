@@ -42,7 +42,7 @@ The expected workflow when a user asks for sound:
 
 Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (seek position in seconds, default 0 — write-only, see RULE below), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
 
-**RULE: `currentTime` is write-only — never read it as a playhead.** Writing it seeks; the renderer never writes the real position back, so `AudioSource.get(entity).currentTime` is just whatever the scene last wrote (usually `0`). A put re-sends the whole component, so the renderer cannot tell a re-sent value from a new seek either. And "time since I set `playing: true`" is not the playhead: renderers start a clip 100–250 ms after being asked, and the delay varies per start. To learn where the audio actually is, use the playback-position reports from `audioEventsSystem` (see **Aligning gameplay to the audio** below).
+**RULE: `currentTime` is write-only — never read it as a playhead.** Writing it seeks; the renderer never writes the real position back, so `AudioSource.get(entity).currentTime` is whatever the scene last wrote. To learn where the audio actually is, use the playback-position reports (see **Aligning gameplay to the audio** below).
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
@@ -147,15 +147,15 @@ audioEventsSystem.registerAudioPlaybackEntity(musicEntity, (report) => {
 // gameplay: const audioMs = lagMs === undefined ? undefined : clockMs - lagMs
 ```
 
-`lagMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each report and smooth if it jitters. While `lagMs` is `undefined` the scene has never received a position: fall back (below) — do not derive the position from `AudioSource.currentTime` (write-only, see the RULE in the AudioSource section).
+`lagMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each report and smooth if it jitters.
 
-**RULE: degrade gracefully when no report ever carries a position.** Renderers without the feature leave `tickNumber`/`currentOffset` `undefined`, `getAudioPlayback` stays `undefined`, and the playback callback still runs on state changes only. Timing-dependent gameplay must fall back to a fixed lead (assume ~150 ms start delay) or a manual calibration step ("tap on the beat"), and must never hard-block waiting for a position. `clipLength` may be `undefined` even when positions arrive (streams).
+**RULE: degrade gracefully.** Renderers without the feature never set a position (`lagMs` stays `undefined`, `getAudioPlayback` returns `undefined`): fall back to a fixed lead (about 150 ms) or a tap-to-calibrate step, and never hard-block waiting for a report.
 
-**Where vs. how loud:** playback reports tell you *where* the audio is (timing, sync). `AudioAnalysis` (the `audio-analysis` skill) tells you *how loud / which bands* right now (visualizers, reactive geometry). A rhythm game takes note timing from the reports and, optionally, visuals from `AudioAnalysis` — never the other way round.
+**Where vs. how loud:** playback reports say *where* the audio is; `AudioAnalysis` (the `audio-analysis` skill) says *how loud* it is right now. Take timing from the reports, visuals from the analysis.
 
 ### SDK VERSION GATE: playback-position reports
 
-**Check the scene's `@dcl/sdk` pin in `package.json` before emitting `tickNumber`/`currentOffset`/`clipLength`, `registerAudioPlaybackEntity`, `removeAudioPlaybackEntity` or `getAudioPlayback`.** They need an `@dcl/sdk` release that includes js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624) (protocol [#488](https://github.com/decentraland/protocol/pull/488), [ADR-318](https://github.com/decentraland/adr/pull/324)) — unreleased at the time of writing; on an older SDK they are type errors. A scene on `"latest"`/`"^7.x"` picks the feature up once released; a pinned older version does not. On the renderer side, today only the Unity explorer writes position reports (unity-explorer [#10123](https://github.com/decentraland/unity-explorer/pull/10123)); everywhere else the scene lands in the degradation path above, so always ship the fallback.
+**Check the scene's `@dcl/sdk` pin before emitting any of the playback API above.** It needs a release that includes js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624) (protocol [#488](https://github.com/decentraland/protocol/pull/488), [ADR-318](https://github.com/decentraland/adr/pull/324)), unreleased at the time of writing; on older SDKs the calls are type errors. Today only the Unity explorer writes position reports (unity-explorer [#10123](https://github.com/decentraland/unity-explorer/pull/10123)), so always ship the fallback.
 
 ## VideoPlayer
 
@@ -195,7 +195,7 @@ Always check the scene's existing folders before deciding where to put a new fil
 
 ## Audio-reactive scenes (visualizers, beat sync)
 
-For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles. That is *how loud* the audio is, not *where* it is — for beat/rhythm timing and cue alignment use the playback-position reports in **Aligning gameplay to the audio** above.
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles. For timing, see **Aligning gameplay to the audio** above.
 
 ## Permission for External Media
 
