@@ -324,6 +324,18 @@ Full examples (eased open/close, formatted timer label, two-variable exit gate, 
 - Reach for the platform variant when the mobile layout genuinely differs in structure (a bottom sheet instead of a side rail, fewer visible columns) rather than shrinking a desktop layout until it fits.
 - Hover layers do nothing on touch: never make a `hover` layer the only affordance or the only way to read a value.
 
+### The editor's mobile preview (creator-hub `379aa27e`)
+
+Switching the canvas to **mobile** frames the UI inside a **phone body with a landscape notch**, at `1600x720` — the same virtual canvas react-ecs uses on mobile, so `fitScale` is 1 and there is **no letterbox**. Desktop stays `1920x1080`. Other screens are selectable (mobile: `1600x720` DCL reference, `2340x1080` 19.5:9, `2048x1536` 4:3; desktop: `1920x1080`, `2560x1080` ultrawide, `1440x900`), and a non-default preset does letterbox.
+
+The canvas draws two guide areas, matching the renderer `screenInset` in use, plus a toggleable set of **reference HUD controls** (joystick, jump, F/E, emote, profile, chat, compass, counter, pointer) drawn as non-interactive discs. The HUD toggle is the game-controller button in the canvas zoom pill (mobile only); it shows by default in the safe-area modes and is hidden by default in full-screen.
+
+What this means when you author:
+
+- **`interactable` excludes the LEFT HUD column only.** It shares its **right** edge with the device area, so the bottom-right action cluster (jump / E / F / pointer) sits *inside* the interactable area by design — an element anchored bottom-right competes with those buttons even under `screenInset: 'interactable'`. Use the HUD guides to place around them.
+- **Overflow past the safe-area outline is shown, not clipped** — deliberately, because that is also what happens in-world (`ScreenInsetArea` / `InteractableArea` set no `overflow`). Content spilling past the outline is a placement warning to fix, not a rendering artifact.
+- **The preview's inset numbers are a static approximation** (iPhone 14 Pro landscape: device area ~86% wide, interactable ~65% wide, 6% top/bottom margin), not live values. In-world the explorer reports the real `UiCanvasInformation.screenInsetArea` / `interactableArea` per tick. **The emitted react-ecs source is identical either way** — a wrong-looking preview is never a codegen bug, and a correct-looking one does not prove the layout on a given device.
+
 ## Self-check list
 
 Run this over **every** `.tsx` file you write or adapt. Each item is a silent editor failure if violated.
