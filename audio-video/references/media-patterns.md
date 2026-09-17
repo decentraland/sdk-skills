@@ -328,40 +328,31 @@ engine.addSystem(() => {
 
 ## Align Gameplay to Audio (playback-position reports)
 
-`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports and correlate them by `tickNumber` — never by the time the report is processed.
+`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports. They must be correlated against the scene clock at the tick they were sampled in, never at the time the callback runs; `registerAudioPlaybackSampleEntity` does that for you.
 
 ```typescript
-import { engine, EngineInfo, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+import { engine, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
 
 const music = engine.addEntity()
 AudioSource.create(music, { audioClipUrl: 'assets/Audio/track.mp3', playing: true, global: true })
 
-// 1. Scene clock remembered per tick — the renderer reports "position X at tick N" a few frames late
-const clockAtTick = new Map<number, number>()
+// 1. A plain scene clock. The per-tick history the correlation needs lives in the SDK, not here.
 let clockMs = 0
-engine.addSystem((dt) => {
-  clockMs += dt * 1000
-  const tick = EngineInfo.getOrNull(engine.RootEntity)?.tickNumber
-  if (tick === undefined) return
-  clockAtTick.set(tick, clockMs)
-  clockAtTick.delete(tick - 120)
-})
+engine.addSystem((dt) => { clockMs += dt * 1000 })
 
-// 2. Lag between the scene clock and the audio actually heard, refreshed on every report
-let lagMs: number | undefined
-audioEventsSystem.registerAudioPlaybackEntity(music, (report) => {
+// 2. Where the audible clip started, refreshed from each resolved sample. The SDK looks the scene
+//    clock up at the tick the renderer sampled in, so the report's transit time never enters this.
+let originMs: number | undefined
+audioEventsSystem.registerAudioPlaybackSampleEntity(music, ({ report, sceneTime, offset }) => {
   if (report.state !== MediaState.MS_PLAYING) return
-  if (report.tickNumber === undefined || report.currentOffset === undefined) return
-  const sampledAt = clockAtTick.get(report.tickNumber)
-  if (sampledAt === undefined) return
-  lagMs = sampledAt - report.currentOffset * 1000
+  originMs = sceneTime * 1000 - offset * 1000
 })
 
 // 3. Gameplay reads the audio position, with a fixed-lead fallback for renderers that never report
 const FALLBACK_LEAD_MS = 150
 const startedAtMs = clockMs
 function audioPositionMs(): number {
-  return lagMs !== undefined ? clockMs - lagMs : clockMs - startedAtMs - FALLBACK_LEAD_MS
+  return originMs !== undefined ? clockMs - originMs : clockMs - startedAtMs - FALLBACK_LEAD_MS
 }
 
 // e.g. fire a cue on every beat of a 120 BPM track
@@ -378,7 +369,8 @@ engine.addSystem(() => {
 
 Notes:
 - `registerAudioEventsEntity` does not run on position-only reports — use `registerAudioPlaybackEntity` (callback) or `audioEventsSystem.getAudioPlayback(music)` (poll) for positions.
-- The Unity explorer reports every 15 ticks (about twice a second) while playing. Other renderers leave `currentOffset` undefined, so `lagMs` stays `undefined` and the fallback branch runs — keep it.
+- The renderer writes a report whenever the playhead moves, so every render frame while a clip plays; the SDK delivers the newest one per scene frame. Other renderers leave `currentOffset` undefined, so `originMs` stays `undefined` and the fallback branch runs — keep it.
+- The reported playhead is the decoder's, not the speaker's. Output latency (mixer buffer, driver, device) adds tens of milliseconds that no field carries — calibrate it per session if you need better than tick accuracy.
 - Needs an `@dcl/sdk` release containing js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624); check the scene's `@dcl/sdk` pin before emitting these calls.
 
 ---

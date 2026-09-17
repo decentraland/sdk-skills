@@ -86,7 +86,7 @@ Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEve
 
 ## Audio Events System (audioEventsSystem)
 
-Monitor `AudioSource` and `AudioStream` media state changes and, on renderers that report it, the clip's playback position. Import from `@dcl/sdk/ecs`. `registerAudioEventsEntity` fires only when the state changes (not every frame); `registerAudioPlaybackEntity` fires on every report.
+Monitor `AudioSource` and `AudioStream` media state changes and, on renderers that report it, the clip's playback position. Import from `@dcl/sdk/ecs`. `registerAudioEventsEntity` fires only when the state changes (not every frame); `registerAudioPlaybackEntity` fires once per scene frame with the newest report, position updates included.
 
 ```typescript
 import { engine, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
@@ -105,7 +105,9 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
 - `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
-- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback for EVERY report the renderer writes, including the periodic position reports it emits while a clip plays (Unity explorer: every 15 ticks, about twice a second). Same `(event: PBAudioEvent) => void` callback type. Independent of `registerAudioEventsEntity` — an entity can hold both.
+- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback that runs once per scene frame with the newest report for the entity, position updates included, and is skipped on frames where nothing new arrived. The renderer writes a report whenever the playhead moves, so a playing clip produces one every render frame; when it samples faster than the scene ticks you get the freshest of that frame's reports, which is the one to align against. Same `(event: PBAudioEvent) => void` callback type. Independent of `registerAudioEventsEntity` — an entity can hold both.
+- `audioEventsSystem.registerAudioPlaybackSampleEntity(entity, callback)` -- same delivery, already resolved against the scene clock: the callback receives `{ report, sceneTime, offset }` where `sceneTime` is the scene clock (seconds) in the tick the renderer sampled the position. **Prefer this over rolling a per-tick clock history by hand.** `removeAudioPlaybackSampleEntity(entity)` unregisters it.
+- `audioEventsSystem.getSceneTimeAtTick(tickNumber)` -- the scene clock recorded in a given tick, or `undefined` outside the short history. Use it to resolve `PBVideoEvent` reports the same way.
 - `audioEventsSystem.removeAudioPlaybackEntity(entity)` -- unregisters the playback callback.
 - `audioEventsSystem.getAudioPlayback(entity)` -- returns the latest `PBAudioEvent` that carries a `currentOffset`, or `undefined` if the renderer has never reported a position (poll form; stays `undefined` forever on renderers without the feature).
 
