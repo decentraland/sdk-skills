@@ -7,6 +7,8 @@ description: Read real-time amplitude and 8-band frequency data from any AudioSo
 
 Real-time audio signal analysis attached to any entity that already has an `AudioSource`, `AudioStream`, or `VideoPlayer`. The renderer analyzes the audio frame buffer and writes results back into the component each tick. Scenes read those results to drive visualizers, beat-reactive geometry, audio-driven lights, etc.
 
+It answers *how loud* (and in which bands) the audio is right now — not *where* the clip is. For beat/rhythm timing, cue alignment, or measuring the renderer's start delay, use the playback-position reports (`audioEventsSystem.registerAudioPlaybackEntity`, `tickNumber`/`currentOffset`) described in the `audio-video` skill; onset detection on `bands[]` is a poor substitute.
+
 ## RULE: Requires an audio-emitting component on the same entity
 
 `AudioAnalysis` does nothing on its own. The entity MUST also have one of: `AudioSource`, `AudioStream`, or `VideoPlayer`. The renderer taps that component's audio frame buffer to compute amplitude/bands. An entity with only `AudioAnalysis` produces no data.

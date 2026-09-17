@@ -11,7 +11,7 @@ AudioSource.create(entity, {
   loop: false,                         // Loop when finished
   volume: 1.0,                         // Volume 0.0 to 1.0 (default 1.0)
   pitch: 1.0,                          // Playback speed (0.5 = half, 2.0 = double, default 1.0)
-  currentTime: 0,                      // Playback position in seconds (default 0)
+  currentTime: 0,                      // Seek position in seconds (default 0). WRITE-ONLY: never reflects the playhead
   global: false                        // true = non-spatial, same volume everywhere (default false = spatial)
 })
 ```
@@ -60,6 +60,29 @@ audio.currentTime = 0   // if playing/currentTime already had these values, LWW 
 
 Mirrors `videoEventsSystem`, but for `AudioSource` and `AudioStream` entities. The event's `state` is a `MediaState` enum value (`MS_NONE`, `MS_ERROR`, `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_BUFFERING`, `MS_SEEKING`, `MS_PAUSED`).
 
+**`PBAudioEvent` fields** (protocol [#488](https://github.com/decentraland/protocol/pull/488) added the three optional ones):
+
+| Field | Type | Notes |
+|---|---|---|
+| `state` | `MediaState` | Current media state. |
+| `timestamp` | `number` | Per-entity monotonic report counter. NOT a time. |
+| `tickNumber?` | `number` | Playback reports only. Scene tick the position was sampled in; equals `EngineInfo.tickNumber`. |
+| `currentOffset?` | `number` | Playback reports only. Clip position in seconds at `tickNumber`. |
+| `clipLength?` | `number` | Playback reports only. Total clip length in seconds, when known (`undefined` for streams). |
+
+**`audioEventsSystem` functions** (js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624) added the last three):
+
+| Function | Fires / returns |
+|---|---|
+| `registerAudioEventsEntity(entity, cb)` | `cb(event)` on media-state changes only. Position-only reports do not trigger it. |
+| `removeAudioEventsEntity(entity)` | Unregisters the state callback. |
+| `hasAudioEventsEntity(entity): boolean` | Whether a state callback is registered. |
+| `getAudioState(entity): PBAudioEvent \| undefined` | Latest report of any kind. |
+| `registerAudioPlaybackEntity(entity, cb)` | `cb({ report, sceneTime, offset })` once per scene frame with the newest position report, already resolved against the scene clock at the sampling tick. The renderer writes one whenever the playhead moves, so every render frame while a clip plays. Position-less reports never reach it. |
+| `getSceneTimeAtTick(tick): number \| undefined` | Scene clock (s) recorded in that tick. Resolves `PBVideoEvent` reports too. |
+| `removeAudioPlaybackEntity(entity)` | Unregisters the playback callback. |
+| `getAudioPlayback(entity): PBAudioEvent \| undefined` | Latest report carrying `currentOffset`; `undefined` if the renderer never reported a position. |
+
 ```typescript
 import { audioEventsSystem, MediaState } from '@dcl/sdk/ecs'
 
@@ -69,12 +92,46 @@ audioEventsSystem.registerAudioEventsEntity(entity, (event) => {
   console.log('audio state:', event.state, 'at', event.timestamp)
 })
 
-const latest = audioEventsSystem.getAudioState(entity)  // last reported PBAudioEvent | undefined
-audioEventsSystem.hasAudioEventsEntity(entity)          // is a callback registered
-audioEventsSystem.removeAudioEventsEntity(entity)       // unregister
+audioEventsSystem.registerAudioPlaybackEntity(entity, (report) => {
+  // newest report of the frame; while playing: report.tickNumber + report.currentOffset (+ clipLength when known)
+})
+
+const latest = audioEventsSystem.getAudioState(entity)     // last reported PBAudioEvent | undefined
+const position = audioEventsSystem.getAudioPlayback(entity) // last report with currentOffset | undefined
+audioEventsSystem.hasAudioEventsEntity(entity)             // is a state callback registered
+audioEventsSystem.removeAudioEventsEntity(entity)          // unregister state callback
+audioEventsSystem.removeAudioPlaybackEntity(entity)        // unregister playback callback
 ```
 
+Both registrations are dropped automatically when the entity is removed or loses its `AudioSource`/`AudioStream`.
+
 For AudioSource clips the engine also flips the component's `playing` field back to `false` on natural finish — pollable with the read-only `AudioSource.get(entity).playing` (see SKILL.md). Requires a DCL 2.0 desktop client with playback-completion support.
+
+### Align Gameplay to Audio (playback-position reports)
+
+`AudioSource.currentTime` is a write-only seek (reading it never gives the playhead) and renderers start a clip 100–250 ms after being asked, so the reports are the only source of truth for where the audio is. A report must be compared against the scene clock **at the tick it was sampled in**, not at the moment the callback runs, or the result is off by however long the report spent in transit. `registerAudioPlaybackEntity` does that lookup for you — do not rebuild a per-tick history by hand.
+
+`sceneTime - offset` is the scene clock at which the audible clip effectively started. Keep that origin and every later question ("where is the audio now?") is one subtraction.
+
+```typescript
+import { engine, MediaState, audioEventsSystem } from '@dcl/sdk/ecs'
+
+let clockMs = 0
+engine.addSystem((dt) => { clockMs += dt * 1000 })
+
+let originMs: number | undefined   // clockMs at which the audible clip started
+
+audioEventsSystem.registerAudioPlaybackEntity(musicEntity, ({ report, sceneTime, offset }) => {
+  if (report.state !== MediaState.MS_PLAYING) return
+  originMs = sceneTime * 1000 - offset * 1000
+})
+
+const audioNowMs = () => (originMs === undefined ? undefined : clockMs - originMs)
+```
+
+Accuracy: the report carries the decoder's playhead, not the moment sound leaves the speaker. The mixer buffer, driver and device add tens of milliseconds more, consistently signed and roughly constant per device, and no field carries it. Treat it as a per-session constant to calibrate if you need alignment finer than a tick.
+
+Fallback: renderers without the feature (today everything but the Unity explorer) never set `currentOffset`, so the sample callback never fires and `getAudioPlayback` stays `undefined` — use a fixed lead (~150 ms) or manual calibration and never hard-block on a report. Needs an `@dcl/sdk` release containing js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624); check the scene's pin first. Rules and gate in SKILL.md.
 
 ## AudioStream — Full Fields
 

@@ -318,9 +318,60 @@ engine.addSystem(() => {
   const event = AudioEvent.getOrNull(audioEntity)
   if (event) {
     console.log('Audio state:', event.state)
+    // Playback reports (Unity explorer, while playing) also carry:
+    // event.tickNumber, event.currentOffset (s), event.clipLength (s, when known)
   }
 })
 ```
+
+---
+
+## Align Gameplay to Audio (playback-position reports)
+
+`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports. They must be correlated against the scene clock at the tick they were sampled in, never at the time the callback runs; `registerAudioPlaybackEntity` does that for you.
+
+```typescript
+import { engine, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
+
+const music = engine.addEntity()
+AudioSource.create(music, { audioClipUrl: 'assets/Audio/track.mp3', playing: true, global: true })
+
+// 1. A plain scene clock. The per-tick history the correlation needs lives in the SDK, not here.
+let clockMs = 0
+engine.addSystem((dt) => { clockMs += dt * 1000 })
+
+// 2. Where the audible clip started, refreshed from each resolved sample. The SDK looks the scene
+//    clock up at the tick the renderer sampled in, so the report's transit time never enters this.
+let originMs: number | undefined
+audioEventsSystem.registerAudioPlaybackEntity(music, ({ report, sceneTime, offset }) => {
+  if (report.state !== MediaState.MS_PLAYING) return
+  originMs = sceneTime * 1000 - offset * 1000
+})
+
+// 3. Gameplay reads the audio position, with a fixed-lead fallback for renderers that never report
+const FALLBACK_LEAD_MS = 150
+const startedAtMs = clockMs
+function audioPositionMs(): number {
+  return originMs !== undefined ? clockMs - originMs : clockMs - startedAtMs - FALLBACK_LEAD_MS
+}
+
+// e.g. fire a cue on every beat of a 120 BPM track
+const BEAT_MS = 500
+let nextBeatMs = 0
+engine.addSystem(() => {
+  const pos = audioPositionMs()
+  if (pos >= nextBeatMs) {
+    nextBeatMs = Math.floor(pos / BEAT_MS) * BEAT_MS + BEAT_MS
+    // trigger the beat visual here
+  }
+})
+```
+
+Notes:
+- `registerAudioEventsEntity` does not run on position-only reports — use `registerAudioPlaybackEntity` (callback) or `audioEventsSystem.getAudioPlayback(music)` (poll) for positions.
+- The renderer writes a report whenever the playhead moves, so every render frame while a clip plays; the SDK delivers the newest one per scene frame. Other renderers leave `currentOffset` undefined, so `originMs` stays `undefined` and the fallback branch runs — keep it.
+- The reported playhead is the decoder's, not the speaker's. Output latency (mixer buffer, driver, device) adds tens of milliseconds that no field carries — calibrate it per session if you need better than tick accuracy.
+- Needs an `@dcl/sdk` release containing js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624); check the scene's `@dcl/sdk` pin before emitting these calls.
 
 ---
 
