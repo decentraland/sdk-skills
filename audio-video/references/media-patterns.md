@@ -328,7 +328,7 @@ engine.addSystem(() => {
 
 ## Align Gameplay to Audio (playback-position reports)
 
-`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports. They must be correlated against the scene clock at the tick they were sampled in, never at the time the callback runs; `registerAudioPlaybackSampleEntity` does that for you.
+`AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports. They must be correlated against the scene clock at the tick they were sampled in, never at the time the callback runs; `registerAudioPlaybackEntity` does that for you.
 
 ```typescript
 import { engine, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
@@ -343,7 +343,7 @@ engine.addSystem((dt) => { clockMs += dt * 1000 })
 // 2. Where the audible clip started, refreshed from each resolved sample. The SDK looks the scene
 //    clock up at the tick the renderer sampled in, so the report's transit time never enters this.
 let originMs: number | undefined
-audioEventsSystem.registerAudioPlaybackSampleEntity(music, ({ report, sceneTime, offset }) => {
+audioEventsSystem.registerAudioPlaybackEntity(music, ({ report, sceneTime, offset }) => {
   if (report.state !== MediaState.MS_PLAYING) return
   originMs = sceneTime * 1000 - offset * 1000
 })

@@ -78,9 +78,7 @@ Mirrors `videoEventsSystem`, but for `AudioSource` and `AudioStream` entities. T
 | `removeAudioEventsEntity(entity)` | Unregisters the state callback. |
 | `hasAudioEventsEntity(entity): boolean` | Whether a state callback is registered. |
 | `getAudioState(entity): PBAudioEvent \| undefined` | Latest report of any kind. |
-| `registerAudioPlaybackEntity(entity, cb)` | `cb(event)` once per scene frame with the newest report, position updates included. The renderer writes one whenever the playhead moves, so every render frame while a clip plays. |
-| `registerAudioPlaybackSampleEntity(entity, cb)` | `cb({ report, sceneTime, offset })` — the same delivery, already resolved against the scene clock at the sampling tick. Prefer it. |
-| `removeAudioPlaybackSampleEntity(entity)` | Unregisters the sample callback. |
+| `registerAudioPlaybackEntity(entity, cb)` | `cb({ report, sceneTime, offset })` once per scene frame with the newest position report, already resolved against the scene clock at the sampling tick. The renderer writes one whenever the playhead moves, so every render frame while a clip plays. Position-less reports never reach it. |
 | `getSceneTimeAtTick(tick): number \| undefined` | Scene clock (s) recorded in that tick. Resolves `PBVideoEvent` reports too. |
 | `removeAudioPlaybackEntity(entity)` | Unregisters the playback callback. |
 | `getAudioPlayback(entity): PBAudioEvent \| undefined` | Latest report carrying `currentOffset`; `undefined` if the renderer never reported a position. |
@@ -111,7 +109,7 @@ For AudioSource clips the engine also flips the component's `playing` field back
 
 ### Align Gameplay to Audio (playback-position reports)
 
-`AudioSource.currentTime` is a write-only seek (reading it never gives the playhead) and renderers start a clip 100–250 ms after being asked, so the reports are the only source of truth for where the audio is. A report must be compared against the scene clock **at the tick it was sampled in**, not at the moment the callback runs, or the result is off by however long the report spent in transit. `registerAudioPlaybackSampleEntity` does that lookup for you — do not rebuild a per-tick history by hand.
+`AudioSource.currentTime` is a write-only seek (reading it never gives the playhead) and renderers start a clip 100–250 ms after being asked, so the reports are the only source of truth for where the audio is. A report must be compared against the scene clock **at the tick it was sampled in**, not at the moment the callback runs, or the result is off by however long the report spent in transit. `registerAudioPlaybackEntity` does that lookup for you — do not rebuild a per-tick history by hand.
 
 `sceneTime - offset` is the scene clock at which the audible clip effectively started. Keep that origin and every later question ("where is the audio now?") is one subtraction.
 
@@ -123,7 +121,7 @@ engine.addSystem((dt) => { clockMs += dt * 1000 })
 
 let originMs: number | undefined   // clockMs at which the audible clip started
 
-audioEventsSystem.registerAudioPlaybackSampleEntity(musicEntity, ({ report, sceneTime, offset }) => {
+audioEventsSystem.registerAudioPlaybackEntity(musicEntity, ({ report, sceneTime, offset }) => {
   if (report.state !== MediaState.MS_PLAYING) return
   originMs = sceneTime * 1000 - offset * 1000
 })

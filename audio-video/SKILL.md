@@ -105,8 +105,7 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
 - `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
-- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback that runs once per scene frame with the newest report for the entity, position updates included, and is skipped on frames where nothing new arrived. The renderer writes a report whenever the playhead moves, so a playing clip produces one every render frame; when it samples faster than the scene ticks you get the freshest of that frame's reports, which is the one to align against. Same `(event: PBAudioEvent) => void` callback type. Independent of `registerAudioEventsEntity` — an entity can hold both.
-- `audioEventsSystem.registerAudioPlaybackSampleEntity(entity, callback)` -- same delivery, already resolved against the scene clock: the callback receives `{ report, sceneTime, offset }` where `sceneTime` is the scene clock (seconds) in the tick the renderer sampled the position. **Prefer this over rolling a per-tick clock history by hand.** `removeAudioPlaybackSampleEntity(entity)` unregisters it.
+- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback that runs once per scene frame with the newest **position** report for the entity, and is skipped on frames where no new position arrived. The renderer writes a report whenever the playhead moves, so a playing clip produces one every render frame; when it samples faster than the scene ticks you get the freshest of that frame's reports, which is the one to align against. The callback receives `{ report, sceneTime, offset }`, already resolved against the scene clock in the tick the renderer sampled the position: `report` is the raw `PBAudioEvent`, `offset` the position in seconds, `sceneTime` the scene clock in seconds at that tick. Reports carrying no position never reach it — those are media-state changes, which `registerAudioEventsEntity` delivers. Independent of `registerAudioEventsEntity` — an entity can hold both.
 - `audioEventsSystem.getSceneTimeAtTick(tickNumber)` -- the scene clock recorded in a given tick, or `undefined` outside the short history. Use it to resolve `PBVideoEvent` reports the same way.
 - `audioEventsSystem.removeAudioPlaybackEntity(entity)` -- unregisters the playback callback.
 - `audioEventsSystem.getAudioPlayback(entity)` -- returns the latest `PBAudioEvent` that carries a `currentOffset`, or `undefined` if the renderer has never reported a position (poll form; stays `undefined` forever on renderers without the feature).
@@ -121,7 +120,7 @@ Both registrations are dropped automatically if the entity is removed or no long
 
 ### Aligning gameplay to the audio (rhythm games, beat sync, lip sync, timed cues)
 
-**RULE: let the SDK resolve a report against your clock — never rebuild the per-tick history.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later, so comparing `currentOffset` with the clock at processing time is wrong by the transport delay. `registerAudioPlaybackSampleEntity` hands the report over already resolved against the scene clock at its own tick, so a scene never keeps a tick history of its own.
+**RULE: let the SDK resolve a report against your clock — never rebuild the per-tick history.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later, so comparing `currentOffset` with the clock at processing time is wrong by the transport delay. `registerAudioPlaybackEntity` hands the reading over already resolved against the scene clock at its own tick, so a scene never keeps a tick history of its own.
 
 `sceneTime - offset` is the scene clock at which the audible clip started. Keep that origin and every later question is one subtraction.
 
@@ -133,7 +132,7 @@ engine.addSystem((dt) => { clockMs += dt * 1000 })
 
 let originMs: number | undefined   // clockMs at which the audible clip started
 
-audioEventsSystem.registerAudioPlaybackSampleEntity(musicEntity, ({ report, sceneTime, offset }) => {
+audioEventsSystem.registerAudioPlaybackEntity(musicEntity, ({ report, sceneTime, offset }) => {
   if (report.state !== MediaState.MS_PLAYING) return
   originMs = sceneTime * 1000 - offset * 1000
 })
@@ -212,7 +211,7 @@ Engine-team test scenes exercised against the real explorer:
 - [audio-source-retrigger-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-10-audio-source-retrigger-test) — `AudioSource.playSound`/`stopSound`, same-URL retrigger, URL-swap on one entity, `resetCursor` semantics, volume/pitch/loop variations, and why `playSound` beats hand-mutating `getMutable` (LWW dedup).
 - [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — `AudioAnalysis` music visualizer (see the `audio-analysis` skill).
 - [audio-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-11-audio-finish) — natural-finish detection via the `playing` flip + `audioEventsSystem` callback, and how a scene-initiated stop is distinguished from a natural finish.
-- [audio-playback-position](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-12-audio-playback-position) — three beat cubes contrasting the scene's own clock, a reading resolved through `registerAudioPlaybackSampleEntity`, and a naive reading timed on arrival, so the renderer's start lag and the report's transport delay are both visible against a clip that beeps on the second; also shows `registerAudioEventsEntity` staying silent on position-only reports and the fallback when `getAudioPlayback` stays `undefined`.
+- [audio-playback-position](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-12-audio-playback-position) — three beat cubes contrasting the scene's own clock, a reading resolved through `registerAudioPlaybackEntity`, and the same reading timed on arrival instead, so the renderer's start lag and the report's transport delay are both visible against a clip that beeps on the second; also shows `registerAudioEventsEntity` staying silent on position-only reports and the fallback when `getAudioPlayback` stays `undefined`.
 - [asset-load](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load) — `AssetLoad` pre-loading an mp3 alongside a texture, video and glb, with per-asset `assetLoadLoadingStateSystem` state callbacks (including a missing path resolving to `NOT_FOUND`). This is the pattern behind pre-loading audio so it is ready the instant the player first clicks.
 - [gltfnodemodifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier) — `VideoPlayer` on a GLB rather than a primitive: an HLS `.m3u8` stream driven onto specific GLTF nodes with `GltfNodeModifiers` video textures. The ground truth for the curved-screen / non-primitive case above.
 
