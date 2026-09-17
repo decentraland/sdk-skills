@@ -206,6 +206,7 @@ ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })
 - Re-read every tick, so the UI follows the insets on rotation or when system bars appear/hide.
 - On desktop the device insets are zero, so `'device'` behaves like `'none'` there.
 - Inset values are reported in canvas pixels and are compensated for the UI scale factor internally, so they stay correct at any virtual screen size.
+- **An inset does not clip.** `ScreenInsetArea` / `InteractableArea` are absolutely-positioned containers at the inset margins and set **no `overflow`** (Yoga defaults to visible), so a child positioned beyond the inset renders *into* the reserved zone rather than being cut off. The inset is a layout origin, not a mask — an absolutely-positioned element with a negative offset, or one larger than the area, will still collide with the notch or the game HUD. Do not rely on the inset to hide overflow, and do not add `overflow: 'hidden'` to hide it either: the overflow is the signal that a node is mis-placed. The Creator Hub UI Editor's mobile preview deliberately shows this overflow for the same reason.
 
 ## Renderer zIndex (Stacking Between Renderers)
 
