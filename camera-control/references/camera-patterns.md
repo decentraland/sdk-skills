@@ -146,8 +146,8 @@ function mouseLookSystem() {
 	if (!delta) return
 
 	yaw += delta.x * SENSITIVITY
-	// Subtract delta.y so mouse-up tilts camera up; clamp to prevent flip
-	pitch = Math.max(-85, Math.min(85, pitch - delta.y * SENSITIVITY))
+	// delta.y grows downwards, so mouse-up is negative: adding it tilts camera up; clamp to prevent flip
+	pitch = Math.max(-85, Math.min(85, pitch + delta.y * SENSITIVITY))
 	Transform.getMutable(cameraEntity).rotation = Quaternion.fromEulerDegrees(pitch, yaw, 0)
 }
 ```
@@ -155,7 +155,7 @@ function mouseLookSystem() {
 Key details (verified against the [`32,20-virtual-camera-mouse-look`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look) test scene and official docs):
 - `SENSITIVITY` ~0.15 deg/px is the official recommendation; adjust to taste.
 - Pitch clamped to [-85, +85] degrees prevents the camera from flipping over.
-- `delta.y` is subtracted from pitch so mouse-up = camera-up (positive screenDelta.y = cursor moved up = screen origin is bottom-left).
+- `delta.y` is added to pitch so mouse-up = camera-up: the screen origin is top-left, so moving the cursor up reports a negative `screenDelta.y`, and adding it lowers the pitch.
 - The system checks `PointerLock.isPointerLocked` before reading delta -- when the player presses Esc to unlock, the camera stops responding.
 - Always provide a clear exit (secondary button in this example). The player can also Esc to unlock, but that alone does not deactivate the VirtualCamera.
 - `screenDelta` is desktop-only. On mobile, it always reports 0. Design a touch fallback if needed (see `advanced-input` skill).
