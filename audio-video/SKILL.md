@@ -112,7 +112,9 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 
 **`PBAudioEvent` fields:** `state: MediaState`; `timestamp: number` — a per-entity monotonic report counter, NOT a time; and, optional, only on playback reports: `tickNumber?: number` (the scene tick the position was sampled in, equals `EngineInfo.tickNumber`), `currentOffset?: number` (clip position in seconds at that tick), `clipLength?: number` (total clip length in seconds when known; `undefined` for streams). Mirrors `PBVideoEvent.tickNumber`/`currentOffset`.
 
-**MediaState values:** `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_PAUSED`, `MS_STOPPED`, `MS_ERROR`, `MS_SEEKING`, `MS_BUFFERING`, `MS_NONE`.
+**MediaState values:** `MS_NONE`, `MS_ERROR`, `MS_LOADING`, `MS_READY`, `MS_PLAYING`, `MS_BUFFERING`, `MS_SEEKING`, `MS_PAUSED`. There is no `MS_STOPPED`.
+
+**An `AudioSource` clip only ever reaches five of them:** `MS_NONE`, `MS_ERROR`, `MS_LOADING`, `MS_READY`, `MS_PLAYING`. A clip is fully loaded before it plays so it never buffers, its seeks are instant so it never reports seeking, and setting `playing: false` stops and rewinds rather than pausing — the resting state is `MS_READY`, not `MS_PAUSED`. `MS_BUFFERING`, `MS_SEEKING` and `MS_PAUSED` only occur on an `AudioStream`, which runs on the same media player as `VideoPlayer` and inherits its full state machine.
 
 Both registrations are dropped automatically if the entity is removed or no longer has an `AudioSource`/`AudioStream` component. Works on entities with either `AudioSource` or `AudioStream` (the renderer adds the underlying `AudioEvent` component to any entity with those components).
 
