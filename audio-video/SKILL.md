@@ -40,7 +40,7 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (seek position in seconds, default 0 — write-only, see RULE below), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (seek position in seconds, default 0 — write-only, see RULE below), `global?: boolean`, `reportPlaybackPosition?: boolean` (default `false` — opt in to playback-position reports, see **Aligning gameplay to the audio** below). Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
 
 **RULE: `currentTime` is write-only — never read it as a playhead.** Writing it seeks; the renderer never writes the real position back, so `AudioSource.get(entity).currentTime` is whatever the scene last wrote. To learn where the audio actually is, use the playback-position reports (see **Aligning gameplay to the audio** below).
 
@@ -105,10 +105,10 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
 - `audioEventsSystem.getAudioState(entity)` -- returns `PBAudioEvent | undefined` (the latest state).
-- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback that runs once per scene frame with the newest **position** report for the entity, and is skipped on frames where no new position arrived. The renderer writes a report whenever the playhead moves, so a playing clip produces one every render frame; when it samples faster than the scene ticks you get the freshest of that frame's reports, which is the one to align against. The callback receives `{ report, sceneTime, offset }`, already resolved against the scene clock in the tick the renderer sampled the position: `report` is the raw `PBAudioEvent`, `offset` the position in seconds, `sceneTime` the scene clock in seconds at that tick. Reports carrying no position never reach it — those are media-state changes, which `registerAudioEventsEntity` delivers. Independent of `registerAudioEventsEntity` — an entity can hold both.
+- `audioEventsSystem.registerAudioPlaybackEntity(entity, callback)` -- registers a callback that runs once per scene frame with the newest **position** report for the entity, and is skipped on frames where no new position arrived. The renderer writes a report whenever the playhead moves, so a playing clip produces one every render frame; when it samples faster than the scene ticks you get the freshest of that frame's reports, which is the one to align against. The callback receives `{ report, sceneTime, offset }`, already resolved against the scene clock in the tick the renderer sampled the position: `report` is the raw `PBAudioEvent`, `offset` the position in seconds, `sceneTime` the scene clock in seconds at that tick. Reports carrying no position never reach it — those are media-state changes, which `registerAudioEventsEntity` delivers. **The source has to opt in: `reportPlaybackPosition: true` on its `AudioSource`, or this callback never runs.** Independent of `registerAudioEventsEntity` — an entity can hold both.
 - `audioEventsSystem.getSceneTimeAtTick(tickNumber)` -- the scene clock recorded in a given tick, or `undefined` outside the short history. Use it to resolve `PBVideoEvent` reports the same way.
 - `audioEventsSystem.removeAudioPlaybackEntity(entity)` -- unregisters the playback callback.
-- `audioEventsSystem.getAudioPlayback(entity)` -- returns the latest `PBAudioEvent` that carries a `currentOffset`, or `undefined` if the renderer has never reported a position (poll form; stays `undefined` forever on renderers without the feature).
+- `audioEventsSystem.getAudioPlayback(entity)` -- returns the latest `PBAudioEvent` that carries a `currentOffset`, or `undefined` if the renderer has never reported a position (poll form; stays `undefined` forever without `reportPlaybackPosition: true`, or on renderers without the feature).
 
 **`PBAudioEvent` fields:** `state: MediaState`; `timestamp: number` — a per-entity monotonic report counter, NOT a time; and, optional, only on playback reports: `tickNumber?: number` (the scene tick the position was sampled in, equals `EngineInfo.tickNumber`), `currentOffset?: number` (clip position in seconds at that tick), `clipLength?: number` (total clip length in seconds when known; `undefined` for streams). Mirrors `PBVideoEvent.tickNumber`/`currentOffset`.
 
@@ -119,6 +119,16 @@ Both registrations are dropped automatically if the entity is removed or no long
 **Relationship to `AudioStream.getAudioState`:** `AudioStream.getAudioState` is a convenience wrapper on the `AudioStream` component itself; `audioEventsSystem.getAudioState` reads the underlying `AudioEvent` component and works for both `AudioSource` and `AudioStream`. Use `audioEventsSystem` when you need callback-driven state monitoring or when working with `AudioSource`.
 
 ### Aligning gameplay to the audio (rhythm games, beat sync, lip sync, timed cues)
+
+**RULE: the source must opt in — set `reportPlaybackPosition: true` on its `AudioSource`.** Position reports are off by default, and nothing below works without the flag: `registerAudioPlaybackEntity`'s callback never fires, `getAudioPlayback` stays `undefined`, and no error says why. Media-state changes are reported either way, so `registerAudioEventsEntity` keeps working and hides the omission. It is opt-in because a position is written whenever the playhead moves — far more often than a state changes — a scene can hold many sources, and `AudioEvent` is a grow-only set capped at 100 entries per entity, so one always-on source fills its own buffer in under two seconds. Set it only on the sources whose position the scene actually reads.
+
+```typescript
+AudioSource.create(musicEntity, {
+  audioClipUrl: 'assets/Audio/track.mp3',
+  playing: true,
+  reportPlaybackPosition: true // without this the callback below never runs
+})
+```
 
 **RULE: let the SDK resolve a report against your clock — never rebuild the per-tick history.** A report says where the clip was at tick `tickNumber`; it reaches the scene some frames later, so comparing `currentOffset` with the clock at processing time is wrong by the transport delay. `registerAudioPlaybackEntity` hands the reading over already resolved against the scene clock at its own tick, so a scene never keeps a tick history of its own.
 
@@ -142,7 +152,7 @@ audioEventsSystem.registerAudioPlaybackEntity(musicEntity, ({ report, sceneTime,
 
 `originMs` absorbs the renderer's start delay (100–250 ms, different every start), so recompute it from each sample and smooth if it jitters. A scene that prefers raw reports can call `getSceneTimeAtTick(report.tickNumber)` for the same lookup; it resolves `PBVideoEvent` reports too.
 
-**RULE: degrade gracefully.** Renderers without the feature never set a position, so the sample callback never fires (`originMs` stays `undefined`, `getAudioPlayback` returns `undefined`): fall back to a fixed lead (about 150 ms) or a tap-to-calibrate step, and never hard-block waiting for a report.
+**RULE: degrade gracefully.** Renderers without the feature never set a position even when the source opts in, so the sample callback never fires (`originMs` stays `undefined`, `getAudioPlayback` returns `undefined`): fall back to a fixed lead (about 150 ms) or a tap-to-calibrate step, and never hard-block waiting for a report.
 
 **RULE: know the floor.** `currentOffset` is the decoder's read position, not the moment a sample leaves the speaker. The mixer buffer, driver and device add tens of milliseconds that no field carries, consistently signed and roughly constant per device. Calibrate it once per session if the scene needs alignment finer than a tick.
 

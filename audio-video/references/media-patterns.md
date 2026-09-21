@@ -328,13 +328,20 @@ engine.addSystem(() => {
 
 ## Align Gameplay to Audio (playback-position reports)
 
+**RULE: the source must opt in — set `reportPlaybackPosition: true` on its `AudioSource`.** Position reports are off by default. Forget the flag and `registerAudioPlaybackEntity`'s callback never fires and `getAudioPlayback` stays `undefined`, with no error: media-state changes are reported either way, so the scene looks wired up. Positions are written whenever the playhead moves and `AudioEvent` is a grow-only set capped at 100 entries per entity, so opt in only on the sources whose position the scene reads.
+
 `AudioSource.currentTime` is write-only (a seek, never the playhead) and the renderer starts a clip 100–250 ms after `playing: true`. To know where the music actually is, consume the renderer's playback-position reports. They must be correlated against the scene clock at the tick they were sampled in, never at the time the callback runs; `registerAudioPlaybackEntity` does that for you.
 
 ```typescript
 import { engine, MediaState, audioEventsSystem, AudioSource } from '@dcl/sdk/ecs'
 
 const music = engine.addEntity()
-AudioSource.create(music, { audioClipUrl: 'assets/Audio/track.mp3', playing: true, global: true })
+AudioSource.create(music, {
+  audioClipUrl: 'assets/Audio/track.mp3',
+  playing: true,
+  global: true,
+  reportPlaybackPosition: true // opt in: without it the playback callback below never runs
+})
 
 // 1. A plain scene clock. The per-tick history the correlation needs lives in the SDK, not here.
 let clockMs = 0
@@ -369,7 +376,7 @@ engine.addSystem(() => {
 
 Notes:
 - `registerAudioEventsEntity` does not run on position-only reports — use `registerAudioPlaybackEntity` (callback) or `audioEventsSystem.getAudioPlayback(music)` (poll) for positions.
-- The renderer writes a report whenever the playhead moves, so every render frame while a clip plays; the SDK delivers the newest one per scene frame. Other renderers leave `currentOffset` undefined, so `originMs` stays `undefined` and the fallback branch runs — keep it.
+- The renderer writes a report whenever the playhead moves, so every render frame while a clip plays; the SDK delivers the newest one per scene frame. Other renderers leave `currentOffset` undefined — as does a source without `reportPlaybackPosition` — so `originMs` stays `undefined` and the fallback branch runs; keep it.
 - The reported playhead is the decoder's, not the speaker's. Output latency (mixer buffer, driver, device) adds tens of milliseconds that no field carries — calibrate it per session if you need better than tick accuracy.
 - Needs an `@dcl/sdk` release containing js-sdk-toolchain [#1624](https://github.com/decentraland/js-sdk-toolchain/pull/1624); check the scene's `@dcl/sdk` pin before emitting these calls.
 
