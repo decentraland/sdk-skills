@@ -159,6 +159,8 @@ function gameStateSystem(dt: number) {
 - **Clear affordances**: Interactive objects should look interactive. Use glow effects, outlines, floating indicators, or subtle animations to signal "you can click this."
 - **Sound feedback**: Every significant player action should produce audio feedback. It confirms the action registered and adds polish.
 - **Progressive disclosure**: Do not dump all information at once. Reveal mechanics and story as the player engages. Start simple, layer complexity.
+- **Never open with a wall of text**: a rules pop-up with long paragraphs, or a rulebook painted on an in-world plane, is a known bad pattern — players skip it and then play confused. See section 13, "Rules: show, don't tell".
+- **Place screen UI where the client is not**: never anchor a HUD to the top-left corner (minimap, chat, mobile joystick live there). Anchor right or center, or use the interactable inset; keep mobile HUDs clear of the bottom-right action buttons, or hide those buttons while a full-screen UI is open. Rules and code in the **build-ui** skill.
 - **Immediate feedback**: When a player interacts, respond within the same frame. Use tweens, sounds, or UI popups so the player never wonders "did that work?"
 - **Accessibility**: Use high-contrast text, readable font sizes (fontSize >= 16 for screen UI), and audio cues alongside visual ones.
 
@@ -284,6 +286,22 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - Introduce one mechanic at a time. The first interaction should be obvious (a big, glowing button).
 - After the player succeeds at the simple task, introduce the next layer.
 - Gate advanced mechanics behind early accomplishments.
+
+### Rules: show, don't tell
+
+Two anti-patterns show up constantly in generated games. Both lose players before the first interaction.
+
+- **The rules pop-up.** An intro modal with several dense paragraphs explaining every mechanic, scoring rule and control. Players dismiss it unread. Fix: the pop-up (if any) is one screen, 3–5 lines, ≤ 8 words each, ideally one goal line plus one control line plus one picture/diagram. Everything else is learned by playing.
+- **The in-world rulebook.** The same paragraphs on a stylized plane or board in the scene. It looks like design, but the text is too small and too long to read in-world, and players will not stand still and squint. Fix: a sign says one thing (≤ 10 words, large `fontSize`); one sign per idea; put the rest into the level design.
+
+Show instead of tell:
+- Make the first target unmistakable: a glowing, animated, or oversized object placed in the player's opening sightline. A pulsing outline teaches "click me" better than a sentence does.
+- Teach one mechanic by letting the player do it once safely (tutorial gate, practice target) before the real game starts.
+- Use `hoverText` on interactive entities as the just-in-time instruction — it appears exactly when it is relevant and costs no reading up-front.
+- Use an image/diagram (a `uiBackground` texture or an in-world plane) for spatial or sequence rules; a picture of "red gems = 1, blue = 5" replaces a paragraph.
+- Deliver anything longer through an NPC or a dialog one message at a time, skippable, or as `Timed Announcement`-style hints at the moment they matter.
+
+Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤ 1 sentence; if a rule needs more than that, redesign the mechanic or show it with visuals.
 
 ### Zero-Explanation Test
 - If a new player cannot figure out the first action within 30 seconds without any text or instructions, the design needs work.
