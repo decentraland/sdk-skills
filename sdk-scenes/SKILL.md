@@ -133,7 +133,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Audio & Video
 
-**Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.
+**Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions, `audioEventsSystem` state changes and playback-position reports (align gameplay to the audio actually heard).
 
 ### Audio Analysis (Reactive Visualizers)
 
