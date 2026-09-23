@@ -137,7 +137,7 @@ function Slider(props: { value: number; min: number; max: number; onChange: (v: 
 - **`VIRTUAL_WIDTH`/`VIRTUAL_HEIGHT` must match what the renderer actually resolved to**, not just what you think you passed. If the renderer options omit a virtual size, the SDK applies a platform default (`1920x1080` non-mobile, `1600x720` mobile), and a 16:9 size passed on mobile is overridden to `1600x720`. Passing the size explicitly to `setUiRenderer` keeps these constants honest.
 - **Desktop only.** `screenDelta` always reports 0 on mobile (no free-moving cursor), and `pointerType` only has `POT_NONE`/`POT_MOUSE`. Pair the track with `-`/`+` stepper `Button`s — they give fine adjustment on desktop and are the whole interface on mobile. Branch with `isMobile()` from `@dcl/sdk/platform` if you want to hide the track entirely.
 - **Read `screenDelta` inside a system.** It only holds one frame of movement, and touching `engine.RootEntity` during initial scene load can error.
-- **Vertical sliders**: the SDK docs state the screen origin is bottom-left, so positive `delta.y` means the mouse moved up — invert it for a top-down track. Horizontal drags need no such adjustment.
+- **Vertical sliders**: the screen origin is top-left, so positive `delta.y` means the mouse moved down — that already matches a track whose value grows downwards. Invert it for a bottom-up track (a volume fader that fills upwards). Horizontal drags need no adjustment.
 
 ## Porting this to an editor-editable UI
 
