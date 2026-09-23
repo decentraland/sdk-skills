@@ -110,7 +110,7 @@ Repeat until **every requirement has proof**: a screenshot or state read demonst
 
 ## Screenshot frequency & cost
 
-Every `screenshot` tool result lands in your context as an image (~1.2k tokens at 1280×720, scaling with pixel count). Occasional captures through the tool are fine; **frequent or burst captures go through the bundled script instead**, which saves frames to disk at zero context cost and prints only the caption. Call it by absolute path — your cwd is the scene folder, not this skill's; `<skill-dir>` is the base directory reported when this skill loaded, and `-h` prints the flags.
+Every `screenshot` tool result lands in your context as an image (~1.2k tokens at 1280×720, scaling with pixel count). Occasional captures through the tool are fine, **one `screenshot` per tool batch**: two issued together collide, and the second fails with "Another screenshot capture is already in progress; retry when it completes" — re-issue it alone. **Frequent or burst captures go through the bundled script instead**, which saves frames to disk at zero context cost and prints only the caption. Call it by absolute path — your cwd is the scene folder, not this skill's; `<skill-dir>` is the base directory reported when this skill loaded, and `-h` prints the flags.
 
 ```bash
 <skill-dir>/scripts/screenshot.sh -o /tmp/shot.jpg     # single frame to a file
