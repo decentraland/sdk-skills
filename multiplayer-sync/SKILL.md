@@ -172,6 +172,19 @@ const Loot = engine.defineComponent('game::Loot', {
 })
 ```
 
+### Schema fixes landed in `@dcl/sdk` 7.28.0 — drop the old workarounds
+
+All four were real bugs; if you are on 7.28.0+ you can write the obvious code.
+
+| Fix | Old broken behavior | Now |
+|---|---|---|
+| `Schemas.Optional(...)` with falsy values (`da82bfb0`) | `false`, `0` and `''` were treated as unset — never written, read back as `undefined`. An `Optional(Schemas.Boolean)` could only hold `true` or nothing. | Presence is tested for `undefined`/`null`, so falsy values round-trip. `Optional(Boolean)` is now a real tri-state. |
+| `Schemas.OneOf(...)` left unselected (`0dce4d2d`) | `create()` returns `{}` with no `$case`; serialization called `$case.toString()`, **threw, and killed the engine tick for the whole scene**. | The unset case is encoded as index `0` (real cases start at 1) and deserializes back to `{}`. A `OneOf` field the scene never sets is safe. |
+| Components defined **directly from a primitive or array schema** (`5ec1a8a1`) | Every accessor tested the stored value for truthiness, so a component holding `0`, `false` or `''` reported itself as missing: `get` threw "not found", `getOrNull`/`deleteFrom` returned `null`, `getMutable` threw, `getOrCreateMutable` threw "already exists", and `create` silently succeeded over an existing falsy value. `deepReadonly` also spread non-objects, so a number came back as `{}` and an array as an index-keyed object. | Presence is asked of the map, and `deepReadonly` passes primitives through and copies arrays as arrays. |
+| `ReadonlyPrimitive` narrowed (`5ec1a8a1`) | Included array types, so `DeepReadonly<number[]>` resolved back to `number[]` — a `.push()` type-checked and then threw at runtime, because the array is frozen. | `ReadonlyPrimitive = number \| string \| boolean`. Array reads now resolve through the `ReadonlyArray` branch: **`.push()` no longer type-checks.** Copy the array (`[...arr]`) before mutating. This is a **public API change**; existing code that mutated a component array read may newly fail to compile — that code was already broken at runtime. |
+
+Related in the same release: `Player.wearables` and `Player.emotes` from the `@dcl/sdk` player helper are now **copies**, not aliases of the frozen component arrays, so writing to them no longer throws.
+
 ## Parent-Child Sync Relationships
 
 For synced entities with parent-child relationships, use `parentEntity()` instead of setting `Transform.parent`:
@@ -339,9 +352,31 @@ onLeaveScene((userId) => {
 
 The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above. Recent fixes to be aware of:
 
+## GOTCHA: remote players' Transforms are world coordinates
+
+The local player's `Transform` is scene-local; **another player's entity reports world coordinates**. Subtract `basePos * 16` to compare them (see `player-avatar` > "remote players' Transforms are in WORLD coordinates"). This bites any distance check, leaderboard-by-proximity, or follow camera that iterates `PlayerIdentityData`.
+
+## Per-player visuals are NOT automatically shared
+
+Some components that *look* multiplayer are **client-local**: writing them on a remote player's entity changes only what the writing client sees. They are never relayed, and `syncEntity` does not help — player entities are engine-owned, not scene-created.
+
+- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself.
+
+Two ways to make a client-local visual agree across clients:
+
+1. **Derive it** from data every client already has. E.g. sort all `PlayerIdentityData` addresses and index a fixed roster — same address list, same result on every client, independent of join order. No messages, no drift. This is the pattern in `scenes/4,24-avatar-nametag`.
+2. **Replicate the *input*, not the visual.** Sync the assignment (a synced component or a `MessageBus` message), then have every client apply it locally to the player entity it resolves for that user id.
+
+In both cases: resolve the target `Entity` from the user id on **every** write. Player entity ids are recycled across disconnects, so a cached `Entity` can land the write on a different player.
+
 ## Multiplayer Testing
 
-Open multiple browser windows to test multiplayer locally. Each window is a separate player.
+Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing Preview a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
+
+- **Second desktop instance**: tick **Multi-Instance Preview** in Creator Hub's Preview Options dropdown (requires `@dcl/sdk` >= 7.20.4), or run `npx sdk-commands start --multi-instance`; then press Preview / run the command again. `-n` ("open a new instance of the Client even if one is already running") forces a new window on its own. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each.
+- **Desktop + browser**: leave the desktop client open and add the Bevy web client as player 2 — Preview Options → *Preview with: Bevy (Web)*, or `npx sdk-commands start --web` (alias `--bevy-web`), which opens `https://decentraland.org/bevy-web/?preview=true&realm=<local realm origin>` (`.zone` under `--dclenv zone`). Browser tabs have no instance limit.
+
+The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `open-deeplink-in-new-instance=true` (from `-n`) or `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
 
 ### Offline Mode
 

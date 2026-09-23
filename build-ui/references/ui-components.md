@@ -13,7 +13,9 @@ export function setupUi() {
 
 Only call `ReactEcsRenderer.setUiRenderer()` once per scene. Combine all UI into a single root component. The renderer function may also return an **array** of elements — `setUiRenderer(() => [PanelA(), PanelB()])` — where later items render on top of earlier ones.
 
-The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
+**A second `setUiRenderer` call does not throw — it silently overwrites the first**, so only the last root renders and the earlier UI simply vanishes with no error. Verified in `@dcl/react-ecs/src/system.ts`: `setUiRenderer` just assigns `uiComponent = ui`. If you need genuinely independent UI modules (separate files, separate lifetimes), that is what `ReactEcsRenderer.addUiRenderer(entity, ui, options)` / `removeUiRenderer(entity)` are for — they render alongside the main root rather than replacing it.
+
+The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). Pass it explicitly by default anyway (see SKILL.md). `screenInset` defaults to `'device'`, so UI is kept inside the device safe area unless you pass `'none'`.
 
 ⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth`/`virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `build-ui/SKILL.md`.
 
@@ -53,7 +55,7 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every f
 
     // Layering
     opacity: 1,                  // 0–1; on the root fades whole UI, cascades multiplicatively to children
-    zIndex: 0,                   // stacking among siblings; negatives allowed; does not cross parents
+    zIndex: 0,                   // stacking among siblings; negatives allowed; does not cross parents (whole renderers: zIndex renderer option)
 
     // Border (also valid on Button / Input / Dropdown uiTransform)
     borderWidth: 2,
@@ -101,6 +103,10 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset? }` — every f
 **textAlign values:** `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
+
+⚠️ **Always give a `Label` an explicit `width` and `height` in `uiTransform`** (as above). Text intrinsic sizing is engine-dependent: the Bevy explorer measures the rendered text and feeds its height into flex layout, the Unity explorer gives an unset dimension ~0 while still drawing the glyphs. So on Unity, labels stacked in a column overlap and any parent auto-sizing from text children collapses to its padding — while the same code looks correct on Bevy. Wrapped text needs a height for its line count (two lines at `fontSize: 20` → 60); a label filling a fixed-size parent can use `width: '100%', height: '100%'`. Containers that stack labels need explicit heights too. Verified in-world with side-by-side screenshots.
+
+⚠️ **Never put emoji in a `value` string.** Emoji glyph coverage is not part of the SDK — it depends on the fonts the explorer bundles, and the Unity explorer has no emoji glyphs, so an emoji renders as a missing-glyph box or as nothing at all. Verified in-world: `value="✨ Particles"` showed no sparkle on the Unity explorer. Use plain text, and put pictorial affordances in a `uiBackground.texture` on a `UiEntity` beside the label.
 
 ## Button
 
@@ -200,6 +206,21 @@ ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })
 - Re-read every tick, so the UI follows the insets on rotation or when system bars appear/hide.
 - On desktop the device insets are zero, so `'device'` behaves like `'none'` there.
 - Inset values are reported in canvas pixels and are compensated for the UI scale factor internally, so they stay correct at any virtual screen size.
+- **An inset does not clip.** `ScreenInsetArea` / `InteractableArea` are absolutely-positioned containers at the inset margins and set **no `overflow`** (Yoga defaults to visible), so a child positioned beyond the inset renders *into* the reserved zone rather than being cut off. The inset is a layout origin, not a mask — an absolutely-positioned element with a negative offset, or one larger than the area, will still collide with the notch or the game HUD. Do not rely on the inset to hide overflow, and do not add `overflow: 'hidden'` to hide it either: the overflow is the signal that a node is mis-placed. The Creator Hub UI Editor's mobile preview deliberately shows this overflow for the same reason.
+
+## Renderer zIndex (Stacking Between Renderers)
+
+SDK 7.29.0+. Renderers stack in the order they first render, the latest on top; among those first rendered in the same tick, the main UI goes at the back, then the added ones in order. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of that; `0` keeps the default order.
+
+```ts
+ReactEcsRenderer.setUiRenderer(MainHud, { zIndex: -10 })          // behind every module
+ReactEcsRenderer.addUiRenderer(owner, Inventory, { zIndex: 10 })  // in front, however early it was registered
+ReactEcsRenderer.addUiRenderer(owner, Inventory, { zIndex: 20 })  // same owner: replaced in place, new zIndex applied
+```
+
+- Per renderer, on `setUiRenderer` and `addUiRenderer` alike.
+- Orders renderers against each other only; `uiTransform.zIndex` inside a renderer keeps ordering its own siblings.
+- Applied to the renderer's root container. With `screenInset: 'none'` a whole-screen root is added to carry it, so the renderer's own root becomes a child of it.
 
 ## ScreenInsetArea (Mobile Hardware-Safe Region)
 
@@ -296,13 +317,15 @@ const Modal = () => {
         uiTransform={{ width: 400, height: 300, flexDirection: 'column', alignItems: 'center', padding: 20 }}
         uiBackground={{ color: Color4.create(0.2, 0.2, 0.2, 1) }}
       >
-        <Label value="Title" fontSize={24} />
+        <Label value="Title" fontSize={24} uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
         <Button value="Close" variant="primary" onMouseDown={() => { isOpen = false }} uiTransform={{ width: 100, height: 40 }} />
       </UiEntity>
     </UiEntity>
   )
 }
 ```
+
+The `100%`×`100%` backdrop deliberately has **no** pointer handler and no `pointerFilter`: only the `Close` button does. Putting a listener on a full-screen element makes it capture clicks over the entire screen, blocking every other UI element and the 3D world behind it — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If the modal should swallow background clicks while open, add `pointerFilter: 'block'` to the backdrop as a conscious choice; it is safe here only because the component returns `null` when closed, so the blocking rect does not exist the rest of the time.
 
 ### Scrollable Container
 
@@ -334,7 +357,7 @@ const Modal = () => {
 <UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
   {/* Fixed header */}
   <UiEntity uiTransform={{ width: '100%', height: 60 }}>
-    <Label value="Inventory" fontSize={20} />
+    <Label value="Inventory" fontSize={20} uiTransform={{ width: '100%', height: '100%' }} />
   </UiEntity>
   {/* Scrollable body fills remaining space */}
   <UiEntity
@@ -347,7 +370,7 @@ const Modal = () => {
   >
     {items.map((item, i) => (
       <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
-        <Label value={item.name} fontSize={14} />
+        <Label value={item.name} fontSize={14} uiTransform={{ width: '100%', height: '100%' }} />
       </UiEntity>
     ))}
   </UiEntity>
@@ -418,7 +441,7 @@ let showMenu = false
 
 const UI = () => (
   <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
-    <Label value={`Score: ${score}`} fontSize={20} />
+    <Label value={`Score: ${score}`} fontSize={20} uiTransform={{ width: 240, height: 30 }} />
     {showMenu && <MenuPanel />}
   </UiEntity>
 )
@@ -433,7 +456,7 @@ The UI re-renders every frame, so module-level variable changes are reflected im
 ## Important Rules
 
 - File must be `.tsx` for JSX support
-- Only one `ReactEcsRenderer.setUiRenderer()` per scene
+- Only one `ReactEcsRenderer.setUiRenderer()` per scene (a second call silently overwrites the first — use `addUiRenderer` for extra roots)
 - No React hooks — use module-level variables
 - Use `display: 'none'` to hide elements without removing them
 - UI renders as a 2D overlay on top of the 3D scene

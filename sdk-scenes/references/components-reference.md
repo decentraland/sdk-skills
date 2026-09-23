@@ -70,7 +70,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Read-only. Written by the Explorer to report avatar emote playback to the scene. Appended to every player entity (local and remote). Do NOT use to trigger emotes -- use `triggerEmote`/`triggerSceneEmote` from `~system/RestrictedActions` instead. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
-| **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. `[UNVERIFIED: default values]` — the protocol documents no defaults; see `player-avatar/references/avatar-apis.md`. |
+| **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. Defaults: `walkSpeed` 1.5, `jogSpeed` 8, `runSpeed` 10, `jumpHeight` 1, `runJumpHeight` 1.5, `doubleJumpHeight` 2, `glidingSpeed` 6, `glidingFallingSpeed` 1, `hardLandingCooldown` 0.75 — the `.proto` carries none, but the docs page `creator/sdk7/interactivity/avatars/locomotion.md`, the Creator Hub "Locomotion Settings" smart item, and unity-explorer's `CharacterControllerSettings.asset` all agree on these. Negative values clamp to 0. See `player-avatar/references/avatar-apis.md`. |
 
 ## Camera
 
@@ -107,7 +107,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber` | Engine timing information. |
+| **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber`, `sceneHidden` | Engine timing information. `sceneHidden` is `true` while the Explorer's fullscreen UI (the loading screen) covers the scene — watch for it flipping to `false` to time intros to the loading screen fade-out. See `scene-runtime`. |
 | **RealmInfo** | Read-only: `realmName`, `networkId`, `baseUrl` | Current realm/server info. |
 | **SkyboxTime** | `fixedTime: number`, `transitionMode?: TransitionMode` | Fix the time of day (seconds since 00:00; 43200 = noon, 86400 = full day). |
 | **AssetLoad** | `assets: string[]` | Pre-request loading of asset files (paths). Loading state is reported separately via `AssetLoadLoadingState`. |

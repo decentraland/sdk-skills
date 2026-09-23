@@ -1,13 +1,23 @@
 ---
 name: composites
-description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Use when creating or editing a main.composite file, or when other skills point to the composite reference. For scaffolding a whole scene project see create-scene."
+description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Use when authoring a main.composite from scratch, when editing one by hand because the Creator Hub MCP is not available (see creator-hub-mcp — the MCP is always preferred for an existing scene), or when other skills point to the composite reference. For scaffolding a whole scene project see create-scene."
 ---
 
 # Composites
 
 This skill carries the shared composite format reference used by other Decentraland skills (`create-scene`, `add-3d-models`, `sdk-scenes`).
 
-The mandatory workflow below applies to EVERY composite you author or edit: compute scene bounds first (Step 0), consult the format catalog in the reference while writing entities, then run the validation gate at the end before finishing.
+The mandatory workflow below applies to EVERY composite you author or edit: check the Creator Hub MCP gate first, compute scene bounds (Step 0), consult the format catalog in the reference while writing entities, then run the validation gate at the end before finishing.
+
+## Gate — use the Creator Hub MCP instead of editing the file (check FIRST)
+
+**Hand-editing `main.composite` is the fallback, not the default.** The Creator Hub exposes an MCP server (skill: **creator-hub-mcp**) whose tools — `scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, … — change the open scene live: the viewport updates, the editor autosaves the composite itself, `inspector::Nodes` and the rest of the editor bookkeeping stay consistent, and every change is undoable by the user. Editing the file instead risks the classic failure: the editor's autosave regenerates the file wholesale and your work silently vanishes.
+
+Before touching the file, pick the first row that matches:
+
+1. **Creator Hub MCP tools are available in the session** (`mcp__creator-hub__*` in Claude Code; bare `scene_state` / `create_entity` inside the Creator Hub's own AI assistant) → do NOT edit `main.composite`, `main.crdt`, or `scene.json` by hand. Use the tools for every entity, component, and settings change. The format catalog in this skill remains your reference for component shapes — `set_component` takes the same JSON the composite stores — and Step 0 (bounds) still applies.
+2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > Experimental > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub.
+3. **No Creator Hub in play** (CLI-only project, CI, the app is closed and the user wants it that way) → the file workflow below applies in full.
 
 ## Step 0 — Read scene.json and Compute Bounds (MANDATORY)
 
@@ -121,6 +131,7 @@ Before writing a fresh composite, verify:
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
+- [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop — every item below is done for you by `create_entity` / `set_component` (see the gate at the top of this skill and **creator-hub-mcp**).
 - [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards.
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):

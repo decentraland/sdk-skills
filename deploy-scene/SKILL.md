@@ -5,9 +5,12 @@ description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when 
 
 # Deploying to Genesis City
 
+> **Not installed inside the Creator Hub agent.** The Creator Hub's skill installer denylists this skill, and because the directory holds nothing but `SKILL.md` it is skipped entirely — it never reaches the app's embedded AI assistant. The Creator Hub owns publishing through its own UI. If you are the Creator Hub assistant and a user asks to publish, point them at the app's Publish flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
+
 Deploy to specific parcels you own or have permission to deploy to.
 
 **Use the `/deploy` command** to deploy. It runs `npx @dcl/sdk-commands deploy` and handles the full process:
+
 1. Build the scene
 2. Upload assets to IPFS
 3. Deploy to the specified parcels
@@ -20,31 +23,42 @@ Deploy to specific parcels you own or have permission to deploy to.
 Before deploying, verify:
 
 1. **scene.json is valid**:
+
    - `ecs7: true` and `runtimeVersion: "7"`
    - Correct `parcels` matching your LAND (for Genesis City)
    - Valid `base` parcel
    - `main: "bin/index.js"`
 
-2. **Code compiles**:
+2. **Discovery metadata is complete** — these four fields decide whether anyone finds and enters the scene, and they are frequently left at template defaults. Check each one and fill in what you can infer from the scene itself; ask the user only for what you can't:
+
+   - `display.title` — the scene name, shown under the minimap in-world and in the map modal
+   - `display.description` — one or two sentences on what the scene is
+   - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`. Infer them from the scene's theme (see the **create-scene** skill, "Tags (scene categories)")
+   - `display.navmapThumbnail` — set, _and_ the image itself valid: the referenced file exists in the project (or the URL resolves), its dimensions are 16:9 (1920x1080 recommended), and the essential content sits inside the central 1080x1080 square. Check the size from the shell — `sips -g pixelWidth -g pixelHeight <path>` on macOS, or `magick identify -format "%wx%h\n" <path>` — and open the image to judge the safe area. If it's missing, wrongly proportioned, or has the subject off to one side, recapture it — see **Thumbnail image** below
+
+3. **Code compiles**:
+
    ```bash
    npx tsc --noEmit
    ```
 
-3. **Scene previews correctly**:
+4. **Scene previews correctly**:
    Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start` manually, optionally with `--web` to preview in the Bevy Web browser client). Test with multiple browser tabs to verify multiplayer behavior.
 
-4. **Dependencies installed**:
+5. **Dependencies installed**:
+
    ```bash
    npm install
    ```
 
-5. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
+6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
 
-6. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
+7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
 ## Deployment Process
 
 ### Using CLI
+
 ```bash
 # Build first
 npx @dcl/sdk-commands build
@@ -54,6 +68,7 @@ npx @dcl/sdk-commands deploy
 ```
 
 ### Using Creator Hub
+
 1. Open Creator Hub
 2. Select your scene
 3. Click "Publish"
@@ -71,6 +86,7 @@ npx @dcl/sdk-commands deploy
     "description": "A description for the marketplace",
     "navmapThumbnail": "images/thumbnail.png"
   },
+  "tags": ["art", "social"],
   "scene": {
     "parcels": ["0,0", "0,1"],
     "base": "0,0"
@@ -79,7 +95,38 @@ npx @dcl/sdk-commands deploy
 }
 ```
 
-`display.navmapThumbnail` sets the image shown for the scene on the Genesis City map — always provide one, and write a clear `display.description` for discovery.
+`tags` is root-level, not under `display`. See the checklist item above for the valid category values.
+
+### Thumbnail image
+
+`display.navmapThumbnail` is the image players see in the map modal when they select the scene's parcels, and in the confirmation screen when another scene teleports them there. Always provide one.
+
+Spec:
+
+- `.png` or `.jpg`, **16:9** aspect ratio, recommended **1920x1080 px**. Other sizes work as long as they keep 16:9 — anything else is stretched
+- **Central square safe area:** parts of the platform show a square crop of the central **1080x1080 px**. Keep text, logos and the main subject inside it. In a 1920x1080 image the left and right 420 px bands can be cropped away
+- Value is a path inside the project (e.g. `images/thumbnail.png`) or a URL to an externally hosted image — an external host must serve permissive CORS headers
+
+**Capture it yourself — ask the user if instead of providing an image they prefer you to capture it** With the **unity-explorer MCP** (see the **unity-explorer-mcp** skill), run the scene in preview, move the camera to frame a shot that shows what the scene is about — composing so the essential content sits in the middle third, inside the central square — and capture a UI-less PNG with the bundled script:
+
+```bash
+# <skill-dir> is the unity-explorer-mcp skill's base directory
+<skill-dir>/scripts/screenshot.sh --world-only --png -w 1920 -o images/thumbnail.png
+```
+
+Launching the client windowed at 16:9 (`npm run start -- --mcp -- --windowed-mode --resolution 1920x1080`) makes the frame 16:9 natively, so no crop is needed. Otherwise normalize it:
+
+```bash
+# ImageMagick: center-crop to 16:9 and resize, in one step
+magick images/thumbnail.png -resize 1920x1080^ -gravity center -extent 1920x1080 images/thumbnail.png
+
+# macOS, no extra tooling: -c takes HEIGHT then WIDTH, both centered
+sips -g pixelWidth -g pixelHeight images/thumbnail.png   # read the source size first
+sips -c 1080 1920 images/thumbnail.png --out images/thumbnail.png   # center-crop a larger frame
+sips -z 1080 1920 images/thumbnail.png                              # then resample to exactly 1920x1080
+```
+
+Point `display.navmapThumbnail` at the resulting path. Only if the MCP is unavailable, ask the user for an image rather than shipping the scene without one. Make sure `.dclignore` doesn't exclude the thumbnail — it must be uploaded with the scene.
 
 ### Spawn Points
 
@@ -154,41 +201,43 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 After every publish, the content servers compress all `.gltf`/`.glb` models to asset bundles — a significantly lighter format. The conversion starts immediately but is queued per platform (Windows, Mac). While it runs, players are deliberately served the **last fully-working version** of the scene.
 
-- **Typical time:** ~15 minutes, but plan for **30-60 minutes** until the new version is reliably playable by everyone.
-- **Before a live event:** publish your final version **at least 2 hours** in advance. Avoid republishing while waiting — each publish restarts the queue.
+- **Typical time:** **seconds.** Longer for very large scenes or when the conversion servers are busy. (This was previously documented as ~15 minutes / 30-60 minutes; corrected in docs commit `2dfbb00`.)
+- **A conversion running more than a couple of minutes is a failure signal**, not normal queuing — check the status endpoint rather than continuing to wait.
+- **The Jump In button appears as soon as the scene is playable**, once upload and conversion are done.
+- **Before a live event:** publish your final version **at least one hour** in advance, to leave room for anything unexpected. Avoid republishing while waiting — each publish restarts the queue.
 - **Check conversion status** in a browser:
   - `https://asset-bundle-registry.decentraland.org/entities/status/<pointer>` — replace `<pointer>` with a scene coordinate (e.g. `20,-34`) or the deployment entity ID. Shows per-platform status under `assetBundles` and LOD status under `lods`. For a World, append `?world_name=myname.dcl.eth`.
   - `https://asset-bundle-registry.decentraland.org/queues/status` — lists all scenes currently queued for conversion, per platform.
 - **`/detectabs` chat command:** in-world, tints models green (converted) or red (not yet converted).
-- **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. After conversion completes, fully quit and relaunch Decentraland, then re-enter via jump link or `/goto`.
+- **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. **Any player who already loaded the scene this session keeps seeing the cached version until they fully close and re-enter Decentraland.** That includes you: after conversion completes, quit and relaunch, then re-enter via jump link or `/goto`.
 
 You can also catch conversion issues **before** publishing by enabling local asset bundles in preview — see the **optimize-scene** skill ("Local Asset Bundle Preview").
 
 ## Troubleshooting
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "You don't have permission to deploy" | Wallet doesn't own the target LAND/parcels | Verify LAND ownership on the marketplace, or get deployment permissions from the LAND owner |
-| "Scene is too large" | Assets exceed parcel size limits | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` — see the `.dclignore` section above. Then check triangle count, file sizes, and texture counts against the limits. See **optimize-scene** skill |
-| Wallet connection fails | Browser popup blocked or MetaMask locked | Allow popups, unlock MetaMask, refresh and try again |
-| "Invalid scene.json" | Missing required fields or malformed JSON | Verify `ecs7: true`, `runtimeVersion: "7"`, valid `parcels` array, and `main: "bin/index.js"` |
-| Deploy succeeds but scene is empty | `main` field doesn't point to compiled output | Ensure `main` is `"bin/index.js"` and run `npx @dcl/sdk-commands build` first |
-| Catalyst rejection | Content violates Decentraland content policies | Review content guidelines at docs.decentraland.org |
-| Scene looks broken right after deploy | Asset bundle conversion not done yet | Type `/detectabs` in chat — red-tinted models are not yet converted. Check conversion status (see above) and wait |
-| Some players see old version, others see new | Per-platform conversion finishes at different times + client caching | Check both `windows` and `mac` under `assetBundles` in the conversion status endpoint. Once both are `complete`, affected players must fully restart Decentraland |
-| Publication stuck on Converting stage | Scene queued behind other conversions, or conversion failed | Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
-| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed 512x512 cap | `/detectabs` to check; textures in 3D models are capped to 512x512 during conversion |
-| Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing |
+| Error                                                | Cause                                                                | Solution                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "You don't have permission to deploy"                | Wallet doesn't own the target LAND/parcels                           | Verify LAND ownership on the marketplace, or get deployment permissions from the LAND owner                                                                                                                                                                                                        |
+| "Scene is too large"                                 | Assets exceed parcel size limits                                     | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` — see the `.dclignore` section above. Then check triangle count, file sizes, and texture counts against the limits. See **optimize-scene** skill                                                              |
+| Wallet connection fails                              | Browser popup blocked or MetaMask locked                             | Allow popups, unlock MetaMask, refresh and try again                                                                                                                                                                                                                                               |
+| "Invalid scene.json"                                 | Missing required fields or malformed JSON                            | Verify `ecs7: true`, `runtimeVersion: "7"`, valid `parcels` array, and `main: "bin/index.js"`                                                                                                                                                                                                      |
+| Deploy succeeds but scene is empty                   | `main` field doesn't point to compiled output                        | Ensure `main` is `"bin/index.js"` and run `npx @dcl/sdk-commands build` first                                                                                                                                                                                                                      |
+| Catalyst rejection                                   | Content violates Decentraland content policies                       | Review content guidelines at docs.decentraland.org                                                                                                                                                                                                                                                 |
+| Scene looks broken right after deploy                | Asset bundle conversion not done yet                                 | Type `/detectabs` in chat — red-tinted models are not yet converted. Check conversion status (see above) and wait                                                                                                                                                                                  |
+| Some players see old version, others see new         | Per-platform conversion finishes at different times + client caching | Check both `windows` and `mac` under `assetBundles` in the conversion status endpoint. Once both are `complete`, affected players must fully restart Decentraland                                                                                                                                  |
+| Publication stuck on Converting stage                | Conversion failed, or the scene is queued behind others              | Conversion normally takes seconds, so more than a couple of minutes points at a failure rather than a queue. Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
+| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed the conversion cap  | `/detectabs` to check; textures in 3D models are capped to **1024x1024** during conversion (not 512x512 — that figure is out of date)                                                                                                                                                              |
+| Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet                    | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing                                                                                                                                                                                                    |
 
 ### Genesis City vs Worlds
 
-| | Genesis City | Worlds |
-|-|-------------|--------|
-| **Requirement** | Own LAND parcels | Own DCL NAME or ENS domain |
-| **Parcel limits** | Enforced (entity/triangle budgets per parcel) | Not constrained by LAND |
-| **Visibility** | Shown on the Genesis City map | Listed on Places page (opt-out available) |
-| **Deploy target** | Default Catalyst network | `--target-content https://worlds-content-server.decentraland.org` |
-| **Best for** | Permanent installations, high-traffic scenes | Testing, personal spaces, events |
+|                   | Genesis City                                  | Worlds                                                            |
+| ----------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| **Requirement**   | Own LAND parcels                              | Own DCL NAME or ENS domain                                        |
+| **Parcel limits** | Enforced (entity/triangle budgets per parcel) | Not constrained by LAND                                           |
+| **Visibility**    | Shown on the Genesis City map                 | Listed on Places page (opt-out available)                         |
+| **Deploy target** | Default Catalyst network                      | `--target-content https://worlds-content-server.decentraland.org` |
+| **Best for**      | Permanent installations, high-traffic scenes  | Testing, personal spaces, events                                  |
 
 > **Deploying to a World instead?** See the **deploy-worlds** skill.
 

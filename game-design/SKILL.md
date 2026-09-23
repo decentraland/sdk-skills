@@ -35,6 +35,10 @@ Use the `AssetLoad` component to pre-load assets that aren't needed at scene sta
 
 For the implementation pattern, see the **optimize-scene** skill.
 
+### First impression: time the intro to the loading screen
+
+Anything the scene does on startup — an intro cinematic, a welcome sound, a title UI, an opening tween — happens **behind the Explorer's loading screen** and the player never sees it. `EngineInfo.sceneHidden` is `true` while that screen is up and flips to `false` the frame it fades out; that flip is the only reliable cue for "the player is now looking at the scene". Gate the opening beat on it instead of on a timer or a frame count. See the **scene-runtime** skill for the pattern.
+
 ## 5. Performance Patterns
 
 ### Object Pooling
@@ -107,7 +111,7 @@ For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove
 ### Design Considerations
 - Mouse wheel is **not available** as an input
 - Always design for both **desktop and mobile**. Mobile has no keyboard — rely on pointer and on-screen buttons
-- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene
+- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene. It is **avatar** distance (default 10), not camera distance, so it reads the way a player experiences reach. Keep proximity interactions inside ~3m: the explorer's proximity broad phase is a hard-coded 3m sphere that clamps larger values. See `add-interactivity` > "Distance rules".
 - Use `hoverText` to communicate what an interaction does before the player commits
 
 ## 7. State Management Patterns

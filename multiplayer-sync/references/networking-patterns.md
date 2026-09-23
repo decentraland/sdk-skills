@@ -281,10 +281,10 @@ This keeps the acting player's feedback instant while the authoritative state st
 
 ### Multiplayer Testing
 
-Open multiple browser windows to test multiplayer locally:
+The desktop Explorer allows **one instance at a time**, so pressing Preview again just re-focuses the open window instead of adding a player. To get two local clients:
 
-1. Use the Creator Hub Preview button multiple times (each window is a separate player)
-2. Or use the URL: `decentraland://realm=http://127.0.0.1:8000&local-scene=true&debug=true`
+1. **Second desktop instance** — tick **Multi-Instance Preview** in Creator Hub's Preview Options (= `sdk-commands start --multi-instance`, `@dcl/sdk` >= 7.20.4), or pass `-n` to force a new window. Multi-instance turns Skip Auth Screen off: sign in to each instance with a different account, otherwise both windows are the same player.
+2. **Desktop + browser** — keep the desktop client and open the Bevy web client as player 2: Preview Options → *Preview with: Bevy (Web)*, or `sdk-commands start --web` (alias `--bevy-web`).
 
 ```typescript
 // Track active players

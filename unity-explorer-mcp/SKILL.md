@@ -7,6 +7,8 @@ description: Set up, launch and drive a Decentraland Explorer through its MCP au
 
 **A failed or missing `explorer` MCP connection is the expected starting state, not a blocker.** The MCP server lives *inside* the Explorer process, so `ConnectionRefused` or no `explorer` server at all only means the Explorer is not running yet — continue into the intent gate below; Setup launches it and binds the tools. Once bound, the `mcp__explorer__*` tools are self-describing and the authoritative catalog: read names, arguments, and output shapes there rather than assuming a tool is missing.
 
+**Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no `claude mcp add`, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged.
+
 ## Gates
 
 Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. **Running as a subagent, you cannot open a gate at all** — there is no user to ask: stop and report the pending decision to your caller with your recommendation, rather than passing the gate on your own authority. Doing so violates the gate even when the workaround happens to work. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
@@ -128,6 +130,10 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 - **Missing tools**: `mcp__explorer__*` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (`/mcp` menu in the terminal CLI, `/mcp reconnect explorer` in the VS Code extension) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.
 - **Scene dropped out, player off-parcel, connection lost, or a wedged client**: [`reference/recovery.md`](reference/recovery.md).
+
+## Regression rig: `149,149-synthetic-input-showcase`
+
+`sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: ten stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
 
 ## When a capability is missing
 

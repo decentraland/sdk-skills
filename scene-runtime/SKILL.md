@@ -108,7 +108,7 @@ executeTask(async () => {
 
 ## EngineInfo Component
 
-Access frame-level timing and scene visibility state:
+Frame-level timing plus scene visibility, on `engine.RootEntity`:
 
 ```typescript
 import { EngineInfo, engine } from "@dcl/sdk/ecs";
@@ -137,6 +137,29 @@ engine.addSystem(() => {
 | `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
 
 Verified against protocol commit `0b3d285` (field 4 `bool scene_hidden` in `PBEngineInfo`, component id 1048) and js-sdk-toolchain commit `ffb26183` (exposed as `sceneHidden: boolean` on `PBEngineInfo`).
+
+### Detecting when the loading screen fades out
+
+`sceneHidden` is `true` while the Explorer's loading screen covers the scene and flips to `false` the moment it fades out. **This is the only signal a scene gets for the first moment the player actually sees it.** `onSceneReady`-style timing based on `totalRuntime`, a frame counter, or a `utils.timers` delay is guesswork — the loading screen lasts as long as it lasts, and varies per player and per machine.
+
+Use it to hold back anything the player is meant to witness: intro cinematics, welcome sounds/VO, an opening tween, a title UI, or an analytics event that shouldn't fire while the player is still staring at a loading screen.
+
+```typescript
+import { EngineInfo, engine } from "@dcl/sdk/ecs";
+
+engine.addSystem(function waitForSceneRevealed() {
+  const info = EngineInfo.getOrNull(engine.RootEntity);
+  if (!info || info.sceneHidden) return;
+
+  engine.removeSystem(waitForSceneRevealed); // one-shot
+  // the player is now looking at the scene — start the intro here
+});
+```
+
+- The scene keeps ticking normally while `sceneHidden` is `true` — it is not paused, just not displayed. Don't use this flag to gate scene logic, only to time presentation.
+- Always guard with `getOrNull` — the component may not exist on the very first frames.
+- Remove the system (or set a `done` flag) after it fires; otherwise it re-runs every frame.
+- On Explorer builds that predate the field, `sceneHidden` stays at its proto default `false`, so this pattern degrades to "fire as soon as possible" rather than hanging.
 
 ## System Execution Order & Priority
 

@@ -63,7 +63,38 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 ## Pointer Events (Click / Hover)
 
-Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range, and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
+Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range — it is measured **from the avatar**, not the camera (see "Distance rules" below) — and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
+
+### Distance rules (`maxDistance` / `maxCameraDistance` / `maxPlayerDistance`)
+
+**`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments called it a camera distance; that was wrong, and Unity/Godot always measured player distance. Verified: protocol `pointer_events.proto` (`0e82dcd`), `@dcl/ecs` `EventSystemOptions` (`6a98834a`), test scene `34,20-pointer-events-distances`.
+
+| Option | Measured from | Default |
+|---|---|---|
+| `maxDistance` | the avatar/player position | `10` |
+| `maxCameraDistance` | the active camera origin | none (unset) |
+| `maxPlayerDistance` | `[DEPRECATED]` alias of `maxDistance` (same meaning) | none |
+
+How the two live thresholds combine:
+
+| Set | Interaction allowed when |
+|---|---|
+| only `maxDistance` | player distance <= `maxDistance` |
+| only `maxCameraDistance` | camera distance <= `maxCameraDistance` |
+| both | player distance <= `maxDistance` **OR** camera distance <= `maxCameraDistance` (OR, not AND) |
+| neither | player distance <= 10 (the implicit default) |
+
+- If both `maxDistance` and `maxPlayerDistance` are set, **the larger of the two wins** as the player threshold.
+- Prefer `maxDistance`; use `maxCameraDistance` only when the check genuinely belongs to the camera (e.g. a fixed `VirtualCamera` looking at something the avatar never walks up to). The default third-person camera trails the avatar by ~7m, so a camera-only rule of 10m is much tighter in practice than it reads.
+- **Proximity events ignore `maxCameraDistance` entirely** — see the Proximity Events section.
+
+Requires `@dcl/sdk` **7.28.0+** for `maxCameraDistance` (`EventSystemOptions.maxCameraDistance`). [UNVERIFIED: renderer support — implemented in the Bevy explorer and in unity-explorer PR #9902; if that PR is not in the Unity build the player is running, `maxCameraDistance` is ignored there and only the player-distance arm applies. Confirm against the deployed explorer before shipping a scene that depends on a camera-only rule.]
+
+Measurement origins (matters when a threshold behaves ~1m off from what you computed):
+
+- Cursor player distance: avatar ROOT (feet, `Transform.get(engine.PlayerEntity).position`) to the raycast hit point on the collider surface.
+- Cursor camera distance: the ray length from the camera to the hit point (`hitInfo.distance`).
+- Proximity distance: from the capsule **center** (~1m above the feet), not the feet and not the hit point. Expect proximity and cursor readouts to differ by roughly that 1m even standing in the same spot.
 
 ### Feedback options: `showFeedback` gates `hoverText`
 
@@ -164,15 +195,33 @@ PointerEventType.PET_PROXIMITY_ENTER; // Player walks within entity's proximity 
 PointerEventType.PET_PROXIMITY_LEAVE; // Player moves out of entity's proximity range
 ```
 
+### Handler removal keeps the `PointerEvents` entry in step (SDK 7.28.1+)
+
+Fixed in `@dcl/ecs` (js-sdk-toolchain #1577, `e3d4af57`). Behavior to rely on going forward:
+
+- `removeOnPointerDown` / `removeOnClick` / `removeOnPointerUp` / the hover and proximity variants now **remove the `PointerEvents` entry the registration created, regardless of whether `hoverText` was passed.** Previously only handlers registered *with* a `hoverText` had their entry removed; every other removal leaked the entry, so the renderer kept advertising an interaction whose callback was gone, and re-registering grew the array by one entry each time (re-shipping the whole array over CRDT). Do not add a dummy `hoverText` as a workaround — that workaround is obsolete.
+- The callback map is keyed by `eventType:interactionType`, so **`onProximityDown` no longer evicts `onPointerDown`** on the same entity. Registering both a cursor and a proximity handler for the same event type is now supported, and **both callbacks fire** when both conditions are met.
+- A removal takes only its own registration's entry: `removeOnClick` no longer steals `onPointerDown`'s descriptor (both write `PET_DOWN` + `CURSOR`).
+
+`@dcl/sdk` 7.28.0 (the current stable) predates this fix — it is on `@next` (`7.28.1-…commit-e3d4af5`). On 7.28.0 and earlier, assume a removal without `hoverText` leaks the entry.
+
 ---
 
 ## Proximity Events (Nearby Interactions Without Aiming)
 
 Proximity events let entities react to button presses when the player is nearby and roughly facing the entity, **without requiring the player to aim their cursor at it**. The interactive area is a wide triangular slice projecting forward from the avatar's position — the avatar's facing direction matters, not the camera direction.
 
+Three gates must all pass for a proximity event to fire (verified against `34,20-pointer-events-distances` and the Unity explorer's proximity path):
+
+1. **Distance** — player distance <= `maxDistance` (default 10), measured from the capsule center (~1m above the feet).
+2. **Facing cone** — the entity must fall inside a ~120 degree horizontal cone in front of the avatar.
+3. **Occlusion raycast** — nothing may sit between the player and the entity.
+
+> **Gotcha — the 3m broad phase.** The Unity explorer's proximity broad phase is a hard-coded 3m `OverlapSphere`. A `maxDistance` larger than 3 on a proximity entry can be silently clamped to ~3m, so a proximity handler asking for 8m may go dead at ~3m. Design proximity interactions for close range and use a `TriggerArea` (or a cursor pointer event) when you need reach beyond ~3m.
+
 If the player is both in proximity of an entity with a proximity interaction AND aiming at an entity with a pointer interaction, the **pointer interaction always takes priority**. Among multiple proximity entities in range, only the closest one (or highest priority) is activated.
 
-Use `pointerEventsSystem.onProximityDown()` and `.onProximityUp()` — same signature as pointer events but with `maxPlayerDistance`. Only one per entity. Do not call within a system loop.
+Use `pointerEventsSystem.onProximityDown()` and `.onProximityUp()` — same signature as pointer events. Range comes from `maxDistance` (avatar distance, default 10); `maxPlayerDistance` is a deprecated alias of it. Only one proximity registration per event type per entity. Do not call within a system loop.
 
 Use `.onProximityEnter()` and `.onProximityLeave()` for detecting when a player walks into/out of range — useful for sounds, animations, or UI hints.
 
@@ -181,8 +230,9 @@ Use the `priority` option (higher number wins) when multiple entities overlap. C
 ### Proximity Options
 
 - `button`: Which button to listen for (same as pointer events)
-- `maxDistance`: Max distance from the player's **camera** to the entity
-- `maxPlayerDistance`: Max distance from the player's **avatar** to the entity (most relevant for proximity)
+- `maxDistance`: Max distance from the player's **avatar** to the entity (default `10`) — this is the proximity range
+- `maxPlayerDistance`: `[DEPRECATED]` alias of `maxDistance`; if both are set the **larger** wins
+- `maxCameraDistance`: **ignored on the proximity path.** Only the player threshold applies. Setting it on a proximity entry does nothing.
 - `hoverText`: Text shown when player is near
 - `showHighlight`: Edge highlight when in range (default: `true`)
 - `showFeedback`: Hover feedback around entity center (default: `true`)
@@ -197,6 +247,38 @@ For the system-based approach (combining pointer + proximity on the same entity)
 Native ECS component for detecting when an entity enters a region. Prefer this over hand-rolled "check player position every frame" systems and over the older `@dcl-sdk/utils` `triggers.addTrigger()` helper — they exist as fallbacks but `TriggerArea` is the standard SDK7 primitive ([ADR-258](https://github.com/decentraland/adr/blob/2b30a5e2b4f359a7c22a68fb827db282f6e5f887/content/ADR-258-trigger-areas.md)).
 
 **The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
+
+> **PITFALL — a thin trigger never fires.** A pressure plate or floor marker modelled as a ~0.1m slab has a trigger volume the avatar capsule **never overlaps** while standing on top of it, so the `TriggerArea` silently never fires. This looks like a broken component and is not.
+>
+> **Fix:** keep the thin slab as the *visual*, and put the trigger in a **separate invisible box ~2m tall** sitting on it (verified in `149,149-synthetic-input-showcase`, stations S2 and S3):
+>
+> ```typescript
+> // Visual plate stays where it is. Trigger is its own entity.
+> const plateTrigger = engine.addEntity()
+> Transform.create(plateTrigger, {
+>   position: Vector3.create(plate.x, plate.y + 1, plate.z), // centered 1m up
+>   scale: Vector3.create(3, 2, 3),                           // 2m tall
+> })
+> TriggerArea.setBox(plateTrigger)
+> ```
+
+> **PITFALL — overlapping zones: recompute from occupancy, never write from the handler.** When two trigger zones each install some state (an `InputModifier`, a camera mode, an ambience track), do **not** set it in `onTriggerEnter` and clear it in `onTriggerExit`. A teleport (`movePlayerTo`) that crosses both volumes can deliver the destination's **enter before** the origin's **exit**, and the stale exit then wipes what the enter just installed. The order is **not deterministic in either direction** — both have been measured in one session, one per direction of travel — so you cannot code against either ordering.
+>
+> **Fix:** handlers only flip an occupancy flag; a single function derives the state from all flags and is called after every enter and every exit:
+>
+> ```typescript
+> let insideZoneA = false
+> let insideZoneB = false
+>
+> function applyModifierFromOccupancy() {
+>   if (insideZoneA) InputModifier.createOrReplace(engine.PlayerEntity, { mode: { $case: 'standard', standard: { disableAll: true } } })
+>   else if (insideZoneB) InputModifier.createOrReplace(engine.PlayerEntity, { mode: { $case: 'standard', standard: { disableRun: true } } })
+>   else InputModifier.deleteFrom(engine.PlayerEntity)
+> }
+> // every enter/exit handler: set its flag, then call applyModifierFromOccupancy()
+> ```
+>
+> This makes event order irrelevant. Generalizes to any last-writer-wins state driven by more than one zone.
 
 **Minimal example — box that detects the local player:**
 ```typescript
@@ -278,12 +360,18 @@ Common pattern: track state in a module-level boolean, flip it in the click hand
 
 For complex interactions (multi-step sequences, cooldowns, several entities reacting to shared state), move beyond a single boolean: track state in a module-level object or custom component and drive updates from a system.
 
+## Smart Items: behavior is Script code, not a trigger graph
+
+Most catalog Smart Items were migrated (creator-hub `658f4daf`) from the Actions/Triggers no-code graph to `asset-packs::Script` code with `@action` methods. If you open a migrated item expecting `asset-packs::Triggers`, there is none — the behavior is in a `.ts` file, its "When X" hooks are optional `ActionCallback` params (`onClick`, `onActivate`/`onDeactivate`, `onReachStart`/`onReachEnd`, `onRing`, `onOpen`/`onClose`), and its state is a synced `asset-packs::States`. The old public action names survive as `call_script_method` pointers, so existing wiring keeps working. Full details, the not-migrated list, and the `world_teleport` -> `teleport` merge are in **script-components**.
+
 ## Example scenes
 
 Engine-team test scenes exercising these APIs (ground truth):
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,2-proximity-interactions — `onProximityDown/Enter/Leave`, cursor vs proximity priority, declarative `PointerEvents` with two buttons, proximity door.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/30,20-pointer-events-feedback — `showFeedback`/`showHighlight`/`hoverText` combinations (hover text needs `showFeedback: true`).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/34,20-pointer-events-distances — the **distance rules**: eight lanes proving `maxDistance` (player), the deprecated `maxPlayerDistance` alias (larger wins), `maxCameraDistance`, the OR combination, the implicit 10m default, and that proximity ignores `maxCameraDistance`. Each cube predicts LIVE/DEAD every frame from the resolve-then-branch logic, so a mismatch with in-world behavior is the signal. Includes a probe for the explorer's hard-coded 3m proximity broad phase. Pins `@dcl/sdk@next`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — the tall-invisible-`TriggerArea` fix (S2/S3) and the occupancy-recompute `InputModifier` pattern, driven live through the Unity Explorer MCP.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/75,-9-trigger-areas — `TriggerArea.setBox/setSphere`, `onTriggerEnter/Stay/Exit`, `result.trigger?.entity`, custom collider-layer masks so non-player entities trip the area.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — declarative `PointerEvents` read in a system via `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-1-raycast-unit-tests — component-based `Raycast`/`RaycastResult` for all four direction modes, incl. origin under a transformed parent chain.

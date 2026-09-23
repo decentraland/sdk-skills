@@ -9,7 +9,7 @@ description: Build, extend, and deploy Decentraland SDK7 scenes. This is the ent
 
 ## Agent Behavioral Guidelines
 
-Before taking any significant action, check whether it falls into one of the three categories below and **confirm with the user first**.
+Before taking any significant action, check whether it falls into one of the four categories below and **confirm with the user first**.
 
 **How to ask:** Phrase the question in plain, non-technical language that describes _what will happen to the scene_, not the underlying command.
 
@@ -38,6 +38,14 @@ Introduces `isServer()`, `registerMessages()`, `Storage`, `EnvVar`, or switches 
 
 > "To handle multiplayer this way I'd need to add the Multiplayer Server — that requires switching to the `@dcl/sdk@auth-server` SDK branch instead of the standard one. Is that what you're after, or would simpler peer-to-peer sync work for your use case?"
 
+### 4. Falling back from the Blender MCP to headless Blender
+
+If `mcp__blender__*` tools exist in the session but aren't connected (Blender isn't running, add-on disabled), **never silently switch to headless Blender CLI** — ask first:
+
+> "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
+
+The MCP is what makes model work collaborative; a silent fallback removes that choice. If the MCP isn't installed at all, don't ask the user to install it — go headless and just mention the MCP as an option in your report. Full rule in **add-3d-models**.
+
 ### General principle
 
 These aren't things the agent should refuse to do — they're things it should communicate about before doing them. If the user confirms, proceed confidently. The goal is transparency, not gatekeeping.
@@ -56,9 +64,12 @@ TypeScript (`src/index.ts`) is ONLY for:
 
 ## CRITICAL RULE — Editing an existing composite
 
-Before modifying `assets/scene/main.composite`, scan it for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
+**If the Creator Hub MCP is available, use it — never hand-edit the file.** The Creator Hub ships an MCP server (skill: **creator-hub-mcp**) whose tools (`scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, …) edit the open scene live, with autosave, undo, and the editor bookkeeping handled for you. It is pre-wired inside the Creator Hub's own AI assistant, and any other MCP-capable tool (Claude Code, Cursor, Codex, Claude Desktop) can connect to it via Settings > Experimental > *Expose AI assistant MCP server*. Use it for `scene.json` changes too (`set_scene_settings`). Editing the file while the scene is open in the Creator Hub loses your work silently: the inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk.
 
-**The scene must NOT be open in the Creator Hub while you edit the composite.** The inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk. Your edits will silently vanish. Ask the user to close the scene first, then reopen it when you are done.
+Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
+
+- **The scene must NOT be open in the Creator Hub while you edit the file.** Ask the user to close the scene first, then reopen it when you are done.
+- Scan the file for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
 
 ---
 
@@ -72,7 +83,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### 3D Models
 
-**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models).
+**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models). Also authoring and editing custom models by driving Blender (headless CLI or Blender MCP).
 
 ### Animations & Tweens
 
@@ -118,6 +129,8 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
 
+**Skill: `editable-ui`** — Write that UI so the Creator Hub's 2D UI editor (UI Designer) can read and edit it: the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach. Use whenever the user wants UI editable in the Creator Hub, or wants an existing coded UI adapted for it.
+
 ### Audio & Video
 
 **Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.
@@ -141,6 +154,14 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Script Components (Creator Hub)
 
 **Skill: `script-components`** — Writing `.ts` script files for the Creator Hub Script component, constructor parameters, `@action` JSDoc tags (never decorator syntax).
+
+### Creator Hub MCP (live scene editing)
+
+**Skill: `creator-hub-mcp`** — Editing the scene that is open in the Creator Hub through its MCP server: tool catalog (`scene_state`, `create_entity`, `set_component`, `place_smart_item`, `attach_script`, `set_scene_settings`, `launch_preview`, …), read-before-write workflow, placing catalog items and custom models, and how to connect an external agent (Claude Code, Cursor, Codex) to it. The preferred way to change entities whenever the scene is open in the Creator Hub — instead of editing `main.composite`.
+
+### Testing in the Explorer (MCP)
+
+**Skill: `unity-explorer-mcp`** — Driving a running Decentraland Explorer through its MCP automation server: launch, camera and player movement, screenshots, logs, performance stats. Inside the Creator Hub the same tools arrive through the Creator Hub MCP's `launch_preview` / `explorer_*`.
 
 ### Async, HTTP, WebSocket, Timers
 
@@ -166,6 +187,19 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 **Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
 
 ---
+
+## Terminology — deprecated tool names
+
+Older names still circulate in tutorials, forum posts, and model-generated answers. Do not offer these to users, and translate them when a user says one:
+
+| Deprecated name | What it was | Say / use instead |
+|---|---|---|
+| **Web Editor** | browser-based scene editor | the **Creator Hub** |
+| **Decentraland Editor** | a Visual Studio Code extension | the **Creator Hub** |
+| **SDK6** | the previous SDK; its code does not run on current Decentraland | **SDK7** (to port an old scene, see the `migrate-sdk6-to-sdk7` skill) |
+| **`dclcontext` folder** | downloaded AI context files inside scene projects | **SDK Skills** (these skills) |
+
+Current names: Creator Hub, Scene Editor, SDK7, SDK Skills. Verified against docs glossary commit `4b6733c`.
 
 ## Shared References
 

@@ -4,11 +4,12 @@
 
 - **The root `<UiEntity>` sets `width: '100%', height: '100%'`.** This is required for reliable absolute positioning — without it, some children (e.g. `position: { top, right }`) may not render. See the "Convention" section in `build-ui/SKILL.md` for details.
 - All `setUiRenderer` / `addUiRenderer` calls pass `{ virtualWidth: 1920, virtualHeight: 1080 }` by default. On SDK 7.26.0+ omitting it would not disable scaling — a per-platform default applies (`1920x1080`, `1600x720` on mobile) — but stating it keeps the reference resolution explicit and makes every example below behave identically on older SDKs too.
-- No example passes `screenInset`. On SDK 7.26.0+ that means they use the default `'device'`: the UI sits inside the device safe area (a no-op on desktop), and none of these roots should be wrapped in `<ScreenInsetArea>` because that would apply the inset twice. Below 7.26.0 there is no renderer-level inset, so wrapping *is* the way to inset — see the version gate in `build-ui/SKILL.md`.
+- No example passes `screenInset`. On SDK 7.26.0+ that means they use the default `'device'`: the UI sits inside the device safe area (a no-op on desktop), and none of these roots should be wrapped in `<ScreenInsetArea>` because that would apply the inset twice. Below 7.26.0 there is no renderer-level inset, so wrapping _is_ the way to inset — see the version gate in `build-ui/SKILL.md`.
 
 ## Setup
 
 ### File: src/ui.tsx
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 
@@ -22,7 +23,9 @@ const MyUI = () => (
       alignItems: 'center'
     }}
   >
-    <Label value="Hello Decentraland!" fontSize={24} />
+    {/* Labels always declare an explicit box — an unset text dimension is
+        measured on Bevy but contributes 0 to layout on Unity. */}
+    <Label value="Hello Decentraland!" fontSize={24} uiTransform={{ width: 400, height: 40 }} />
   </UiEntity>
 )
 
@@ -32,6 +35,7 @@ export function setupUi() {
 ```
 
 ### File: src/index.ts
+
 ```typescript
 import { setupUi } from './ui'
 
@@ -43,6 +47,7 @@ export function main() {
 ## Core Component Examples
 
 ### UiEntity (Container)
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -66,6 +71,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Label (Text)
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -80,6 +86,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Button
+
 ```tsx
 <Button
   value="Click Me"
@@ -92,7 +99,16 @@ import { Color4 } from '@dcl/sdk/math'
 />
 ```
 
+#### `disabled` Button — what it actually does
+
+- Halves the alpha of the button's text and background colors (visual dimming only).
+- Sets `onMouseDown` and `onMouseUp` to `undefined`. **`onMouseEnter` / `onMouseLeave` still pass through** — a disabled Button can still run hover handlers, so guard them yourself if that matters.
+- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.28.1+, see `add-interactivity`), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
+
+> If your code clones palette colors before passing them to a `Button` purely to survive this, that workaround is no longer needed on 7.28.0+. It is still needed if you are pinned below it.
+
 ### Input
+
 ```tsx
 import { Input } from '@dcl/sdk/react-ecs'
 import { Color4 } from '@dcl/sdk/math'
@@ -112,6 +128,7 @@ import { Color4 } from '@dcl/sdk/math'
 ```
 
 ### Dropdown
+
 ```tsx
 import { Dropdown } from '@dcl/sdk/react-ecs'
 
@@ -134,14 +151,21 @@ By convention, the root returned to `addUiRenderer` follows the same shape as `s
 
 Two notes on the options: the virtual size here is **ignored** if `setUiRenderer` already passed one (it is a single scene-wide value), while `screenInset` is honored **per renderer** — so a widget can sit in `'interactable'` while the main UI stays in `'device'`. A scene that only calls `addUiRenderer` still gets both defaults.
 
+Renderers stack in the order they first render, the latest on top (main UI at the back within a tick). To pin a module in front or behind regardless, pass `zIndex` in the options (SDK 7.29.0+):
+
+```tsx
+// A modal registered at module load, but meant to cover every later HUD element
+ReactEcsRenderer.addUiRenderer(owner, Modal, { virtualWidth: 1920, virtualHeight: 1080, zIndex: 100 })
+```
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label } from '@dcl/sdk/react-ecs'
 import { engine } from '@dcl/sdk/ecs'
 
 const MyWidget = () => (
   <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
-    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 } }}>
-      <Label value="Widget" fontSize={16} />
+    <UiEntity uiTransform={{ positionType: 'absolute', position: { top: 10, right: 10 }, width: 120, height: 24 }}>
+      <Label value="Widget" fontSize={16} uiTransform={{ width: '100%', height: '100%' }} />
     </UiEntity>
   </UiEntity>
 )
@@ -173,6 +197,8 @@ const GameUI = () => (
       value={`Score: ${score}`}
       fontSize={20}
       uiTransform={{
+        width: 240,
+        height: 30,
         positionType: 'absolute',
         position: { top: 10, left: 10 }
       }}
@@ -189,7 +215,7 @@ const GameUI = () => (
         }}
         uiBackground={{ color: Color4.create(0.1, 0.1, 0.1, 0.9) }}
       >
-        <Label value="Game Menu" fontSize={24} />
+        <Label value="Game Menu" fontSize={24} uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
         <Button
           value="Resume"
           variant="primary"
@@ -216,6 +242,7 @@ export function toggleMenu() {
 ## Common UI Patterns
 
 ### Health Bar
+
 ```tsx
 import { Color4 } from '@dcl/sdk/math'
 
@@ -239,6 +266,7 @@ const HealthBar = () => (
 ```
 
 ### Image Background
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 200, height: 200 }}
@@ -250,6 +278,7 @@ const HealthBar = () => (
 ```
 
 ### Screen Dimensions
+
 ```typescript
 import { UiCanvasInformation } from '@dcl/sdk/ecs'
 
@@ -262,6 +291,7 @@ engine.addSystem(() => {
 ```
 
 ### Nine-Slice Textures
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 200, height: 100 }}
@@ -278,6 +308,7 @@ engine.addSystem(() => {
 Use `uvs` to display a specific region of a texture. The field takes 8 numbers (4 UV pairs): bottom-left, top-left, top-right, bottom-right. Values range 0-1. Set `textureMode: 'stretch'`.
 
 **Sprites from a sprite sheet:**
+
 ```tsx
 // Display the left half of a texture
 <UiEntity
@@ -291,6 +322,7 @@ Use `uvs` to display a specific region of a texture. The field takes 8 numbers (
 ```
 
 **Grid sprite sheet helper:**
+
 ```tsx
 function getFrameUVs(col: number, row: number, totalCols: number, totalRows: number): number[] {
   const stepU = 1 / totalCols
@@ -314,6 +346,7 @@ function getFrameUVs(col: number, row: number, totalCols: number, totalRows: num
 ```
 
 **Rotating an image with UVs:**
+
 ```tsx
 function rotate2D(angle: number, x: number, y: number, cx: number, cy: number): number[] {
   const cos = Math.cos(angle)
@@ -350,7 +383,7 @@ engine.addSystem((dt: number) => {
 
 ### Opacity & Z-Index (verified in test scene [`0,6-ui-zindex-and-opacity`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity))
 
-`opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top.
+`opacity` (0–1) and `zIndex` (integer, negatives allowed) live on `uiTransform`. Root opacity fades the whole UI and cascades multiplicatively to children. `zIndex` orders overlapping siblings; higher renders on top. The same scene stacks three separate `addUiRenderer` panels with the `zIndex` *renderer option* (see `ui-components.md` → Renderer zIndex).
 
 ```tsx
 <UiEntity uiTransform={{ width: '100%', height: '100%', opacity: rootOpacity }}>
@@ -414,6 +447,7 @@ function Panel() {
 ```
 
 ### Hover Events
+
 ```tsx
 <UiEntity
   uiTransform={{ width: 100, height: 40 }}
@@ -424,6 +458,7 @@ function Panel() {
 ```
 
 ### Flex Wrap
+
 ```tsx
 <UiEntity uiTransform={{ flexWrap: 'wrap', width: 300 }}>
   {items.map(item => (
@@ -463,7 +498,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 <UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
   {/* Fixed header */}
   <UiEntity uiTransform={{ width: '100%', height: 60 }}>
-    <Label value="Inventory" fontSize={20} />
+    <Label value="Inventory" fontSize={20} uiTransform={{ width: '100%', height: '100%' }} />
   </UiEntity>
   {/* Scrollable body fills remaining space */}
   <UiEntity
@@ -476,7 +511,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
   >
     {items.map((item, i) => (
       <UiEntity key={i} uiTransform={{ width: '100%', height: 80 }}>
-        <Label value={item.name} fontSize={14} />
+        <Label value={item.name} fontSize={14} uiTransform={{ width: '100%', height: '100%' }} />
       </UiEntity>
     ))}
   </UiEntity>
@@ -484,6 +519,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 ```
 
 ### Dropdown Extras
+
 ```tsx
 <Dropdown
   options={['Option A', 'Option B', 'Option C']}
@@ -566,12 +602,20 @@ const Announcement = () => {
     <UiEntity
       uiTransform={{ width: '100%', height: '100%', positionType: 'absolute', alignItems: 'center', justifyContent: 'center' }}
     >
-      {/* Dark backing panel keeps white text legible over any background */}
+      {/* Dark backing panel keeps white text legible over any background.
+          Explicit sizes, not auto-sizing from the text: an unset text dimension
+          contributes 0 to layout on the Unity explorer and the panel collapses. */}
       <UiEntity
-        uiTransform={{ padding: { top: 8, bottom: 8, left: 24, right: 24 } }}
+        uiTransform={{ width: 900, height: 64, padding: { top: 8, bottom: 8, left: 24, right: 24 } }}
         uiBackground={{ color: Color4.create(0, 0, 0, 0.6) }}
       >
-        <Label value={announcement} fontSize={40} color={Color4.White()} textAlign="middle-center" />
+        <Label
+          value={announcement}
+          fontSize={40}
+          color={Color4.White()}
+          textAlign="middle-center"
+          uiTransform={{ width: '100%', height: '100%' }}
+        />
       </UiEntity>
     </UiEntity>
   )
@@ -579,3 +623,5 @@ const Announcement = () => {
 ```
 
 Mount `OkPrompt` and `Announcement` as children of your root UI component so they overlay the rest of the HUD.
+
+Note both full-screen wrappers deliberately carry **no** pointer handler and no `pointerFilter`: the handler sits on the `OK` `Button` only. Adding a listener to a `100%`×`100%` wrapper makes it capture clicks over the entire screen and blocks the rest of the UI and the 3D world — see the pointer-blocking gotchas in `build-ui/SKILL.md`. If you _want_ the dim backdrop to swallow clicks while the prompt is open, that is a legitimate modal backdrop: put `pointerFilter: 'block'` on it consciously, and only while the prompt renders (these components already return `null` when closed).

@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer, including 8,800+ free assets from the OpenDCL catalog. Use when the user wants to add models, import GLB files, find free 3D assets, or set up model colliders. Do NOT use for materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering) or model animations (see animations-tweens).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -33,6 +33,8 @@ Decentraland uses a **Y-up** coordinate system — test model orientation after 
 
 To add behavior to a composite model, fetch it in `index.ts` by name or tag — do NOT re-create it.
 
+**When the scene is open in the Creator Hub and its MCP tools are available, add the model through them instead of writing the composite** (skill: **creator-hub-mcp**): `search_catalog` + `place_smart_item` for a catalog item (the catalog covers static items as well as Smart Items and downloads the files for you), or `create_entity` + `set_component` `Transform` + `set_component` `core::GltfContainer` for a GLB you placed under `assets/Models/`. The bounding-box, collider-mask, and Animator rules in this skill apply either way.
+
 ## RULE: Swapping a model `src` requires fresh Transform — never inherit scale/position
 
 When you change the `src` of an existing `GltfContainer` (in a composite, in code, or via builder asset replacement), the entity's existing `Transform.scale`, `Transform.position`, and often `rotation` were tuned for the **previous model's native dimensions and pivot**. They are almost never correct for the new model — applying them blindly can produce buildings that overshoot scene bounds, props at wrong heights, or models visibly shifted from where the user expected them.
@@ -50,6 +52,8 @@ This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...
 **Runtime swap mechanics**: to change a model in place, mutate the field directly — `GltfContainer.getMutable(entity).src = newSrc` — the engine reloads the GLB on the same entity. Other `GltfContainer` fields (e.g. `visibleMeshesCollisionMask`) can also be mutated live the same way. Reusing the Transform is only safe when the two models share the same native size and pivot; otherwise re-audit per the steps above.
 
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
+
+This rule is for hand-editing the file, which you should only do when the Creator Hub MCP is unavailable (see **creator-hub-mcp** — its `create_entity` does this registration for you, and hand-editing while the scene is open in the Creator Hub loses the edit).
 
 If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
 
@@ -108,6 +112,43 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 
 Always check the scene's existing folders before deciding where to put a new model.
 
+## RULE: New models — offer the catalog AND custom authoring in Blender
+
+When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
+
+> "I can download the best match from the free catalog (8,800+ ready-made models), or create a custom model for you in Blender. Which do you prefer?"
+
+- **Catalog** → the workflow in the next section (search → review → download).
+- **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
+
+Running as a subagent, you cannot ask — report the choice to your caller with your recommendation instead of picking on your own authority.
+
+### Two ways to drive Blender
+
+|  | Headless CLI (`blender --background --python`) | Blender MCP |
+| --- | --- | --- |
+| Extra installs | None — just Blender itself | Blender 5.1+, MCP add-on, `uv` + server package, client registration, session restart |
+| Availability | Any session where Blender is installed | Only when `mcp__blender__*` tools are bound at session start |
+| Interaction model | Batch: one script per run, state resets between runs | Live: incremental edits in a running Blender, state persists |
+| Visual verification | Rendered stills written to disk (temp camera) | Screenshots of the real viewport |
+| User involvement | Sees results only | Watches — and can co-edit — in the open Blender GUI |
+| Best for | Conversions, decimation, batch optimization, scripted model building | Iterative modeling sessions, working on the user's open file |
+
+### RULE: never fall back to headless silently
+
+Whenever a task creates or edits a model in Blender and the MCP could possibly be used, pick by which of these three states the session is in:
+
+1. **MCP connected and working** — a read-only probe (`get_objects_summary` or equivalent) answers → **use it.** No need to ask.
+2. **MCP configured but not connected** — `mcp__blender__*` tools exist in the session, but the probe errors (Blender isn't running, the add-on is disabled, or its bridge server is down) → **ASK before going headless:**
+   > "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
+
+   The user does not mind opening Blender, and may want to work on the model together. Only fall back to headless if the user says so, or if you genuinely cannot ask (fully non-interactive context — as a subagent, report the pending choice to your caller instead of deciding).
+3. **MCP not installed at all** — no `mcp__blender__*` tools in the session → **don't ask the user to install it** (that's a big setup effort). Proceed headless, but **mention in your report** that the Blender MCP exists as an option for live, interactive model editing, and that setup steps are in `{baseDir}/references/blender-authoring.md`.
+
+**Why:** the MCP is what makes model work collaborative — the user watching and iterating on the model in their own Blender session. A silent headless fallback takes that away without giving them the choice.
+
+Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
+
 ## Free 3D Models — OpenDCL Catalog (8,800+ models)
 
 Always check the scene's local asset folder first. Before fetching any model, confirm with the user.
@@ -129,6 +170,11 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
 | Click through walls         | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`)      |
+| Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
+
+## RULE: 3D model light fixtures do not emit real light
+
+Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a GLB are **purely decorative** -- they do not cast dynamic light on surrounding objects. The Decentraland renderer treats them as normal geometry (with optional emissive material for a self-glow effect). To get actual illumination from a fixture model, add a `LightSource` component to the same entity or a child entity positioned at the light source. When the Creator Hub MCP is available, prefer `search_catalog` for a Smart Item light (e.g. Spotlight or Point Light from category `lights`) which bundles the model, `LightSource`, and toggle actions together -- see **lighting-environment** for details.
 
 ## Model Best Practices
 

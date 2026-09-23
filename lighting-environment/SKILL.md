@@ -5,6 +5,27 @@ description: Dynamic lighting and environment in Decentraland scenes. LightSourc
 
 # Lighting and Environment in Decentraland
 
+## RULE: Use Smart Items for lights when the Creator Hub MCP is available
+
+When the user asks to add a light and the Creator Hub MCP tools are present (`mcp__creator-hub__*`), **always `search_catalog` first** before manually creating an entity with `LightSource`. The Creator Hub catalog includes ready-made light Smart Items:
+
+- **Spotlight** (`87c829b3-8e8d-4fcb-9f43-85d3aa9084f6`, category `lights`) -- comes with a real GLB model (`assets/asset-packs/spotlight/spotlight.glb`), a pre-configured `core::LightSource`, built-in Turn On / Turn Off / Toggle actions, and proper `inspector::Config` for the Creator Hub UI.
+- **Point Light** (category `lights`) -- same pattern: GLB placeholder, pre-configured `core::LightSource` of type Point, built-in actions.
+- There is also a **decorative** "Spotlight" (category `decorations`) that is a visual-only fixture model with no `LightSource` -- make sure you pick from the `lights` category when the user wants actual illumination.
+
+Use `place_smart_item` with the `assetId` and a `position`. It handles everything: downloading the GLB files, resolving asset paths, setting up `asset-packs::Placeholder`, `asset-packs::Script`, `asset-packs::Actions`, and `inspector::Config` components. The entity is immediately usable in the editor with action triggers wired up.
+
+**Only fall back to manual `create_entity` + `set_component` `core::LightSource`** when:
+- No Creator Hub MCP tools are available (pure code workflow).
+- The user needs a light with no visual model (invisible light source).
+- The user needs non-standard light parameters that a Smart Item does not expose.
+
+The manual `LightSource` component API documented below remains the authoritative reference for both paths -- Smart Items use the same underlying component.
+
+## RULE: 3D model light fixtures do not emit light
+
+Light-looking geometry in a GLB model (lamp meshes, bulb shapes, glowing filaments) is purely visual -- it does not cast actual dynamic light in Decentraland. The renderer treats it as regular geometry (possibly with an emissive material for a glow effect, but no illumination of surrounding objects). To get real dynamic lighting from a fixture model, attach a `LightSource` component to the same entity or to a child entity positioned at the light source. When a user has a scene model with built-in light fixtures, proactively mention this: "The light fixtures in your model are decorative geometry only -- I need to add `LightSource` components for actual illumination."
+
 ## Point Lights
 
 Emit light in all directions from a position:
@@ -275,6 +296,8 @@ Verified against docs commit `09c5818` (mobile parity tracker, Aug 2026).
 - `shadow` only affects spot lights; setting it on a point light has no effect.
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
 - `SkyboxTime` on `RootEntity` overrides any scene.json `fixedTime`; `deleteFrom` reverts to it.
+- **Baked light geometry is inert.** GLB models with lamp/bulb meshes do not emit light -- add a `LightSource` component for real illumination. See the rule above.
+- **Smart Item `Placeholder` needs a resolved file path**, not a template variable. Setting `{assetPath}/spotlight.glb` as the `src` in an `asset-packs::Placeholder` results in an invisible/broken gizmo. `place_smart_item` resolves this automatically to e.g. `assets/asset-packs/spotlight/spotlight.glb`. If you must set `Placeholder` manually via `set_component`, use the real on-disk path.
 
 ## Example scenes
 

@@ -10,7 +10,7 @@ This file must exist at `assets/scene/main.composite`.
 
 Two file forms carry initial-scene entity state; do not confuse them:
 
-- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. Edit this.
+- **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. This is the file to author when creating a scene from scratch. For an existing scene that is open in the Creator Hub, change it through the Creator Hub MCP (skill: **creator-hub-mcp**) rather than by editing the file — see "Editing an existing composite" below.
 - **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
 
 The rest of this document describes the `main.composite` JSON format.
@@ -65,9 +65,11 @@ After the user opens and saves a scene in the Creator Hub, the composite contain
 
 The Creator Hub entity tree has a **search bar** that filters entities by name (case-insensitive, auto-expands parent nodes to show matches). When helping users find entities in a complex scene, point them at this feature -- it is faster than scrolling through a large tree.
 
-### STOP — the scene must NOT be open in the Creator Hub while you edit
+### STOP — prefer the Creator Hub MCP; never edit the file while the scene is open
 
-**If the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
+**The right tool for a scene that is open in the Creator Hub is its MCP server** (skill: **creator-hub-mcp**): `create_entity`, `set_component`, `remove_entity`, `set_parent`, `place_smart_item`, `attach_script`, … apply to the live engine, the editor autosaves the composite itself, and all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section is done for you. Use it whenever it is available — inside the Creator Hub's AI assistant it always is; from another tool the user can expose it via Settings > Experimental.
+
+**If you must edit the file and the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
 
 Why — verified in the inspector source (`packages/inspector/src/lib/data-layer/host/composite-provider.ts`):
 
@@ -78,7 +80,7 @@ Why — verified in the inspector source (`packages/inspector/src/lib/data-layer
 
 Symptom when this happens: you add an entity, the write succeeds, and moments later the entity is simply absent from `main.composite` — with no error anywhere.
 
-If the user reports a hand-added entity "disappearing" from the composite, this is the cause. Recovery: close the scene in the Creator Hub, re-apply the edit, then reopen.
+If the user reports a hand-added entity "disappearing" from the composite, this is the cause. Recovery: re-apply the change through the Creator Hub MCP with the scene open (preferred), or close the scene in the Creator Hub, re-apply the file edit, then reopen.
 
 ### Required updates when adding a new entity (entity ID `<id>`) in edit mode
 
@@ -679,6 +681,8 @@ All components that start with `asset-packs::` or `inspector::` are non-core. On
 
 These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
+**Migrated Smart Items carry no `asset-packs::Triggers`.** Since creator-hub `658f4daf` most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
+
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 
 The `inspector::SceneMetadata` component in the composite must match `scene.json`:
@@ -799,6 +803,7 @@ export async function spawnBarrel(position: Vector3) {
 - `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. ⚠ An earlier API named `engine.addEntityFromComposite(src)` does NOT exist on current SDK main (it was replaced by `Composite.instance`) — do not use it even if older docs mention it.
 - `getCompositeProvider()` returns the scene's standard provider (`@dcl/sdk` registers it via `setCompositeProvider(engine, compositeProvider)` at module load; returns `null` only if that never ran). The provider offers `loadComposite(src): Promise<Composite.Resource>` — reads + caches the file via `~system/Runtime.readFile`, accepting JSON `.composite` and binary `.composite.bin` — and `getCompositeOrNull(src)`, the synchronous cache lookup.
 - `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
+- **`rootEntity: engine.RootEntity` works from `@dcl/sdk` 7.28.0** (fixed in `cb87612b`). Before that, two truthiness checks in the entity mapping treated `RootEntity` (id `0`) as absent, so the mapping for composite entity 0 was never recorded and every top-level entity in the composite was parented to a freshly allocated, component-less entity that was never handed back — the composite hung off something invisible instead of the scene root. If you are pinned below 7.28.0, instance into a normal entity you created yourself rather than the root.
 - **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
 - JSON `.composite` decoding uses `TextDecoder`. Since `@dcl/sdk` replaced the external text-encoding polyfill with a built-in UTF-8 codec, `TextDecoder` is available by default and no extra import (e.g. `@dcl/sdk/ethereum-provider`) is needed. The older polyfill helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required for composite loading.
 - Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.

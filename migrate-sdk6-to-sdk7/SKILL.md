@@ -5,6 +5,9 @@ description: Migrate a legacy Decentraland SDK6 scene to SDK7. Use when the user
 
 # Migrate a Decentraland SDK6 Scene to SDK7
 
+> **Disabled inside the Creator Hub agent.** The Creator Hub ships this skill **without its `SKILL.md`**, so it never triggers for the app's embedded AI assistant — the Creator Hub owns project setup through its own UI, and is SDK7-only. The skill's `references/` files still ship, so other skills keep resolving relative paths into them. If you are the Creator Hub assistant and a user asks for this, point them at the app's own flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
+
+
 > **This is a porting skill, not a scaffolding skill.** It assumes an existing SDK6 project on disk. For a brand-new SDK7 scene, use [[create-scene]].
 
 ## RULE: Verify it really is SDK6 before doing anything
