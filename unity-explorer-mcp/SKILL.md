@@ -131,4 +131,4 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 ## When a capability is missing
 
-When no connected MCP tool can do what the loop needs (pressing a specific key, reading a value no tool exposes), stop and hand it to the user: name the concrete action you're blocked on and why the existing tools can't cover it. The MCP server and Explorer live outside this scene's repo — extending them is the user's call.
+When no connected MCP tool can do what the loop needs (a client shortcut key that is not an SDK input action — `press_input` covers those — or reading a value no tool exposes), stop and hand it to the user: name the concrete action you're blocked on and why the existing tools can't cover it. The MCP server and Explorer live outside this scene's repo — extending them is the user's call.
