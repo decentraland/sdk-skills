@@ -74,7 +74,7 @@ function followNpcCamera(dt: number) {
 engine.addSystem(followNpcCamera)
 ```
 
-Note: the guardrail explaining why this works — you cannot move the player's real camera directly, so you drive the Transform of an *active* VirtualCamera entity each frame, paired with `InputModifier` — lives in the VirtualCamera section of `camera-control/SKILL.md`.
+Note: the guardrail explaining why this works — you cannot move the player's real camera directly, so you drive the Transform of an _active_ VirtualCamera entity each frame, paired with `InputModifier` — lives in the VirtualCamera section of `camera-control/SKILL.md`.
 
 ## Mouselook Camera (FPS-Style Camera Controls)
 
@@ -154,6 +154,7 @@ function mouseLookSystem() {
 ```
 
 Key details (verified against the [`32,20-virtual-camera-mouse-look`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look) test scene and official docs):
+
 - `SENSITIVITY` ~0.15 deg/px is the official recommendation; adjust to taste.
 - Pitch clamped to [-85, +85] degrees prevents the camera from flipping over.
 - **`delta.y` is ADDED to pitch, not subtracted.** `screenDelta` has a **top-left origin with `y` growing downward** — moving the mouse up reports a *negative* `y`. Adding it lowers `pitch`, and with `Quaternion.fromEulerDegrees(pitch, yaw, 0)` a lower pitch tilts the camera up, so mouse-up = camera-up. Note this is the opposite axis convention from `screenCoordinates`, which is bottom-left origin. Both reference scenes (`32,20-virtual-camera-mouse-look`, `33,20-spectate-mode`) subtracted it until sdk7-test-scenes `0e4eecf` fixed them; inverted pitch is the symptom of copying the old form.
@@ -171,12 +172,12 @@ After copying, **update `PIVOT` and `BOUNDS_MIN`/`BOUNDS_MAX`** at the top of `s
 
 ### SDK primitives used
 
-| What | SDK API | Why |
-|---|---|---|
-| Free / follow camera | `VirtualCamera` + `MainCamera` | Replaces the player's camera view |
-| Disable avatar movement | `InputModifier` (`disableAll: true`) | Frees WASD to drive the camera |
-| Track who is in scene | `onEnterScene` / `onLeaveScene` | Builds a roster of follow targets |
-| Camera control inputs | `inputSystem.isPressed(InputAction.IA_*)` | WASD pitch/yaw, E/F zoom/raise, 1/2 cycle target |
+| What                    | SDK API                                   | Why                                              |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Free / follow camera    | `VirtualCamera` + `MainCamera`            | Replaces the player's camera view                |
+| Disable avatar movement | `InputModifier` (`disableAll: true`)      | Frees WASD to drive the camera                   |
+| Track who is in scene   | `onEnterScene` / `onLeaveScene`           | Builds a roster of follow targets                |
+| Camera control inputs   | `inputSystem.isPressed(InputAction.IA_*)` | WASD pitch/yaw, E/F zoom/raise, 1/2 cycle target |
 
 Enable / disable pattern:
 
@@ -209,7 +210,7 @@ const BOUNDS_MIN = Vector3.create(0, 0, 0)
 const BOUNDS_MAX = Vector3.create(16, 20, 16)
 ```
 
-Height formula for N parcels per side: `~log2(N+1) × 20` metres. A 4×4 parcel scene is `Vector3.create(64, 80, 64)`.
+The scene height limit is 330 m regardless of parcel count — a 4×4 parcel scene is typically `Vector3.create(64, 80, 64)`. Anything above ~200 m may suffer multiplayer sync issues.
 
 ### Camera architecture
 
@@ -227,15 +228,15 @@ rigRoot (root entity)       ← world position + yaw rotation
 
 ### Controls (while spectating)
 
-| Key | Action |
-|---|---|
-| W / S | Pitch up / down |
-| A / D | Yaw left / right |
+| Key                    | Action                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| W / S                  | Pitch up / down                                                                             |
+| A / D                  | Yaw left / right                                                                            |
 | Mouse (pointer locked) | Rotate camera (yaw/pitch via `PrimaryPointerInfo.screenDelta`, see Mouselook pattern above) |
-| E | Zoom in (follow) or raise camera (free) |
-| F | Zoom out (follow) or lower camera (free) |
-| 1 | Next follow target (cycles through scene players) |
-| 2 | Previous follow target |
+| E                      | Zoom in (follow) or raise camera (free)                                                     |
+| F                      | Zoom out (follow) or lower camera (free)                                                    |
+| 1                      | Next follow target (cycles through scene players)                                           |
+| 2                      | Previous follow target                                                                      |
 
 Pressing 1/2 when no target is set jumps to first/last player. Cycling past the last player returns to free-cam mode. While spectating, the reference scene shows a bottom HUD with the key bindings and the current follow target's display name (`getPlayer({ userId })?.name`).
 
