@@ -17,7 +17,7 @@ Decentraland is a **continuous, shared 3D world**. Design around these constrain
 
 ## 2. Scene Limitation Formulas
 
-Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures, height logarithmic). Key rule of thumb: **10,000 triangles and 200 entities per parcel**.
+Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures logarithmic). Height is a flat 330 m for every scene; content above ~200 m may suffer multiplayer sync issues. Key rule of thumb: **10,000 triangles and 200 entities per parcel**.
 
 For the full limits table across all parcel counts, see the **optimize-scene** skill.
 

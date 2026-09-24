@@ -260,7 +260,7 @@ Configure where and how players enter the scene:
 
 **Base parcel:** Always set `scene.base` to the southwest (lowest x,y) corner parcel.
 
-**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit applies to the whole scene and grows with parcel count: `log2(n+1) × 20` meters (1 parcel = 20m, 2x2 = ~46m, 3x3 = ~66m).
+**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit is **330 meters** for every scene, regardless of parcel count. ⚠️ Anything placed above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant content below that.
 
 - **Always validate entity positions against parcel bounds.** With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene.** An entity entirely outside the bounds is not rendered and no error is shown; a model that straddles the boundary still renders the part that is inside. The bound check uses **world** positions, so a child whose parent is moved out of bounds disappears with it, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
 
