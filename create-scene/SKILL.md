@@ -296,7 +296,7 @@ After customizing the files:
 - **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
 - **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
 
-**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
+**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. It lives in **Settings > Experimental**, which as of Creator Hub 0.50.0 contains *only* this toggle — the AI Assistant moved to its own Settings > AI tab and the UI Editor became stable with no setting at all. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
 
 Bevy editor limitations to know before recommending it:
 
@@ -318,7 +318,7 @@ npx skills add decentraland/sdk-skills --all
 
 To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
 
-The Creator Hub also has a built-in **AI scene assistant** (Settings > Experimental > _AI scene assistant_, off by default) that drives the user's own installed `claude` or `codex` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > Experimental. See the **creator-hub-mcp** skill.
+The Creator Hub also has a built-in **AI Assistant** (Settings > AI > _Enable AI Assistant_) that drives the user's own installed `claude`, `codex`, `cursor-agent` or `gemini` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. It left Experimental and is **on by default** as of Creator Hub 0.50.0; all four providers get the scene tools. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > AI > _Expose AI assistant MCP server_. See the **creator-hub-mcp** skill.
 
 The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 

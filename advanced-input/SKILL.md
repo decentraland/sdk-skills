@@ -73,7 +73,7 @@ engine.addSystem(readPointer)
 ### Field details
 
 - `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the bottom-left corner of the screen** (positive Y = up). When the cursor is locked, freezes at the screen center.
-- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = up (bottom-left origin). **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right. **`screenDelta` uses a TOP-LEFT origin with `y` growing DOWNWARD**, so moving the mouse *up* reports a **negative** `y` — the opposite convention from `screenCoordinates` on the line above. Do not assume the two share an axis direction; this caught the reference mouse-look scenes, which subtracted `delta.y` until sdk7-test-scenes `0e4eecf` corrected them. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
 - `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
 - `pointerType` — `0` for none, `1` for mouse.
 
@@ -258,6 +258,33 @@ engine.addSystem(platformCheckSystem)
 
 Import from `@dcl/sdk/platform`. Verified against docs commit `17ca7be`.
 
+## Player language (`getPlayerLanguage`)
+
+[UNRELEASED — js-sdk-toolchain `201a8a35`, landed **after the 7.29.0 tag**. It ships in the next `@dcl/sdk` release; the first published build carrying it is the prerelease `7.29.1-35917671376.commit-046b268`. Check the scene's pin before using it.]
+
+Same module, `@dcl/sdk/platform`. Use it to pick localized strings for UI text, NPC dialogue, signage, and hover text.
+
+```typescript
+import { getPlayerLanguage, onPlayerLanguageChanged } from '@dcl/sdk/platform'
+
+const STRINGS: Record<string, string> = { en: 'Press E to open', es: 'Pulsa E para abrir' }
+
+function label() {
+	const lang = getPlayerLanguage()             // 'es', 'pt-BR', …
+	return STRINGS[lang] ?? STRINGS[lang.split('-')[0]] ?? STRINGS.en
+}
+
+onPlayerLanguageChanged.add(({ language }) => {
+	// the player switched the client language mid-session — rebuild any cached strings
+})
+```
+
+- **`getPlayerLanguage(): string`** — a BCP-47 tag (`'es'`, `'pt-BR'`). Sourced from `getExplorerInformation().configurations['locale']`, with `_` normalized to `-` (`pt_BR` → `pt-BR`) and surrounding whitespace trimmed. A value that does not match `^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$` falls back to `'en'`.
+- **GOTCHA — it is synchronous and returns `'en'` until the explorer has answered.** Unlike `getPlatform()`, which returns `null` while unknown, there is no "not yet" value here: calling it in `main()` reliably gives you `'en'` on every client. Either read it inside a system after the first frames, or re-read it from `onPlayerLanguageChanged`.
+- **`onPlayerLanguageChanged: Observable<{ language: string }>`** fires only on a *real* change (setting the same tag twice notifies once). Older clients never emit it.
+- Returns `'en'` when the client reports no locale, when `configurations` is missing, and when the `getExplorerInformation` RPC rejects. Region subtags are passed through verbatim — match on the full tag first, then fall back to the primary subtag, then to `'en'`.
+- Under the hood this adds a `localeChanged: { locale: string }` scene event to `IEvents`; **importing `@dcl/sdk/platform` subscribes to it for you**, so there is nothing to wire up.
+
 ## On-screen touch controls (`TouchScreenControls`)
 
 Brief: configures the mobile client's **native** on-screen controls — the virtual joystick, the crosshair, and the gamepad buttons. SDK **7.26.0+**.
@@ -270,6 +297,7 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 - Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
 - **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
 - Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
+- **If the scene uses the Creator Hub UI Designer, this component is the editor's.** Creator Hub 0.50.0+ ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **editable-ui** skill > "MobileHUD".
 
 `PBTouchScreenControls` fields:
 

@@ -67,7 +67,7 @@ The Creator Hub entity tree has a **search bar** that filters entities by name (
 
 ### STOP — prefer the Creator Hub MCP; never edit the file while the scene is open
 
-**The right tool for a scene that is open in the Creator Hub is its MCP server** (skill: **creator-hub-mcp**): `create_entity`, `set_component`, `remove_entity`, `set_parent`, `place_smart_item`, `attach_script`, … apply to the live engine, the editor autosaves the composite itself, and all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section is done for you. Use it whenever it is available — inside the Creator Hub's AI assistant it always is; from another tool the user can expose it via Settings > Experimental.
+**The right tool for a scene that is open in the Creator Hub is its MCP server** (skill: **creator-hub-mcp**): `create_entity`, `set_component`, `remove_entity`, `set_parent`, `place_smart_item`, `attach_script`, … apply to the live engine, the editor autosaves the composite itself, and all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section is done for you. Use it whenever it is available — inside the Creator Hub's AI assistant it always is; from another tool the user can expose it via Settings > AI.
 
 **If you must edit the file and the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
 
