@@ -2,12 +2,29 @@
 
 The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
+## Launch flags and errors
+
+`npm run start -- --mcp --skip-auth-screen true` takes these extra flags:
+
+- `--mcp-port <port>` — MCP server port (implies `--mcp`); adjust the 8123 URLs in Setup steps 1 and 2 to match.
+- `--port <port>` — dev-server port; the launched client follows it automatically.
+- `--position x,y` — spawn parcel.
+- `-n` — force a new client instance; `--multi-instance` — allow concurrent Explorer instances.
+- Anything after a second standalone `--` is forwarded verbatim into the Explorer launch as extra parameters, e.g. `npm run start -- --mcp --skip-auth-screen true -- --windowed-mode --resolution 1280x720` (npm consumes the first `--`).
+
+Two launch errors:
+
+- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
+- **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
+
+The Creator Hub's Preview **"Enable MCP Server"** checkbox passes `--mcp` to this same process, and appears only when the scene's `@dcl/sdk-commands` supports the flag — a missing checkbox is the first error above in another guise.
+
 ## Running a second stack alongside an existing one
 
-When the user wants to keep the already-running scene server and its Explorer untouched, start a second stack on its own ports — a different dev-server port (`--port`; the launched client follows it automatically), a different MCP port (`--mcp-port`, implies `--mcp`), and `--multi-instance` so a second Explorer instance can run concurrently:
+When the user wants to keep the already-running scene server and its Explorer untouched, start a second stack on its own ports — a different dev-server port, a different MCP port, and `--multi-instance` so a second Explorer instance can run concurrently:
 
 ```bash
-npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124
+npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
 From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name (e.g. `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`; the tools then surface as `mcp__explorer2__*`).
@@ -28,7 +45,7 @@ On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud -
 
 ## Registering in a client other than Claude Code
 
-`claude mcp add` / `/mcp` are Claude Code commands. This section is **not** for the Claude Code VS Code extension or the Creator Hub's embedded chat — those are Claude Code and use SKILL.md step 2 (see the bind gate for their `/mcp reconnect` and new-tab differences). In any genuinely different MCP client (Cursor, Cline, a custom SDK harness), register the server the way that client documents, using these connection details — then reload/restart the client so it picks the server up:
+For a genuinely different MCP client (Cursor, Cline, a custom SDK harness — the Claude Code VS Code extension and the Creator Hub's embedded chat are Claude Code and take SKILL.md step 2), register the server the way that client documents, using these connection details, then reload/restart the client so it picks the server up:
 
 | Field | Value |
 |---|---|
