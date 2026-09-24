@@ -16,7 +16,7 @@ The mandatory workflow below applies to EVERY composite you author or edit: chec
 Before touching the file, pick the first row that matches:
 
 1. **Creator Hub MCP tools are available in the session** (`mcp__creator-hub__*` in Claude Code; bare `scene_state` / `create_entity` inside the Creator Hub's own AI assistant) → do NOT edit `main.composite`, `main.crdt`, or `scene.json` by hand. Use the tools for every entity, component, and settings change. The format catalog in this skill remains your reference for component shapes — `set_component` takes the same JSON the composite stores — and Step 0 (bounds) still applies.
-2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > Experimental > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub.
+2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > AI > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub.
 3. **No Creator Hub in play** (CLI-only project, CI, the app is closed and the user wants it that way) → the file workflow below applies in full.
 
 ## Step 0 — Read scene.json and Compute Bounds (MANDATORY)

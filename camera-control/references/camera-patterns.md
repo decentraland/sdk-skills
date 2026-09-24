@@ -146,8 +146,9 @@ function mouseLookSystem() {
 	if (!delta) return
 
 	yaw += delta.x * SENSITIVITY
-	// Subtract delta.y so mouse-up tilts camera up; clamp to prevent flip
-	pitch = Math.max(-85, Math.min(85, pitch - delta.y * SENSITIVITY))
+	// ADD delta.y: screenDelta has a top-left origin with y growing downward, so mouse-up
+	// reports a negative y; adding it lowers pitch, and a lower pitch tilts the camera up.
+	pitch = Math.max(-85, Math.min(85, pitch + delta.y * SENSITIVITY))
 	Transform.getMutable(cameraEntity).rotation = Quaternion.fromEulerDegrees(pitch, yaw, 0)
 }
 ```
@@ -155,7 +156,7 @@ function mouseLookSystem() {
 Key details (verified against the [`32,20-virtual-camera-mouse-look`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look) test scene and official docs):
 - `SENSITIVITY` ~0.15 deg/px is the official recommendation; adjust to taste.
 - Pitch clamped to [-85, +85] degrees prevents the camera from flipping over.
-- `delta.y` is subtracted from pitch so mouse-up = camera-up (positive screenDelta.y = cursor moved up = screen origin is bottom-left).
+- **`delta.y` is ADDED to pitch, not subtracted.** `screenDelta` has a **top-left origin with `y` growing downward** — moving the mouse up reports a *negative* `y`. Adding it lowers `pitch`, and with `Quaternion.fromEulerDegrees(pitch, yaw, 0)` a lower pitch tilts the camera up, so mouse-up = camera-up. Note this is the opposite axis convention from `screenCoordinates`, which is bottom-left origin. Both reference scenes (`32,20-virtual-camera-mouse-look`, `33,20-spectate-mode`) subtracted it until sdk7-test-scenes `0e4eecf` fixed them; inverted pitch is the symptom of copying the old form.
 - The system checks `PointerLock.isPointerLocked` before reading delta -- when the player presses Esc to unlock, the camera stops responding.
 - Always provide a clear exit (secondary button in this example). The player can also Esc to unlock, but that alone does not deactivate the VirtualCamera.
 - `screenDelta` is desktop-only. On mobile, it always reports 0. Design a touch fallback if needed (see `advanced-input` skill).

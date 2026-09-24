@@ -30,7 +30,11 @@ The on-screen slots are fixed too. Visible buttons fill those slots from the top
 
 This is also how to surface the `1`/`2`/`3`/`4` buttons (`IA_ACTION_3`..`IA_ACTION_6`), which otherwise sit behind the "+": hide enough higher-priority buttons to bring the visible count to five or fewer.
 
-Source: Decentraland docs `creator/sdk7/interactivity/touch-screen-controls.md`. Not independently confirmed against the client implementation.
+**It is a stack, not a swap.** `mainAction` pulls one action to the front, and everything else re-packs in priority order behind it — it does not trade places with the old main button. Making `IA_PRIMARY` (E) the main action puts E in the big central slot and lands `IA_JUMP` in the **first cluster slot**, not in E's old position. Hiding buttons re-packs the rest with no gaps.
+
+Source: Decentraland docs `creator/sdk7/interactivity/touch-screen-controls.md`, corroborated by the Creator Hub UI Designer's MobileHUD preview (`packages/inspector/src/components/UIDesigner/Canvas/MobileHudPreview/`), which implements exactly this model (`visible = [main, ...rest].filter(!hide)`, slot `i` = the `i`-th home slot, `+` only when more than five are visible). Still not confirmed against the shipping client itself.
+
+**In a Creator Hub scene that uses the UI Designer, all of this is edited from the MobileHUD panel**, which owns `src/mobile-hud.ts`. Do not hand-write `TouchScreenControls` there — see the **editable-ui** skill > "MobileHUD".
 
 ## Custom button icons
 

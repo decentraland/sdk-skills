@@ -299,8 +299,13 @@ triggerSceneEmote({
 
 ```typescript
 import { stopEmote } from '~system/RestrictedActions'
-stopEmote({})
+
+stopEmote({}).then(({ success }) => {
+	// `success` is a plain boolean (the RPC returns `SuccessResponse`).
+})
 ```
+
+If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
 ### Detecting when an emote finishes
 
