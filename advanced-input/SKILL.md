@@ -314,7 +314,7 @@ Raw form (what the helpers write for you) — note the nested `icon` shape, whic
 import { engine, InputAction, TouchScreenControls } from '@dcl/sdk/ecs'
 import { isMobile } from '@dcl/sdk/platform'
 
-const ICON_DIR = 'assets/images/spectate-mode'
+const ICON_DIR = 'assets/Images/spectate-mode'
 const textureIcon = (src: string) => ({ tex: { $case: 'texture' as const, texture: { src } } })
 
 TouchScreenControls.createOrReplace(engine.RootEntity, {
