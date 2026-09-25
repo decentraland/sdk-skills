@@ -50,7 +50,6 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
 | `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
-| `avatar-animations` | Author custom avatar animations (scene emotes) in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
