@@ -113,6 +113,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `player-avatar`** — Player position/profile, emotes, wearables, `AvatarAttach`, `AvatarModifierArea`.
 
+### Avatar Animations (Custom Emotes)
+
+**Skill: `avatar-animations`** — Authoring custom avatar animations in Blender on the official Decentraland rig: rig controls, posing rules, export to `*_emote.glb`, GLB verification, and upper-body (masked) clips.
+
 ### NPCs
 
 **Skill: `npcs`** — `AvatarShape` NPCs and the NPC Toolkit library for GLB-based NPCs with dialogue and state machines.

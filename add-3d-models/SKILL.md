@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering) or model animations (see animations-tweens).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -122,6 +122,8 @@ When the user asks to add a model, there are two sources, and the choice is thei
 - **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
 
 Running as a subagent, you cannot ask — report the choice to your caller with your recommendation instead of picking on your own authority.
+
+**Animating the _avatar_ (custom emotes) uses these same two Blender paths, but the official Decentraland avatar rig and a different export recipe** — see the **avatar-animations** skill. This skill covers models and props only.
 
 ### Two ways to drive Blender
 
