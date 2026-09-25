@@ -1,6 +1,6 @@
 ---
 name: npcs
-description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB NPCs with dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs in wearables. Use when the user wants to add an NPC, shopkeeper, or quest giver — any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
+description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB NPCs with dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs in wearables, including custom label plates above their name (AvatarNametag). Use when the user wants to add an NPC, shopkeeper, or quest giver — any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
 ---
 
 # NPCs in Decentraland
@@ -120,6 +120,22 @@ AvatarShape.create(npc, {
 - Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween. For an NPC that continuously chases the player (or another moving target), use `Tween.setMoveContinuous` — do NOT re-create `setMove` tweens every frame, which causes visible jitter. See the **animations-tweens** skill ("PITFALL — a CONSTANTLY changing target") and the [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube) test scene.
 - Use `expressionTriggerTimestamp` as a Lamport timestamp to replay the same emote: first play = 0, second play = 1, etc.
 - **Clone the current player's look:** read `getPlayer()` and pass `userData.wearables` and `userData.emotes` straight into `AvatarShape.create`. `getPlayer()` may return null / empty emotes on the first frames — poll in a system until `userData.emotes.length > 0` before spawning (verified pattern in test scene 4,21).
+
+### Label plate above the NPC's name (`AvatarNametag`)
+
+`AvatarNametag` works on any entity with an `AvatarShape`, not just on players. Attach it to the same entity:
+
+```typescript
+import { AvatarNametag } from '@dcl/sdk/ecs'
+
+AvatarNametag.create(npcEntity, { label: 'Shopkeeper' })
+```
+
+- `name: ''` on the `AvatarShape` shows **only** the plate, with no empty native name box under it — label an NPC with a title alone.
+- `label` is required but may be whitespace-only. `label: '    '` draws a bare colored plate with no text (more spaces = wider plate) — e.g. a team-color badge with no title.
+- `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag colors.
+
+Field table, edge cases, and gotchas: **player-avatar** skill ("Custom Nametag Plates") and `{baseDir}/../player-avatar/references/avatar-nametag.md`.
 
 ### Playing expressions on an AvatarShape NPC
 
