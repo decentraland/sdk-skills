@@ -457,7 +457,7 @@ If the track is sized with `flexGrow: 1`, compute `TRACK_WIDTH_PX` from the pare
 - **The catcher must be the last child of the root** (or otherwise on top). A catcher rendered before the panel sits underneath it, and releases over the panel never reach it — leaving the drag running.
 - **`state.dragTarget` is a `string`, not a boolean**, so one overlay and one system serve every slider on the screen. Gate the overlay on `state.dragTarget === ''` and select in the driver with `if/else`. A boolean per slider would need one overlay each.
 - **Read `screenDelta` inside a system.** It only holds one frame of movement, and touching `engine.RootEntity` during initial scene load can error.
-- **Vertical sliders**: the SDK docs state the screen origin is bottom-left, so positive `delta.y` means the mouse moved up — invert it for a top-down track. Horizontal drags need no such adjustment.
+- **Vertical sliders**: the screen origin is top-left, so positive `delta.y` means the mouse moved down — that already matches a track whose value grows downwards. Invert it for a bottom-up track (a volume fader that fills upwards). Horizontal drags need no adjustment.
 
 ## Why not `screenCoordinates`
 
