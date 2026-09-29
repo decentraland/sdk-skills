@@ -302,7 +302,7 @@ Bevy editor limitations to know before recommending it:
 
 - **The Metrics tab is disabled** ("Scene metrics are only available with the Babylon renderer"). Run the scene preview to view the metrics.
 - **`editor_screenshot` (Creator Hub MCP) errors under Bevy.**
-- **Opening the UI Editor's 2D mode freezes the scene** (see **editable-ui**).
+- **Opening the UI Editor's 2D mode freezes the scene** (see **build-ui**).
 
 **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
 

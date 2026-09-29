@@ -36,7 +36,7 @@ The AI Assistant left Experimental and now has its own **AI** tab. These are the
 | **Connect** (accordion) | One row per detected provider: **Connected**, or **Sign in** / **Sign out**. A **Via Terminal** section gives the install and sign-in commands. Gemini has no scriptable login subcommand, so it shows no in-app Sign in button. |
 | **Expose AI assistant MCP server** | The accordion described above; expanding it turns the server on. Only shown while **Enable AI Assistant** is on. |
 
-**Settings > Experimental now holds only the Bevy renderer toggle.** The **Enable UI Editor** row is gone — the UI Editor is stable and always on (see **editable-ui**), gated only by the scene's SDK version.
+**Settings > Experimental now holds only the Bevy renderer toggle.** The **Enable UI Editor** row is gone — the UI Editor is stable and always on (see **build-ui**), gated only by the scene's SDK version.
 
 **Out-of-date CLI warning.** The assistant refuses to use newer models behind an old CLI and shows: *"Your Claude CLI (vX) is out of date — run `claude update` in a terminal to use the latest models."* The minimum is Claude CLI **2.1.251**. If a user reports this, the fix is `claude update` in a terminal, not anything in the Creator Hub. An unreadable version string is treated as up to date.
 

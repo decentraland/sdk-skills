@@ -1,294 +1,439 @@
 ---
 name: build-ui
-description: Build 2D screen-space UI for Decentraland scenes using React-ECS (JSX). Create HUDs, menus, health bars, dialogs, buttons, inputs, and dropdowns. Use when the user wants on-screen UI, menus, or form inputs. Do NOT use for 3D in-world text (see advanced-rendering) or clickable 3D objects (see add-interactivity).
+description: Build 2D screen-space UI for Decentraland scenes with React-ECS (JSX) — HUDs, menus, health bars, dialogs, toasts, notifications, buttons, inputs, dropdowns, sliders. By default writes UI that the Creator Hub's 2D UI editor (UI Designer) can read and edit (one component per file under src/ui/, state/props bindings, useInteraction layers, @ui-action handlers, a driver for animation), and falls back to free-form coded React-ECS only for UI too data-driven or dynamic for the editor. Use when the user wants on-screen UI, menus, form inputs, UI editable in the Creator Hub, or an existing coded UI adapted for the editor. Do NOT use for 3D in-world text (see advanced-rendering) or clickable 3D objects (see add-interactivity).
 ---
 
 # Building UI with React-ECS
 
-Decentraland SDK7 uses a React-like JSX system for 2D UI overlays.
+Decentraland SDK7 draws 2D overlays with a React-like JSX system (`@dcl/sdk/react-ecs`). There are two ways to write that code, and **the editable way is the default**:
 
-## When to Use Which UI Approach
+| Mode | What it is | When |
+|---|---|---|
+| **Editable** (default) | React-ECS written to the contract the Creator Hub's 2D UI editor (UI Designer) can parse, render on a canvas and write back: one `src/ui/<Component>.tsx` per component, `state`/`props` bindings, `useInteraction` layers, `@ui-action` handlers, animation in a driver outside `src/ui/` | Every HUD, menu, dialog, toast, notification, scoreboard, settings panel, health bar, timer, slider — anything a designer may later restyle without touching code |
+| **Coded** (corner case) | Free-form React-ECS: `.map()` over data, conditional subtrees, computed styles, helper components, any file layout | Only when the UI is inherently data-driven or dynamic in a way the contract cannot express — see **Choosing the mode**. Details: `{baseDir}/references/coded-ui.md` |
 
-| Need                             | Approach               | Component                                          |
-| -------------------------------- | ---------------------- | -------------------------------------------------- |
-| Screen-space HUD, menus, buttons | React-ECS (this skill) | `UiEntity`, `Label`, `Button`, `Input`, `Dropdown` |
-| 3D text floating in the world    | TextShape + Billboard  | See **advanced-rendering** skill                   |
-| Open a web page                  | `openExternalUrl`      | See **scene-runtime** skill                        |
-| Clickable objects in 3D space    | Pointer events         | See **add-interactivity** skill                    |
+Both are ordinary React-ECS and run anywhere; the editable contract is a *subset*. Do not ask the user which mode they want: pick editable unless the UI hits a coded-only trigger, and say so when it does.
 
-Use React-ECS for any 2D overlay: scoreboards, health bars, dialogs, inventories, settings menus. Use TextShape for labels above NPCs or objects in the 3D world.
+## When to use which UI approach
 
-## Setup
+| Need | Approach | See |
+|---|---|---|
+| Screen-space HUD, menus, buttons, inputs | React-ECS (this skill) | below |
+| 3D text floating in the world | `TextShape` + `Billboard` | **advanced-rendering** |
+| Open a web page | `openExternalUrl` | **scene-runtime** |
+| Clickable objects in 3D space | pointer events | **add-interactivity** |
+| On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
 
-Create `src/ui.tsx` with your UI component and call `ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })` from `setupUi()`. Call `setupUi()` from `main()` in `src/index.ts`. The SDK template already includes the required JSX settings in tsconfig.json — do NOT modify it.
+## Choosing the mode
 
-## DEFAULT RULE: Always Set Virtual Screen Size to 1920x1080
+Go **editable** by default. Send a UI — or just one panel of it — to **coded** only when it needs one of these, which the editor has no representation for:
 
-The SDK uses a virtual screen to scale UI consistently across display resolutions: when a virtual size is active, all pixel values in `uiTransform` are relative to the virtual canvas, not the physical screen.
+- Rows built from a runtime collection (`.map()` over players, inventory items, chat messages) where the count is unknown at authoring time. A fixed set of up to a handful of rows is unrolled by hand and stays editable.
+- Per-call arbitrary content: a function rendering different *structure* or a *set* of alternative textures per call (`showPopup(title, body, imageSrc)` with N images). One text slot per value and one `texture.src` per image is fine editable.
+- Generic wrappers with children/slots (`<Card>{children}</Card>`) — component refs take no children.
+- Per-row draft objects, per-row closures, remount hacks for uncontrolled inputs.
 
-**Whenever you generate UI code, you MUST pass `{ virtualWidth: 1920, virtualHeight: 1080 }` to `setUiRenderer` and `addUiRenderer` by default — without waiting for the user to ask.** Only deviate if the user explicitly requests a different reference resolution.
+Almost everything else that looks dynamic — fill bars, timers, eased motion, auto-hide, canvas-responsive px sizes, spinners — is a driver-maintained state variable and stays editable.
 
-Why: pixel values in a UI are only meaningful against a reference resolution. Stating it explicitly in the code keeps the scene's layout intent visible and pins it, instead of leaving it to a per-platform default that differs between mobile and desktop. 1920x1080 is the safe default — it matches the most common displays and the assumption made by most community examples.
+If only one panel needs coded, keep the rest editable and mount the coded panel separately with `ReactEcsRenderer.addUiRenderer` from a module outside `src/ui/` (`{baseDir}/references/coded-ui.md` → Hybrid scenes). Tell the user which part is not editable and why. When adapting an existing coded UI, expect the result to be **larger** (unrolled loops and variants are the price of editability); report that trade-off rather than half-porting.
 
-The options argument is optional at the API level. **On SDK 7.26.0+, omitting it does not mean "no scaling"** — the SDK applies a platform default virtual screen instead:
+**Prerequisite:** `@dcl/sdk` **7.26.0+** — the version that ships `ScreenInsetArea` / `InteractableArea` and the per-device default virtual screen. The UI editor is stable and always on in the Creator Hub (0.50.0+): there is no Settings > Experimental toggle and no `settings.guiEditor` key — do not tell users to enable it. Below 7.26.0, entering 2D mode shows an SDK-upgrade notice with an **Update SDK** button instead of the canvas.
 
-| Case | Resulting virtual screen |
-|---|---|
-| No virtual size passed, non-mobile | `1920x1080` |
-| No virtual size passed, mobile | `1600x720` |
-| A 16:9 size passed (e.g. `1920x1080`), mobile | overridden to `1600x720`, logged once to console |
-| A non-16:9 size passed | used as-is on every platform |
-| A size with any value `<= 0` | virtual screen **disabled** — raw canvas pixels, no scaling. Silent: this is the documented opt-out |
-| Only one of the two dimensions passed | also **disabled** (both are required), and logged once per size — it is treated as a mistake, not an opt-out |
+## How the editor reads code
 
-The mobile 16:9 override exists because phone screens are much wider than 16:9 — a 16:9 virtual canvas would letterbox the UI there.
+The editor has **no saved format of its own**: the scene's real `.tsx` files directly under `src/ui/` *are* the document. It parses them into a node tree, renders that on a canvas, and writes visual edits back as minimal text splices, immediately (the badge reads "All changes saved"; there is no manual save). A 1 s disk watcher reflects external edits, so the file is live while the editor is open. "Editable" is therefore a **checkable property of the code**. Code the parser cannot statically understand degrades silently:
 
-So on 7.26.0+, `{ virtualWidth: 0, virtualHeight: 0 }` — not omitting the options — is how you opt into raw-pixel layout. Only do that if the user explicitly asks for it. **Below 7.26.0 there are no defaults: omitting the options is what disables scaling.** See the version gate below.
+| Degradation | Trigger | Effect |
+|---|---|---|
+| **Frozen node** | any `uiTransform` / `uiBackground` value, or any `Label`/`Input`/`Dropdown` prop, that is neither a literal nor a bare `state.x` / `props.x` reference | node renders on the canvas, but the panel refuses **every** edit on it |
+| **Opaque node** | unknown element name, a spread other than one `useInteraction` const, conditional/logical/`.map()` children, JSX comments | grey read-only block; **its children are not walked**, so the subtree disappears from the canvas |
 
-Because the default rule above has you pass the size explicitly either way, generated code behaves identically on both sides of that boundary — which is a second reason to always pass it.
+Write to the contract below and neither happens. Editor facts that shape authored code:
 
-The virtual size is scene-wide, resolved as: the size on `setUiRenderer` wins → else the first `addUiRenderer` that passed one → else the platform default. Options carrying only a `screenInset` don't count as a passed size.
+- **Layout is two independent axes.** The panel's **Flow** (row / column / **Free**) writes `flexDirection` only — **Free means the key is absent**, not a "free" value. **Ignore Layout Flow** writes `positionType: 'absolute'`. Roots are always absolute. A child dropped under a Free parent is seeded absolute at the drop point; switching a parent to Free pins every existing child at its measured position in one batched edit.
+- **The Full Screen widget preset** inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with no `width`/`height` (`100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space); under a Free parent it uses `positionType: 'absolute'` with `top/right/bottom/left: 0`. Prefer the same pair for a hand-written full-screen wrapper the editor will edit. The `100%`×`100%` literal form also parses — it is what the generated aggregator root and the in-world-verified templates use.
+- **Under the Bevy renderer, opening 2D mode freezes the scene** (resumes on returning to 3D). A driver's clock does not advance while the user lays out UI.
 
-Note that `setUiRenderer` wins the arbitration if it mentions *either* dimension, even when the size is incomplete and therefore invalid. So `setUiRenderer(ui, { virtualWidth: 1920 })` disables the virtual screen for the whole scene and discards a valid size passed to any `addUiRenderer`. The SDK logs it once per size, but the scene still loses its virtual screen. Never emit a single dimension.
+Everything else about the editor UI (Scene Inset dropdown, Opacity naming, canvas tools, mode persistence, the mobile preview's guide areas and their limits): `{baseDir}/references/editor-behavior.md`.
 
-API (verified against `@dcl/react-ecs`, file `dist/system.d.ts`):
+## Setup (editable)
 
-```ts
-type UiScreenInset = 'device' | 'interactable' | 'none'
-type UiRendererOptions = {
-  virtualWidth?: number   // optional
-  virtualHeight?: number  // optional
-  screenInset?: UiScreenInset  // defaults to 'device'
-  zIndex?: number              // 7.29.0+; stacking between renderers, higher in front. Default: first-render order, main UI at the back within a tick
-}
-setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
-addUiRenderer(entity: Entity, ui: UiComponent, options?: UiRendererOptions): void
+### File layout
+
+```
+src/ui/
+  index.tsx        <- GENERATED aggregator. Never hand-edit.
+  interaction.tsx  <- reserved helper (useInteraction). Verbatim.
+  platform.tsx     <- reserved helper (usePlatform). Verbatim.
+  MyHud.tsx        <- a top-level UI root (rendered by the aggregator)
+  KitToast.tsx     <- a reusable component (marked /** @ui-component */)
+src/ui-behaviors.ts  <- driver: outside src/ui/, never parsed by the editor
+src/mobile-hud.ts    <- GENERATED by the MobileHUD panel. Editor-owned. Never hand-edit.
 ```
 
-### screenInset: which screen area the UI sits in
+Steps for a new UI:
 
-`screenInset` picks the area a renderer's UI is positioned in. It **defaults to `'device'`**, so UI is kept clear of the notch, status bar and rounded corners out of the box.
+1. One component per file, `src/ui/<ComponentName>.tsx`. Basename must be a valid PascalCase identifier **equal to the exported function name** — the editor ignores any other file. Exactly one exported component per file (the editor reads the first exported function that returns JSX). Every file starts with `/** @jsx ReactEcs.createElement */` and imports `ReactEcs` from `@dcl/sdk/react-ecs`. `//` comments only — `{/* JSX comments */}` are opaque.
+2. Create `src/ui/interaction.tsx` and (for platform variants) `src/ui/platform.tsx` **verbatim** from `{baseDir}/references/interaction-helper.md`. The lowercase names keep them out of the roots list; the editor scaffolds them itself and never lists them as UIs.
+3. Write each component to **The contract**. Start from `{baseDir}/references/component-template.md`.
+4. Write `src/ui/index.tsx` in the exact generated shape below and call `setupUi()` from `main()` in `src/index.ts`. (The editor does this wiring itself — it uncomments the template's `//setupUi()` line and adds the import — but when authoring by hand, do it yourself.)
+5. Put every clock, easing, timer, formatter and state machine in a `.ts` file **outside** `src/ui/` — see **The driver pattern**.
+6. Run the **Self-check list** over every file.
 
-| Value | Area |
-|---|---|
-| `'device'` _(default)_ | Device safe area, from `UiCanvasInformation.screenInsetArea`. Zero on desktop, so a no-op there. |
-| `'interactable'` | Area the client designates for scene UI, from `UiCanvasInformation.interactableArea`. Clears the minimap, chat, and left-side controls, but the **bottom-right action buttons are drawn over this area by design** — UI placed there competes for taps. |
-| `'none'` | Whole screen, `0,0` at the top-left corner. |
+A legacy single-file `src/ui.tsx` is **backed up to `src/ui.tsx.bak` and deleted** the first time the editor opens the scene — always author under `src/ui/`. To port an existing coded UI, follow `{baseDir}/references/adapting-coded-ui.md` (the blockers in order: `.map()` → unroll; conditionals → `active` display gates on the element being hidden; computed styles → driver variables; interpolated text → segment bindings; hand-tracked hover → layers; then explicit boxes everywhere).
 
-Unlike the virtual size, this is **per renderer** — the main UI and each `addUiRenderer` widget can use different areas at the same time.
+The SDK template already includes the JSX settings in `tsconfig.json` — do NOT modify it.
 
-**Do NOT wrap UI in `<ScreenInsetArea>` / `<InteractableArea>` while leaving the matching `screenInset` on the renderer** — the inset gets applied twice and the UI is pushed inwards by double the margin. Rely on `screenInset`, or pass `screenInset: 'none'` and place the wrapper yourself.
+### The aggregator (`src/ui/index.tsx`)
 
-### zIndex: stacking order between renderers
-
-Renderers stack in the order they first render, later ones on top; among those first rendered in the same tick (everything registered before the first frame, typically) the main UI goes at the back, then the added ones in order. The `zIndex` renderer option (SDK 7.29.0+) overrides that: higher renders in front regardless. A renderer `zIndex` of **`0` is interpreted as "unset"** and keeps the default positional order — so `0` is not "the bottom layer"; use a negative value to push a renderer behind the others. Per renderer, valid on `setUiRenderer` and `addUiRenderer` alike. It orders whole renderers against each other; the `uiTransform.zIndex` of elements inside a renderer is unaffected. Re-register the same owner entity with new options to change it at runtime — the renderer keeps its place.
-
-**Budget the top of the stack for the Admin Tools smart item.** A scene that includes it gets the admin toolkit UI from `@dcl/asset-packs` as an additional renderer at **renderer `zIndex: 1000`**, rendered through the scene's own `ReactEcsRenderer`, so its toggle button stays above scene UI. Keep scene renderers below 1000 unless you deliberately want to cover that button. (Before `@dcl/asset-packs` 2.21.1 / creator-hub#1612, asset-packs created a *second* react-ecs system on the same engine; both chained their roots from `rightOf: 0`, the explorer followed only one chain, and **every renderer `zIndex` in the scene was silently ignored**. If renderer stacking does nothing in a scene with Admin Tools, check the asset-packs version first.)
-
-**Raw-ECS `UiTransform` siblings:** react-ecs always chains siblings through `rightOf`, so a parent normally has exactly one child with `rightOf: 0`. Scenes that create `UiTransform` directly may leave `rightOf` at its default on every child, giving a parent several "heads" — those siblings keep **creation order** and each still honours its own `zIndex`. Removing and re-adding one makes it the newest child. Note `PBUiTransform` has **no partial form**: every field is required, so a raw component must spell out the whole proto-default object and override from there.
-
-## SDK VERSION GATE: 7.26.0 changed three UI-layout behaviors
-
-**Check the scene's `@dcl/sdk` version in its `package.json` before relying on any of the three rows below.** All of them are 7.26.0+ behavior; a scene pinned below that gets the "Below 7.26.0" column instead. `"latest"`, `"^7.x"` or a fresh `create-scene` project means current, so assume 7.26.0+ unless the pin says otherwise.
-
-| Behavior | 7.26.0 and later | Below 7.26.0 |
-|---|---|---|
-| **Virtual screen default** | Omitting the size applies `1920x1080` (`1600x720` mobile); a 16:9 size is overridden to `1600x720` on mobile; `<= 0` disables scaling | No default at all — omitting the size means raw canvas pixels, no scaling. `virtualWidth`/`virtualHeight` are **required** when the options object is passed |
-| **`screenInset` option** | Exists, defaults to `'device'` — UI is inset from the device safe area automatically | **Does not exist.** Passing it is a type error. To inset UI you must wrap it in `<ScreenInsetArea>` / `<InteractableArea>` yourself |
-| **UI scale factor and `vw`/`vh`** | `Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight)`; `1vw` is 1% of canvas width, as in CSS | Both additionally divide by `devicePixelRatio`, so the same pixel value renders smaller on a high-density screen |
-
-What this means when writing code:
-
-- **Passing the virtual size explicitly (the default rule) is version-safe** — it produces the same layout on both sides. Prefer it always.
-- **`screenInset` is not version-safe.** Only emit it when the scene is on 7.26.0+. Below that, wrap in `<ScreenInsetArea>` instead — and note the wrapper is *correct* there, since there is no renderer-level inset to double up with.
-- **Any code that recomputes the scale factor by hand must match the scene's SDK version** — most commonly drag sliders. Below 7.26.0 the `devicePixelRatio` divisor belongs in that formula; from 7.26.0 it does not. Getting it wrong makes drags over- or under-shoot on high-density screens. See `{baseDir}/references/ui-sliders.md`.
-- **When migrating a scene up to 7.26.0+**, expect two visible shifts: UI that previously had no scaling now scales against a default virtual screen, and UI gains a device inset on mobile. An existing `<ScreenInsetArea>` wrapper starts double-applying — drop it or pass `screenInset: 'none'`.
-
-Canonical snippet (use this verbatim unless the user specifies otherwise):
+Generated from the list of top-level roots and rewritten whenever the editor opens the scene or a root is added, renamed, removed or re-inset — **any hand edit is lost**. Emit exactly:
 
 ```tsx
-import { ReactEcsRenderer } from '@dcl/sdk/react-ecs'
+/** @jsx ReactEcs.createElement */
+import ReactEcs, { UiEntity, ReactEcsRenderer, ScreenInsetArea } from '@dcl/sdk/react-ecs'
+import { MyHud } from './MyHud'
 
 export function setupUi() {
-  ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })
+  ReactEcsRenderer.setUiRenderer(() => (
+    <UiEntity uiTransform={{ width: '100%', height: '100%' }}>
+      <ScreenInsetArea>
+        <MyHud />
+      </ScreenInsetArea>
+    </UiEntity>
+  ))
 }
 ```
 
-## DEFAULT RULE: Never anchor UI to the top-left; keep mobile UI off the action buttons
+Screen inset is a per-root choice (the editor's **Scene Inset** dropdown); `device` is its default. Verified against the Creator Hub's aggregator generator (`UIDesigner/code/aggregator.ts`) and `@dcl/react-ecs` `system.ts`:
 
-The most common layout mistake in generated scenes is a HUD or panel pinned to the top-left corner (`position: { top: 0, left: 0 }`, or a full-canvas root whose children simply flow from the origin). That corner — and the whole left edge on desktop — is where the explorer draws **its own** UI: minimap, chat, and on mobile the virtual joystick. Scene UI placed there renders, but it is drawn *underneath* the client HUD, so it is occluded and its buttons are frequently unclickable. Nothing in the layout engine warns about this.
+| Editor inset | Wrapper in `index.tsx` | Intended for |
+|---|---|---|
+| `device` (**default**) | `<ScreenInsetArea>` | normal scene UI — constrained to the device safe area (notch, status bar, home indicator, rounded corners); desktop insets are zero |
+| `interactable` | `<InteractableArea>` | UI that must also avoid the explorer's own on-screen controls (minimap, chat, left-side controls) |
+| `none` | bare `<Component />` | letterbox bars, full-screen backdrops, deliberately drawing where platform UI lives |
 
-Placement rules, in order of preference:
+Two facts about this generated shape:
 
-1. **Full-UI coverage is not needed (score, timer, small HUD panel, a couple of buttons)** → anchor to the **right** edge or **center** the element. Use `positionType: 'absolute'` with `position: { top: 40, right: 40 }` (or `justifyContent: 'center'` on the root). Do not leave a panel at the origin by default, and do not use `left: 0` without an interactable inset.
-2. **The UI needs a reliable safe area** → set `screenInset: 'interactable'` on the renderer (7.26.0+; below that wrap the UI in `<InteractableArea>`). The interactable area excludes the minimap, chat, and left-side controls, so a `left: 0` layout inside it is safe on desktop. Remember it composes with the virtual size: `setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080, screenInset: 'interactable' })`.
-3. **Mobile: the bottom-right action buttons (jump, E, F, interaction/click) are drawn on top of the interactable area.** A large panel that fills the interactable area is still covered there, and taps in that region go to the client's buttons, not to the scene. Pick one of two fixes:
-   - **Gameplay HUD (must stay usable while playing)** → keep it clear of the bottom-right. Anchor top-right or top-center, and put no interactive element in the lower-right region on mobile. Read `UiCanvasInformation.interactableArea` if you need exact margins; the button slots themselves are fixed and cannot be moved (see **advanced-input** → `TouchScreenControls`).
-   - **UI that interrupts gameplay (full-screen scoreboard, results, shop, rules card)** → hide the touch controls while it is open and restore them on close. While reading a scoreboard the player does not need to jump or press E. Use `TouchScreenControls.hideAll()` + `TouchScreenControls.hideJoystick()` on open and `showAll()` + `showJoystick()` on close (safe no-ops on desktop). If the avatar must also stop moving, add `InputModifier` `disableAll` on `engine.PlayerEntity` for the same span (desktop client only). Worked pattern: `{baseDir}/references/ui-patterns.md` → "Full-Screen Modal That Hides the Touch Controls".
+- `setUiRenderer` is called with **no options**, so the scene gets the SDK platform default virtual canvas — **desktop `1920x1080`, mobile `1600x720`** — and the renderer-level `screenInset` default `'device'`. Never hand-add `virtualWidth`/`virtualHeight` (regeneration drops them); design px values against those two canvases. This is the one place where the coded-UI rule "always pass the virtual size explicitly" cannot be honored.
+- The renderer already wraps the whole UI in its own `ScreenInsetArea` when `screenInset` is omitted, and the aggregator's wrapper **nests inside** it. Absolute positioning is relative to the parent box, so on a phone with non-zero insets a `device` root is inset twice, an `interactable` root gets device + interactable insets, and a `none` root still gets the single renderer-level device inset rather than the full canvas. On desktop the insets are zero, so nothing changes. This follows from reading `wrapWithScreenInset` in `@dcl/react-ecs` and the Creator Hub's `aggregator.ts`; it has not been measured on a device. Do not "fix" it in `index.tsx` (regenerated). If exact safe-area placement on mobile matters, pick `none` for that root and measure.
 
-Content rule for any panel that explains the game: it must fit on one screen with no scrolling, at most 3–5 short lines, and it should show (icon, diagram, a highlighted first target) rather than tell. Long paragraphs of rules in a pop-up are a known bad pattern — see the **game-design** skill → "Rules: show, don't tell".
+Both wrapper elements belong **only in `index.tsx`** — inside a component file their names are unknown to the parser and make the subtree opaque.
 
-## Core Components
+## Elements
 
-**UiEntity** — Container element. Key props: `uiTransform` (width, height, positionType, position, flexDirection, justifyContent, alignItems, alignContent, alignSelf, padding, margin, display, overflow, flexWrap, flexGrow, `opacity`, `zIndex`, `borderWidth`, `borderColor`, `borderRadius`, `pointerFilter`), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiText` (value, fontSize, color, textAlign, font). Events: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`.
+Only five element names are modeled: **`UiEntity`, `Label`, `Input`, `Dropdown`, `Button`** — plus a **reference to another `src/ui/` file** (`<KitToast />`), the sanctioned reuse unit. Any other element name (a local helper component, a library component, `ScreenInsetArea`) is opaque. Full prop tables: `{baseDir}/references/ui-components.md`.
 
-- **These four are the complete set of UI event handlers, and each is `() => void`.** There is no `onMouseDrag`/`onMouseMove`, and **no arguments — no pointer coordinates, no event object — are passed to a handler**. All four are hardcoded to `InputAction.IA_POINTER`; you cannot bind a UI element to right-click or a key. Drag interactions are still fully possible via `PrimaryPointerInfo.screenDelta` — see "Sliders" below.
+- **`UiEntity`** — container. `uiTransform` (width, height, min/max, positionType, position, display, flexDirection, justifyContent, alignItems, alignContent, alignSelf, flexWrap, flexGrow, overflow, padding, margin, opacity, zIndex, borderWidth/Color/Radius, pointerFilter), `uiBackground` (color, texture, textureMode, textureSlices, uvs, avatarTexture), `uiInputBinding`, and the four listeners `onMouseDown` / `onMouseUp` / `onMouseEnter` / `onMouseLeave`.
+- **`Label`** / **`Button`** — the only places text lives: `value`, `fontSize`, `textAlign`, `color`, `font`, `textWrap`; `Button` adds `variant` (`'primary'` | `'secondary'`), `disabled`, `onMouseUp`. A `uiText={{…}}` bag on a `UiEntity` is **not modeled** — restructure it as a `Label` child (coded UI may still use it). `value` accepts simple markup like `<b>`.
+- **`Input`** — `placeholder`, `value`, `color`, `placeholderColor`, `disabled`, `textAlign`, `font`, `fontSize`, `onChange`, `onSubmit`. Not a React controlled component — see Gotchas.
+- **`Dropdown`** — `acceptEmpty`, `emptyLabel`, `options` (`string[]`), `selectedIndex`, `disabled`, `color`, `textAlign`, `font`, `fontSize`, `onChange(index)`.
+- **Component ref** `<KitToast … />` — selectable, movable, per-instance editable props. Cannot be moved or sized from outside: give each instance a wrapper `UiEntity` with explicit `width`/`height` **and** its margin/position. Accepts **no nested JSX children**.
 
-- `opacity` (number 0–1): fades the element. Set on the root to fade the whole UI; **cascades multiplicatively to children**.
-- `zIndex` (number, incl. negative): controls stacking order among sibling elements. Higher = on top. Does not cross parent boundaries.
-- `borderWidth` / `borderColor` (`Color4`) / `borderRadius`: also valid on `Button`, `Input`, `Dropdown` via their `uiTransform`.
-- `width`/`height` accept a number (px), `'50%'`, `'400px'`, or `'auto'`. `position`/`padding`/`margin` values accept the same string forms; `margin` also accepts a CSS shorthand string, e.g. `margin: '16px 0 8px 270px'`.
+The four listeners are the **complete** set of UI event handlers, each `() => void`: no `onMouseDrag`/`onMouseMove`, no event object, no pointer coordinates, all hardcoded to `InputAction.IA_POINTER`. Drag interactions still work via `PrimaryPointerInfo.screenDelta` — `{baseDir}/references/drag-slider.md`.
 
-**Label** — Text display. Key props: `value`, `fontSize`, `color`, `textAlign` (e.g. `'middle-center'`), `font` (`'sans-serif'`|`'serif'`|`'monospace'`), `uiTransform`. **Always give it an explicit `width`/`height` in `uiTransform`, and no emoji in `value`** — see the gotchas below.
+## The contract
 
-**Button** — Clickable button. Key props: `value`, `variant` (`'primary'`|`'secondary'`), `fontSize`, `onMouseDown`, `onMouseUp`, `disabled`, `uiTransform`.
+### State: the binding surface
 
-**Input** — Text input field. Key props: `placeholder`, `value`, `disabled`, `fontSize`, `color`, `onChange`, `onSubmit`, `uiTransform`.
-
-**Dropdown** — Selection dropdown. Key props: `options` (string[]), `selectedIndex`, `onChange`, `fontSize`, `uiTransform`, `disabled`.
-
-**ScreenInsetArea** — Wrapper that keeps children inside the device's hardware-reserved margins (notch, status bar, home indicator, rounded corners). **Usually unnecessary now: `screenInset` defaults to `'device'`, which already does this for the whole renderer.** Reach for the component only when the renderer opted out with `screenInset: 'none'` and you want to protect just one subtree — wrapping on top of the default double-applies the inset. On mobile it positions itself absolutely using the insets the device reports; on desktop the insets are `(0,0,0,0)`, so it's a no-op. It owns its own `positionType` and `position`; any values you pass for those in `uiTransform` are ignored. All other `uiTransform` props (`padding`, `flexDirection`, `alignItems`, …) and components (`uiBackground`, `onMouseDown`, …) work as usual. A child sized `width: '100%', height: '100%'` fills the safe area exactly. It auto-compensates for the UI scale factor (pre-divides insets so the parser's scale multiplication cancels out), so insets are correct regardless of virtual screen size. Distinct from the *Decentraland system HUD* reserved zones (joystick, chat, profile, interaction button) — avoid those with `screenInset: 'interactable'` or by hand, or, for the mobile input controls specifically, hide them outright with `TouchScreenControls` (see **advanced-input**). Do **not** apply the old "scale sizes ~3× for mobile" rule of thumb on 7.26.0+: with `devicePixelRatio` out of the scale factor, pixel-sized UI is already ~2–3× larger on a phone than it used to be, and the `1600x720` mobile virtual screen adds ~1.2× on top. Start from the desktop sizes and only scale up what actually measures too small on a device.
-
-**InteractableArea** — Wrapper that keeps children inside the renderer-reported *interactable area* — the part of the screen NOT covered by the client's own UI (minimap, chat window, platform overlays). Reads `UiCanvasInformation.interactableArea` and constrains children via absolute positioning; on the Unity desktop client the left ~25% of the screen is reserved, so children fill the remaining ~75%. **Prefer `screenInset: 'interactable'` on the renderer for a whole-UI application**; use the component for a single subtree, or when the renderer uses a different inset. Either form needs an explorer that reports the area: it works on desktop, and on mobile from client `1.12.1` onwards — older mobile clients report no margins and the inset silently does nothing. Like `ScreenInsetArea`, it owns `positionType`/`position` (values you pass are ignored), auto-compensates for the UI scale factor, and falls back to zero insets (no-op) when unavailable. Import from `@dcl/sdk/react-ecs`; usage `<InteractableArea><MyHud /></InteractableArea>`. Distinct from `ScreenInsetArea` (which avoids *device* hardware margins, not client UI). See `{baseDir}/references/ui-components.md` → InteractableArea.
-
-## UiInputBinding (bind InputActions to UI elements)
-
-The `uiInputBinding` prop on `UiEntity` binds `InputAction` values to a UI element so they fire continuously while it is pressed (touch or pointer). This is the primary mechanism for on-screen action buttons on mobile where there is no keyboard.
-
-```tsx
-import { InputAction } from '@dcl/sdk/ecs'
-
-<UiEntity
-  uiTransform={{ width: 80, height: 80 }}
-  uiBackground={{ color: Color4.Red() }}
-  uiInputBinding={{ actions: [InputAction.IA_JUMP] }}
-/>
+```ts
+export interface State {
+  score: number
+  label: string
+  visible: boolean
+  panelWidth: number
+  labelColor: { r: number; g: number; b: number; a: number }
+  options: string[]
+}
+export const state: State = {
+  score: 0, label: '00.00', visible: false, panelWidth: 320,
+  labelColor: { r: 1, g: 1, b: 1, a: 1 }, options: ['A', 'B'],
+}
 ```
 
-While the element is held down, `InputAction.IA_JUMP` fires as if the player were pressing the spacebar. Multiple actions can be bound to one element. The underlying ECS component is `PBUiInputBinding { actions: InputAction[] }`.
+Module-level `export interface State` + `export const state: State` is the recognized signature; every property is an editable variable. Types: `number`, `string`, `boolean`, `Color4` (annotate **structurally** as `{ r; g; b; a }` — matched by having `r`/`g`/`b` members, not by the name `Color4`) and `string[]`. A `number[]` (e.g. a `uvs` quad) binds and works but the panel mislabels it as a string list.
 
-Combine with `TouchScreenControls` (see the **advanced-input** skill) for full mobile control customization: hide the native on-screen buttons, then bind the same actions to your own UI. Verified against js-sdk-toolchain commit `82368ee4`.
+- `state` is a plain exported object — that is what lets the driver mutate it.
+- Module state is shared by every instance of a file. Per-instance values live in the parent and arrive as props.
+- No React hooks (`useState`, `useEffect`) in scene UI; state is module-level. The UI re-renders every frame, so mutations show immediately.
 
-## Adding Independent UI Renderers (addUiRenderer)
+### Style bindings
 
-Use `ReactEcsRenderer.addUiRenderer(ownerEntity, MyWidget, { virtualWidth: 1920, virtualHeight: 1080 })` to render a UI module independently without replacing the main UI. Useful for smart items or modular scene components. Remove with `ReactEcsRenderer.removeUiRenderer(owner)`. If the owner entity is destroyed, the UI is removed automatically.
+Any `uiTransform` / `uiBackground` key whose value is a **bare reference** — `state.x` or `props.x`, no operators, calls or concatenation — is an editable binding:
 
-A scene that only ever calls `addUiRenderer` (no `setUiRenderer` at all) still gets the platform default virtual screen and the default `'device'` inset — the defaults are not tied to the main renderer. The virtual size passed here is ignored if `setUiRenderer` already passed one; `screenInset` and `zIndex` are always honored per renderer.
+```tsx
+uiTransform={{ width: state.panelWidth, position: { top: state.panelTop }, borderColor: state.frameColor }}
+uiBackground={{ color: state.panelColor, texture: { src: state.iconSrc } }}
+```
 
-## State Management
+Recognized positions: top-level keys, members of the edge groups (`position` / `margin` / `padding` → `{ left: state.x }`), whole groups (`borderColor: state.c`), and the dotted paths `texture.src` / `avatarTexture.userId`. Literal and bound siblings mix freely; nesting is one level deep, as in react-ecs itself. Element props bind the same way: `value={state.label}`, `color={state.labelColor}`, `fontSize={state.size}`, `selectedIndex={state.i}`, `options={state.options}`.
 
-Use module-level variables for UI state — React hooks (`useState`, `useEffect`, etc.) are **NOT** available. The UI renderer re-renders every frame, so state changes are reflected immediately. Export functions to update state from game logic.
+### Mixed text
 
-## Common UI Patterns
+A template literal whose interpolations are **all bare references** round-trips as ordered literal/binding segments:
 
-- **Health bar** — Nested UiEntity with width as percentage
-- **Image background** — `uiBackground` with `texture` and `textureMode: 'stretch'`
-- **Screen dimensions** — Read via `UiCanvasInformation.getOrNull(engine.RootEntity)`
-- **Nine-slice textures** — `textureMode: 'nine-slices'` with `textureSlices` for scalable panels
-- **Texture UVs / Sprite sheets** — `uvs` array (8 numbers) to select texture regions
-- **Hover events** — `onMouseEnter`/`onMouseLeave` on UiEntity
-- **Flex wrap** — `flexWrap: 'wrap'` for grid layouts
-- **Scrollable containers** — `overflow: 'scroll'` on a fixed-size parent to scroll through overflowing content (drag or mouse wheel). Use `overflow: 'hidden'` to clip overflow without scrolling. Use `flexGrow: 1` on scrollable entities to fill remaining space
-- **Texture tint** — set `color` alongside `texture` in `uiBackground` to tint the image (works with `stretch` and `nine-slices`)
-- **Multiple stacked layers** — the renderer function may return an array of elements, e.g. `setUiRenderer(() => [PanelA(), PanelB()])`; later items in the array render on top of earlier ones
-- **Opacity / z-index** — `opacity` and `zIndex` on `uiTransform` (see Core Components); root `opacity` fades the whole HUD
+```tsx
+<Label value={`Score: <b>${state.score}</b>`} … />
+<Label value={`${state.mins}:${state.secs}`} … />
+<Label value={`env: ${state.realm}\nplayers: ${state.count}`} … />
+```
+
+One computed interpolation (`${state.a + 1}`, `${fmt(state.t)}`) freezes the node — format in the driver, interpolate the finished value. (Every real `Label` also carries an explicit `uiTransform` box — see **Sizing and mobile**.)
+
+### Actions (event handlers)
+
+```tsx
+type UiAction = { state: State; props: Parameters<typeof MyHud>[0]; value?: unknown }
+
+/** @ui-action */
+function openPanel({ state }: UiAction) {
+  state.visible = true
+}
+```
+
+Wire with the canonical thunk `onMouseDown={() => openPanel({ state, props })}`, or `onChange={(value) => setName({ state, props, value })}` for value-bearing events. Recognized: `onMouseDown`, `onMouseUp`, `onMouseEnter`, `onMouseLeave`, and `onChange` / `onSubmit` on `Input` / `Dropdown`. Handler **bodies are free-form code**; an unrecognized handler expression (an inline arrow with a block body) is simply not shown as bound and does not freeze the node. Actions mutate state synchronously — anything time-based is a flag the driver picks up next frame.
+
+### Interaction layers
+
+`useInteraction` is the recognized construct for per-state styling. Layers deep-merge in precedence `base → active → hover → press`; the second argument drives `active` and may be **any expression** (stored verbatim).
+
+```tsx
+const panel = useInteraction(
+  {
+    base: { uiTransform: { display: 'flex', width: 320, height: 200 } },
+    active: { uiTransform: { display: 'none' } },
+  },
+  state.visible !== true,
+)
+return <UiEntity {...panel}>…</UiEntity>
+```
+
+- **Visibility is always an `active` display gate.** Never `{state.visible && <X/>}` (opaque) and never `display: state.visible ? 'flex' : 'none'` (frozen). Elements are hidden, not unmounted — the canvas renders the `base` layer, so all states appear stacked while editing; that is expected.
+- **Hover/press feedback is always a `hover` / `press` layer**, never hand-tracked booleans on `onMouseEnter` / `onMouseLeave`.
+- `{...someInteractionConst}` is the **only** spread the parser accepts. Extra attributes may sit beside it (`<UiEntity {...panel} onMouseDown={…}>`) and win over it.
+- **The spread carries all four pointer listeners unconditionally** — even for a `base` + `active` visibility gate. Put the gate on the panel, the smallest element the decision applies to, never on a full-screen wrapper — see **Pointer blocking**.
+- For UI that animates **out**, use two variables: `visible` (intent, flipped by actions) plus `hidden` (render gate, set by the driver only after the exit animation). Gate on `state.hidden === true`.
+
+### Component props
+
+```tsx
+/** @ui-component */
+export function KitToast(props: { message?: string; fillPx?: number; on?: boolean; onClose?: (value?: unknown) => void }) {
+```
+
+- The marker before the exported function makes the file a reusable component (rendered only where another root nests it). Without it, the file is a top-level root the aggregator renders.
+- Props are an **inline object type** on the single `props` parameter; supported types `number`, `string`, `boolean`, callback `(value?: unknown) => void`. Anything else shows read-only. Always declare props optional.
+- Inside, `props.x` joins the binding surface: style keys, text values, the `active` expression (`props.active === true`).
+- No color, texture-set or children prop. A `variant` prop that picks a color is not expressible — unroll every visual variant as siblings gated with `active` display layers (`{baseDir}/references/component-template.md` §6).
+- `value={props.label}` fails strict TS (`string | undefined`); use `` value={`${props.label}`} `` — still a recognized binding (renders `undefined` if a parent omits the prop).
+- Forward a child's callback up with a one-line action: `/** @ui-action */ function forwardClose({ props }: UiAction) { props.onClose?.() }`.
+
+### Platform variants — the only structural conditional
+
+```tsx
+const platform = usePlatform()
+return platform === 'mobile' ? <PhoneMenu /> : <DesktopBar />
+```
+
+Recognized at the component's `return` and as a JSX child; `!==`, reversed operands and an inline `usePlatform() === 'mobile'` all parse. Both branches must be a single JSX element or the literal `null`, and at least one must be an element. Backed by the reserved `src/ui/platform.tsx`. Use it for genuinely different structure per device (a bottom sheet instead of a side rail); per-property overrides are not modeled — the virtual canvas already scales proportionally.
+
+### What is never expressible
+
+| Not expressible | Substitute |
+|---|---|
+| loops / `.map()` over data | unroll every element by hand; factor a row repeated more than ~3× into its own `@ui-component` file |
+| shared theme constants (`color: THEME.primary`) | inline `{ r, g, b, a }` literals at every site — any identifier in a style object freezes the node; a palette change is a find-and-replace |
+| computed style values (arithmetic, `Math.*`, calls, concat, ternaries) | one driver-maintained state variable per derived value |
+| percent-string bindings (`width: state.pct + '%'`) | bind a px number; static percent **literals** (`width: '90%'`) are fine |
+| conditional element props (`disabled={state.i === -1}`) | a pre-computed boolean state variable |
+| local helper components in the same file | a separate `src/ui/` file marked `/** @ui-component */` |
+| children/slots on a component | keep the layout inline in the screen file; factor out leaf widgets only |
+| a color or texture-set as a prop | unroll the variants inside the component (`texture.src` **can** bind to a string prop; `uvs` cannot) |
+| data-driven rows with per-row drafts and closures | not portable — coded UI in its own module outside `src/ui/` |
+
+Nine-slice backgrounds (`textureMode: 'nine-slices'` + `textureSlices`), literal 8-float `uvs` atlas crops, `overflow: 'scroll'` (static rows still scroll), `pointerFilter`, border props and the whole flex model round-trip.
+
+## The driver pattern
+
+The editor never parses files outside `src/ui/`, and `state` is a plain exported object: **the editor owns structure, style and rest values; a driver owns the clock and the math.**
+
+```ts
+// src/ui-behaviors.ts — outside src/ui/, invisible to the editor
+import { engine } from '@dcl/sdk/ecs'
+import { state as panel } from './ui/MyPanel'
+
+const OPEN_WIDTH = 480
+let anim = 0
+
+export function registerUiBehaviors() {
+  engine.addSystem((dt: number) => {
+    const target = panel.visible ? 1 : 0
+    anim = Math.max(0, Math.min(1, anim + (target > anim ? dt : -dt) / 0.25))
+    const t = 1 - Math.pow(1 - anim, 3) // easeOutCubic
+    panel.panelWidth = Math.max(1, Math.round(OPEN_WIDTH * t))
+    panel.textColor.a = t
+    if (target === 0 && anim <= 0) panel.hidden = true // release the display gate
+  })
+}
+```
+
+Register it from `main()` next to `setupUi()`. Every bound variable's initial value in `state` is its **designable rest state** — capture it at registration and animate around it, so a designer can restyle from the panel without touching the driver. Belongs in the driver: clocks, tweens, easings, timers and auto-hide deadlines (`timers.setTimeout` from `@dcl/sdk/ecs`, never the JS global), `padStart` / rounding / text formatting, state machines, derived values (px from percent, canvas-responsive sizes from `UiCanvasInformation`), drag accumulation, `TouchScreenControls` toggles, anything reading the ECS. The animation itself has no editor representation — the editor sees a bound key and its rest value only. Full examples: `{baseDir}/references/driver-pattern.md`.
+
+## Common widgets
+
+Build every widget from the primitives — there is no widget library. Editable templates first; coded fallbacks in `{baseDir}/references/coded-ui.md`.
+
+| Ask | Editable pattern |
+|---|---|
+| Dialog / prompt / confirmation | full-screen positioning wrapper + gated panel + buttons: `{baseDir}/references/component-template.md` §4 (add a second button for accept/reject) |
+| Toast / notification / popup | `KitToast` component (§2) with `visible` prop; auto-hide is a driver countdown (`driver-pattern.md`, `*AutoHide`) |
+| Timed announcement / flash message | a gated panel with one `Label`; the driver decrements `hideIn` and flips `visible` |
+| Score / counter / timer readout | mixed-text `Label` (§3); the driver formats the string (`driver-pattern.md` §2) |
+| Health / progress / fill bar | `KitProgressBar` (§5): the driver writes `fillPx` from a percent against the literal track width |
+| Menu / button with hover | `hover` / `press` layers (§3) |
+| Settings form (`Input` / `Dropdown`) | `@ui-action` with `value` |
+| Slider / scrub bar / drag handle | `{baseDir}/references/drag-slider.md` (tap-to-step zones + drag, gated release catcher) |
+| Full-screen modal that pauses play | gated panel + driver toggling `TouchScreenControls` (see **Placement**) |
+| Inventory grid / list of unknown length | coded — `coded-ui.md` |
+
+## Sizing and mobile
+
+**Every box is explicit.** Text intrinsic sizing and auto-sizing from children are unreliable across the three surfaces that render this code:
+
+| Surface | Unset `Label` dimension / auto-sized parent |
+|---|---|
+| Bevy explorer | measures rendered text and feeds it into flex layout — looks correct |
+| Unity explorer | contributes ~0 to layout; glyphs still draw on the zero-height node → stacked labels **overlap**, parents **collapse** to padding |
+| Creator Hub canvas | a component root or ref wrapper with an unset dimension renders as **0** (collapsed instance, panel reads height 0) even though Yoga lays it out at runtime |
+
+Verified in-world with side-by-side screenshots: a 720-px dialog whose two labels had `width: '100%'`, `textWrap="wrap"` and no `height`, in a panel with no `height`, was correct on Bevy and squashed on Unity — both labels drawn over each other, the panel collapsed to padding + button. Fix: panel `height: 210`, name label `height: 30`, wrapped body label `height: 60`, button label `100%`/`100%`. A correct preview on one surface proves nothing about the others. Rules:
+
+- The root of every `/** @ui-component */` file declares `width` AND `height` (px numbers or percent literals). So does every wrapper `UiEntity` around a component ref, matching the component's root size — a wrapper carrying only `margin` / `position` collapses identically.
+- Every `Label` (and `Button` text) declares a `uiTransform` `width` AND `height`; every container that stacks labels has an explicit height. Wrapped text: height = line count × line height (two lines at `fontSize: 20` → 60). A label filling a fixed parent uses `100%` / `100%`.
+- Every **bound** size or position is a plain px `number` — no arithmetic, no percent strings. Static percent literals in unbound keys are the right tool for fluid layout.
+- Design against **desktop `1920x1080` and mobile `1600x720`**. The mobile canvas is 33% shorter: anchor to edges and use flex/percent for the fluid axis rather than absolute offsets computed for one height. Do **not** apply the old "scale sizes ~3× for mobile" rule on 7.26.0+ — pixel UI is already ~2–3× larger on a phone (`devicePixelRatio` left the scale factor) and the mobile canvas adds ~1.2×; start from desktop sizes and scale up only what measures small on a device.
+- Touch targets ≥ ~48 px on the virtual canvas; body text `fontSize` ≥ 16, ≥ 20 for anything read while moving; `textWrap="wrap"` plus an explicit width on any label that can grow.
+- **No emoji or decorative Unicode in any text value** (`Label` / `Button` `value`, `uiText.value`, `Input` `placeholder`, `Dropdown` options, bound strings). Glyph coverage comes from the fonts each explorer bundles, not the SDK, and the Unity explorer ships no emoji glyphs — verified in-world: `value="✨ Particles"` lost its sparkle. Use a small `UiEntity` with `uiBackground={{ texture: { src: 'images/icon.png' } }}` beside the label, or an atlas sprite via `uvs`; `texture.src` is a binding, so the icon stays editable. Stick to ASCII plus the accented letters the copy needs.
+- Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `src/`.
+- `borderRadius` is unsupported on mobile. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
+
+## Placement: never anchor to the top-left; keep mobile UI off the action buttons
+
+The most common layout mistake in generated scenes is a panel pinned to the top-left (`position: { top: 0, left: 0 }`, or a full-canvas root whose children flow from the origin). That corner — and the whole left edge on desktop — is where the explorer draws **its own** UI (minimap, chat, and on mobile the virtual joystick). Scene UI there renders *underneath* the client HUD: occluded, buttons frequently unclickable, and nothing warns. In order of preference:
+
+1. **Small HUD (score, timer, a couple of buttons)** → anchor to the **right** edge or **center** it: `positionType: 'absolute', position: { top: 40, right: 40 }`, or `justifyContent: 'center'` on the root. Never leave a panel at the origin; no `left: 0` without an interactable inset.
+2. **Needs a reliable safe area** → the `interactable` inset (editable: the root's Scene Inset; coded: `screenInset: 'interactable'` on the renderer, 7.26.0+, below that wrap in `<InteractableArea>`). It excludes the minimap, chat and left-side controls, so `left: 0` inside it is safe on desktop. It excludes the **left column only** — it shares its right edge with the device area, so the bottom-right action cluster sits *inside* it by design.
+3. **Mobile: the bottom-right action buttons (jump, E, F, pointer) are drawn on top of the interactable area**, and taps there go to the client. A **gameplay HUD** stays clear: anchor top-right / top-center, no interactive element bottom-right on mobile (read `UiCanvasInformation.interactableArea` for exact margins; the button slots are fixed). **UI that interrupts gameplay** (scoreboard, results, shop, rules card) hides the touch controls while open — `TouchScreenControls.hideAll()` + `hideJoystick()` on open, `showAll()` + `showJoystick()` on close (no-ops on desktop; `showAll()` also clears custom icons — re-apply them), optionally `InputModifier` `disableAll` on `engine.PlayerEntity` for the same span (desktop client only). Route **every** close path through the same function so controls are never left hidden. Editable: the driver does this when `state.visible` flips; coded pattern: `{baseDir}/references/coded-ui.md` → Full-screen modal. In a scene that uses the UI Designer's MobileHUD panel, that runtime toggle fights the panel's static call — see **MobileHUD**.
+
+Content rule for any panel that explains the game: one screen, no scrolling, 3–5 short lines, show (icon, diagram, highlighted first target) rather than tell — **game-design** skill → "Rules: show, don't tell".
+
+## Pointer blocking
+
+**A UI element with any listener — or `pointerFilter: 'block'` — captures pointer input over its WHOLE rect**, not just its visible pixels, blocking clicks to the 3D world and every UI element behind it. A transparent background changes nothing. An element with no listeners and the default `pointerFilter: 'none'` lets clicks through.
+
+**NEVER put a handler, a `{...useInteraction}` spread, or `pointerFilter: 'block'` on a `100%`×`100%` wrapper.** Its rect is the whole screen, so one stray listener on the layout root makes the player unable to click any other UI element or anything in the world — while the UI still *looks* correct because the visible panel is small. The spread counts because `useInteraction` always returns all four listeners, including when used only as a visibility gate. Attach handlers and gates to the smallest element that needs them (panel, button, row); layout wrappers stay plain literal-styled `UiEntity`s doing positioning only. Check this every time you add a handler. Before/after: `{baseDir}/references/component-template.md` §4.
+
+Two blocking full-screen overlays are legitimate, and both must be a deliberate, gated decision rather than a side effect: a **modal backdrop** meant to swallow clicks while open, and a **drag-release catcher** shown only while a drag runs (`{baseDir}/references/drag-slider.md`). In editable UI the gate is an `active` `display: 'none'` layer; in coded UI, conditional rendering.
+
+## MobileHUD (`src/mobile-hud.ts`) — editor-owned, do not hand-write
+
+Creator Hub 0.50.0+. **MobileHUD** is a fixed first entry in the UI Designer's GUIs rail (once the scene has at least one GUI). It edits the scene's `TouchScreenControls` — the native mobile joystick, crosshair and gamepad buttons — with a read-only canvas preview. It is **not** a react-ecs root: it is a single `TouchScreenControls.createOrReplace(engine.RootEntity, { … })` call written to `src/mobile-hud.ts` (outside `src/ui/`, so the root scanner never treats it as a GUI), exported as `setupMobileHud` and imported in `src/index.ts` next to `setupUi()`.
+
+- **Never hand-write or edit `src/mobile-hud.ts`.** The panel regenerates it from its own parse of that exact format; code it cannot parse is silently reduced to defaults.
+- **Never write a second `TouchScreenControls.createOrReplace` anywhere else** in such a scene — one component on `engine.RootEntity`, last write wins.
+- The file is written lazily and deleted automatically: it exists only while the config deviates from SDK defaults. A scene with no file is on stock behaviour.
+- To change the mobile HUD in a UI-Designer scene, change it in the panel. Genuine *runtime* control (hide buttons during a cutscene or a modal) goes in a driver outside `src/ui/`, accepting that it fights the panel's static call — **advanced-input** has the component API.
+
+What the panel exposes and the protobuf caveat: `{baseDir}/references/editor-behavior.md` → MobileHUD.
+
+## Coded UI (corner cases)
+
+When **Choosing the mode** sends a UI to coded, everything above about elements, sizing, placement and pointer blocking still applies. What changes:
+
+- Any file layout works (`src/ui.tsx` single file, or a module outside `src/ui/` beside editable roots). Conditional rendering, `.map()`, helper components, `uiText` bags, computed styles and theme constants are all fine.
+- **Always pass `{ virtualWidth: 1920, virtualHeight: 1080 }`** to `setUiRenderer` / `addUiRenderer`. It pins the reference resolution and is identical on both sides of the **7.26.0 version gate** (below it, omitting the size disables scaling; on 7.26.0+ a 16:9 size is overridden to `1600x720` on mobile anyway). Never emit a single dimension. `screenInset` and the renderer `zIndex` option (7.29.0+) are not version-safe.
+- Root `<UiEntity>` sets `width: '100%', height: '100%'` (required for reliable absolute positioning) and stays pointer-transparent.
+- Only one `setUiRenderer` per scene — a second call silently overwrites the first. Independent modules use `addUiRenderer(ownerEntity, Widget, options)`, removed with `removeUiRenderer(owner)` or automatically when the owner entity is destroyed; this is also how a coded panel coexists with an editable `src/ui/`, whose aggregator owns `setUiRenderer`.
+
+Virtual-screen and version-gate tables, hybrid scenes, module-level state with conditional rendering, and the from-scratch widget patterns: `{baseDir}/references/coded-ui.md`.
 
 ## Gotchas (verified against engine test scenes)
 
-- **`Input` and `Dropdown` do not behave like React controlled components.** `onChange`/`onSubmit` fire with the current value, but the field does not read back from the `value`/`selectedIndex` prop every frame the way React does. To programmatically clear an `Input`, briefly set `value` to a non-empty sentinel (e.g. `' '`) for one frame, then back to `''`. Do not expect setting `value` to force the displayed text every frame.
-  - **Known issue (client-side, open):** a controlled `Input` **does not follow a programmatic reset.** It displays a value the scene writes, but when the scene later clears it the box keeps showing the old string while the scene's own state is correctly empty — so a form can submit `""` from boxes that still look populated. A follow-on consequence: re-writing the *same* string after such a reset fires **no `onChange` at all**, because the client still believes the box holds it. Verified in `149,149-synthetic-input-showcase` (station S9). Trust your scene state, never the rendered field, and label the read-back value separately if the player needs to see it.
-- **`Input`: `onChange` vs `onSubmit`.** `onChange` fires on edits; `onSubmit` fires on Enter. A submit **commits and clears the field** (as pressing Enter does) — that is correct behavior, not a bug; a plain edit leaves the text visible. On submit the client emits **`onSubmit` first, then `onChange`** — the reverse of the intuitive order — so a submit also bumps any change counter. A `disabled` `Input` accepts no writes and fires neither callback.
-- **Removing an `Input` while it still has keyboard focus is supported.** Deleting the element from the tree inside its own `onSubmit`/`onChange` handler (a self-destroying field, a form that closes on submit) is a legal move: the explorer restores the Player / Camera / Shortcuts input maps that the focus had blocked, so WASD movement and Enter-to-chat come back. Covered by `80,-3-ui`'s `SelfDeletingInputExample` (sdk7-test-scenes `07ba611`). You do **not** need to blur or disable the field first.
-- **`zIndex` is per-sibling-group.** It orders siblings within the same parent; it does not lift an element above elements in a different branch of the tree. Use array-return ordering or tree structure for cross-branch stacking, and the `zIndex` *renderer option* to stack whole renderers against each other.
-- **`opacity` multiplies down the tree.** A child at `opacity: 0.8` inside a root at `opacity: 0.5` renders at 0.4 effective. Don't stack opacities unintentionally.
-- **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` (with `textureSlices`) for panels/buttons that must scale without distorting borders, and `'center'` to draw the texture at native size centered in the element.
-- **Give every `Label` an explicit `uiTransform` box — text intrinsic sizing is engine-dependent.** A `Label` with an unset `width`/`height` is sized from its rendered glyphs on some engines and contributes **~0 to layout** on others, while its glyphs still draw anchored on the zero-height node. Consequences on the engines that don't measure: labels stacked in a column **overlap each other**, and any parent auto-sizing from text children **collapses** to its padding. Verified in-world with side-by-side screenshots: a dialog whose labels had `width: '100%'`, `textWrap="wrap"` and no `height`, inside an auto-sized panel, rendered correctly on the **Bevy** explorer and came out squashed on the **Unity** explorer — both labels drawn on top of each other, the panel collapsed to padding + button height.
-
-  | Engine | Unset text dimension |
-  |---|---|
-  | Bevy explorer | measures rendered text, feeds intrinsic height back into flex layout — looks correct |
-  | Unity explorer | contributes ~0 to layout; glyphs still render on the zero-height node → overlap and collapse |
-  | Creator Hub UI editor canvas | shows the unset dimension as 0 (a third behavior — see the **editable-ui** skill) |
-
-  Rules that follow:
-  - Every `Label` (and `Button` text) that participates in layout declares a px or percent `width` **AND** `height`.
-  - A wrapped multi-line label needs a height sized for its line count — two lines at `fontSize: 20` → `height: 60`.
-  - A label that fills a fixed-size parent can just use `width: '100%', height: '100%'`.
-  - **Containers that stack labels in a column carry explicit heights too** rather than auto-sizing from their text children.
-
-  Like the emoji gotcha below, this is engine-dependent, so **a preview that looks right in one explorer proves nothing about the others** — the layout is only correct once the boxes are explicit.
-- **Never put emoji in UI text.** No emoji in any `Label`/`Button` `value`, `uiText.value`, `Input` `placeholder`, or `Dropdown` option. Emoji glyph coverage is not provided by the SDK — it depends on the fonts each explorer bundles, and **the Unity explorer has no emoji glyphs**, so an emoji renders as a missing-glyph box or silently as nothing. This varies per engine, which makes it a trap: the same string can look correct in one explorer and be broken or invisible in another, so a preview in one client proves nothing. Verified in-world: `value="✨ Particles"` rendered without the sparkle on the Unity explorer. Use plain text for the label, and get pictorial affordances from art you ship: a `uiBackground` with `texture: { src: 'images/icon.png' }` on a small `UiEntity` beside the text, or a sprite from an atlas via `uvs`. The same caution applies to other decorative Unicode (arrows, box-drawing, dingbats) — stick to ASCII plus the accented letters your copy actually needs.
-- **Texture `src` paths are relative to the scene root** (e.g. `'images/panel.png'`), not to `src/`.
-- **No pointer coordinates in UI handlers.** `onMouseDown`/`onMouseUp`/`onMouseEnter`/`onMouseLeave` are `() => void` — the reconciler discards the `PBPointerEventsResult` before calling your callback, so "where on this element did they click" is unavailable. Track *movement* instead of position: `PrimaryPointerInfo.screenDelta` reports per-frame mouse travel and drives drag interactions fine. See `{baseDir}/references/ui-sliders.md`.
-- **UI elements with a handler become pointer-blocking, over their WHOLE rect.** Adding any one of the four listeners makes the element capture pointer input across its entire box — not just where its visible pixels are — blocking clicks to the 3D world and to every UI element behind it. An element with no listeners and the default `pointerFilter: 'none'` lets clicks through. `pointerFilter: 'block'` does the same capture without a listener. A transparent background changes nothing: capture follows the layout box, not visibility.
-- **NEVER put a pointer handler (or `pointerFilter: 'block'`) on a full-screen `100%`×`100%` wrapper.** This is the single highest-severity UI mistake: the wrapper's rect is the whole screen, so one stray `onMouseDown` on the layout root makes the player unable to click any other UI element or anything in the world — while the UI still *looks* correct, because the visible panel occupies a fraction of the screen. Attach handlers only to the smallest element that needs them: the panel, the button, the row. Layout wrappers stay handler-free. Two blocking full-screen overlays are legitimate, and both must be a deliberate, gated decision rather than a side effect: a **modal backdrop** that is supposed to swallow clicks while it is open, and a **drag-release catcher** that exists only while a drag is active (see `{baseDir}/references/ui-sliders.md`).
-
-## Common Widgets — Build From Scratch
-
-Build every widget from React-ECS primitives (`UiEntity`, `Label`, `Button`). There is no pre-built widget library to install.
-
-- **Prompt / dialog / confirmation?** → full-screen overlay + centered panel + `Button`s. See the **Modal Dialog** pattern in `references/ui-components.md`.
-- **Health bar, progress bar, score?** → nested `UiEntity` with the inner one sized `width: `${pct}%``. See the **Health Bar** patterns in `references/ui-components.md` and `references/ui-patterns.md`; a score is a `Label` bound to a module-level variable.
-- **Flash announcement (timed, centered)?** → a centered `Label` gated on a module-level flag, cleared with `timers.setTimeout`. See **Timed Announcement** in `references/ui-patterns.md`.
-- **Slider / drag handle / scrub bar?** → **drag sliders work.** UI handlers get no pointer coordinates, so instead: `onMouseDown` on the track starts a drag, and a system accumulates `PrimaryPointerInfo.screenDelta.x` (divided by the UI scale factor) into the value. A full-screen `pointerFilter: 'block'` overlay rendered only while dragging catches the release. Verified in-world on both the Unity and Bevy explorers. Desktop only — `screenDelta` is always 0 on mobile, so pair the track with `-`/`+` stepper `Button`s. Full implementation in `{baseDir}/references/ui-sliders.md`.
-- **Custom panel, inventory, complex layout?** → React-ECS directly (see `references/ui-patterns.md`).
+- **`Input` and `Dropdown` are not React controlled components.** `onChange` / `onSubmit` fire with the current value, but the field does not re-read `value` / `selectedIndex` every frame. To clear an `Input`, set `value` to a non-empty sentinel (`' '`) for one frame, then `''`. Trust your scene state, never the rendered field: a controlled `Input` does not follow a programmatic reset (open client issue), and re-writing the same string afterwards fires no `onChange`. `onSubmit` (Enter) commits and clears the field, and the client emits `onSubmit` *then* `onChange`. Removing a focused `Input` inside its own handler is safe. `Dropdown` `onChange` receives the **index**; with `acceptEmpty` the empty entry is index-shifted. Details: `{baseDir}/references/ui-components.md` → Input.
+- **`Button` `disabled`** halves text/background alpha and drops `onMouseDown` / `onMouseUp` only — `onMouseEnter` / `onMouseLeave` still fire.
+- **`zIndex` is per-sibling-group** — it does not lift an element above a different branch. Use tree order (or array return in coded UI) for cross-branch stacking, and the renderer `zIndex` *option* to stack whole renderers (`ui-components.md` → Renderer zIndex; the Admin Tools smart item sits at 1000).
+- **`opacity` multiplies down the tree.** A child at 0.8 inside a root at 0.5 renders at 0.4.
+- **`textureMode: 'stretch'` deforms non-uniform art**; use `'nine-slices'` + `textureSlices` for panels/buttons, `'center'` for native size. `color` beside `texture` tints it.
+- **Insets do not clip.** `ScreenInsetArea` / `InteractableArea` set no `overflow`, so content positioned past the inset renders into the reserved zone. Overflow past the safe-area outline is a placement bug to fix, not something to hide with `overflow: 'hidden'`.
+- **Hand-placed `ScreenInsetArea` / `InteractableArea` on 7.26.0+ stack on the renderer's own `screenInset`** (default `'device'`) — pass `screenInset: 'none'` when you place the wrapper yourself. Below 7.26.0 the wrapper is the only mechanism. The generated aggregator is the exception you cannot change (see **The aggregator**).
+- **`UiCanvasInformation.width` / `height` are raw canvas pixels**, not virtual units — inputs for decisions (which layout, which texture), not for computing sizes.
 
 ## Troubleshooting
 
-Work through the wiring causes in this table in order before speculating about layout-level causes (sizing, `display: 'none'`, off-screen positioning, color-on-color) — wiring problems are the cause by a wide margin.
+Work through the wiring causes first — they are the cause by a wide margin.
 
-| Problem                                                        | Cause                                                                                                                | Solution                                                                                                                                     |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI not rendering / invisible / nothing on screen (most common) | `setupUi()` is not called from `main()` in `src/index.ts` — users sometimes remove or comment out this call | Add the `setupUi()` call inside `main()`. Always check this first.                                                                           |
-| UI not rendering even though `setupUi()` is called             | `ReactEcsRenderer.setUiRenderer(...)` missing from `setupUi()` itself                                                | Add `ReactEcsRenderer.setUiRenderer(MyUI, { virtualWidth: 1920, virtualHeight: 1080 })`                                                      |
-| UI blank on first frames, sometimes appears later              | Root component returns `null` (or falsy) on first render with no fallback                                            | Render a placeholder or hidden root instead of returning `null`                                                                              |
-| Multiple UIs fighting / UI missing                             | More than one `setUiRenderer` call — later calls replace earlier ones, so only the last one wins                     | Only call `setUiRenderer` once — combine all UI into a single root component, or use `addUiRenderer` with separate owner entities            |
-| Absolute-positioned children laid out unexpectedly             | Root `<UiEntity>` has no `width`/`height` — without a full-canvas root, some absolute-positioned children may not render | Add `uiTransform={{ width: '100%', height: '100%' }}` to the root — see "Convention" section below for empirical evidence.                   |
-| UI elements overlapping                                        | Missing `flexDirection` or wrong layout                                                                              | Set `flexDirection: 'column'` on the parent container                                                                                        |
-| Buttons in the top-left / along the left edge visible but not clickable, or partly hidden | Scene UI sits under the explorer's own HUD (minimap, chat, mobile joystick). Client UI is drawn on top of scene UI and takes the clicks | Anchor the panel to the right or center it, or set `screenInset: 'interactable'` on the renderer. See "Never anchor UI to the top-left" above |
-| Mobile: taps on the lower-right part of a large panel do nothing / trigger jump or E instead | The native action buttons are drawn over the interactable area | Keep interactive elements out of the bottom-right, or hide the touch controls with `TouchScreenControls.hideAll()` while a full-screen UI is open |
-| Button clicks not registering                                  | Missing `onMouseDown` handler                                                                                        | Add `onMouseDown={() => { ... }}` to the Button or UiEntity                                                                                  |
-| **Nothing on screen is clickable any more** — other UI elements dead, 3D world unclickable, cursor does nothing | A full-screen (`100%`×`100%`) wrapper carries a pointer handler or `pointerFilter: 'block'`. Its rect is the whole screen, so it captures every click even though only a small panel is visible | Strip all listeners and `pointerFilter: 'block'` from the layout wrapper; move them onto the panel/button that actually needs them. See the pointer-blocking gotchas above |
-| JSX errors at compile time                                     | File extension is `.ts` instead of `.tsx`                                                                            | Rename the file to `.tsx`                                                                                                                    |
-| Text not visible                                               | Text color matches background                                                                                        | Set contrasting `color` on Label or `uiText`                                                                                                 |
-| **UI looks right on one explorer but labels overlap / the panel is squashed on another (Unity)** | `Label`s with no explicit `width`/`height`, and/or a container auto-sizing from its text children. Bevy measures text and lays it out; Unity gives the unset dimension ~0 while still drawing the glyphs, so stacked labels collide and the parent collapses | Give every `Label` an explicit `uiTransform` box (wrapped text: height = line count × line height) and an explicit height to every container stacking labels. See the text-sizing gotcha above |
-| Part of a string missing, or shows as an empty/□ box — often an icon character | Emoji or other decorative Unicode in the text. The explorer has no glyph for it (the Unity explorer ships no emoji glyphs) and renders nothing or a missing-glyph box | Remove the emoji; use a `uiBackground.texture` icon on a small `UiEntity` beside the label instead. Engine-dependent, so verify on the target explorer, not just one |
+| Problem | Cause | Solution |
+|---|---|---|
+| UI not rendering / nothing on screen (most common) | `setupUi()` not called from `main()` in `src/index.ts` | Add the call. Always check this first |
+| UI not rendering even though `setupUi()` is called | `ReactEcsRenderer.setUiRenderer(...)` missing from `setupUi()` | Restore the aggregator shape (editable) or the canonical call (coded) |
+| UI blank on first frames, appears later | root component returns `null` / falsy on first render | Render a placeholder or a gated root instead |
+| Multiple UIs fighting / UI missing | more than one `setUiRenderer` — the last silently wins | One `setUiRenderer`; extra modules via `addUiRenderer` with their own owner entities |
+| Absolute-positioned children laid out unexpectedly | root `<UiEntity>` lacks `width: '100%', height: '100%'` | Add it (empirically required — a `top-right` child vanished without it) |
+| UI elements overlapping | missing `flexDirection`, or labels with no box | `flexDirection: 'column'` on the parent; explicit `Label` boxes |
+| Buttons in the top-left / along the left edge visible but not clickable, or partly hidden | scene UI sits under the explorer's HUD (minimap, chat, mobile joystick), which takes the clicks | Anchor right or center, or use the `interactable` inset — see **Placement** |
+| Mobile: taps on the lower-right of a large panel do nothing / trigger jump or E | the native action buttons are drawn over the interactable area | Keep interactive elements out of the bottom-right, or hide the touch controls while a full-screen UI is open |
+| Button clicks not registering | missing `onMouseDown` | Add it to the `Button` / `UiEntity` (a `@ui-action` thunk in editable UI) |
+| **Nothing on screen is clickable any more** | a `100%`×`100%` wrapper carries a listener, a `useInteraction` spread, or `pointerFilter: 'block'` | Strip them from the wrapper; move gates/handlers onto the panel/button |
+| Looks right on one explorer, labels overlap / panel squashed on Unity | `Label`s with no explicit box, container auto-sizing from text | Explicit `width` / `height` on every label and every label-stacking container |
+| Part of a string missing or shows as □ | emoji / decorative Unicode | Remove it; use a texture icon |
+| JSX errors at compile time | file is `.ts` not `.tsx` | Rename |
+| Text not visible | color matches background | Contrasting `color` |
+| Component looks collapsed / height 0 on the editor canvas, fine in-world | component root or ref wrapper without explicit `width` / `height` | Declare both |
+| Panel refuses every edit on a node (frozen) | a computed value, identifier or call in `uiTransform` / `uiBackground` / `Label` props | Literal or bare `state.x` / `props.x`; move the math to the driver |
+| Subtree missing from the canvas (opaque) | `{cond && …}`, ternary, `.map()`, JSX comment, unknown element, non-`useInteraction` spread | Substitute per **What is never expressible** |
+| Editor shows "UI Editor Unavailable" | `@dcl/sdk` below 7.26.0 | Update the scene's SDK |
+| Drag slider jitters / wrong speed | value read through a stale closure, or `TRACK_PX` / scale-factor mismatch | `{baseDir}/references/drag-slider.md` |
 
-## Convention: root `<UiEntity>` must set `width: '100%', height: '100%'`
+## Self-check list
 
-Set `uiTransform={{ width: '100%', height: '100%' }}` on the root `<UiEntity>` returned to `setUiRenderer` / `addUiRenderer` whenever the UI uses absolute positioning. Do this by default.
+Run over **every** `.tsx` under `src/ui/` you write or adapt. Each item is a silent editor failure if violated.
 
-Note: this is required specifically so absolute-positioned children get a full-screen positioning context. Some engine test scenes that lay everything out with flow/`margin` (no absolute children) use a smaller root (e.g. `90%` or `50%`) and render fine — but a full-canvas root is the safe default and never hurts.
+1. File is `src/ui/<PascalCaseName>.tsx`, basename equals the exported component name, first line is `/** @jsx ReactEcs.createElement */`, exactly one exported component.
+2. Every JSX element name is `UiEntity`, `Label`, `Input`, `Dropdown`, `Button`, or a component exported by another `src/ui/` file.
+3. No `{cond && <X/>}`, no `cond ? <A/> : <B/>` — except a `usePlatform()` variant whose branches are each a single element or `null`.
+4. No `.map()`, loops, or array-built children.
+5. No `{/* JSX comments */}`; comments are `//` outside JSX.
+6. Every value inside `uiTransform` / `uiBackground` is a literal or a bare `state.x` / `props.x`. Grep those objects for `?`, `+`, `*`, `Math.`, `(` and bare identifiers — each is a frozen node.
+7. All text is on `Label` / `Button` `value`; no `uiText` bag on a `UiEntity`.
+8. Every template literal in a prop interpolates only bare references.
+9. The only spread on any element is a single `{...someUseInteractionConst}`.
+10. Visibility is a `useInteraction` `active` layer setting `display: 'none'`; hover/press are `hover` / `press` layers.
+11. **No pointer handler, no `{...useInteraction}` spread, no `pointerFilter: 'block'` on any `100%`×`100%` element** (or any unsized element that fills the screen). Sole exceptions, both gated off when idle: a modal backdrop and a drag-release catcher.
+12. `export interface State` + `export const state: State` present; every property is `number`, `string`, `boolean`, `string[]`, or a structural `{ r, g, b, a }` color.
+13. Declared props are an inline object type of optional `number` / `string` / `boolean` / callback members only.
+14. Every handler is a `/** @ui-action */` function taking `({ state, props, value }: UiAction)`, wired through a thunk.
+15. All bound sizes/positions are px numbers; no percent strings in bound values.
+16. The component root declares both `width` and `height` (px or percent literals), and so does every wrapper `UiEntity` around a component ref, matching that component's root size.
+17. No clock, `Date.now()`, `setTimeout`, easing, rounding or string formatting anywhere in `src/ui/` — it lives in the driver.
+18. `src/ui/index.tsx` matches the generated shape exactly, each root wrapped in `ScreenInsetArea` unless full-canvas control was explicitly requested.
+19. Mobile pass: layout survives a `1600x720` canvas, touch targets ≥ ~48 px, no hover-only affordances, no emoji, nothing anchored top-left, nothing interactive bottom-right.
+20. No `TouchScreenControls` call anywhere you wrote in a UI-Designer scene — mobile controls are the MobileHUD panel's, via `src/mobile-hud.ts`. Grep the scene and confirm the only hit is that generated file.
 
-**The corollary: that full-canvas root — and every other `100%`×`100%` wrapper the convention produces — must stay pointer-transparent.** It exists to define a positioning context, nothing else. Give it `uiTransform` and `uiBackground` only; never a listener, never `pointerFilter: 'block'`. A handler there captures pointer input over the entire screen and silently kills every other click in the scene (see the pointer-blocking gotchas above). This is the trap the convention creates, so check it every time you add a handler: is this element the smallest one that needs it?
+## References
 
-Rationale (**empirically verified** — tested in-engine June 2026):
-
-- Without a full-canvas root, absolute-positioned children using `position: { top, right }` may fail to render entirely. In testing, a root with no explicit `width`/`height` caused a `top-right` positioned child to disappear while a `bottom-left` child rendered correctly. Adding `width: '100%', height: '100%'` to the root fixed the issue.
-- A full-canvas root gives absolute-positioned children (`positionType: 'absolute'` with `position: { top, left, ... }`) a known, full-screen positioning context. This matches the implicit assumption most HUD code makes.
-- It avoids edge-case layout surprises with Yoga's default sizing for unspecified `width`/`height`.
-
-## Example scenes
-
-Engine-team test scenes exercised against the real renderer (ground truth for the APIs above):
-
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,6-ui-zindex-and-opacity — `zIndex` (incl. negative) and `opacity` on `uiTransform`, including root-level opacity cascade; buttons cycle values. Also the `zIndex` *renderer option* in `src/renderer-stacking.tsx`: three overlapping rectangles, one per `addUiRenderer` (registered A→B→C with zIndex 20/10/0, so A is in front despite being first), each re-registered on the same owner entity with the next value from `[-20,-10,0,10,20]` when its button is clicked. A fourth renderer added with no options sits on top by registration order alone. `src/admin-toolkit-stacking.tsx` covers the Admin Tools smart item at renderer zIndex 1000; `src/raw-siblings.tsx` covers raw `UiTransform` siblings created with no `rightOf` (creation order + per-element `zIndex`, incl. remove/re-add), and shows the full proto-default `PBUiTransform` a raw component needs.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/70,-9-sdk7-ui-backgrounds — every `uiBackground` texture mode (`stretch`, `nine-slices`, `center`), color tinting over textures, `avatarTexture`, and `textureSlices`.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-3-ui — `Label`/`Input`/`Dropdown`/`Button` end to end, `uiText` on `UiEntity`, `margin` CSS-shorthand strings, `'auto'` sizing, `UiCanvasInformation`.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-3-ui-2 — array-return of stacked panels, `disabled` toggling, border props (`borderWidth`/`borderColor`/`borderRadius`) on Input/Dropdown/Button, uncontrolled-input clear trick, textured `Button` (nine-slices) vs. clickable `UiEntity`.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-2-ui-screen-inset-area — the three `screenInset` modes of `setUiRenderer`/`addUiRenderer` (`'none'`, `'device'`, `'interactable'`) as three coexisting renderers, each framing the area it is positioned in and printing the live `UiCanvasInformation.screenInsetArea` / `.interactableArea` values.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
-
-For full code examples and implementation patterns, see `{baseDir}/references/ui-patterns.md`. For component prop details, see `{baseDir}/references/ui-components.md`. For sliders and the limits of UI pointer input, see `{baseDir}/references/ui-sliders.md`.
+- `{baseDir}/references/component-template.md` — the editor's seed file, a minimal component, a fully-featured one (bindings, mixed text, hover, two-variable exit gate), the dialog before/after, a props-driven fill bar, unrolled variants, the composed screen, the aggregator.
+- `{baseDir}/references/interaction-helper.md` — verbatim `src/ui/interaction.tsx` and `src/ui/platform.tsx`, plus the usage shapes the parser recognizes.
+- `{baseDir}/references/driver-pattern.md` — eased open/close, formatted timer, two-variable exit gate, action→driver handshake, derived values, naming-convention drivers.
+- `{baseDir}/references/adapting-coded-ui.md` — before/after recipes for porting a coded UI, and what to tell the user cannot be ported.
+- `{baseDir}/references/drag-slider.md` — why sliders need `PrimaryPointerInfo.screenDelta`, the in-world-verified editable slider (tap-to-step + drag, gated release catcher, driver), the coded variant, the SDK-version-dependent scale factor.
+- `{baseDir}/references/editor-behavior.md` — what the Creator Hub UI editor writes and shows: layout axes, widget presets, Scene Inset, canvas tools, mode persistence, the mobile preview and its limits, the MobileHUD panel's fields.
+- `{baseDir}/references/ui-components.md` — full prop reference for the five elements, `uiInputBinding`, backgrounds (texture modes, nine-slices, UVs, tint, avatar), element and renderer `zIndex`, `screenInset` / `ScreenInsetArea` / `InteractableArea`, `UiCanvasInformation`, and the engine test scenes that are ground truth.
+- `{baseDir}/references/coded-ui.md` — the free-form path: virtual-screen default rule and the 7.26.0 version gate, `addUiRenderer` and hybrid scenes, module-level state with conditional rendering, the from-scratch widget patterns, and each pattern's editable equivalent.
 
 ## Cross-references
 
-- **UI that must be editable in the Creator Hub**: the Creator Hub's 2D UI editor (UI Designer) parses the scene's real `.tsx` files under `src/ui/` as its document, and only a subset of React-ECS code round-trips. If the user wants to design or restyle the UI visually in the Creator Hub, follow the **editable-ui** skill instead of writing free-form React-ECS — computed style values, loops, conditionals and unknown elements silently become read-only there.
-- **Platform detection**: Use `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` to branch UI for mobile vs. desktop. See the **advanced-input** skill.
-- **Localized UI text**: `getPlayerLanguage()` (same `@dcl/sdk/platform` module) returns the player's client language as a BCP-47 tag, with `onPlayerLanguageChanged` for mid-session switches. Pick strings from it instead of hardcoding English. It returns `'en'` until the explorer answers, so read it in a system rather than at module scope. See **advanced-input** > "Player language". [UNRELEASED — ships in the `@dcl/sdk` release after 7.29.0.]
-- **Sending the player to a client panel**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it — so a HUD button can pause gameplay, open the backpack, and resume on close instead of guessing. Requires a user gesture. See **scene-runtime** > `references/explorer-ui.md`.
-- **Mobile on-screen controls in a UI-Designer scene**: the touch HUD is edited from the UI Designer's **MobileHUD** entry, which owns `src/mobile-hud.ts`. Do not hand-write `TouchScreenControls` elsewhere in such a scene. See **editable-ui** > "MobileHUD".
-- **Mobile UI limitations**: `borderRadius` is unsupported on mobile. Design for touch (larger tap targets, no hover states). See the mobile considerations in the **advanced-input** skill.
-- **Rules / instructions content**: keep onboarding panels to a few short lines and prefer showing over telling. The **game-design** skill ("Rules: show, don't tell") lists the text-heavy pop-up and unreadable in-world rulebook anti-patterns to avoid.
-- **Replacing the native mobile controls**: the on-screen joystick, crosshair, and gamepad buttons are not fixed — `TouchScreenControls` (SDK 7.26.0+, see **advanced-input**) hides any of them so scene UI can take their place, with `UiInputBinding` (above) wiring the replacement buttons to InputActions.
+- **Platform detection**: `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` (wrapped by `usePlatform()` in editable UI). See **advanced-input**.
+- **Localized UI text**: `getPlayerLanguage()` (same module) returns the player's client language as a BCP-47 tag, with `onPlayerLanguageChanged` for mid-session switches. It returns `'en'` until the explorer answers, so read it in a system (the driver), not at module scope. See **advanced-input** > "Player language". [UNRELEASED — ships in the `@dcl/sdk` release after 7.29.0.]
+- **Sending the player to a client panel**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it. Requires a user gesture. See **scene-runtime** > `references/explorer-ui.md`.
+- **Replacing the native mobile controls**: `TouchScreenControls` (SDK 7.26.0+, **advanced-input**) hides the joystick / crosshair / gamepad buttons so scene UI can take their place, with `uiInputBinding` wiring replacement buttons to InputActions. In a UI-Designer scene that config belongs to the MobileHUD panel. The client's own HUD (chat, profile, emote wheel) cannot be hidden.
+- **Rules / instructions content**: **game-design** ("Rules: show, don't tell") lists the text-heavy pop-up and unreadable in-world rulebook anti-patterns.
+- **Editing the open scene live** (entities, smart items, settings): **creator-hub-mcp**.
