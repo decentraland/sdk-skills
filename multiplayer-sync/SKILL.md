@@ -371,7 +371,12 @@ In both cases: resolve the target `Entity` from the user id on **every** write. 
 
 ## Multiplayer Testing
 
-Open multiple browser windows to test multiplayer locally. Each window is a separate player.
+Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing Preview a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
+
+- **Second desktop instance**: tick **Multi-Instance Preview** in Creator Hub's Preview Options dropdown (requires `@dcl/sdk` >= 7.20.4), or run `npx sdk-commands start --multi-instance`; then press Preview / run the command again. `-n` ("open a new instance of the Client even if one is already running") forces a new window on its own. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each.
+- **Desktop + browser**: leave the desktop client open and add the Bevy web client as player 2 — Preview Options → *Preview with: Bevy (Web)*, or `npx sdk-commands start --web` (alias `--bevy-web`), which opens `https://decentraland.org/bevy-web/?preview=true&realm=<local realm origin>` (`.zone` under `--dclenv zone`). Browser tabs have no instance limit.
+
+The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `open-deeplink-in-new-instance=true` (from `-n`) or `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
 
 ### Offline Mode
 

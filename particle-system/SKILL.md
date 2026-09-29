@@ -144,7 +144,7 @@ Reserve code (`ParticleSystem.create`/`getMutable` in `src/` or via a Script com
 
 - Component name: `core::ParticleSystem` (component id `1217`).
 - `shape` is a protobuf oneof, serialized as `{"$case":"sphere","sphere":{"radius":1}}`, `{"$case":"cone","cone":{"angle":25,"radius":1}}`, `{"$case":"box","box":{"size":{"x":1,"y":1,"z":1}}}`, or `{"$case":"point","point":{}}`.
-- `texture` is a flat `Texture` (NOT `TextureUnion`), serialized as `{"src":"assets/images/spark.png"}`. The `$case`/`tex` wrapper used by `Material` does not apply here.
+- `texture` is a flat `Texture` (NOT `TextureUnion`), serialized as `{"src":"assets/Images/spark.png"}`. The `$case`/`tex` wrapper used by `Material` does not apply here.
 
 ## Playback control
 

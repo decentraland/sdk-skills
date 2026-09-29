@@ -165,7 +165,7 @@ Before exporting, check what the model adds against the scene's budget (formulas
 - **Materials**: `log2(n+1) × 20` scene-wide — merge, use the palette pattern, reuse textures across models.
 - **Textures**: `log2(n+1) × 10` scene-wide — power-of-two, ≤1024×1024.
 - **File size**: 15 MB per parcel, 50 MB max per file — keep GLBs well under this; textures are usually the culprit.
-- **Height**: `log2(n+1) × 20` m — a tall model can break the height limit even when its origin sits at y=0.
+- **Height**: 330 m for every scene, regardless of parcel count — a tall model can break the height limit even when its origin sits at y=0. Geometry above ~200 m may suffer multiplayer sync issues.
 
 These are soft limits (except file size) — exceeding them hurts performance but does not block publishing. When a model pushes the scene over, say so and propose reductions rather than silently exporting.
 

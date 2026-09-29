@@ -210,7 +210,7 @@ ReactEcsRenderer.addUiRenderer(owner, MyWidget, { screenInset: 'interactable' })
 
 ## Renderer zIndex (Stacking Between Renderers)
 
-SDK 7.29.0+. Renderers stack in the order they first render, the latest on top; among those first rendered in the same tick, the main UI goes at the back, then the added ones in order. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of that; `0` keeps the default order.
+SDK 7.29.0+. Renderers stack in the order they first render, the latest on top; among those first rendered in the same tick, the main UI goes at the back, then the added ones in order. The `zIndex` renderer option puts a whole renderer in front of or behind the others regardless of that. **`0` is interpreted as "unset"** and keeps the default positional order — to push a renderer behind the others, use a negative value.
 
 ```ts
 ReactEcsRenderer.setUiRenderer(MainHud, { zIndex: -10 })          // behind every module
@@ -221,6 +221,8 @@ ReactEcsRenderer.addUiRenderer(owner, Inventory, { zIndex: 20 })  // same owner:
 - Per renderer, on `setUiRenderer` and `addUiRenderer` alike.
 - Orders renderers against each other only; `uiTransform.zIndex` inside a renderer keeps ordering its own siblings.
 - Applied to the renderer's root container. With `screenInset: 'none'` a whole-screen root is added to carry it, so the renderer's own root becomes a child of it.
+- **The Admin Tools smart item occupies renderer `zIndex: 1000`** (`@dcl/asset-packs` 2.21.1+), rendered through the scene's own `ReactEcsRenderer`, so its toggle button stays on top. Stay below 1000 for scene UI. On older asset-packs it created a second react-ecs system instead, which broke *all* renderer `zIndex` ordering in the scene.
+- Raw-ECS `UiTransform` siblings that leave `rightOf` at its default `0` keep **creation order** and each honours its own `zIndex`; re-adding a removed one makes it the newest child. `PBUiTransform` has no partial form, so a raw component must spell out every field at its proto default.
 
 ## ScreenInsetArea (Mobile Hardware-Safe Region)
 

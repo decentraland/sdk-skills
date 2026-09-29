@@ -11,8 +11,8 @@ Two ways you can be running:
 
 | You are… | How the tools reach you |
 | --- | --- |
-| **Inside the Creator Hub's AI assistant** (Settings > Experimental > *AI scene assistant*; off by default) | Pre-wired. The app launches your `claude` / `codex` CLI with the server registered as `creator-hub`, links these skills into the scene, and injects the same rules as this skill. Nothing to set up. |
-| **In another tool** (Claude Code terminal or VS Code extension, Cursor, Codex, Claude Desktop, …) | Connect to the running Creator Hub — see [`reference/connect.md`](reference/connect.md). The user copies a JSON snippet from Settings > Experimental > *Expose AI assistant MCP server*. Skills are **not** wired up for you here — see [Where the skills come from](#where-the-skills-come-from). |
+| **Inside the Creator Hub's AI assistant** (Settings > AI > *Enable AI Assistant*; **on by default** since Creator Hub 0.50.0 — it is no longer experimental) | Pre-wired. The app launches your `claude` / `codex` / `cursor-agent` / `gemini` CLI with the server registered as `creator-hub`, links these skills into the scene, and injects the same rules as this skill. Nothing to set up, for any of the four providers. |
+| **In another tool** (Claude Code terminal or VS Code extension, Cursor, Codex, Claude Desktop, …) | Connect to the running Creator Hub — see [`reference/connect.md`](reference/connect.md). The user copies a JSON snippet from Settings > AI > *Expose AI assistant MCP server*. Skills are **not** wired up for you here — see [Where the skills come from](#where-the-skills-come-from). |
 
 In Claude Code the tools appear as `mcp__creator-hub__<tool>`; inside the Creator Hub's assistant and in other clients they appear under their bare names (`scene_state`, `create_entity`, …). The connected tools are self-describing — treat the live catalog as authoritative over the table below.
 
