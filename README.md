@@ -58,7 +58,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `editable-ui` | Write React-ECS UI that stays fully editable in the Creator Hub's 2D UI editor (UI Designer). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
-| `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
+| `lighting-environment` | Dynamic lighting, shadows, skybox time, custom sky/reflection textures, sky/sun/fog colors, clouds, stars. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |

@@ -159,7 +159,7 @@ Values are seconds since midnight; a full day is `86400`.
 
 Any value above `86400` is interpreted as midnight. Omit `fixedTime` for a dynamic day/night cycle.
 
-`worldConfiguration.skyboxConfig.fixedTime` is verified working in the engine test scenes, and takes precedence over a top-level `skyboxConfig.fixedTime` if both are present. See the **lighting-environment** skill for runtime control (the `SkyboxTime` component, which overrides either JSON value).
+`worldConfiguration.skyboxConfig.fixedTime` is verified working in the engine test scenes, and takes precedence over a top-level `skyboxConfig.fixedTime` if both are present. See the **lighting-environment** skill for runtime control (the `SkyboxTime` component, which overrides either JSON value) and for the `Skybox` component (custom sky texture, reflections, sky colors).
 
 ## Multi-Scene Worlds
 
