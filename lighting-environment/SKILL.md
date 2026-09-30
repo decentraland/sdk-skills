@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, Skybox (custom sky texture, reflection map, sky colors, sun, fog, clouds, stars), realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, a custom sky or reflections, sky/fog colors, hiding the sun, complete darkness, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
+description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, Skybox (custom sky texture or video, reflection map, sky colors, sun, fog, clouds and cloud texture, stars), realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, a custom or video sky or reflections, custom clouds, sky/fog colors, hiding the sun, complete darkness, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
 ---
 
 # Lighting and Environment in Decentraland
@@ -203,7 +203,7 @@ engine.addSystem(dayNightCycle)
 `Skybox` replaces the sky, the reflection map every shiny material uses, and the procedural sky's colors and constants. Root entity only (`engine.RootEntity`); every field is optional and an unset field keeps its time-of-day default.
 
 ```typescript
-import { engine, Material, Skybox, ColorGradient } from '@dcl/sdk/ecs'
+import { engine, Material, Skybox, VideoPlayer, ColorGradient } from '@dcl/sdk/ecs'
 import { Color4 } from '@dcl/sdk/math'
 
 // Textures: equirectangular (2:1 lat-long) images from the scene's assets. Image centre faces +Z.
@@ -211,6 +211,14 @@ import { Color4 } from '@dcl/sdk/math'
 Skybox.create(engine.RootEntity, {
   skyboxTexture: Material.Texture.Common({ src: 'images/sky.png' }),
   reflectionMap: Material.Texture.Common({ src: 'images/reflections.png' })
+})
+
+// Video sky: skyboxTexture, reflectionMap and clouds.texture also accept Material.Texture.Video
+// pointing at an entity with a VideoPlayer (no mesh needed). Sky is live; derived reflections lag a few frames.
+const video = engine.addEntity()
+VideoPlayer.create(video, { src: 'assets/sky.mp4', playing: true, loop: true, volume: 0 })
+Skybox.createOrReplace(engine.RootEntity, {
+  skyboxTexture: Material.Texture.Video({ videoPlayerEntity: video })
 })
 
 // Colors are ColorGradients over the normalized time of day: 0 = 00:00, 0.5 = 12:00, 1 = 24:00
@@ -226,7 +234,10 @@ Skybox.createOrReplace(engine.RootEntity, {
   },
   sun: { color: constant(Color4.create(1, 0.65, 0.4, 1)), visible: true },
   fog: { color: constant(Color4.create(0.85, 0.5, 0.3, 1)) },
-  clouds: { opacity: 0.3, speed: 0.01, color: constant(Color4.create(0.9, 0.6, 0.4, 1)) },
+  clouds: {
+    opacity: 0.3, speed: 0.01, color: constant(Color4.create(0.9, 0.6, 0.4, 1)),
+    texture: Material.Texture.Common({ src: 'images/clouds.png' })  // custom cloud layer (equirect 2:1, image or video); unset = default clouds
+  },
   stars: { brightness: 4.62 }
 })
 
@@ -269,7 +280,9 @@ Defaults (from the protocol): `sun.visible` true, `clouds.opacity` 1 (0 hides cl
 - `sun.color` tints both the directional light and the sun disc. `sun.visible: false` hides sun, moon and lens flare only; the light keeps casting.
 - `fog.color` only recolors the fog. Fog on/off is a player quality setting; a scene cannot force it.
 - `skyColors`, `clouds` and `stars` are inert while `skyboxTexture` is set (the texture replaces the procedural sky); `sun`, `fog` and the derived ambient still apply.
-- Only `Material.Texture.Common` (file) textures are supported; avatar/video textures are ignored. A failed load keeps the default.
+- `skyboxTexture`, `reflectionMap` and `clouds.texture` take `Material.Texture.Common` (file) or `Material.Texture.Video` (an entity with a `VideoPlayer`, `playing: true`); avatar textures are ignored. A failed load keeps the default.
+- Video sources: the `VideoPlayer` entity needs no mesh or material, but it is a normal video player — it plays audio unless `volume: 0`, and it counts toward the simultaneous-video limit; while the skybox uses it the distance-based video prioritization never pauses it. A non-2:1 video is stretched to the equirect mapping.
+- `clouds.texture` channels: R = cloud tint intensity (multiplied by `clouds.color`), G = opacity/coverage, B = sun-highlight mask. A grayscale image is a plain cloud mask. `opacity`, `speed` and `color` still apply on top of it.
 - Scope: active only while the player is inside the scene. Leaving, `deleteFrom`, or unsetting a field restores the defaults instantly (no fade); re-entering re-applies. While active the overrides are global render state — neighbouring parcels seen from inside the scene render with this sky, fog and lighting.
 - Pair with `SkyboxTime` to pin a gradient at one time of day.
 
@@ -374,6 +387,8 @@ Verified against docs commit `09c5818` (mobile parity tracker, Aug 2026).
 - `Skybox` is root-entity only and per-scene: it never affects other scenes, but a skybox/fog/sun override tints neighbouring parcels while the player stands in the owning scene.
 - Recoloring the sky without `skyColors` (e.g. only `fog`) leaves the ambient light unchanged — set all three `skyColors` for a coherent look, or black for total darkness.
 - `sun.visible: false` is the only way to remove the lens flare over a custom `skyboxTexture`; the flare is screen-space and is otherwise drawn on top of the texture.
+- `clouds.texture` is not an RGBA cloud image: R = tint intensity, G = opacity/coverage, B = sun-highlight mask. Paint opacity into G (or use a grayscale image), not into alpha.
+- `clouds.texture` is inert while `skyboxTexture` is set — the panorama replaces the whole procedural sky, clouds included. Use it only with the procedural sky (sky colors), never expecting clouds over a custom panorama.
 - **Baked light geometry is inert.** GLB models with lamp/bulb meshes do not emit light -- add a `LightSource` component for real illumination. See the rule above.
 - **Smart Item `Placeholder` needs a resolved file path**, not a template variable. Setting `{assetPath}/spotlight.glb` as the `src` in an `asset-packs::Placeholder` results in an invisible/broken gizmo. `place_smart_item` resolves this automatically to e.g. `assets/asset-packs/spotlight/spotlight.glb`. If you must set `Placeholder` manually via `set_component`, use the real on-disk path.
 
