@@ -131,9 +131,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Screen-Space UI
 
-**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
-
-**Skill: `editable-ui`** — Write that UI so the Creator Hub's 2D UI editor (UI Designer) can read and edit it: the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach. Use whenever the user wants UI editable in the Creator Hub, or wants an existing coded UI adapted for it.
+**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs, sliders. By default writes UI the Creator Hub's 2D UI editor (UI Designer) can read and edit — the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach — and falls back to free-form coded React-ECS only for data-driven UI the editor cannot represent. Also covers adapting an existing coded UI for the editor.
 
 ### Audio & Video
 
@@ -178,6 +176,8 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 ### Game Design
 
 **Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
+
+**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up at all — either just means the Explorer is not running yet.
 
 ### Deployment
 

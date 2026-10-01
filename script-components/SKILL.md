@@ -148,6 +148,8 @@ The `asset-packs::Script` component value has the shape `{ value: [{ path: strin
 {"params":{"paramName":{"type":"string|number|boolean|action","value":<value>}}}
 ```
 
+`layout` also carries `actions` (from `@action` methods) and `events` (from `@event` tags, see below), plus an `error` string when parsing failed. Only `params` feeds the constructor — but **preserve the other keys whenever you rewrite the layout**, or the editor features they drive disappear.
+
 At runtime, `@dcl/sdk-commands/dist/logic/runtime-script.js` resolves params like this:
 
 1. `JSON.parse(layout)` to get a `ScriptLayout` object.
@@ -339,10 +341,32 @@ Most catalog Smart Items were migrated from the Actions/Triggers no-code graph t
 - **"When X happens" hooks are optional `ActionCallback` params.** Real names in the shipped items: `onClick`, `onActivate` / `onDeactivate`, `onReachStart` / `onReachEnd` (the two most common, on the moving-platform family), `onRing` (bell), and `onOpen` / `onClose` (the open/closed sign — not the doors). Wire them the way this skill's ActionCallback section describes.
 - **State lives in a synced `asset-packs::States` component** listed in `core-schema::Sync-Components` (`{"componentIds": ["asset-packs::States"]}`). E.g. a door creates `States` with `value: ['Open','Closed'], defaultValue: 'Closed'` in `start()`; a chair carries `['Free','Taken']` per sit spot. Read and write state through `States`, not through script instance fields, or it will not replicate.
 
-**Not migrated** (still Actions/Triggers): `click_area`, `trigger_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers). `video_player` is **`[DEPRECATED]`** (moved to the `deprecated` category) — use one of the video screen items instead.
+**Not migrated** (still Actions/Triggers): `click_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers). `video_player` is **`[DEPRECATED]`** (moved to the `deprecated` category) — use one of the video screen items instead.
 
 **New items are written as Scripts from the start.** `locomotion_settings` ("Locomotion Settings", `utils`, creator-hub `cb097fff`) is the current reference example and worth reading before writing your own: nine `Slider<Min,Max,Step>` params seeded with the SDK defaults and a `@param` tooltip each, a `start()` that writes a component onto `engine.PlayerEntity` (a **global** effect, not a per-entity one — the item has no in-world presence at all), two `@action` methods (`apply` re-writes the values, `restoreDefaults` calls `deleteFrom`), and an editor-only `asset-packs::Placeholder` cube so the thing can be selected in the viewport while being invisible in-world. It carries no `Actions`, no `Triggers`, no `Config`, and no `States`. See the **player-avatar** skill for what it configures.
 
 **`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
+
+**`trigger_area` is now a Script item too.** The old Actions/Triggers `trigger_area` asset was deleted in creator-hub `e43441b5`; the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`) is the only one left — the interim "Trigger Area (Script)" label is gone. Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
+
+## `@event` — declaring hooks for reaction scripts
+
+A class (or `start()` function) JSDoc may carry `@event <name>` tags alongside `@param` and `@action`:
+
+```typescript
+/**
+ * @event enter
+ * @event exit
+ */
+export class TriggerAreaDetector { /* … */ }
+```
+
+- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded ("When a player enters, …"). Declare `@event` and the no-code reaction UI appears for free.
+- Tags are accepted on the **export statement, the class declaration, or the constructor** JSDoc — any of the three.
+- Names match `[A-Za-z0-9_-]+`; duplicates are collapsed.
+
+**The detector/reaction split this enables.** The SDK keeps only **one** callback per `(entity, event)` pair, so a second script calling `triggerAreaEventsSystem.onTriggerEnter` on the same entity silently replaces the first. The shipped pattern avoids that: one script owns the SDK callbacks and exposes `onEvent(name, fn)`; reaction scripts on the **same entity** find it with `getAllScriptInstances(entity)` from `~sdk/script-utils` and subscribe. A reaction must never touch `triggerAreaEventsSystem` itself. In `TriggerArea.tsx` the detector also replays `enter` to a late subscriber for anything already inside, and exposes `isInside()` for "while inside" logic.
+
+⚠️ **When writing the `layout` JSON by hand, carry `events` through on every edit.** Rebuilding the layout from `params` alone drops it and the Reactions section is wiped for good — exactly the bug fixed in creator-hub `e43441b5` (editing the Trigger Area's `shape` used to destroy its prompt fields). Spread the existing layout and overwrite only the one param you are changing.
 
 **Behavior changes worth knowing:** a seat frees itself when the sitter walks more than **1.5 m** away; `sit()` picks the **nearest free** spot; with no spot free the item shows its `takenMessage` (default **"Seat is taken"**). The avatar is moved *before* the sitting emote plays — reversing that order cancels the emote.

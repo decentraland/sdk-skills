@@ -34,7 +34,7 @@ This is also how to surface the `1`/`2`/`3`/`4` buttons (`IA_ACTION_3`..`IA_ACTI
 
 Source: Decentraland docs `creator/sdk7/interactivity/touch-screen-controls.md`, corroborated by the Creator Hub UI Designer's MobileHUD preview (`packages/inspector/src/components/UIDesigner/Canvas/MobileHudPreview/`), which implements exactly this model (`visible = [main, ...rest].filter(!hide)`, slot `i` = the `i`-th home slot, `+` only when more than five are visible). Still not confirmed against the shipping client itself.
 
-**In a Creator Hub scene that uses the UI Designer, all of this is edited from the MobileHUD panel**, which owns `src/mobile-hud.ts`. Do not hand-write `TouchScreenControls` there — see the **editable-ui** skill > "MobileHUD".
+**In a Creator Hub scene that uses the UI Designer, all of this is edited from the MobileHUD panel**, which owns `src/mobile-hud.ts`. Do not hand-write `TouchScreenControls` there — see the **build-ui** skill > "MobileHUD".
 
 ## Custom button icons
 
