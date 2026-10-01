@@ -16,6 +16,15 @@ Two ways you can be running:
 
 In Claude Code the tools appear as `mcp__creator-hub__<tool>`; inside the Creator Hub's assistant and in other clients they appear under their bare names (`scene_state`, `create_entity`, …). The connected tools are self-describing — treat the live catalog as authoritative over the table below.
 
+### Files the user attaches to a prompt
+
+Inside the Creator Hub's assistant the user can attach files to a turn (creator-hub `3395b643`): the **Attach files** paperclip left of the composer input opens a multi-select picker, files can be dropped onto the composer (overlay: *Drop files to attach*), and images can be pasted from the clipboard. Attachments appear as removable chips; **8 per prompt** is the cap. What this means for you:
+
+- **A file picked or dropped from disk arrives as its real absolute path** — no copy, no base64 round-trip, no size cap. Read it in place; do **not** ask the user to re-paste its contents or to move it into the project. A pasted (clipboard) image has no path, so the app writes it to a temp file and hands you that path instead.
+- **Any file type is accepted.** The app classifies it only for the chip icon: `image` (png, jpg, jpeg, gif, webp, bmp, svg, avif), `model` (glb, gltf), `audio` (mp3, wav, ogg, m4a, flac), `file` for everything else.
+- **This is the natural way to hand over a reference image or a GLB.** A dropped `.glb` is a model the user wants in the scene: it is still outside the project, so copy it under `assets/Models/` before referencing it from `GltfContainer` (see **add-3d-models** for the bounding-box and collider audit). A reference image is usually art direction for a UI or material, not a file to import.
+- A prompt may arrive with **attachments and no text at all** — the attachment is the request. Ask what to do with it rather than guessing.
+
 ## RULE — the MCP is the way to change the scene graph; the file is the fallback
 
 **Never write `assets/scene/main.composite`, `main.crdt`, or `scene.json` by hand while the Creator Hub MCP is available.** Reasons, all verified in the Creator Hub source:
@@ -40,7 +49,7 @@ Before creating an entity and manually assembling its components with `create_en
 - **Lights** — the catalog has Spotlight and Point Light Smart Items (category `lights`) that bundle a real GLB model, a pre-configured `LightSource` component, and built-in Turn On / Turn Off / Toggle actions. Manually creating a `LightSource` entity misses the visual model, inspector integration, and action wiring.
 - **Interactive furniture** — doors, chairs, platforms, chests, buttons, levers, etc.
 - **Media** — screens, image displays, NFT frames.
-- **Triggers** — trigger areas, click triggers.
+- **Triggers** — trigger areas, click triggers. The `utils` category has exactly **one** entry named **"Trigger Area"** (`e9fa0eab-44de-4efe-af77-a71171a1a73f`), a script-based item: an invisible box or sphere the user places and resizes, with a control that seeds the AI-assistant composer with a prompt describing what should happen on enter/leave. The older non-script item of the same name (`1ab2733f-1782-4521-9eda-6aa8ad684277`) and the interim label "Trigger Area (Script)" were both removed in creator-hub `e43441b5` — do not search for either.
 
 `place_smart_item` handles all the boilerplate that manual `set_component` calls miss:
 - Downloads the item's GLB files and resolves `asset-packs::Placeholder` with the real on-disk path (e.g. `assets/asset-packs/spotlight/spotlight.glb`).
@@ -48,6 +57,16 @@ Before creating an entity and manually assembling its components with `create_en
 - Registers the entity in `inspector::Nodes` automatically.
 
 **Only build manually** when no catalog item fits the requirement.
+
+**Media the user already has: tell them to drag it from the Local Assets tab onto the viewport.** Since creator-hub `062ed0a2` that is the fastest path and it spawns a *catalog item* pointed at their file, not a bare component — so the entity arrives with the same component set and basic-view `inspector::Config` a hand-placed item has:
+
+| Dropped file | Item spawned | What gets repointed |
+| --- | --- | --- |
+| `.png` / `.jpg` / `.jpeg` | **Image** (`37460a1e-affc-4f87-b725-118cc11d86fc`) | the `Material` PBR texture `src`; the plane is also lifted `+0.5 m` so it stands on the ground instead of being half-buried |
+| `.mp3` / `.ogg` / `.wav` | **Ambient Sound - Forest Birds** (`5c8b4646-6ec0-41a0-8e9b-415a58728a9e`) | `AudioSource.audioClipUrl` |
+| `.mp4` | **Video Screen** (`0201653b-bd38-48af-b9ef-a902a7e8bc9c`) | `VideoPlayer.src` **and** `asset-packs::VideoScreen.defaultURL` — the admin message bus re-seeds `src` from `defaultURL` at runtime, so setting only `src` is silently reverted |
+
+The entity is named after the file with the extension stripped, de-duplicated against existing names, and the template's own placeholder media file is skipped on import. `.glb` / `.gltf` still drop as plain models. You can reproduce this through the tools (`place_smart_item` the same asset id, then `set_component` the field above), but the drag is one gesture for the user — prefer it when they are at the keyboard.
 
 ## Tool catalog
 
@@ -128,5 +147,7 @@ If a user inside the Creator Hub asks to scaffold a project or publish, point th
 - **Read tools trail the engine by one autosave** (~100 ms). The mutation tools already wait it out; only matters if the user is dragging things while you read.
 - **`scene_state` caps at 200 entities.** For big scenes filter by name via `entity_detail` or read the composite from disk.
 - **Skill denylist inside the Creator Hub.** The app links `decentraland/sdk-skills` into the scene as `.claude/skills` / `.agents/skills`, but drops the `SKILL.md` of `create-scene`, `deploy-scene`, `deploy-worlds`, and `migrate-sdk6-to-sdk7`: scaffolding, publishing, and SDK6 migration are the app's own flows there. Their reference files still resolve for cross-links.
-- **The Explorer `--mcp` preview checkbox is a different server.** The Creator Hub's Preview dropdown *Enable MCP Server* launches the Explorer with its own MCP on port 8123 (the **unity-explorer-mcp** skill). The Creator Hub MCP described here is the editor's server; when it is connected, use its `launch_preview` instead of that checkbox.
+- **The Explorer `--mcp` preview checkbox is a different server.** *Enable MCP Server* lives in the **Play Options** popover (the dropdown arrow on the editor header's **Play** button), in the flyout that opens when you hover the **Desktop Client** row. It launches the Explorer with its own MCP on port 8123 (the **unity-explorer-mcp** skill). The Creator Hub MCP described here is the editor's server; when it is connected, use its `launch_preview` instead of that checkbox.
+- **One Ctrl+Z = one of your operations, not one component write.** Since creator-hub `fdc384b5` a whole synchronous change burst commits as a single undo transaction (the old 200-operation batch cap used to split a big change across several entries, so one Ctrl+Z left orphaned entities behind). A multi-entity op — placing a composite Smart Item, a scripted item with children — is now one entry, and undoing an add removes the entity from the Bevy viewport too. Still describe your changes to the user in the units they will undo them in.
+- **Scene audio can be muted in the editor, but only under Bevy.** The viewport toolbar has a speaker toggle (*Mute scene audio* / *Unmute scene audio*) that forwards every `AudioSource` / `AudioStream` to the renderer at volume 0; the state survives a reload. It is absent under the Babylon renderer, which does not play scene audio at all. So "I can't hear the sound you added" is not evidence the component is wrong — check the renderer and the toggle first, and note that an authored `volume` is not what the Bevy viewport is playing while mute is on.
 - **`asset-packs::Placeholder` `src` needs a resolved file path, not a template variable.** The catalog stores paths with `{assetPath}/model.glb` as a template; setting that string literally via `set_component` produces an invisible or broken gizmo because the engine cannot resolve the variable. `place_smart_item` resolves the path automatically (e.g. to `assets/asset-packs/spotlight/spotlight.glb`). If you must set `Placeholder` manually, use the real on-disk path to the GLB file.

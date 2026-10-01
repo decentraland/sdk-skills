@@ -288,8 +288,8 @@ Caveats:
 
 Reproduce the server-side asset bundle conversion locally before publishing. This catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models.
 
-- **Creator Hub:** check **Optimize Assets** in the dropdown next to the **Preview** button.
-- **CLI:** `npm run start -- --local-ab`
+- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` is too old for the flag.
+- **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
 
 The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
 

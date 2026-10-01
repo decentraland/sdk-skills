@@ -146,6 +146,14 @@ Read `{baseDir}/references/audio-catalog.md` before recommending audio so sugges
 
 Always check the scene's existing folders before deciding where to put a new file.
 
+### Fastest path when the scene is open in the Creator Hub
+
+Dragging a media file from the **Local Assets** tab onto the viewport spawns the matching catalog Smart Item already pointed at that file (creator-hub `062ed0a2`) — `.mp3` / `.ogg` / `.wav` spawn **Ambient Sound - Forest Birds** with `AudioSource.audioClipUrl` repointed, `.mp4` spawns **Video Screen** with both `VideoPlayer.src` and `asset-packs::VideoScreen.defaultURL` repointed. That is one gesture instead of create-entity-plus-components, and the entity arrives with the full component set and basic-view config of a hand-placed item. Prefer it over building the entity by hand when the user is at the keyboard; see **creator-hub-mcp** for the asset ids and the equivalent tool calls.
+
+⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
+
+⚠️ **The Creator Hub viewport has a mute toggle, but only under the Bevy renderer** (speaker icon in the toolbar: *Mute scene audio* / *Unmute scene audio*). It forwards every `AudioSource` / `AudioStream` at volume 0 and the state survives a reload. Under Babylon the editor does not play scene audio at all. Silence in the editor is therefore not a diagnosis — verify audio in a real preview before changing `volume` or `playing`.
+
 ## Audio-reactive scenes (visualizers, beat sync)
 
 For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.

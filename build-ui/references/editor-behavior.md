@@ -25,7 +25,15 @@ The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stre
 
 ## Scene Inset
 
-A dropdown with `device` / `interactable` / `none` wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**). The property panel's own help text: "Full Screen uses the entire renderable screen. Gameplay Safe Area excludes game-native UI such as chat, minimap and HUD indicators. Device Safe Area (mobile only) excludes physical constraints such as the notch, Dynamic Island and system bars. Requires @dcl/react-ecs 7.26.0+ in your scene."
+A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**). The panel labels and the SDK values they write:
+
+| Panel label | `screenInset` value written |
+| --- | --- |
+| **Device Safe Area** | `device` — only offered on the mobile platform preset |
+| **Interactable Safe Area** | `interactable` — renamed from "Gameplay Safe Area" in creator-hub `fbca1dca` |
+| **Full Screen** | `none` |
+
+The **values are unchanged** — a rename of the label only. Emit `screenInset: 'interactable'` regardless of which label the user quotes at you. The property panel's own help text (still using the old label): "Full Screen uses the entire renderable screen. Gameplay Safe Area excludes game-native UI such as chat, minimap and HUD indicators. Device Safe Area (mobile only) excludes physical constraints such as the notch, Dynamic Island and system bars. Requires @dcl/react-ecs 7.26.0+ in your scene."
 
 ## Opacity, not Transparency
 
