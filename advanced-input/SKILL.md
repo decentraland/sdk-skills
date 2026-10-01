@@ -297,7 +297,7 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 - Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
 - **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
 - Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
-- **If the scene uses the Creator Hub UI Designer, this component is the editor's.** Creator Hub 0.50.0+ ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **editable-ui** skill > "MobileHUD".
+- **If the scene uses the Creator Hub UI Designer, this component is the editor's.** Creator Hub 0.50.0+ ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **build-ui** skill > "MobileHUD".
 
 `PBTouchScreenControls` fields:
 

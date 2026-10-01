@@ -50,13 +50,12 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
 | `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
-| `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
+| `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs, toasts, sliders. Editable in the Creator Hub's UI Designer by default; free-form coded UI for data-driven corner cases. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
-| `editable-ui` | Write React-ECS UI that stays fully editable in the Creator Hub's 2D UI editor (UI Designer). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
