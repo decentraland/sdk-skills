@@ -260,7 +260,7 @@ Configure where and how players enter the scene:
 
 **Base parcel:** Always set `scene.base` to the southwest (lowest x,y) corner parcel.
 
-**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit applies to the whole scene and grows with parcel count: `log2(n+1) × 20` meters (1 parcel = 20m, 2x2 = ~46m, 3x3 = ~66m).
+**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit is **330 meters** for every scene, regardless of parcel count. ⚠️ Anything placed above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant content below that.
 
 - **Always validate entity positions against parcel bounds.** With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene.** An entity entirely outside the bounds is not rendered and no error is shown; a model that straddles the boundary still renders the part that is inside. The bound check uses **world** positions, so a child whose parent is moved out of bounds disappears with it, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
 
@@ -284,19 +284,30 @@ After customizing the files:
 | `--mcp-port`                 | number      | Port for the MCP server in the Explorer                                                                                                                                                                                                                                                           |
 | `--multi-instance`           | boolean     | Allow running multiple Explorer instances simultaneously                                                                                                                                                                                                                                          |
 | `--no-client`                | boolean     | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own                                                                                                                                                         |
-| `--local-ab`                 | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview").    |
+| `--asset-bundles`            | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. Forwarded into the deep link as `local-ab=true` -- `--local-ab` is the deep-link param, **not** a CLI flag. See **optimize-scene** ("Local Asset Bundle Preview").    |
 | `-- <args>`                  | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true)                                                                                                                                          |
 
 `--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
 
-**Creator Hub preview settings** (equivalent to the CLI flags above, accessed from the dropdown next to the Preview button):
+**Creator Hub play settings** (equivalent to the CLI flags above). The editor header's split button is labelled **Play** (play icon + "Play"); its dropdown arrow opens the **Play Options** popover. Exact strings as of creator-hub `8830cf6f`:
 
-- **Preview with**: Desktop Client (default) or Bevy (Web) -- equivalent to `--web`.
-- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the SDK version supports it. See the **unity-explorer-mcp** skill.
-- **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
-- **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
+The popover lists two client rows, picked with a radio:
 
-**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. Gated behind the Experimental features toggle. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
+- **Desktop Client** (default) -- the Unity Desktop Explorer. Hovering this row opens a side flyout with the desktop-only toggles below.
+- **Web (Bevy)** -- the Bevy web client; equivalent to `--web`. No toggles of its own.
+
+Desktop Client flyout toggles:
+
+- **Enable Landscape Terrains**: shows the surrounding landscape. Disabled (and forced off) when the scene's own `landscapeTerrain: false` hides it.
+- **Multi-Instance Preview**: equivalent to `--multi-instance`. Lets a second Explorer window run alongside the first.
+- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the installed `@dcl/sdk-commands` supports it. See the **unity-explorer-mcp** skill.
+- **Compress Assets**: previews with assets compressed the way they are in production -- equivalent to `--asset-bundles`. First run may be slow; results are cached. Hidden on Linux (no Unity desktop client ships there) and for scenes whose `@dcl/sdk-commands` predates the flag.
+
+Below a divider, **Show QR Code for Mobile** is a button (not a checkbox) that opens the mobile preview QR.
+
+⚠️ **The "Open Debug Console" checkbox was removed** (creator-hub `8830cf6f`) -- the debug console is now **on by default**, and existing installs got a one-time promotion to turn it on. Do not tell users to tick it. **Skip Auth Screen** is likewise no longer in the popover; it stays on unless `--multi-instance` forces a per-window login.
+
+**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. It lives in **Settings > Experimental**, which as of Creator Hub 0.50.0 contains *only* this toggle — the AI Assistant moved to its own Settings > AI tab and the UI Editor became stable with no setting at all. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
 
 Bevy editor limitations to know before recommending it:
 
@@ -318,14 +329,14 @@ npx skills add decentraland/sdk-skills --all
 
 To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
 
-The Creator Hub also has a built-in **AI scene assistant** (Settings > Experimental > _AI scene assistant_, off by default) that drives the user's own installed `claude` or `codex` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > Experimental. See the **creator-hub-mcp** skill.
+The Creator Hub also has a built-in **AI Assistant** (Settings > AI > _Enable AI Assistant_) that drives the user's own installed `claude`, `codex`, `cursor-agent` or `gemini` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. It left Experimental and is **on by default** as of Creator Hub 0.50.0; all four providers get the scene tools. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > AI > _Expose AI assistant MCP server_. See the **creator-hub-mcp** skill.
 
 The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
 
 ## Cross-References
 
 - Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publishing to a World? A World has its **own** name/description/thumbnail separate from `scene.json` — in a single-scene World every publish overwrites the World's with the scene's; see **deploy-worlds** > "World metadata vs scene metadata". Publish at least **one hour** before a live event — asset bundle conversion itself usually takes seconds, but the margin covers anything unexpected
-- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Optimize Assets** (or `--local-ab`) to preview with production-quality asset bundles before publishing
+- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Compress Assets** (Play Options > Desktop Client) or `--asset-bundles` to preview with production-quality asset bundles before publishing
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 

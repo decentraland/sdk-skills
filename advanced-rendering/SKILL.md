@@ -97,6 +97,7 @@ TextShape.create(label, {
 ```
 
 - Keep `fontSize` readable — 16-32 for in-world text.
+- Do not use `TextShape` (or a textured plane) as a rulebook: long paragraphs in-world are too small and too long to read, and players will not stop to squint. One idea per sign, ≤ 10 words, large type; move the rest into visuals and gameplay (see **game-design** → "Rules: show, don't tell").
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
 
 ### Text Alignment Options

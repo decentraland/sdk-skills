@@ -1,26 +1,26 @@
 {
   "docs": {
-    "lastCommit": "db0a7657b46b74a5d2f066df0ea473bedbea6d6a",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "c0d6eb8c4ebba1ff2d5ca9808ef885388a5a13be",
+    "lastChecked": "2026-10-01"
   },
   "protocol": {
-    "lastCommit": "5810768d778c7348477ddeb89effb1bccf33b291",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "874bb917bc2ecf146641ded8c9813c3cd5e85d9e",
+    "lastChecked": "2026-10-01"
   },
   "js-sdk-toolchain": {
-    "lastCommit": "d2f06b5eb1a2ab3377a3f99d045f957ae979c051",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "ab46c8191eddd44d23a8e01bdf5fc7d7b7141986",
+    "lastChecked": "2026-10-01"
   },
   "creator-hub": {
-    "lastCommit": "47a0b5a97ef9a68339a3504f99030e07d7c7852f",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "fbca1dcaee9d114daf21f395bb409a170e2bf265",
+    "lastChecked": "2026-10-01"
   },
   "sdk7-test-scenes": {
-    "lastCommit": "07ba611046a70e0c797fdd40429cfd71f138d708",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "cbb20eb6faf063eb3b6b8cd2493f81590d60cc4f",
+    "lastChecked": "2026-10-01"
   },
   "sdk-skills": {
-    "lastCommit": "10251d069de8aa87593276bed6e7560978e8fbe0",
-    "lastChecked": "2026-09-17"
+    "lastCommit": "79e54b3f9eb597bf84abb3915d8b97f65dbf48c7",
+    "lastChecked": "2026-10-01"
   }
 }

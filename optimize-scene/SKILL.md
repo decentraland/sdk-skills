@@ -7,7 +7,7 @@ description: Optimize Decentraland scene performance. Scene limit formulas, obje
 
 ## Scene Limits (Per Parcel Count)
 
-All limits scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials, textures, and height scale logarithmically.
+All limits below scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials and textures scale logarithmically. The height limit does **not** scale — it is a flat 330 m for every scene (see below).
 
 | Resource           | Formula         | 1 parcel | 2 parcels | 3 parcels | 4 parcels | 6 parcels | 9 parcels | 16 parcels | 20 parcels |
 | ------------------ | --------------- | -------- | --------- | --------- | --------- | --------- | --------- | ---------- | ---------- |
@@ -16,7 +16,8 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 | **Physics bodies** | n x 300         | 300      | 600       | 900       | 1,200     | 1,800     | 2,700     | 4,800      | 6,000      |
 | **Materials**      | log2(n+1) x 20  | 20       | 31        | 40        | 46        | 56        | 66        | 81         | 87         |
 | **Textures**       | log2(n+1) x 10  | 10       | 15        | 20        | 23        | 28        | 33        | 40         | 43         |
-| **Height limit**   | log2(n+1) x 20m | 20m      | 31m       | 40m       | 46m       | 56m       | 66m       | 81m        | 87m        |
+
+**Height limit: 330 m for every scene, regardless of parcel count.** Entities whose world position exceeds it are hidden. ⚠️ Anything above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant and networked content below that height.
 
 **Read the Materials row with care.** The client instantiates a material per rendered object, so this number tracks how many objects a scene renders rather than how many distinct materials it authors — a scene that correctly reuses one model many times will pass this cap while doing the right thing. Treat it as a memory signal, and judge frame-time risk by `shaderVariants` instead (see *Repeated Models* below).
 
@@ -287,8 +288,8 @@ Caveats:
 
 Reproduce the server-side asset bundle conversion locally before publishing. This catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models.
 
-- **Creator Hub:** check **Optimize Assets** in the dropdown next to the **Preview** button.
-- **CLI:** `npm run start -- --local-ab`
+- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` is too old for the flag.
+- **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
 
 The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
 

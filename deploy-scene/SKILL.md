@@ -51,7 +51,7 @@ Before deploying, verify:
    npm install
    ```
 
-6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures, height). Keep scene load time under 15 seconds by optimizing assets.
+6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures) and the flat 330 m height limit. Keep scene load time under 15 seconds by optimizing assets.
 
 7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 

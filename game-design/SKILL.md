@@ -17,7 +17,7 @@ Decentraland is a **continuous, shared 3D world**. Design around these constrain
 
 ## 2. Scene Limitation Formulas
 
-Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures, height logarithmic). Key rule of thumb: **10,000 triangles and 200 entities per parcel**.
+Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures logarithmic). Height is a flat 330 m for every scene; content above ~200 m may suffer multiplayer sync issues. Key rule of thumb: **10,000 triangles and 200 entities per parcel**.
 
 For the full limits table across all parcel counts, see the **optimize-scene** skill.
 
@@ -159,6 +159,8 @@ function gameStateSystem(dt: number) {
 - **Clear affordances**: Interactive objects should look interactive. Use glow effects, outlines, floating indicators, or subtle animations to signal "you can click this."
 - **Sound feedback**: Every significant player action should produce audio feedback. It confirms the action registered and adds polish.
 - **Progressive disclosure**: Do not dump all information at once. Reveal mechanics and story as the player engages. Start simple, layer complexity.
+- **Never open with a wall of text**: a rules pop-up with long paragraphs, or a rulebook painted on an in-world plane, is a known bad pattern — players skip it and then play confused. See section 13, "Rules: show, don't tell".
+- **Place screen UI where the client is not**: never anchor a HUD to the top-left corner (minimap, chat, mobile joystick live there). Anchor right or center, or use the interactable inset; keep mobile HUDs clear of the bottom-right action buttons, or hide those buttons while a full-screen UI is open. Rules and code in the **build-ui** skill.
 - **Immediate feedback**: When a player interacts, respond within the same frame. Use tweens, sounds, or UI popups so the player never wonders "did that work?"
 - **Accessibility**: Use high-contrast text, readable font sizes (fontSize >= 16 for screen UI), and audio cues alongside visual ones.
 
@@ -285,6 +287,22 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - After the player succeeds at the simple task, introduce the next layer.
 - Gate advanced mechanics behind early accomplishments.
 
+### Rules: show, don't tell
+
+Two anti-patterns show up constantly in generated games. Both lose players before the first interaction.
+
+- **The rules pop-up.** An intro modal with several dense paragraphs explaining every mechanic, scoring rule and control. Players dismiss it unread. Fix: the pop-up (if any) is one screen, 3–5 lines, ≤ 8 words each, ideally one goal line plus one control line plus one picture/diagram. Everything else is learned by playing.
+- **The in-world rulebook.** The same paragraphs on a stylized plane or board in the scene. It looks like design, but the text is too small and too long to read in-world, and players will not stand still and squint. Fix: a sign says one thing (≤ 10 words, large `fontSize`); one sign per idea; put the rest into the level design.
+
+Show instead of tell:
+- Make the first target unmistakable: a glowing, animated, or oversized object placed in the player's opening sightline. A pulsing outline teaches "click me" better than a sentence does.
+- Teach one mechanic by letting the player do it once safely (tutorial gate, practice target) before the real game starts.
+- Use `hoverText` on interactive entities as the just-in-time instruction — it appears exactly when it is relevant and costs no reading up-front.
+- Use an image/diagram (a `uiBackground` texture or an in-world plane) for spatial or sequence rules; a picture of "red gems = 1, blue = 5" replaces a paragraph.
+- Deliver anything longer through an NPC or a dialog one message at a time, skippable, or as `Timed Announcement`-style hints at the moment they matter.
+
+Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤ 1 sentence; if a rule needs more than that, redesign the mechanic or show it with visuals.
+
 ### Zero-Explanation Test
 - If a new player cannot figure out the first action within 30 seconds without any text or instructions, the design needs work.
 - Watch real players attempt your scene cold. Their confusion is your design feedback.
@@ -304,10 +322,13 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 | Mobile touch controls | **advanced-input** | `TouchScreenControls` component for hiding/showing on-screen buttons, setting main action, hiding joystick/crosshair. Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform`. |
 | Open Explorer UI panels from scenes | **scene-runtime** | `openExplorerUi()` restricted action to open map, backpack, settings, etc. from a user gesture. Useful for onboarding flows and UX shortcuts. |
 | Deployment timing & post-publish troubleshooting | **deploy-scene** | Asset bundle conversion takes ~15 min (plan 30-60 min). Publish 2+ hours before live events. `/detectabs` checks conversion status in-world. Conversion status URLs for monitoring. |
-| Local asset bundle preview | **optimize-scene** | "Optimize Assets" in Creator Hub or `--local-ab` CLI flag reproduces production asset bundle conversion locally. Catches texture/model issues before publishing. |
+| Local asset bundle preview | **optimize-scene** | "Compress Assets" (Creator Hub Play Options > Desktop Client) or the `--asset-bundles` CLI flag reproduces production asset bundle conversion locally. Catches texture/model issues before publishing. |
 | Pause gameplay when scene is hidden | **scene-runtime** | `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` is `true` when a fullscreen Explorer UI (map, backpack, loading screen) covers the scene. Use to pause game loops, audio, and expensive systems so they don't run while the player can't see or interact with the scene. |
 | Entity removal returns boolean | **scene-runtime** | `engine.removeEntity(entity)` now returns `boolean` — `false` for renderer-reserved (avatar) entities, where components are left untouched. Check the return when despawning entities in game loops to avoid silently failing to remove an entity. |
 | World deployment, storage budget | **deploy-worlds** | World storage budget (100 MB per NAME, 100 MB per LAND, 100 MB per 2k MANA; ENS = 36 MB fixed). Plan scene file sizes accordingly. |
 | Performance optimization, entity/triangle budgets | **optimize-scene** | Detailed optimization techniques, local asset bundle preview, gltf reuse-vs-merge benchmark. |
+| Zone-driven gameplay (checkpoints, arenas, ambush rooms, safe zones) | **add-interactivity** | `TriggerArea` + `triggerAreaEventsSystem`. When the scene is open in the Creator Hub, the `utils` catalog has a single prompt-driven **"Trigger Area"** Smart Item — the designer places and resizes an invisible volume and describes the reaction to the AI assistant, so a zone mechanic can be prototyped without writing a detector. Script authors: use its `@event` enter/exit pattern rather than a second `triggerAreaEventsSystem` callback (**script-components**). |
+| Dropping in placeholder art, music or video during blockout | **creator-hub-mcp** | Dragging a file from the editor's **Local Assets** tab onto the viewport spawns the matching catalog Smart Item already pointed at it (image / ambient sound / video screen) — the fastest way to get real media into a greybox before committing to a layout. See **add-3d-models** and **audio-video**. |
+| Handing reference material to the Creator Hub AI assistant | **creator-hub-mcp** | The composer takes up to 8 attachments per prompt (paperclip, drag-drop, or paste). Attach a mood board, a mockup, or a `.glb` instead of describing it — files from disk reach the agent as real absolute paths, with no size cap. |
 
 This skill focuses on the **design decisions and optimization constraints** that shape implementations. For detailed code patterns, see the referenced skills.

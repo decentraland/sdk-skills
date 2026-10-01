@@ -538,6 +538,7 @@ Use `flexGrow: 1` on scrollable entities to fill remaining space in a parent, us
 Build widgets from React-ECS primitives — there is no pre-built widget library.
 
 - **Prompt / dialog / confirmation** → see the **Modal Dialog** pattern in `ui-components.md` (full-screen overlay + centered panel + `Button`s). Add a second `Button` for a two-option (accept/reject) prompt.
+- **Full-screen UI that pauses play (scoreboard, results, shop, rules card)** → see **Full-Screen Modal That Hides the Touch Controls** below. Hide the mobile action buttons and joystick while it is open.
 - **Progress / health / fill bar** → see **Health Bar** above (nested `UiEntity`, inner sized `width: `${pct}%``).
 
 ### OK-Prompt Modal
@@ -580,6 +581,54 @@ const OkPrompt = () => {
   )
 }
 ```
+
+### Full-Screen Modal That Hides the Touch Controls
+
+For UI that interrupts gameplay (scoreboard, results, shop, rules card). On mobile the native jump / E / F / interaction buttons are drawn **over** the interactable area, so a large panel is partly covered and taps there go to the client. Hide the controls while the modal is open and restore them on close. `TouchScreenControls` is a no-op on desktop, so no `isMobile()` guard is needed. Optional: freeze the avatar too with `InputModifier` (desktop client only).
+
+```tsx
+import { engine, InputModifier, TouchScreenControls } from '@dcl/sdk/ecs'
+import { Color4 } from '@dcl/sdk/math'
+
+let scoreboardOpen = false
+
+export function openScoreboard() {
+  scoreboardOpen = true
+  TouchScreenControls.hideAll()
+  TouchScreenControls.hideJoystick()
+  InputModifier.createOrReplace(engine.PlayerEntity, {
+    mode: InputModifier.Mode.Standard({ disableAll: true })
+  })
+}
+
+export function closeScoreboard() {
+  scoreboardOpen = false
+  TouchScreenControls.showAll()      // also clears any custom button icons — re-apply them here if the scene set some
+  TouchScreenControls.showJoystick()
+  InputModifier.deleteFrom(engine.PlayerEntity)
+}
+
+const Scoreboard = () => {
+  if (!scoreboardOpen) return null
+  return (
+    <UiEntity
+      uiTransform={{ width: '100%', height: '100%', positionType: 'absolute', alignItems: 'center', justifyContent: 'center' }}
+      uiBackground={{ color: Color4.create(0, 0, 0, 0.7) }}
+    >
+      <UiEntity
+        uiTransform={{ width: 700, height: 500, flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: 24 }}
+        uiBackground={{ color: Color4.create(0.12, 0.12, 0.12, 1) }}
+      >
+        <Label value="Scoreboard" fontSize={32} color={Color4.White()} uiTransform={{ width: '100%', height: 48 }} textAlign="middle-center" />
+        {/* rows … */}
+        <Button value="Close" variant="primary" uiTransform={{ width: 160, height: 48 }} onMouseDown={closeScoreboard} />
+      </UiEntity>
+    </UiEntity>
+  )
+}
+```
+
+Always route every close path (close button, timer, leaving the area) through `closeScoreboard()` so the controls are never left hidden. If the modal is a **rules card**, keep its content to 3–5 short lines or a diagram image; see the **game-design** skill → "Rules: show, don't tell".
 
 ### Timed Announcement
 

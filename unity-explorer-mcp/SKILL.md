@@ -45,7 +45,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
    ```
 
-   The **Creator Hub**'s scene **Preview** with **"Enable MCP Server"** ticked launches this same server as the CLI does — indistinguishable from the probe, never the reason a connection fails, and a valid answer wherever a launch is needed below.
+   The **Creator Hub**'s **Play** button with **Enable MCP Server** ticked in **Play Options > Desktop Client** launches this same server as the CLI does — indistinguishable from the probe, never the reason a connection fails, and a valid answer wherever a launch is needed below.
 
    **Server found** (tool answer or `serverInfo` result) — **launch/kill gate**: use the already-running Explorer, or start the scene from scratch with the MCP flag?
    - *Use it*: launch nothing. If port 8000 isn't serving the target scene folder (`lsof -nP -i :8000 -sTCP:LISTEN`, then check the PID's cwd), kill whatever holds it and run `npm run start -- --no-client`. Skip step 2 if the tools are already available.

@@ -44,7 +44,7 @@ Treat every model swap as fresh placement:
 1. **Look up the new GLB's native bounding box** — use the bounding box script in `{baseDir}/references/model-patterns.md` (raw accessor `min`/`max` is not sufficient; node-level scale/translation must be applied).
 2. **Recompute `scale`** so the world-space size (native size × scale) is sensible for the role. Do not carry over the previous entity's scale — it was calibrated against a different native size.
 3. **Verify pivot location.** Many architecture/building GLBs have pivots at a corner (e.g. `(0,0,0)` at one base corner), not the center. Two models with the same `position` but different pivots will visually shift after the swap.
-4. **Verify the resulting world-space bounding box stays inside scene bounds.** Each parcel is 16 × 16 m horizontally; max height is `log2(parcels+1) × 20 m` (1 parcel → 20 m, 4 parcels → 46 m, 9 parcels → 66 m — see `{baseDir}/../optimize-scene/SKILL.md`). Compute `position +/- bbox` against scene `[0, maxX] × [0, maxZ]` and `y <= maxHeight`.
+4. **Verify the resulting world-space bounding box stays inside scene bounds.** Each parcel is 16 × 16 m horizontally; max height is **330 m** for every scene regardless of parcel count (anything above ~200 m may suffer multiplayer sync issues — see `{baseDir}/../optimize-scene/SKILL.md`). Compute `position +/- bbox` against scene `[0, maxX] × [0, maxZ]` and `y <= 330`.
 5. **State the audit explicitly.** After a swap, the agent must report: native dimensions of the new GLB, chosen scale, chosen position, and the resulting world-space bounding box vs. scene bounds. Do not silently keep the prior Transform.
 
 This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...' })` while leaving Transform untouched) and to composite edits where only the `core::GltfContainer.data["<id>"].json.src` was modified.
@@ -111,6 +111,8 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 - **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new model.
+
+**Dragging from the Local Assets tab onto the viewport is the user's fastest path** when the scene is open in the Creator Hub. `.glb` / `.gltf` drop as a plain model, as they always have. Since creator-hub `062ed0a2` **media files drop as catalog Smart Items instead of bare components**: `.png` / `.jpg` / `.jpeg` spawn the **Image** item with the `Material` PBR texture `src` repointed and the plane lifted `+0.5 m` so it stands on the ground, and `.mp3` / `.mp4` spawn their matching items (see **audio-video**). Offer the drag for a flat image rather than hand-assembling a plane + `Material`; full table and asset ids in **creator-hub-mcp**.
 
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 

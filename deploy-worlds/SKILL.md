@@ -184,7 +184,7 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 
 ## Post-Publish Conversion
 
-Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. **Conversion usually takes seconds** (longer for very large scenes or busy servers); the **Jump In** button appears as soon as the scene is playable. A conversion still running after a couple of minutes is a failure signal, not normal queuing. For conversion status endpoints and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Optimize Assets** (or `--local-ab`) in preview to catch conversion issues before publishing.
+Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. **Conversion usually takes seconds** (longer for very large scenes or busy servers); the **Jump In** button appears as soon as the scene is playable. A conversion still running after a couple of minutes is a failure signal, not normal queuing. For conversion status endpoints and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Compress Assets** (Creator Hub Play Options > Desktop Client) or `--asset-bundles` in preview to catch conversion issues before publishing.
 
 **Anyone who already loaded the World this session keeps seeing the cached version** until they fully close and re-enter Decentraland — a scene reload is not enough.
 
