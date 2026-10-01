@@ -1,6 +1,6 @@
 ---
 name: animations-tweens
-description: Animate objects in Decentraland scenes. Play GLTF model animations with Animator, create procedural motion with Tween, chain sequences with TweenSequence. Use when the user wants to animate, move, rotate, scroll a texture, or create motion effects. Do NOT use for audio/video playback (see audio-video), player emotes (see player-avatar), or physics-driven motion (see player-physics).
+description: Animate objects in Decentraland scenes. Play GLTF model animations with Animator, create procedural motion with Tween, chain sequences with TweenSequence. Use when the user wants to animate, move, rotate, scroll a texture, or create motion effects. Do NOT use for audio/video playback (see audio-video), player emotes (see player-avatar), authoring emote clips (see avatar-animations), or physics-driven motion (see player-physics).
 ---
 
 # Animations and Tweens in Decentraland

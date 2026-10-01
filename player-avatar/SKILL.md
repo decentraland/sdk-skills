@@ -292,6 +292,7 @@ triggerSceneEmote({
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
 - Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
+- To **create** the `.glb` (pose the official avatar rig in Blender, export, verify), see the **avatar-animations** skill.
 
 ### Stopping an emote
 
@@ -349,6 +350,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
 - **Mobile support:** Avatar Masks (upper-body-only emotes) ship on mobile in **v1.13.0 (September 2026)**. Until then the mobile renderer plays masked emotes as full-body. Verified against docs commit `09c5818`.
+- **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
