@@ -216,6 +216,8 @@ teleportTo({ worldCoordinates: { x: 50, y: 70 } });
 // Teleport into another realm / World. `realm` takes a World name
 // (`foo.dcl.eth`) or a realm URL; the client does a FULL RECONNECT to
 // that realm, then lands on the parcel. Requires @dcl/sdk 7.28.0+.
+// The player is asked to confirm first ("Are you sure you want to enter
+// this World?"); the switch only happens if they accept.
 teleportTo({ realm: "foo.dcl.eth", worldCoordinates: { x: 0, y: 0 } });
 
 // Omit worldCoordinates to land on that realm's default spawn.
@@ -237,10 +239,10 @@ openNftDialog({
 copyToClipboard({ text: "Hello from Decentraland!" });
 
 // [DEPRECATED] changeRealm — use teleportTo({ realm }) instead.
-// `message` is OPTIONAL: omit it to switch with no prompt,
-// include it to show the player a confirmation dialog first.
-changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
-changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
+// The player always gets a confirmation dialog. `message` is OPTIONAL:
+// omit it to show the default text, include it to show custom text.
+changeRealm({ realm: "https://peer.decentraland.org" }); // default prompt text
+changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // custom prompt text
 ```
 
 #### `changeRealm` is `[DEPRECATED]` — prefer `teleportTo({ realm })`
@@ -248,15 +250,15 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
 Protocol `e89d7fa`, SDK pin `6b7c3586`; the `realm` field is typed in `@dcl/js-runtime` **7.28.0**.
 
 - `TeleportToRequest` is now `{ worldCoordinates?: Vector2, realm?: string }` — **both optional**.
-- `realm` accepts a World name (`foo.dcl.eth`) or a realm URL. When set, the client performs a full reconnect to that realm (even if it is the realm the player is already in), then lands on the parcel.
+- `realm` accepts a World name (`foo.dcl.eth`) or a realm URL. When set, the client first shows the player a confirmation prompt with the default text ("Are you sure you want to enter this World?"). If the player accepts, the client performs a full reconnect to that realm (even if it is the realm the player is already in), then lands on the parcel.
 - Omit `worldCoordinates` with a `realm` set to land on that realm's default spawn — exactly what `changeRealm` did.
 - Omit `realm` to teleport within the player's current realm (the pre-existing behavior).
 
 **Why it replaces `changeRealm`:** `changeRealm` resolves when the request is *accepted*, not when the new realm is *live*. A `changeRealm(...)` followed by a `teleportTo(coords)` therefore lands on the parcel in the **old** realm. One `teleportTo({ realm, worldCoordinates })` call has no such race.
 
-`changeRealm` still works and is kept for existing scenes; it is the only option that shows a confirmation `message` prompt.
+`changeRealm` still works and is kept for existing scenes. Both `changeRealm` and `teleportTo({ realm })` ask the player to confirm before switching realm; `changeRealm` is the only one that lets the scene set custom prompt text through `message`.
 
-[UNVERIFIED: renderer coverage — the `realm` field is implemented in the Bevy explorer. Confirm the Unity explorer honors it before shipping a scene that depends on a cross-realm teleport; if it does not, the request may be treated as a same-realm teleport.]
+The Unity explorer honors the `realm` field.
 
 ### openExplorerUi -- Open Explorer Panels
 
