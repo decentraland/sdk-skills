@@ -175,6 +175,8 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
 
+**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up at all — either just means the Explorer is not running yet.
+
 ### Deployment
 
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
