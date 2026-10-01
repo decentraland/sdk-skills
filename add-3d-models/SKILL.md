@@ -112,6 +112,8 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 
 Always check the scene's existing folders before deciding where to put a new model.
 
+**Dragging from the Local Assets tab onto the viewport is the user's fastest path** when the scene is open in the Creator Hub. `.glb` / `.gltf` drop as a plain model, as they always have. Since creator-hub `062ed0a2` **media files drop as catalog Smart Items instead of bare components**: `.png` / `.jpg` / `.jpeg` spawn the **Image** item with the `Material` PBR texture `src` repointed and the plane lifted `+0.5 m` so it stands on the ground, and `.mp3` / `.mp4` spawn their matching items (see **audio-video**). Offer the drag for a flat image rather than hand-assembling a plane + `Material`; full table and asset ids in **creator-hub-mcp**.
+
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 
 When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:

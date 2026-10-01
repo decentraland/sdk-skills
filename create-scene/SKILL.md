@@ -284,17 +284,28 @@ After customizing the files:
 | `--mcp-port`                 | number      | Port for the MCP server in the Explorer                                                                                                                                                                                                                                                           |
 | `--multi-instance`           | boolean     | Allow running multiple Explorer instances simultaneously                                                                                                                                                                                                                                          |
 | `--no-client`                | boolean     | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own                                                                                                                                                         |
-| `--local-ab`                 | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. See **optimize-scene** ("Local Asset Bundle Preview").    |
+| `--asset-bundles`            | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. Forwarded into the deep link as `local-ab=true` -- `--local-ab` is the deep-link param, **not** a CLI flag. See **optimize-scene** ("Local Asset Bundle Preview").    |
 | `-- <args>`                  | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true)                                                                                                                                          |
 
 `--web-explorer` has been removed. `--web3` and `--no-debug` (alias `-d`) are deprecated no-ops kept for backwards compatibility only -- do not use them in new scenes.
 
-**Creator Hub preview settings** (equivalent to the CLI flags above, accessed from the dropdown next to the Preview button):
+**Creator Hub play settings** (equivalent to the CLI flags above). The editor header's split button is labelled **Play** (play icon + "Play"); its dropdown arrow opens the **Play Options** popover. Exact strings as of creator-hub `8830cf6f`:
 
-- **Preview with**: Desktop Client (default) or Bevy (Web) -- equivalent to `--web`.
-- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the SDK version supports it. See the **unity-explorer-mcp** skill.
-- **Optimize Assets**: converts scene assets to local asset bundles -- equivalent to `--local-ab`. First run may be slow; results are cached.
-- **Open Console Window During Preview**, **Skip Auth Screen**, **Landscape Terrain Enabled**, **Show QR Code for Mobile**: self-explanatory preview toggles.
+The popover lists two client rows, picked with a radio:
+
+- **Desktop Client** (default) -- the Unity Desktop Explorer. Hovering this row opens a side flyout with the desktop-only toggles below.
+- **Web (Bevy)** -- the Bevy web client; equivalent to `--web`. No toggles of its own.
+
+Desktop Client flyout toggles:
+
+- **Enable Landscape Terrains**: shows the surrounding landscape. Disabled (and forced off) when the scene's own `landscapeTerrain: false` hides it.
+- **Multi-Instance Preview**: equivalent to `--multi-instance`. Lets a second Explorer window run alongside the first.
+- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the installed `@dcl/sdk-commands` supports it. See the **unity-explorer-mcp** skill.
+- **Compress Assets**: previews with assets compressed the way they are in production -- equivalent to `--asset-bundles`. First run may be slow; results are cached. Hidden on Linux (no Unity desktop client ships there) and for scenes whose `@dcl/sdk-commands` predates the flag.
+
+Below a divider, **Show QR Code for Mobile** is a button (not a checkbox) that opens the mobile preview QR.
+
+⚠️ **The "Open Debug Console" checkbox was removed** (creator-hub `8830cf6f`) -- the debug console is now **on by default**, and existing installs got a one-time promotion to turn it on. Do not tell users to tick it. **Skip Auth Screen** is likewise no longer in the popover; it stays on unless `--multi-instance` forces a per-window login.
 
 **Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"** (relabelled from "Bevy (preview)" in creator-hub `b3dfea1b`); the toggle reads **"Enable Bevy Scene Renderer"**. It lives in **Settings > Experimental**, which as of Creator Hub 0.50.0 contains *only* this toggle — the AI Assistant moved to its own Settings > AI tab and the UI Editor became stable with no setting at all. The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. Since `9ef6501a` it also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
 
@@ -325,7 +336,7 @@ The official quickstart teaches a **Script-component-first** workflow: attach a 
 ## Cross-References
 
 - Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publishing to a World? A World has its **own** name/description/thumbnail separate from `scene.json` — in a single-scene World every publish overwrites the World's with the scene's; see **deploy-worlds** > "World metadata vs scene metadata". Publish at least **one hour** before a live event — asset bundle conversion itself usually takes seconds, but the margin covers anything unexpected
-- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Optimize Assets** (or `--local-ab`) to preview with production-quality asset bundles before publishing
+- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Compress Assets** (Play Options > Desktop Client) or `--asset-bundles` to preview with production-quality asset bundles before publishing
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 
