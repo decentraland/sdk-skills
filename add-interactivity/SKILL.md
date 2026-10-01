@@ -248,6 +248,8 @@ Native ECS component for detecting when an entity enters a region. Prefer this o
 
 **The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
 
+**Scene open in the Creator Hub?** The `utils` catalog has a single **"Trigger Area"** Smart Item (`e9fa0eab-44de-4efe-af77-a71171a1a73f`) — an invisible box or sphere the user places and resizes, with a control that seeds the AI assistant's composer with a prompt for what should happen on enter/leave. Reach for it instead of hand-building the entity: it arrives with the shape param, the collider filter, and its Reactions wiring intact, and editing a param no longer wipes those Reactions (fixed in creator-hub `e43441b5`). The older non-script item and the interim "Trigger Area (Script)" label were both removed in that same commit — there is exactly one entry now. See **creator-hub-mcp**.
+
 > **PITFALL — a thin trigger never fires.** A pressure plate or floor marker modelled as a ~0.1m slab has a trigger volume the avatar capsule **never overlaps** while standing on top of it, so the `TriggerArea` silently never fires. This looks like a broken component and is not.
 >
 > **Fix:** keep the thin slab as the *visual*, and put the trigger in a **separate invisible box ~2m tall** sitting on it (verified in `149,149-synthetic-input-showcase`, stations S2 and S3):

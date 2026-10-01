@@ -41,7 +41,15 @@ Consequences worth writing code around:
 
 **Widget presets.** The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` x `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper, use the same pair. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — see **Interaction layers**.)
 
-**Scene Inset.** A dropdown with `device` / `interactable` / `none` wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing. Default is `device`. This is the same setting as the renderer's `screenInset` option (see **build-ui**), applied structurally in the source.
+**Scene Inset.** A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing. Default is `device`. This is the same setting as the renderer's `screenInset` option (see **build-ui**), applied structurally in the source. The panel labels and the SDK values they write:
+
+| Panel label | `screenInset` value written |
+| --- | --- |
+| **Device Safe Area** | `device` — only offered on the mobile platform preset |
+| **Interactable Safe Area** | `interactable` — renamed from "Gameplay Safe Area" in creator-hub `fbca1dca` |
+| **Full Screen** | `none` |
+
+The **values are unchanged** — a rename of the label only. Emit `screenInset: 'interactable'` regardless of which label the user quotes at you.
 
 **Opacity, not Transparency.** The style field was renamed **Opacity** and reads as a percentage, default **100%** (100% opaque, 0% transparent). Older notes calling it "Transparency" are stale — "Transparency" now survives only in the unrelated material inspector.
 
