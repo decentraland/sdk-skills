@@ -233,7 +233,7 @@ Skybox.createOrReplace(engine.RootEntity, {
     rim: constant(Color4.create(1.5, 0.6, 0.2, 1))  // horizon-line glow; unset => follows `horizon`
   },
   sun: { color: constant(Color4.create(1, 0.65, 0.4, 1)), visible: true },
-  fog: { color: constant(Color4.create(0.85, 0.5, 0.3, 1)) },
+  fog: { color: constant(Color4.create(0.85, 0.5, 0.3, 1)), density: 0.01 },  // 1/density ≈ 63% fog distance
   clouds: {
     opacity: 0.3, speed: 0.01, color: constant(Color4.create(0.9, 0.6, 0.4, 1)),
     texture: Material.Texture.Common({ src: 'images/clouds.png' })  // custom cloud layer (equirect 2:1, image or video); unset = default clouds
@@ -273,12 +273,12 @@ Skybox.createOrReplace(engine.RootEntity, {
 Skybox.deleteFrom(engine.RootEntity)  // back to the default sky, reflections and lighting
 ```
 
-Defaults (from the protocol): `sun.visible` true, `clouds.opacity` 1 (0 hides clouds), `clouds.speed` 0.01 (0 = static), `stars.brightness` 4.62 (stars only render at night); every gradient unset = time-of-day default.
+Defaults (from the protocol): `sun.visible` true, `fog.density` 0.0005 (≈ 2 km), `clouds.opacity` 1 (0 hides clouds), `clouds.speed` 0.01 (0 = static), `stars.brightness` 4.62 (stars only render at night); every gradient unset = time-of-day default. Keep gradients to 8 keys or fewer: the Explorer resamples longer ones to 8 evenly spaced keys.
 
 - `skyColors` also drive the ambient light: zenith -> sky ambient, horizon -> equator ambient, nadir -> ground ambient. There is no separate ambient field, so black sky colors give black ambient.
 - `skyColors.rim` (horizon-line glow) unset => follows the `horizon` override when set, else the default ramp. Set it only for an accent. `clouds.color` unset => default time-of-day cloud tint even on a recolored sky.
 - `sun.color` tints both the directional light and the sun disc. `sun.visible: false` hides sun, moon and lens flare only; the light keeps casting.
-- `fog.color` only recolors the fog. Fog on/off is a player quality setting; a scene cannot force it.
+- `fog.color` recolors the fog; `fog.density` is the exponential density per meter (`1/density` ≈ the distance at which ~63% of the view is fogged: 0.02 ≈ 50 m, 0 = no visible fog; negative clamps to 0). `fog.startDistance` / `fog.endDistance` (meters) describe the same fog for clients that render linear fog; the Decentraland Explorer renders exponential fog, so it reads `density` and ignores the distances — set both models if you target other clients. Fog on/off is a player quality setting; a scene cannot force it.
 - `skyColors`, `clouds` and `stars` are inert while `skyboxTexture` is set (the texture replaces the procedural sky); `sun`, `fog` and the derived ambient still apply.
 - `skyboxTexture`, `reflectionMap` and `clouds.texture` take `Material.Texture.Common` (file) or `Material.Texture.Video` (an entity with a `VideoPlayer`, `playing: true`); avatar textures are ignored. A failed load keeps the default.
 - Video sources: the `VideoPlayer` entity needs no mesh or material, but it is a normal video player — it plays audio unless `volume: 0`, and it counts toward the simultaneous-video limit; while the skybox uses it the distance-based video prioritization never pauses it. A non-2:1 video is stretched to the equirect mapping.
@@ -400,4 +400,4 @@ Engine-team test scenes (real API, exercised against the engine):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-reflection-map — `Skybox`: sky texture A/B, reflection map A/B (derived vs explicit, invalid src fallback), environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), `sun.visible` toggle, `SkyboxTime` row, one point `LightSource` to see in the dark.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-reflection-map — `Skybox`: sky texture A/B, reflection map A/B (derived vs explicit, invalid src fallback), environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), `sun.visible` toggle, `fog.density` row (thick / ultra-thick / clear), `SkyboxTime` row, one point `LightSource` to see in the dark.

@@ -95,7 +95,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Lighting & Environment
 
-**Skill: `lighting-environment`** — Point/spot lights, shadows, `SkyboxTime` (day/night cycle), `Skybox` (custom sky texture or video, reflection map, sky/sun/fog colors, clouds and cloud texture, stars, hiding the sun, complete darkness), emissive materials.
+**Skill: `lighting-environment`** — Point/spot lights, shadows, `SkyboxTime` (day/night cycle), `Skybox` (custom sky texture or video, reflection map, sky/sun/fog colors, fog density, clouds and cloud texture, stars, hiding the sun, complete darkness), emissive materials.
 
 ### Particle Systems
 
