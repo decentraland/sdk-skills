@@ -27,7 +27,7 @@ Never author an emote on a rig you built yourself — the deform bone names and 
 
 `Animation_Area_Reference`, `Root_Animation_Area`, `Ground_Reference`, `Knee`, `Armature_Prop`, the `ShapeA_*` / `ShapeB_*` base meshes and masks (8 each), and ~24 `WGT_*` control-widget meshes.
 
-`Animation_Area_Reference` is the volume the avatar mesh must stay inside for the whole clip.
+Measured extents (world metres): `Animation_Area_Reference` is a **4 × 4 × 4 m box** (X, Y ∈ [−2, 2], Z ∈ [0, 4]) that every body part and prop must stay inside for the whole clip; `Root_Animation_Area` is a **2 m diameter** cylinder on the origin (3 m tall in the file; the docs allow the root up to 4 m) bounding where the root / `Avatar_Hips` may travel — 1 m front, back, left, right; `Ground_Reference` is the 4 × 4 plane at Z = 0. Rules in the skill doc → "Stay inside the animation area".
 
 ## Bone collections
 
@@ -61,10 +61,10 @@ A correctly exported emote GLB therefore has **63 nodes** (`Armature` + 62 bones
 | Spine | `CTRL_FK_Avatar_Spine`, `_Spine1`, `_Spine2` | Distribute a lean across all three rather than bending one hard. |
 | Head / neck | `CTRL_Avatar_Neck`, `CTRL_Avatar_Head` | |
 | Shoulders | `CTRL_Avatar_Shoulder.L` / `.R` | Shrug / clavicle lift. |
-| Arms FK | `CTRL_FK_Avatar_Arm`, `_ForeArm`, `_Hand` (`.L`/`.R`) | Default for arms (`FK > IK Arm *` = 0). |
+| Arms FK | `CTRL_FK_Avatar_Arm`, `_ForeArm`, `_Hand` (`.L`/`.R`) | Default for arms (`FK > IK Arm *` = 0). Local **Y** of `_Arm` is the bone axis — the twist axis. |
 | Arms IK | `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow` (`.L`/`.R`) | Needs `FK > IK Arm L/R` = 1. |
 | Legs FK | `CTRL_FK_Avatar_UpLeg`, `_Leg`, `_Foot`, `_ToeBase` (`.L`/`.R`) | Needs `FK > IK Leg L/R` = 0. |
-| Legs IK | `CTRL_IK_Foot`, `CTRL_IK_Foot_Roll`, `CTRL_IK_Foot_ToeTip`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` (`.L`/`.R`) | Reverse-IK foot setup; default for legs (`FK > IK Leg *` = 1). |
+| Legs IK | `CTRL_IK_Foot`, `CTRL_IK_Foot_Roll`, `CTRL_IK_Foot_ToeTip`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` (`.L`/`.R`) | Reverse-IK foot setup; default for legs (`FK > IK Leg *` = 1). Keep IK whenever the foot stays on the ground — sitting included. |
 | Fingers | `CTRL_Avatar_Hand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.{L,R}` | 30 bones; no `4` control — the tip bone is deform-only. |
 
 ## Custom properties (measured defaults)
@@ -98,6 +98,17 @@ Keyframe every property you change: `pb.keyframe_insert('["FK > IK Leg L"]', fra
 
 The **rest pose** of the armature is an A/T-pose. The **idle** the runtime blends from is the `Starting_Pose` action (arms down). Always start and end your clip from `Starting_Pose` values, not from the identity/rest transform.
 
-## The rig is NOT mirrored
+## Mirroring: legs yes, upper body no
 
-The docs state plainly that mirroring behaviour on shoulders, arms, hands and fingers is not possible. The same rotation applied to `.L` and `.R` controls does **not** produce a symmetric pose — the sign, and sometimes the axis, differ per side. Detect signs programmatically (see `{baseDir}/references/blender-emote-patterns.md` → "Sign detection") or verify in a render. Never assume symmetry.
+The docs state that mirroring behaviour on shoulders, arms, hands and fingers is not possible. Measured (Blender 5.1.1, 2026-10-02) by posing `.L`, deriving `.R` with each of the eight sign patterns and comparing world positions of the downstream deform bones:
+
+| Controls | `.R` rotation from `.L` (quaternion `x, y, z`, same for Euler XYZ) | `.R` location from `.L` | Why |
+| --- | --- | --- | --- |
+| `CTRL_FK_Avatar_UpLeg` / `_Leg` / `_Foot` / `_ToeBase`, `CTRL_IK_Foot*`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` | `(+x, −y, −z)` — what Blender's **Paste X-Flipped** does | `(−x, y, z)` | right-leg bone frames are the mirror of the left with **X** flipped |
+| `CTRL_Avatar_Shoulder`, `CTRL_FK_Avatar_Arm` / `_ForeArm` / `_Hand`, `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow`, `CTRL_Avatar_Hand*{1,2,3}` | `(−x, −y, +z)` | `(x, y, −z)` | right-arm bone frames are the mirror of the left with **Z** flipped instead, so the standard flip fails |
+
+With the right pattern the whole arm chain, fingers included, mirrors to ≈ 1 mm, and IK legs mirror exactly. FK legs keep a 5–10 cm residual at the foot: the left and right leg rest frames differ by a few degrees of roll. The wrong pattern, or the same values on both sides, is off by 25–90 cm at the hand. Note that `Starting_Pose` itself is not symmetric (hands ≈ 2 cm, feet ≈ 8 cm off a mirror; `CTRL_IK_Foot.L` / `.R` idle at different offsets), so mirroring a side overwrites that idle asymmetry.
+
+The pattern holds for the displayed pose values, which include the `Starting_Pose` offset (`CTRL_FK_Avatar_Arm.L` idles at quaternion `(0.78, −0.08, 0.21, 0.51)`, `.R` at `(0.79, 0.06, −0.21, 0.52)`), and for deltas applied on top of them. `mirror_side()` in `{baseDir}/references/blender-emote-patterns.md` implements the table.
+
+When posing one joint rather than mirroring, still detect its sign programmatically (`auto_sign`, same file); the same angle never does the same thing on both sides of the upper body.

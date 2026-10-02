@@ -22,7 +22,7 @@ This skill covers **making the animation file**: posing the official Decentralan
 1. **Get the rig** — `Avatar_File.blend`, never a hand-built armature. Download + bone/control/property reference: `{baseDir}/references/avatar-rig.md`.
 2. **Set up** — set the scene to **30 fps** (the shipped file is 24), capture the `Starting_Pose` values, create one new action per clip.
 3. **Author** — pose `CTRL_` bones only, in Pose mode, keyframing every bone you touch at every keyframe.
-4. **Verify while authoring** — print world positions *and* render four angles per keyframe into a contact sheet.
+4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
 6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`.
 7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, add the permission, play it (see **player-avatar**).
@@ -54,9 +54,9 @@ pb.keyframe_insert('["FK > IK Leg L"]', frame=f)
 
 On the **first and last frame**, also key location/rotation/scale on **every deform bone**. Channels left without boundary keys stay "open" and keep whatever a previously playing emote left there — the official docs call these *emote overrides*, and they show up as an avatar whose legs are still doing the last emote.
 
-## RULE: Rotate the upper arms about WORLD axes, not the bone's local axes
+## RULE: Upper arms — world axes for direction, local Y for twist
 
-The upper-arm bone's local X is tilted. Rotating about it sweeps the arm across the chest, and a pose that should have both arms forward ends up with the arms **crossed** — this happens in practice and is not obvious in a front render. Convert the world axis into the bone's current frame first:
+The upper-arm bone's local X is tilted. Rotating about it sweeps the arm across the chest, and a pose that should have both arms forward ends up with the arms **crossed** — this happens in practice and is not obvious in a front render. So set the arm's *direction* with world axes, converting the world axis into the bone's current frame first:
 
 ```python
 M = (arm.matrix_world @ pb.matrix).to_3x3().normalized()
@@ -66,23 +66,47 @@ pb.rotation_quaternion @= Quaternion(local_axis, math.radians(deg))
 
 - Pure forward raise → world **X**.
 - Moving a raised arm in/out → yaw about world **Z**.
-- Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls) — `rl()` is correct there.
 
-## RULE: The rig is not mirrored — detect rotation signs, never assume them
+World axes alone do not give a perfect arm pose, though. Arms move in many directions, and the rig's animator works with world **and** local rotations together. Two things need the bone's **local** axes:
 
-The same rotation on `.L` and `.R` controls does not produce a symmetric pose. Determine each sign programmatically: rotate the control +15°, measure which way the downstream bone actually moved in world space, flip if needed, cache the result (`auto_sign` in `{baseDir}/references/blender-emote-patterns.md`). Verifying against a render also works, but you have to do it per joint per side.
+- **Twist** — palm up/down, elbow pointing out or in, a wrist that has to face a prop — can only be done by rotating the bone about its own length, which is **local Y** on this rig (verified: local Y of `CTRL_FK_Avatar_Arm.*` is the bone axis; rotating it leaves the elbow where it is and only rolls the forearm and hand). `rl('CTRL_FK_Avatar_Arm.L', 'Y', deg)`.
+- **Fine-tuning** once the gross direction is right — a small local correction is often more precise than another world-axis rotation.
 
-## RULE: Seated poses — lower with `CTRL_Avatar_UpperBody`, then switch legs to FK
+Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls) — `rl()` is correct there.
 
-`CTRL_Avatar_UpperBody` is the centre of gravity: moving it lowers the **whole** body. `CTRL_Avatar_Hips` moves only the pelvis and legs and stretches the torso — wrong tool for sitting.
+## RULE: Legs mirror, the upper body does not — use the right sign pattern per chain
+
+Blender's **Pose ▸ Paste X-Flipped** only works on half of this rig. Measured on `Avatar_File.blend` (per-control table in `{baseDir}/references/avatar-rig.md`):
+
+- **Legs and feet mirror normally**, FK or IK: paste flipped, or in script negate the **Y and Z** rotation components (quaternion or Euler) and the **X** of any location between `.L` and `.R`. IK legs mirror exactly; FK legs keep a 5–10 cm residual at the foot because the left and right rest bone rolls differ by a few degrees — fine for posing, confirm in a render.
+- **Shoulders, upper arms, forearms, hands and fingers do not.** Paste-flipped, or the same values on both sides, lands the other hand tens of centimetres away. To mirror them negate the **X and Y** components and keep **Z** — quaternion `(w, x, y, z)` → `(w, −x, −y, z)`, same signs for Euler XYZ. Verified to ~1 mm at the hand for the whole arm chain, FK and IK. Fingers follow the same pattern but have 15 controls per hand and locked axes, so confirm them in a render.
+- `mirror_side('L')` in `{baseDir}/references/blender-emote-patterns.md` applies the right pattern to every control at once.
+- When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). The same angle on `.L` and `.R` does not produce a symmetric pose.
+
+## RULE: FK or IK — lose contact → FK, keep contact → IK
+
+Legs default to **IK**, arms to **FK** (`FK > IK *` properties on `CTRL_Avatar_UpperBody`). Switch only when the pose needs it, using one rule: **if a hand or foot has to keep contact** with the floor, a seat, a wall or a prop, it should be **IK**; **if it loses contact**, it should be **FK**.
+
+- FK legs: jumps, rolls, flying, handstands, swimming, legs dangling off a ledge or a theatre seat.
+- IK hands: push-ups, climbing, leaning on a table, both hands fixed on one prop.
+- Do **not** flip modes during walk cycles, dances or anywhere contact is lost only briefly — the defaults handle those, and every switch pops unless the two chains match exactly at that frame.
+- Key the `FK > IK` property itself when you change it, not just the bones.
+
+**Seated poses.** Lower the body with `CTRL_Avatar_UpperBody` — it is the centre of gravity and moves the **whole** body. `CTRL_Avatar_Hips` moves only pelvis + legs and stretches the torso — wrong tool for sitting. Then decide per leg:
+
+| Feet | Legs |
+| --- | --- |
+| Both feet on the ground (chair, bench) | Stay **IK**: move `CTRL_IK_Foot.*` to where the feet will rest, then drop the COG — the knees bend on their own, feet stay planted (verified: toes stay at Z = 0 through a 0.4 m drop). Aim the knees with `CTRL_Avatar_Knee.*`. |
+| One leg crossed over the other | Only the lifted leg to **FK**; the grounded one stays IK. |
+| Feet off the ground (pond edge, theatre seat, high stool) | Both legs **FK**. |
 
 ```python
-setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)   # legs default to IK (1.0)
+setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)   # only for a leg that leaves the ground
 setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
-# ...then pose CTRL_FK_Avatar_UpLeg / _Leg / _Foot / _ToeBase per side
+# ...then pose CTRL_FK_Avatar_UpLeg / _Leg / _Foot / _ToeBase on that side
 ```
 
-Key the properties themselves, not just the bones. Then check the feet: world Z of `Avatar_LeftToeBase` / `Avatar_RightToeBase` must stay **≥ 0** or the avatar sinks through the floor.
+Whatever the mode, check the feet: world Z of `Avatar_LeftToeBase` / `Avatar_RightToeBase` must stay **≥ 0** or the avatar sinks through the floor.
 
 ## RULE: Verify with numbers as well as renders
 
@@ -93,6 +117,18 @@ Renders catch composition; numbers catch clipping. Print world positions of hand
 - Keep the **face visible** in any default/holding pose — hold objects at upper-chest height with the head tilted down, not in front of the face.
 
 Render four angles per keyframe (front three-quarter, straight front, side, top) with Workbench and tile them into one contact sheet. Iterate in a cheap **pose-only stage** first (seconds per run), and only then do the full build with exports.
+
+## RULE: Stay inside the animation area
+
+Measured on the reference objects in `Avatar_File.blend` (world metres, Blender Z-up):
+
+| Reference object | Extent | Meaning |
+| --- | --- | --- |
+| `Animation_Area_Reference` | 4 × 4 × 4 m box — X, Y ∈ [−2, 2], Z ∈ [0, 4] | **Everything** stays inside for the whole clip: every body part, prop and particle. Nothing moves more than 4 m in any direction. |
+| `Root_Animation_Area` | 2 m diameter cylinder on the origin | The avatar **root / centre of gravity** (`CTRL_Avatar_UpperBody`, i.e. `Avatar_Hips`) travels at most **1 m** forward, back, left or right — 2 m across. Vertically it may rise as far as the box allows (the docs say 4 m; the cylinder mesh in the file is 3 m tall). |
+| `Ground_Reference` | plane at Z = 0 | Nothing below it. |
+
+Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel does — as long as they stay inside the box. Add the checks to the per-keyframe report: `|hips.x| ≤ 1`, `|hips.y| ≤ 1`, every deform bone head and tail inside the box, every toe Z ≥ 0 (`in_area()` in `{baseDir}/references/blender-emote-patterns.md`). The Decentraland Tools add-on's **Validate Emote** only *warns* when `CTRL_Avatar_UpperBody` moves more than 1 m horizontally or vertically from its first frame; it does not check the box, so the `in_area()` check is yours to run.
 
 ## RULE: Loops must close; one-shots must land where the scene resumes
 
@@ -145,7 +181,7 @@ Design notes for a seated holding pose that reads well: hips ≈ 0.6 m, hands at
 | File contents | deforming skeleton + animation **only** — no mesh, no control bones, no cameras/lights | docs |
 | Start / end pose | both from the idle (`Starting_Pose`) | docs |
 | Deform-bone keys | location + rotation + scale on the **first and last** frame, every bone | docs |
-| Root displacement | ≤ **1 m** in each horizontal direction, ≤ **4 m** up; the mesh must stay inside `Animation_Area_Reference` | docs |
+| Animation area | root ≤ **1 m** in each horizontal direction (2 m across); **every mesh part and prop** inside the **4 × 4 × 4 m** `Animation_Area_Reference` box (see RULE above) | docs + measured |
 | **Filename** | must end **`_emote.glb`** (case-insensitive) | **player-avatar** |
 | Scene permission | `ALLOW_TO_TRIGGER_AVATAR_EMOTE` in `scene.json` `requiredPermissions` | **player-avatar** |
 
@@ -153,7 +189,7 @@ Conventional location in the scene: `assets/animations/`. The glTF animation's *
 
 Blender's glTF exporter UI equivalents, if the user is exporting by hand: **Include > Limit to > Visible Objects**, **Data > Armature > Export Deformation Bones Only**, **Animation > Sampling Animations**.
 
-The Decentraland Tools add-on's **Validate Emote** operator checks most of this (30 fps, ≤ 300 frames, exactly one armature action, first/last-frame keys on deform channels, ≤ 1 m displacement) before it will export.
+The Decentraland Tools add-on's **Validate Emote** operator checks most of this (30 fps, ≤ 300 frames, exactly one armature action, first/last-frame keys on deform channels) before it will export, and warns — without blocking — when the COG moves more than 1 m horizontally or vertically. It does not check the 4 m bounding box.
 
 ## Testing in the scene
 

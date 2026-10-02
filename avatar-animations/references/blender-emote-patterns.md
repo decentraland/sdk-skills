@@ -108,9 +108,43 @@ def new_action(name):
     return act
 ```
 
-## Sign detection — never assume the rig is mirrored
+## Mirroring one side onto the other
 
-Rotate a control by a small test angle, measure which way a downstream bone actually moved, and cache the sign. Cheaper and more reliable than eyeballing renders for every joint.
+Legs and feet mirror with Blender's standard X-flip; shoulders, arms, hands and fingers need a different sign pattern (measured — see `{baseDir}/references/avatar-rig.md` → "Mirroring"). This copies every `.L` control onto `.R` (or back) with the right pattern per chain, including the per-side `FK > IK` properties:
+
+```python
+LEG_CTRL = ('CTRL_FK_Avatar_UpLeg', 'CTRL_FK_Avatar_Leg', 'CTRL_FK_Avatar_Foot', 'CTRL_FK_Avatar_ToeBase',
+            'CTRL_IK_Foot', 'CTRL_IK_Foot_Roll', 'CTRL_IK_Foot_ToeTip', 'CTRL_IK_Avatar_ToeBase', 'CTRL_Avatar_Knee')
+
+def mirror_side(src='L'):
+    """Mirror every CTRL_*.src onto the other side. Legs: (x,-y,-z) rot, (-x,y,z) loc.
+    Shoulder/arm/hand/fingers: (-x,-y,z) rot, (x,y,-z) loc."""
+    dst = 'R' if src == 'L' else 'L'
+    ub = arm.pose.bones['CTRL_Avatar_UpperBody']
+    for limb in ('Arm', 'Leg'):
+        ub['FK > IK %s %s' % (limb, dst)] = ub['FK > IK %s %s' % (limb, src)]
+    for pb in arm.pose.bones:
+        if not (pb.name.startswith('CTRL_') and pb.name.endswith('.' + src)):
+            continue
+        other = arm.pose.bones.get(pb.name[:-1] + dst)
+        if other is None:
+            continue
+        q, l = pb.rotation_quaternion, pb.location
+        if pb.name[:-2] in LEG_CTRL:
+            other.rotation_quaternion = Quaternion((q.w, q.x, -q.y, -q.z))
+            other.location = Vector((-l.x, l.y, l.z))
+        else:
+            other.rotation_quaternion = Quaternion((q.w, -q.x, -q.y, q.z))
+            other.location = Vector((l.x, l.y, -l.z))
+        other.scale = pb.scale.copy()
+    vl.update()
+```
+
+Verified on the rig: arm chain and fingers mirror to ~1 mm, IK legs exactly, FK legs within 5–10 cm at the foot (the left/right rest bone rolls differ slightly).
+
+## Sign detection for a single joint
+
+When you pose one joint rather than mirroring, rotate the control by a small test angle, measure which way a downstream bone actually moved, and cache the sign. Cheaper and more reliable than eyeballing renders for every joint.
 
 ```python
 def auto_sign(bone, axis, metric, prep=None):
@@ -136,7 +170,7 @@ for s, full in (('L', 'Left'), ('R', 'Right')):
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
 ```
 
-Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls). Upper arms must be driven from **world** axes with `rw()` — see the RULE in the skill doc.
+Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls). Upper arms: set the *direction* with `rw()` on world axes (local X is tilted and sweeps the arm across the chest), then **twist** with `rl(..., 'Y', deg)` — local Y is the bone axis and the only way to roll the arm — and fine-tune locally. See the RULE in the skill doc.
 
 ## Semantic pose vocabulary + a parametric default pose
 
@@ -145,8 +179,9 @@ Build named verbs on top of `rl`/`rw`/`move`, then express every keyframe as a d
 ```python
 def arm_fwd(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'X', -d)                # pure forward raise
 def arm_out(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'Z', d if s == 'L' else -d)
+def arm_twist(s, d): rl('CTRL_FK_Avatar_Arm.' + s, 'Y', d)                  # roll about the bone's own axis
 def head_down(d):   rl('CTRL_Avatar_Head', 'X', S['headdown'] * d)
-def fk_legs():
+def fk_legs():   # only for legs that leave the ground; feet on the floor → keep IK and move CTRL_IK_Foot.*
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
 
@@ -172,19 +207,37 @@ for frame, kw in CLIP:
 
 ## Numeric verification of a pose
 
-Renders catch composition problems; numbers catch clipping. Print world positions at every keyframe.
+Renders catch composition problems; numbers catch clipping and the animation area. Print world positions at every keyframe.
 
 ```python
+def in_area():
+    """Violations of the animation area: root within ±1 m horizontally, every deform bone
+    inside the 4 x 4 x 4 m Animation_Area_Reference box (X, Y in [-2, 2], Z in [0, 4])."""
+    vl.update()
+    bad = []
+    h = wpos('Avatar_Hips')
+    if abs(h.x) > 1.0 or abs(h.y) > 1.0:
+        bad.append(('ROOT', tuple(round(v, 2) for v in h)))
+    for pb in arm.pose.bones:
+        if not pb.bone.use_deform:
+            continue
+        for p in (wpos(pb.name), wtail(pb.name)):
+            if abs(p.x) > 2.0 or abs(p.y) > 2.0 or p.z < 0.0 or p.z > 4.0:
+                bad.append((pb.name, tuple(round(v, 2) for v in p)))
+    return bad
+
 def report(tag):
     vl.update()
     r3 = lambda v: [round(x, 3) for x in v]
     print('POSE', tag,
           'head', r3(wpos('Avatar_Head')), 'handL', r3(wpos('Avatar_LeftHand')),
-          'handR', r3(wpos('Avatar_RightHand')), 'toeL', r3(wpos('Avatar_LeftToeBase')))
+          'handR', r3(wpos('Avatar_RightHand')), 'toeL', r3(wpos('Avatar_LeftToeBase')),
+          'area', in_area() or 'ok')
     # assertions worth making:
     #   toe world z >= 0                                  (feet above the floor)
     #   |hand - head| >= 0.3                              (limb not passing through the skull)
     #   |handL - handR| >= 0.10                           (hands not interpenetrating)
+    #   in_area() == []                                   (root ±1 m, everything inside the 4 m box)
 ```
 
 ## Render to verify (Workbench, four angles)
