@@ -9,7 +9,7 @@ description: Build, extend, and deploy Decentraland SDK7 scenes. This is the ent
 
 ## Agent Behavioral Guidelines
 
-Before taking any significant action, check whether it falls into one of the four categories below and **confirm with the user first**.
+Before taking any significant action, check whether it falls into one of the categories below and **confirm with the user first**.
 
 **How to ask:** Phrase the question in plain, non-technical language that describes _what will happen to the scene_, not the underlying command.
 
@@ -45,6 +45,10 @@ If `mcp__blender__*` tools exist in the session but aren't connected (Blender is
 > "The Blender MCP is set up but Blender isn't running. Want to open Blender so I can work in it live — you'd see the model as it's built and could edit alongside me — or should I do this headless instead?"
 
 The MCP is what makes model work collaborative; a silent fallback removes that choice. If the MCP isn't installed at all, don't ask the user to install it — go headless and just mention the MCP as an option in your report. Full rule in **add-3d-models**.
+
+### 5. Reporting an SDK bug before working around it
+
+When the SDK, the Explorer, or the Creator Hub doesn't behave as documented, or lacks something the scene needs, and you're about to work around it, report it first with the **report-sdk-issue** skill. The first time this happens in a scene, ask the user whether SDK issue reports may be sent. After that, report without asking, or never, depending on their answer. Tell the user in one line when a report goes out. Reporting never blocks the work.
 
 ### General principle
 
@@ -183,6 +187,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
+
+### Reporting SDK Issues
+
+**Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.
 
 ### SDK6 → SDK7 Migration
 

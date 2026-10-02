@@ -67,6 +67,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
+| `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
@@ -78,6 +79,8 @@ Skills are markdown files that give AI coding assistants the context they need t
 ## Contributing
 
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
+
+The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
 
 ## License
 
