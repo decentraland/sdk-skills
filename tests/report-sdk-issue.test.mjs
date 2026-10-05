@@ -209,6 +209,13 @@ describe('report-sdk-issue', () => {
       ])
     })
 
+    it('should refuse a fingerprint or skill that carries a key or hash', () => {
+      assert.deepEqual(validate({ ...REPORT, fingerprint: `leak-0x${'a'.repeat(64)}`, skill: 'f'.repeat(40) }), [
+        '"fingerprint" looks like a key or hash; describe the area and symptom instead',
+        '"skill" looks like a key or hash',
+      ])
+    })
+
     it('should exit with code 2 on submit', async () => {
       await run(sceneDir, ['consent', '--grant'])
       const { code } = await run(sceneDir, ['submit'], { input: { ...REPORT, kind: 'nope' } })
@@ -224,6 +231,31 @@ describe('report-sdk-issue', () => {
       assert.equal(
         redact(text, '/nowhere'),
         'at ~/scene <ADDRESS> <EMAIL> Bearer <TOKEN> https://api.example.com/x?token=<REDACTED>'
+      )
+    })
+
+    it('should strip keys without 0x, file:// and WSL paths, credential pairs and npm tokens', () => {
+      const hex = 'a'.repeat(64)
+      const text = [
+        `PRIVATE_KEY=${hex}`,
+        'at file:///Users/jane/scene/x.ts',
+        '/mnt/c/Users/jane/scene',
+        'C:\\\\Users\\\\jane\\\\scene',
+        '"apiKey": "abcd1234efgh5678"',
+        "const authToken = 'abc123secret'",
+        'npm_abcdefghijklmnopqrstuvwxyz0123456789',
+      ].join('\n')
+      assert.equal(
+        redact(text, '/nowhere'),
+        [
+          'PRIVATE_KEY=<REDACTED>',
+          'at file://~/scene/x.ts',
+          '~/scene',
+          '~\\\\scene',
+          '"apiKey": "<REDACTED>"',
+          "const authToken = '<REDACTED>'",
+          '<TOKEN>',
+        ].join('\n')
       )
     })
 

@@ -34,12 +34,20 @@ const DEFAULT_ENDPOINT = null
 
 const LEDGER_FILE = '.dcl-sdk-reports.json'
 const IGNORE_FILES = ['.gitignore', '.dclignore']
-const REQUEST_TIMEOUT_MS = 8000
+// The service gives each report up to 20 seconds of GitHub calls; waiting longer than that keeps
+// the script from giving up, and later resending, a report the service is still filing.
+const REQUEST_TIMEOUT_MS = 30000
 // Flushing runs on every check/submit, so a long queue or a dead endpoint must not stall the agent.
 const MAX_FLUSH_PER_RUN = 5
 
 const KINDS = ['bug', 'limitation', 'docs-gap']
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
+// A slug segment of 32+ hex characters, with or without 0x: a key, hash or token rather than
+// words. Slugs reach the issue footer and labels, where the service does not redact.
+const HEX_SEGMENT = /(?:^|-)(?:0x)?[0-9a-f]{32,}(?=-|$)/
+// Names whose value is a credential, in `name: "value"`, `name = 'value'` and JSON pairs.
+const SECRET_NAME =
+  '[A-Za-z0-9_-]*(?:api[_-]?key|private[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|credential|auth)[A-Za-z0-9_-]*'
 const LIMITS = { title: 120, description: 10000, workaround: 5000, fingerprint: 120, skill: 80, agent: 40 }
 const INPUT_FIELDS = ['title', 'description', 'workaround', 'kind', 'fingerprint', 'skill', 'agent']
 
@@ -143,14 +151,19 @@ export function redact(text, root) {
     }
   }
   return result
-    .replace(/(?<![\w./~-])(?:\/Users|\/home)\/[^/\s'"`]+/g, '~')
-    .replace(/(?<![\w])[A-Za-z]:\\Users\\[^\\\s'"`]+/gi, '~')
+    .replace(/(?<=^|[\s'"`(=,[]|file:\/\/)(?:\/mnt\/[a-z])?\/(?:Users|home)\/[^/\s'"`]+/gim, '~')
+    .replace(/(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)[^\\/\s'"`]+/gi, '~')
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '<PRIVATE_KEY>')
+    .replace(new RegExp(`("${SECRET_NAME}"\\s*:\\s*")[^"]*"`, 'gi'), '$1<REDACTED>"')
+    .replace(new RegExp(`(\\b${SECRET_NAME}\\s*[:=]\\s*)(['"\`])[^'"\`\\n]+\\2`, 'gi'), '$1$2<REDACTED>$2')
+    .replace(/\b([A-Z0-9_]*(?:_KEY|KEY_|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)[A-Z0-9_]*)=(?!<)[^\s'"`&]+/g, '$1=<REDACTED>')
     .replace(/\b0x[a-fA-F0-9]{64}\b/g, '<HEX_SECRET>')
+    .replace(/\b[a-fA-F0-9]{64}\b/g, '<HEX_SECRET>')
     .replace(/\b0x[a-fA-F0-9]{40}\b/g, '<ADDRESS>')
     .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, '<TOKEN>')
     .replace(/\b(?:sk|pk|rk)[-_](?:live|test)?[-_]?[A-Za-z0-9]{16,}\b/g, '<TOKEN>')
     .replace(/\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g, '<TOKEN>')
+    .replace(/\bnpm_[A-Za-z0-9]{36}\b/g, '<TOKEN>')
     .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g, '<TOKEN>')
     .replace(/\bAKIA[0-9A-Z]{16}\b/g, '<TOKEN>')
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{12,}/g, '$1 <TOKEN>')
@@ -176,8 +189,11 @@ export function validate(input) {
   if (typeof input.kind === 'string' && !KINDS.includes(input.kind)) errors.push(`"kind" must be one of ${KINDS.join(', ')}`)
   if (typeof input.fingerprint === 'string' && !SLUG.test(input.fingerprint))
     errors.push('"fingerprint" must be a lowercase kebab-case slug, e.g. ui-input-controlled-reset')
+  else if (typeof input.fingerprint === 'string' && HEX_SEGMENT.test(input.fingerprint))
+    errors.push('"fingerprint" looks like a key or hash; describe the area and symptom instead')
   if (typeof input.skill === 'string' && input.skill !== '' && !SLUG.test(input.skill))
     errors.push('"skill" must be a skill name, e.g. build-ui')
+  else if (typeof input.skill === 'string' && HEX_SEGMENT.test(input.skill)) errors.push('"skill" looks like a key or hash')
   return errors
 }
 
@@ -209,7 +225,7 @@ function buildPayload(input, root) {
   const sdkVersion = detectSdkVersion(root)
   if (sdkVersion) payload.sdkVersion = String(sdkVersion).slice(0, 40)
   payload.metadata = { os: platform(), node: process.versions.node }
-  if (input.agent) payload.metadata.agent = input.agent
+  if (input.agent) payload.metadata.agent = redact(input.agent, root)
   return payload
 }
 

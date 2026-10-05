@@ -20,7 +20,9 @@ The endpoint is the `DEFAULT_ENDPOINT` constant in `scripts/report.mjs`, overrid
 | `sdkVersion` | string ≤ 40 | no | Installed `@dcl/sdk` version, or the `package.json` range. |
 | `metadata` | object | no | `{ os?: string, node?: string, agent?: string ≤ 40 }` |
 
-The script has already redacted paths, addresses, emails, and tokens. The service applies its own redaction too.
+The script has already redacted paths, addresses, emails, keys, credential pairs and tokens. The service applies its own redaction too. `fingerprint` and `skill` are never redacted, because they become the issue footer and labels, so both sides refuse a slug segment of 32 or more hex characters (a key or hash).
+
+The service spends at most 20 seconds per report on GitHub calls. The script waits 30 seconds before giving up, so it does not resend a report the service is still filing.
 
 ## Responses
 
