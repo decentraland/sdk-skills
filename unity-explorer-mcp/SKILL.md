@@ -1,6 +1,6 @@
 ---
 name: unity-explorer-mcp
-description: Set up, launch and drive a Decentraland Explorer through its MCP automation server to build and test a local SDK7 scene in-world: screenshot, walk, click and debug the running scene. Use when the user asks to see, test, verify, walk through, screenshot, or debug a scene in-world; when they name the Explorer or its MCP server; when they want the Explorer MCP installed, set up or connected; whenever an `mcp__explorer__*` tool is available; and whenever the `explorer` MCP server failed to connect or was never set up at all — ConnectionRefused, or no such server, only means the Explorer is not running yet, which is this skill's normal starting point, not a reason to skip it.
+description: "Set up, launch and drive a Decentraland Explorer through its MCP automation server to build and test a local SDK7 scene in-world: screenshot, walk, click and debug the running scene. Use when the user asks to see, test, verify, walk through, screenshot, or debug a scene in-world; when they name the Explorer or its MCP server; when they want the Explorer MCP installed, set up or connected; whenever an `mcp__explorer__*` tool is available; and whenever the `explorer` MCP server failed to connect or was never set up at all — ConnectionRefused, or no such server, only means the Explorer is not running yet, which is this skill's normal starting point, not a reason to skip it."
 ---
 
 # Unity Explorer MCP Scene Iteration
