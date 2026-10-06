@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,10 +45,18 @@ function run(sceneDir, args, { input, env = {} } = {}) {
   })
 }
 
-function sendLockPath(sceneDir) {
+function lockFile(sceneDir, kind) {
   const dir = join(homeDir, '.cache', 'dcl-sdk-reports')
   mkdirSync(dir, { recursive: true })
-  return join(dir, `${createHash('sha256').update(sceneDir).digest('hex').slice(0, 16)}.send.lock`)
+  return join(dir, `${createHash('sha256').update(sceneDir).digest('hex').slice(0, 16)}.${kind}.lock`)
+}
+
+const sendLockPath = sceneDir => lockFile(sceneDir, 'send')
+
+function writeEmptyLock(path, ageMs) {
+  writeFileSync(path, '')
+  const at = (Date.now() - ageMs) / 1000
+  utimesSync(path, at, at)
 }
 
 async function queueReports(sceneDir, count) {
@@ -392,6 +400,37 @@ describe('report-sdk-issue', () => {
       })
     })
 
+    describe('and a lock file was left empty by a crash', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+        await queueReports(sceneDir, 1)
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should take an old empty send lock over and send', async () => {
+        writeEmptyLock(sendLockPath(sceneDir), 10_000)
+        const { first } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual({ first, requests: mock.requests.length }, { first: 'flushed', requests: 1 })
+      })
+
+      it('should still treat a just-created empty lock as held', async () => {
+        writeEmptyLock(sendLockPath(sceneDir), 0)
+        const { first } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.equal(first, 'busy')
+      })
+
+      it('should not block submit when the ledger lock is the one left empty', async () => {
+        writeEmptyLock(lockFile(sceneDir, 'ledger'), 10_000)
+        const { first } = await run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: 'after-a-crash' } })
+        assert.equal(first, 'queued')
+      })
+    })
+
     describe('and reports are submitted while background runs are sending', () => {
       let mock
 
@@ -552,7 +591,10 @@ describe('report-sdk-issue', () => {
         '-----BEGIN ' + 'A '.repeat(5000),
         'a://a:'.repeat(1600),
         'password: '.repeat(1000),
-        'secret="' + '\\'.repeat(5000)
+        'secret="' + '\\'.repeat(5000),
+        'AUTH_'.repeat(2000),
+        'aToken'.repeat(1600),
+        'Authorization: a '.repeat(580)
       ]
       const slow = inputs
         .map(input => {
@@ -571,8 +613,29 @@ describe('report-sdk-issue', () => {
       )
     })
 
+    it('should redact every Authorization scheme and credential names with infixes', () => {
+      const cases = [
+        ['authorization: bearer abcdefghijklmnopqrstuvwxyz123456', 'authorization: bearer <TOKEN>'],
+        ['Authorization: Token abc123def456', 'Authorization: Token <TOKEN>'],
+        ['"Authorization": "Bearer abcdefghij"', '"Authorization": "Bearer <TOKEN>"'],
+        ['AUTH=dXNlcjpwYXNz', 'AUTH=<REDACTED>'],
+        ['_auth=dXNlcjpwYXNz', '_auth=<REDACTED>'],
+        ['GITHUB_TOKEN_V2=abc', 'GITHUB_TOKEN_V2=<REDACTED>'],
+        ['AWS_ACCESS_KEY_ID=AKIAXXXX', 'AWS_ACCESS_KEY_ID=<REDACTED>'],
+        ['SECRET_KEY_BASE=abc', 'SECRET_KEY_BASE=<REDACTED>'],
+        ['tokenValue: abc123', 'tokenValue: <REDACTED>']
+      ]
+      assert.deepEqual(
+        cases.map(([input]) => redact(input, '/nowhere')),
+        cases.map(([, expected]) => expected)
+      )
+    })
+
     it('should leave words that only contain a credential keyword alone', () => {
-      assert.equal(redact('author: jane, Tokenizer: fails', '/nowhere'), 'author: jane, Tokenizer: fails')
+      assert.equal(
+        redact('author: jane, Tokenizer: fails, seedling: 3, auth: true, tokenCount: number', '/nowhere'),
+        'author: jane, Tokenizer: fails, seedling: 3, auth: true, tokenCount: number'
+      )
     })
 
     it('should leave URL paths that merely contain /home alone', () => {

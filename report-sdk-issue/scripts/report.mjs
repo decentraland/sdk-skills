@@ -34,7 +34,7 @@
 
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, linkSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, linkSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +58,9 @@ const LOCK_DIR = join(homedir(), '.cache', 'dcl-sdk-reports')
 const SEND_LOCK_STALE_MS = 5 * 60_000
 const LEDGER_LOCK_STALE_MS = 30_000
 const LEDGER_LOCK_WAIT_MS = 5_000
+// A lock file is written right after it is created, so one that still cannot be parsed after this
+// long was left empty or partial by a process that died or a full disk, and is stale.
+const UNREADABLE_LOCK_STALE_MS = 2_000
 // How long background runs leave the service alone after it answers 429 or 503 without a
 // Retry-After, or cannot be reached at all.
 const DEFAULT_BACKOFF_MS = 10 * 60_000
@@ -98,7 +101,7 @@ const SECRET_NAME = `(?<![\\w-])[\\w-]{0,40}?${SECRET_KEYWORD}(?![\\w-])`
 const TYPE_ANNOTATION = '(?::\\s*[A-Za-z_][\\w.<>\\[\\]| ]{0,40}?\\s*)?'
 
 /** Type names that follow `name:` in TypeScript annotations; not values, so left alone. */
-const TYPE_NAMES = '(?:string|number|boolean|undefined|null|any|unknown)(?![\\w-])'
+const TYPE_NAMES = '(?:string|number|boolean|undefined|null|any|unknown|true|false)(?![\\w-])'
 
 /** A quoted string with escapes, in single, double or back quotes; the `q` group is the quote. */
 const QUOTED = '(?<q>[\'"`])(?:\\\\.|(?!\\k<q>)[^\\\\\\n])*\\k<q>'
@@ -106,6 +109,31 @@ const QUOTED = '(?<q>[\'"`])(?:\\\\.|(?!\\k<q>)[^\\\\\\n])*\\k<q>'
 /** Hex runs are bounded by non-hex characters, not word boundaries, so `KEY_<hex>` is caught too. */
 const NOT_HEX_BEFORE = '(?<![0-9a-fA-F])'
 const NOT_HEX_AFTER = '(?![0-9a-fA-F])'
+
+/**
+ * Upper-case environment names with a credential word anywhere in them (`AWS_ACCESS_KEY_ID`,
+ * `GITHUB_TOKEN_V2`, `SECRET_KEY_BASE`, `AUTH`, `SEED`). Case-sensitive, so it only reads names
+ * written the way environment variables are, and never `author` or `seedling` in prose or code.
+ */
+const ENV_NAME =
+  '(?<![\\w-])[A-Z0-9_]{0,40}?(?:TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|MNEMONIC|SEED|CREDENTIALS?|AUTH|API_KEY|ACCESS_KEY|PRIVATE_KEY|_KEY)[A-Z0-9_]{0,40}(?![\\w-])'
+
+/**
+ * camelCase names with a credential word followed by more words (`tokenValue`, `authHeader`,
+ * `userSecretHash`). Case-sensitive: the word after the credential word must start upper-case,
+ * which is what tells `tokenValue` apart from `Tokenizer` or `author`.
+ */
+const CAMEL_NAME =
+  '(?<![\\w-])(?:[a-z][A-Za-z0-9]{0,40}?)?(?:token|Token|secret|Secret|password|Password|passphrase|Passphrase|auth|Auth|apiKey|ApiKey|accessKey|AccessKey|privateKey|PrivateKey|credentials?|Credentials?)[A-Z][A-Za-z0-9]{0,20}(?![\\w-])'
+
+/** A bare value: not quoted, not already a placeholder, not a type name or boolean. */
+const BARE_VALUE = `(?![\\s'"\`<]|${TYPE_NAMES})[^\\s,;'"\`&)}\\]]+`
+
+
+/** Redacts the token after `Authorization:`, keeping a scheme word (`Bearer`, `Token`, …) if any. */
+function redactAuthorization(_match, prefix, scheme) {
+  return `${prefix}${scheme ? `${scheme} ` : ''}<TOKEN>`
+}
 
 /**
  * What is replaced, in order. Order matters: bearer and basic credentials go before field names,
@@ -122,17 +150,27 @@ const REDACTIONS = [
   [/-----BEGIN [A-Z ]{0,40}PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]{0,40}PRIVATE KEY-----|$)/g, '<PRIVATE_KEY>'],
   // Everything before the last @ of a URL's authority: user, password, even an @ in the password.
   [/(?<![\w+.-])([a-z][a-z0-9+.-]{0,20}:\/\/)[^\s/?#]*@/gi, '$1<REDACTED>@'],
-  [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{12,}/g, '$1 <TOKEN>'],
-  [/(?<![\w-])(authorization\s*:\s*)(?!Bearer\b|Basic\b)[^\s'"`]{12,}/gi, '$1<TOKEN>'],
+  // Bearer and basic credentials in any case, then whatever follows `Authorization:` after any
+  // scheme word (`Token`, `Bot`, `Digest`, …), quoted or not.
+  [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 <TOKEN>'],
+  [
+    /(?<![\w-])(['"]?authorization['"]?\s*[:=]\s*['"]?)(?!(?:[A-Za-z][\w-]{0,20}\s+)?<)(?:([A-Za-z][\w-]{0,20})\s+)?[^\s'"`,;]+/gi,
+    redactAuthorization,
+  ],
   // Quoted names: JSON and object literals, either quote.
   [new RegExp(`(['"]${SECRET_NAME}['"]\\s*:\\s*)${QUOTED}`, 'gi'), '$1$<q><REDACTED>$<q>'],
   // Bare names with a quoted value, with or without a type annotation.
   [new RegExp(`(${SECRET_NAME}\\s*${TYPE_ANNOTATION}[:=]\\s*)${QUOTED}`, 'gi'), '$1$<q><REDACTED>$<q>'],
   // Bare names with a bare value, except a type name in an annotation.
-  [new RegExp(`(${SECRET_NAME}\\s*[:=]\\s*)(?![\\s'"\`<]|${TYPE_NAMES})[^\\s,;'"\`&)}\\]]+`, 'gi'), '$1<REDACTED>'],
-  // Environment-style names ending in _KEY, which the keyword list leaves out on purpose: a bare
-  // `key` would catch every `key:` in scene code.
-  [/(?<![\w-])([A-Z0-9_]{0,40}?_KEY)=(?!<)[^\s'"`&]+/g, '$1=<REDACTED>'],
+  [new RegExp(`(${SECRET_NAME}\\s*[:=]\\s*)${BARE_VALUE}`, 'gi'), '$1<REDACTED>'],
+  // Upper-case environment names and camelCase names with the credential word inside them, which
+  // the end-of-name keyword match above leaves out. Case-sensitive on purpose (no `i` flag).
+  [new RegExp(`(${ENV_NAME}\\s*[:=]\\s*)${QUOTED}`, 'g'), '$1$<q><REDACTED>$<q>'],
+  [new RegExp(`(${ENV_NAME}\\s*[:=]\\s*)${BARE_VALUE}`, 'g'), '$1<REDACTED>'],
+  [new RegExp(`(${CAMEL_NAME}\\s*${TYPE_ANNOTATION}[:=]\\s*)${QUOTED}`, 'g'), '$1$<q><REDACTED>$<q>'],
+  [new RegExp(`(${CAMEL_NAME}\\s*[:=]\\s*)${BARE_VALUE}`, 'g'), '$1<REDACTED>'],
+  // npm credentials in .npmrc: `_auth` (base64 user:pass), `_authToken`, `_password`.
+  [/(?<![\w-])(_auth(?:Token)?|_password)(\s*=\s*)(?!<)[^\s'"`]+/g, '$1$2<REDACTED>'],
   [new RegExp(`${NOT_HEX_BEFORE}0[xX][0-9a-fA-F]{64,}${NOT_HEX_AFTER}`, 'g'), '<HEX_SECRET>'],
   [new RegExp(`(?<![0-9a-fA-FxX])[0-9a-fA-F]{64,}${NOT_HEX_AFTER}`, 'g'), '<HEX_SECRET>'],
   [new RegExp(`${NOT_HEX_BEFORE}0[xX][0-9a-fA-F]{40}${NOT_HEX_AFTER}`, 'g'), '<ADDRESS>'],
@@ -386,10 +424,24 @@ function isAlive(pid) {
 }
 
 /**
+ * Whether a lock file's holder is gone. A lock that cannot be parsed is judged by its file's age
+ * instead, so a lock left empty by a crash or a full disk cannot block the scene forever.
+ */
+function isStale(path, content, staleMs) {
+  let holder
+  try {
+    holder = JSON.parse(content)
+  } catch {
+    return Date.now() - statSync(path).mtimeMs > Math.min(staleMs, UNREADABLE_LOCK_STALE_MS)
+  }
+  return !isAlive(holder.pid) || Date.now() - holder.at > staleMs
+}
+
+/**
  * Takes a lock file, or returns undefined if another live process holds it.
  *
- * The file holds an owner token, the pid and the time. It is stale once its process is gone or it
- * is older than `staleMs`. A stale lock is moved aside with a rename, which succeeds for exactly
+ * The file holds an owner token, the pid and the time. It is stale once its process is gone, it is
+ * older than `staleMs`, or it cannot be parsed and is a couple of seconds old. A stale lock is moved aside with a rename, which succeeds for exactly
  * one process; if what was moved turns out to be a fresh lock someone else just took, it is put
  * back. The returned release only removes the file if it still holds this owner's token.
  */
@@ -402,8 +454,7 @@ function tryLock(path, staleMs) {
   } catch {
     try {
       const observed = readFileSync(path, 'utf8')
-      const holder = JSON.parse(observed)
-      if (isAlive(holder.pid) && Date.now() - holder.at < staleMs) return undefined
+      if (!isStale(path, observed, staleMs)) return undefined
       const aside = `${path}.${token}.stale`
       renameSync(path, aside)
       if (readFileSync(aside, 'utf8') !== observed) {
