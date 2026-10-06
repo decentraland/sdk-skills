@@ -22,7 +22,7 @@ The endpoint is the `DEFAULT_ENDPOINT` constant in `scripts/report.mjs`, overrid
 
 The script has already redacted paths, addresses, emails, keys, credential pairs and tokens. The service applies its own redaction too. `fingerprint` and `skill` are never redacted, because they become the issue footer and labels, so both sides refuse a slug segment of 32 or more hex characters (a key or hash).
 
-The service spends at most 20 seconds per report on GitHub calls. The script waits 30 seconds before giving up, so it does not resend a report the service is still filing.
+The script never sends while the agent waits: `submit` and `check` queue the report and start a detached background process that sends it. That process waits up to 30 seconds per request, above the service's 20-second budget for GitHub calls, so it does not give up on, and later resend, a report the service is still filing.
 
 ## Responses
 

@@ -7,8 +7,13 @@
 // Usage:
 //   report.mjs check --fingerprint <slug>   prints one of: consent:unknown | consent:denied | reported | not-reported
 //   report.mjs consent --grant|--deny       records the user's answer for this scene
-//   report.mjs submit [--file report.json]  reads the report JSON (stdin by default) and sends or queues it
+//   report.mjs submit [--file report.json]  reads the report JSON (stdin by default), queues it and returns;
+//                                           a background process sends it
+//   report.mjs flush                        sends queued reports now and waits for the result
 //   report.mjs status                       prints consent, endpoint and ledger counts
+//
+// Sending never blocks the agent: submit and check only start a detached background process that
+// sends whatever is queued, so a slow or unreachable service costs the user no time.
 //
 // Options:
 //   --dir DIR   scene folder (default: nearest parent of the cwd containing scene.json, else the cwd)
@@ -22,9 +27,10 @@
 //
 // Requires Node >= 18 (global fetch). No dependencies.
 
-import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir, platform } from 'node:os'
+import { spawn } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
+import { closeSync, existsSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { homedir, platform, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,8 +43,12 @@ const IGNORE_FILES = ['.gitignore', '.dclignore']
 // The service gives each report up to 20 seconds of GitHub calls; waiting longer than that keeps
 // the script from giving up, and later resending, a report the service is still filing.
 const REQUEST_TIMEOUT_MS = 30000
-// Flushing runs on every check/submit, so a long queue or a dead endpoint must not stall the agent.
+// How many queued reports one background run sends. It stops early at the first one that still
+// fails, since the rest would fail the same way.
 const MAX_FLUSH_PER_RUN = 5
+// Longer than a full background run can take (MAX_FLUSH_PER_RUN request timeouts), so a lock older
+// than this belongs to a run that died, and is taken over.
+const LOCK_STALE_MS = 5 * 60_000
 
 const KINDS = ['bug', 'limitation', 'docs-gap']
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
@@ -291,17 +301,85 @@ function applyResult(entry, result) {
   if (result.error) entry.error = result.error
 }
 
-/** Retries queued reports. Stops at the first one still failing, since the rest would fail the same way. */
-async function flushPending(root, ledger) {
-  const endpoint = getEndpoint()
-  if (!endpoint || getConsent(ledger) !== 'granted') return
-  const pending = ledger.reports.filter(entry => entry.status === 'pending' && entry.payload).slice(0, MAX_FLUSH_PER_RUN)
-  for (const entry of pending) {
-    const result = await send(endpoint, entry.payload)
-    applyResult(entry, result)
-    writeLedger(root, ledger)
-    if (result.outcome === 'pending') break
+function hasQueuedWork(ledger) {
+  return (
+    Boolean(getEndpoint()) &&
+    getConsent(ledger) === 'granted' &&
+    ledger.reports.some(entry => entry.status === 'pending' && entry.payload)
+  )
+}
+
+/**
+ * One background run per scene at a time, so two runs never send the same report at once. The
+ * lock lives in the OS temp folder, keyed by the scene path, so it never shows up in the scene.
+ */
+function acquireLock(root) {
+  const path = join(tmpdir(), `dcl-sdk-reports-${createHash('sha256').update(root).digest('hex').slice(0, 16)}.lock`)
+  const release = () => {
+    try {
+      unlinkSync(path)
+    } catch {}
   }
+  try {
+    closeSync(openSync(path, 'wx'))
+    return release
+  } catch {}
+  try {
+    if (Date.now() - statSync(path).mtimeMs < LOCK_STALE_MS) return undefined
+    unlinkSync(path)
+    closeSync(openSync(path, 'wx'))
+    return release
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Starts a detached process that sends the queued reports, and returns at once. If it cannot be
+ * started, the reports simply stay queued for the next run.
+ */
+function startBackgroundFlush(root) {
+  try {
+    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'flush', '--dir', root], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: process.env
+    })
+    child.on('error', () => {})
+    child.unref()
+  } catch {}
+}
+
+/**
+ * Sends queued reports, oldest first, and waits for the result. This is what the background
+ * process runs. The ledger is re-read around every request, because the agent can queue another
+ * report while one is in flight.
+ */
+async function flush(root) {
+  const release = acquireLock(root)
+  if (!release) return 'busy\nAnother run is already sending this scene\'s queued reports.'
+  const counts = { sent: 0, rejected: 0, pending: 0 }
+  try {
+    for (let attempt = 0; attempt < MAX_FLUSH_PER_RUN; attempt++) {
+      const ledger = readLedger(root)
+      if (!ledger || !hasQueuedWork(ledger)) break
+      const entry = ledger.reports.find(candidate => candidate.status === 'pending' && candidate.payload)
+      const result = await send(getEndpoint(), entry.payload)
+      const fresh = readLedger(root)
+      const target = fresh?.reports.find(candidate => candidate.clientReportId === entry.clientReportId)
+      if (target) {
+        applyResult(target, result)
+        writeLedger(root, fresh)
+      }
+      counts[result.outcome]++
+      if (result.outcome === 'pending') break
+    }
+  } finally {
+    release()
+  }
+  const left = readLedger(root)?.reports.filter(entry => entry.status === 'pending').length ?? 0
+  return `flushed\n${counts.sent} sent, ${counts.rejected} rejected, ${left} still queued.`
 }
 
 function readStdin() {
@@ -337,7 +415,7 @@ async function check(root, options) {
   const ledger = readLedger(root)
   const consent = getConsent(ledger)
   if (consent !== 'granted') return consentLine(consent)
-  await flushPending(root, ledger)
+  if (hasQueuedWork(ledger)) startBackgroundFlush(root)
   const known = ledger.reports.find(entry => entry.fingerprint === options.fingerprint)
   return known ? `reported\nAlready reported from this scene (${known.status}). Apply the workaround.` : 'not-reported'
 }
@@ -367,8 +445,9 @@ async function submit(root, options) {
   const errors = validate(input)
   if (errors.length > 0) throw new UsageError(`invalid: ${errors.join('; ')}`)
 
-  await flushPending(root, ledger)
-  const known = ledger.reports.find(entry => entry.fingerprint === input.fingerprint)
+  // Re-read: a background run may have updated the ledger while the report was being read in.
+  const latest = readLedger(root) || ledger
+  const known = latest.reports.find(entry => entry.fingerprint === input.fingerprint)
   if (known) return `already-reported\nThis issue was already reported from this scene (${known.status}).`
 
   const payload = buildPayload(input, root)
@@ -380,18 +459,13 @@ async function submit(root, options) {
     createdAt: new Date().toISOString(),
     payload
   }
-  // Written before sending, so a crash mid-request still leaves the report queued rather than lost.
-  ledger.reports.push(entry)
-  writeLedger(root, ledger)
+  // Queued first and sent by a background process, so the agent never waits on the network.
+  latest.reports.push(entry)
+  writeLedger(root, latest)
 
-  const endpoint = getEndpoint()
-  if (!endpoint) return 'queued\nSaved locally; it will be sent automatically once the reporting endpoint is live.'
-  const result = await send(endpoint, payload)
-  applyResult(entry, result)
-  writeLedger(root, ledger)
-  if (result.outcome === 'sent') return 'sent\nReported to the Decentraland SDK team.'
-  if (result.outcome === 'rejected') return `rejected\nThe reporting service refused this report (${result.error}).`
-  return `queued\nCould not reach the reporting service (${result.error}); it will be retried on the next run.`
+  if (!getEndpoint()) return 'queued\nSaved locally; it will be sent automatically once the reporting endpoint is live.'
+  startBackgroundFlush(root)
+  return 'queued\nSaved; it is being sent to the Decentraland SDK team in the background.'
 }
 
 function status(root) {
@@ -416,10 +490,12 @@ async function main() {
       return consent(root, options)
     case 'submit':
       return submit(root, options)
+    case 'flush':
+      return flush(root)
     case 'status':
       return status(root)
     default:
-      throw new UsageError('Usage: report.mjs check --fingerprint <slug> | consent --grant|--deny | submit [--file f] | status')
+      throw new UsageError('Usage: report.mjs check --fingerprint <slug> | consent --grant|--deny | submit [--file f] | flush | status')
   }
 }
 

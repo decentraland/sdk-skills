@@ -94,19 +94,18 @@ In a shell without heredocs (e.g. PowerShell), write the JSON to a temporary fil
 
 | First line | Tell the user (one line) |
 |---|---|
-| `sent` | "I reported this SDK issue to the Decentraland team: <title>." |
-| `queued` | "I saved a report of this SDK issue for the Decentraland team; it'll be sent automatically." |
+| `queued` | "I'm reporting this SDK issue to the Decentraland team: <title>." |
 | `already-reported` | Nothing. |
-| `rejected` | Nothing; carry on. |
 | `invalid: …` | Fix the listed fields and submit again. |
 | `consent:…` | You skipped step 2; go back to it. |
 
-Then apply the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it.
+`submit` returns as soon as the report is saved: a background process sends it, so don't wait for it or check on it. Go straight to the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it.
 
-Queued reports are retried automatically on later `check` and `submit` runs, and they're never duplicated.
+A report that couldn't be sent stays queued and is retried in the background on later `check` and `submit` runs, never duplicated.
 
 ## Reference
 
 - Request and response contract for the reporting service: `{baseDir}/references/api.md`
 - `node {baseDir}/scripts/report.mjs status` shows the consent, the endpoint, and how many reports were sent, are pending, or were rejected.
+- `node {baseDir}/scripts/report.mjs flush` sends queued reports right away and waits for the result. Only for troubleshooting; normal use never needs it.
 - To disable reporting on a machine or in CI, set `DCL_SDK_ISSUE_REPORTS=off`. This always wins over a stored consent.

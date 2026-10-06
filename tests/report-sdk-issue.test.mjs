@@ -36,6 +36,18 @@ function readLedger(sceneDir) {
   return JSON.parse(readFileSync(join(sceneDir, '.dcl-sdk-reports.json'), 'utf8'))
 }
 
+/** Polls the ledger until the background process has done what the test expects, or fails. */
+async function waitForLedger(sceneDir, predicate, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const ledger = readLedger(sceneDir)
+    if (predicate(ledger)) return ledger
+    if (Date.now() > deadline) throw new Error(`ledger never matched: ${JSON.stringify(ledger)}`)
+    await new Promise(resolveTimer => setTimeout(resolveTimer, 50))
+  }
+}
+
+// `respond` returning null leaves the request hanging, like an unresponsive service.
 function startServer(respond) {
   const requests = []
   const server = createServer((req, res) => {
@@ -44,14 +56,23 @@ function startServer(respond) {
     req.on('end', () => {
       const parsed = JSON.parse(body)
       requests.push({ method: req.method, url: req.url, body: parsed })
-      const { status, json } = respond(parsed, requests.length)
-      res.writeHead(status, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(json))
+      const answer = respond(parsed, requests.length)
+      if (!answer) return
+      res.writeHead(answer.status, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(answer.json))
     })
   })
   return new Promise(resolvePromise =>
     server.listen(0, '127.0.0.1', () =>
-      resolvePromise({ server, requests, url: `http://127.0.0.1:${server.address().port}` })
+      resolvePromise({
+        server,
+        requests,
+        url: `http://127.0.0.1:${server.address().port}`,
+        close: () => {
+          server.closeAllConnections()
+          server.close()
+        }
+      })
     )
   )
 }
@@ -115,26 +136,51 @@ describe('report-sdk-issue', () => {
       })
 
       afterEach(() => {
-        mock.server.close()
+        mock.close()
       })
 
-      it('should POST the report to /reports and record the issue number', async () => {
+      it('should return queued at once and send it in the background, recording the issue number', async () => {
         const { first } = await run(sceneDir, ['submit'], { input: REPORT, env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
-        assert.equal(first, 'sent')
-        assert.equal(mock.requests[0].url, '/reports')
-        assert.equal(mock.requests[0].body.fingerprint, REPORT.fingerprint)
+        const ledger = await waitForLedger(sceneDir, l => l.reports[0].status !== 'pending')
         assert.deepEqual(
-          { status: readLedger(sceneDir).reports[0].status, issueNumber: readLedger(sceneDir).reports[0].issueNumber },
-          { status: 'sent', issueNumber: 42 }
+          {
+            first,
+            url: mock.requests[0].url,
+            fingerprint: mock.requests[0].body.fingerprint,
+            status: ledger.reports[0].status,
+            issueNumber: ledger.reports[0].issueNumber
+          },
+          { first: 'queued', url: '/reports', fingerprint: REPORT.fingerprint, status: 'sent', issueNumber: 42 }
         )
       })
 
       it('should not send the same fingerprint twice', async () => {
         const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
         await run(sceneDir, ['submit'], { input: REPORT, env })
+        await waitForLedger(sceneDir, l => l.reports[0].status === 'sent')
         const { first } = await run(sceneDir, ['submit'], { input: REPORT, env })
-        assert.equal(first, 'already-reported')
-        assert.equal(mock.requests.length, 1)
+        assert.deepEqual({ first, requests: mock.requests.length }, { first: 'already-reported', requests: 1 })
+      })
+    })
+
+    describe('and the endpoint never answers', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => null)
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should still return from submit at once, leaving the report queued', async () => {
+        const started = Date.now()
+        const { first } = await run(sceneDir, ['submit'], { input: REPORT, env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual(
+          { first, fast: Date.now() - started < 3000, status: readLedger(sceneDir).reports[0].status },
+          { first: 'queued', fast: true, status: 'pending' }
+        )
       })
     })
 
@@ -148,16 +194,19 @@ describe('report-sdk-issue', () => {
       })
 
       afterEach(() => {
-        mock.server.close()
+        mock.close()
       })
 
-      it('should keep the report pending and resend it with the same clientReportId on the next check', async () => {
+      it('should keep the report queued and resend it with the same clientReportId after the next check', async () => {
         const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
-        const submitted = await run(sceneDir, ['submit'], { input: REPORT, env })
+        await run(sceneDir, ['submit'], { input: REPORT, env })
+        await waitForLedger(sceneDir, l => Boolean(l.reports[0].lastError))
         await run(sceneDir, ['check', '--fingerprint', 'another-issue'], { env })
-        assert.equal(submitted.first, 'queued')
-        assert.equal(mock.requests[1].body.clientReportId, mock.requests[0].body.clientReportId)
-        assert.equal(readLedger(sceneDir).reports[0].status, 'sent')
+        const ledger = await waitForLedger(sceneDir, l => l.reports[0].status === 'sent')
+        assert.deepEqual(
+          { sameId: mock.requests[1].body.clientReportId === mock.requests[0].body.clientReportId, status: ledger.reports[0].status },
+          { sameId: true, status: 'sent' }
+        )
       })
     })
 
@@ -169,15 +218,36 @@ describe('report-sdk-issue', () => {
       })
 
       afterEach(() => {
-        mock.server.close()
+        mock.close()
       })
 
       it('should mark it rejected and never retry it', async () => {
         const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
-        const { first } = await run(sceneDir, ['submit'], { input: REPORT, env })
-        await run(sceneDir, ['check', '--fingerprint', 'another-issue'], { env })
-        assert.equal(first, 'rejected')
-        assert.equal(mock.requests.length, 1)
+        await run(sceneDir, ['submit'], { input: REPORT, env })
+        await waitForLedger(sceneDir, l => l.reports[0].status === 'rejected')
+        const { first } = await run(sceneDir, ['flush'], { env })
+        assert.deepEqual({ first, requests: mock.requests.length }, { first: 'flushed', requests: 1 })
+      })
+    })
+
+    describe('and reports were queued before the endpoint existed', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 9 } }))
+        await run(sceneDir, ['submit'], { input: REPORT })
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should send them when flush runs against the endpoint', async () => {
+        const { stdout } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual(
+          { stdout: stdout.trim(), status: readLedger(sceneDir).reports[0].status },
+          { stdout: 'flushed\n1 sent, 0 rejected, 0 still queued.', status: 'sent' }
+        )
       })
     })
 
