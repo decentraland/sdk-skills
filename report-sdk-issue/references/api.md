@@ -20,9 +20,9 @@ The endpoint is the `DEFAULT_ENDPOINT` constant in `scripts/report.mjs`, overrid
 | `sdkVersion` | string ≤ 40 | no | Installed `@dcl/sdk` version, or the `package.json` range. |
 | `metadata` | object | no | `{ os?: string, node?: string, agent?: string ≤ 40 }` |
 
-The script has already redacted paths, addresses, emails, keys, credential pairs and tokens. The service applies its own redaction too. `fingerprint` and `skill` are never redacted, because they become the issue footer and labels, so both sides refuse a slug segment of 32 or more hex characters (a key or hash).
+The script has already redacted paths, addresses, emails, keys, credential pairs and tokens. The service applies its own redaction too, with the same patterns. `fingerprint` and `skill` are never redacted, because they become the issue footer and labels, so both sides refuse a slug whose hex-only segments add up to 32 or more characters (a key or hash, even split up) or that has more than 10 segments (a seed phrase).
 
-The script never sends while the agent waits: `submit` and `check` queue the report and start a detached background process that sends it. That process waits up to 30 seconds per request, above the service's 20-second budget for GitHub calls, so it does not give up on, and later resend, a report the service is still filing.
+The script never sends while the agent waits. `submit` queues the report and starts a detached background process that sends it; `check` starts that process only when reports are already queued. The process waits up to 30 seconds per request, above the service's 20-second budget for GitHub calls, so it does not give up on, and later resend, a report the service is still filing. After a `429` or `503`, or no answer at all, background runs leave the service alone until `Retry-After` has passed, or 10 minutes without one.
 
 ## Responses
 

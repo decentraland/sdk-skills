@@ -1,7 +1,8 @@
 // Tests for report-sdk-issue/scripts/report.mjs. Run with: node --test tests/
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,16 +21,38 @@ const REPORT = {
   skill: 'build-ui'
 }
 
+// Each test gets its own home folder, so the lock files the script keeps there never collide.
+let homeDir
+
 function run(sceneDir, args, { input, env = {} } = {}) {
   return new Promise(resolvePromise => {
     const child = execFile(
       process.execPath,
       [SCRIPT, ...args, '--dir', sceneDir],
-      { env: { ...process.env, DCL_SDK_ISSUE_REPORTS: '', DCL_SDK_ISSUE_REPORTS_URL: '', ...env } },
+      {
+        env: {
+          ...process.env,
+          HOME: homeDir,
+          USERPROFILE: homeDir,
+          DCL_SDK_ISSUE_REPORTS: '',
+          DCL_SDK_ISSUE_REPORTS_URL: '',
+          ...env
+        }
+      },
       (error, stdout) => resolvePromise({ code: error ? error.code : 0, stdout, first: stdout.split('\n')[0] })
     )
     child.stdin.end(input === undefined ? '' : JSON.stringify(input))
   })
+}
+
+function sendLockPath(sceneDir) {
+  const dir = join(homeDir, '.cache', 'dcl-sdk-reports')
+  mkdirSync(dir, { recursive: true })
+  return join(dir, `${createHash('sha256').update(sceneDir).digest('hex').slice(0, 16)}.send.lock`)
+}
+
+async function queueReports(sceneDir, count) {
+  for (let i = 0; i < count; i++) await run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `issue-number-${i}` } })
 }
 
 function readLedger(sceneDir) {
@@ -47,9 +70,11 @@ async function waitForLedger(sceneDir, predicate, timeoutMs = 10000) {
   }
 }
 
-// `respond` returning null leaves the request hanging, like an unresponsive service.
+// `respond` returning null leaves the request hanging, like an unresponsive service, until the
+// server is closed: then it is answered 503, so no background process outlives the test.
 function startServer(respond) {
   const requests = []
+  const hanging = []
   const server = createServer((req, res) => {
     let body = ''
     req.on('data', chunk => (body += chunk))
@@ -57,8 +82,8 @@ function startServer(respond) {
       const parsed = JSON.parse(body)
       requests.push({ method: req.method, url: req.url, body: parsed })
       const answer = respond(parsed, requests.length)
-      if (!answer) return
-      res.writeHead(answer.status, { 'Content-Type': 'application/json' })
+      if (!answer) return hanging.push(res)
+      res.writeHead(answer.status, { 'Content-Type': 'application/json', ...answer.headers })
       res.end(JSON.stringify(answer.json))
     })
   })
@@ -69,6 +94,10 @@ function startServer(respond) {
         requests,
         url: `http://127.0.0.1:${server.address().port}`,
         close: () => {
+          for (const res of hanging) {
+            res.writeHead(503, { 'Content-Type': 'application/json' })
+            res.end('{}')
+          }
           server.closeAllConnections()
           server.close()
         }
@@ -82,12 +111,14 @@ describe('report-sdk-issue', () => {
 
   beforeEach(() => {
     sceneDir = mkdtempSync(join(tmpdir(), 'dcl-report-'))
+    homeDir = mkdtempSync(join(tmpdir(), 'dcl-report-home-'))
     writeFileSync(join(sceneDir, 'scene.json'), '{}')
     writeFileSync(join(sceneDir, '.gitignore'), 'node_modules')
   })
 
   afterEach(() => {
     rmSync(sceneDir, { recursive: true, force: true })
+    rmSync(homeDir, { recursive: true, force: true })
   })
 
   describe('when the user has not answered the consent question', () => {
@@ -197,16 +228,52 @@ describe('report-sdk-issue', () => {
         mock.close()
       })
 
-      it('should keep the report queued and resend it with the same clientReportId after the next check', async () => {
+      it('should back off: a later check leaves the service alone', async () => {
         const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
         await run(sceneDir, ['submit'], { input: REPORT, env })
-        await waitForLedger(sceneDir, l => Boolean(l.reports[0].lastError))
+        const ledger = await waitForLedger(sceneDir, l => Boolean(l.backoffUntil))
         await run(sceneDir, ['check', '--fingerprint', 'another-issue'], { env })
-        const ledger = await waitForLedger(sceneDir, l => l.reports[0].status === 'sent')
+        await new Promise(resolveTimer => setTimeout(resolveTimer, 500))
         assert.deepEqual(
-          { sameId: mock.requests[1].body.clientReportId === mock.requests[0].body.clientReportId, status: ledger.reports[0].status },
-          { sameId: true, status: 'sent' }
+          { requests: mock.requests.length, status: readLedger(sceneDir).reports[0].status, backoff: Boolean(ledger.backoffUntil) },
+          { requests: 1, status: 'pending', backoff: true }
         )
+      })
+
+      it('should resend with the same clientReportId when flushed by hand, and clear the backoff', async () => {
+        const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
+        await run(sceneDir, ['submit'], { input: REPORT, env })
+        await waitForLedger(sceneDir, l => Boolean(l.backoffUntil))
+        await run(sceneDir, ['flush'], { env })
+        const ledger = readLedger(sceneDir)
+        assert.deepEqual(
+          {
+            sameId: mock.requests[1].body.clientReportId === mock.requests[0].body.clientReportId,
+            status: ledger.reports[0].status,
+            backoff: ledger.backoffUntil
+          },
+          { sameId: true, status: 'sent', backoff: undefined }
+        )
+      })
+    })
+
+    describe('and the service sends Retry-After with a 429', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 429, json: {}, headers: { 'Retry-After': '120' } }))
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should back off for that long', async () => {
+        const started = Date.now()
+        await run(sceneDir, ['submit'], { input: REPORT, env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        const ledger = await waitForLedger(sceneDir, l => Boolean(l.backoffUntil))
+        const backoffMs = Date.parse(ledger.backoffUntil) - started
+        assert.ok(backoffMs > 100_000 && backoffMs < 140_000, `backoff was ${backoffMs}ms`)
       })
     })
 
@@ -251,6 +318,113 @@ describe('report-sdk-issue', () => {
       })
     })
 
+    describe('and several reports are queued', () => {
+      let mock
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should send at most five per run, oldest first', async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+        await queueReports(sceneDir, 7)
+        const { stdout } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual(
+          { stdout: stdout.trim(), first: mock.requests[0].body.fingerprint },
+          { stdout: 'flushed\n5 sent, 0 rejected, 2 still queued.', first: 'issue-number-0' }
+        )
+      })
+
+      it('should stop at the first report that still fails', async () => {
+        mock = await startServer(() => ({ status: 503, json: {} }))
+        await queueReports(sceneDir, 3)
+        const { stdout } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual(
+          { stdout: stdout.trim(), requests: mock.requests.length },
+          { stdout: 'flushed\n0 sent, 0 rejected, 3 still queued.', requests: 1 }
+        )
+      })
+    })
+
+    describe('and another live run holds the send lock', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+        await queueReports(sceneDir, 1)
+        writeFileSync(sendLockPath(sceneDir), JSON.stringify({ token: 'other', pid: process.pid, at: Date.now() }))
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should answer busy and send nothing', async () => {
+        const { first } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual({ first, requests: mock.requests.length }, { first: 'busy', requests: 0 })
+      })
+
+      it('should leave that run\'s lock in place', async () => {
+        await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.equal(JSON.parse(readFileSync(sendLockPath(sceneDir), 'utf8')).token, 'other')
+      })
+    })
+
+    describe('and the send lock belongs to a run that died', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+        await queueReports(sceneDir, 1)
+        writeFileSync(sendLockPath(sceneDir), JSON.stringify({ token: 'dead', pid: 2 ** 22 + 12345, at: Date.now() }))
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should take the lock over and send, then release it', async () => {
+        const { first } = await run(sceneDir, ['flush'], { env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
+        assert.deepEqual(
+          { first, requests: mock.requests.length, lockLeft: existsSync(sendLockPath(sceneDir)) },
+          { first: 'flushed', requests: 1, lockLeft: false }
+        )
+      })
+    })
+
+    describe('and reports are submitted while background runs are sending', () => {
+      let mock
+
+      beforeEach(async () => {
+        mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+      })
+
+      afterEach(() => {
+        mock.close()
+      })
+
+      it('should keep every report and send each once', async () => {
+        const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
+        for (let i = 0; i < 20; i++) {
+          await run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `race-${i}` }, env })
+        }
+        let ledger = readLedger(sceneDir)
+        for (let round = 0; round < 10 && ledger.reports.some(r => r.status === 'pending'); round++) {
+          await run(sceneDir, ['flush'], { env })
+          ledger = readLedger(sceneDir)
+        }
+        const sentIds = new Set(mock.requests.map(request => request.body.clientReportId))
+        assert.deepEqual(
+          {
+            kept: ledger.reports.length,
+            sent: ledger.reports.filter(r => r.status === 'sent').length,
+            uniqueRequests: sentIds.size
+          },
+          { kept: 20, sent: 20, uniqueRequests: 20 }
+        )
+      })
+    })
+
     describe('and reporting is disabled by the environment', () => {
       it('should report consent:denied', async () => {
         const { first } = await run(sceneDir, ['check', '--fingerprint', 'x'], { env: { DCL_SDK_ISSUE_REPORTS: 'off' } })
@@ -281,15 +455,28 @@ describe('report-sdk-issue', () => {
 
     it('should refuse a fingerprint or skill that carries a key or hash', () => {
       assert.deepEqual(validate({ ...REPORT, fingerprint: `leak-0x${'a'.repeat(64)}`, skill: 'f'.repeat(40) }), [
-        '"fingerprint" looks like a key or hash; describe the area and symptom instead',
-        '"skill" looks like a key or hash',
+        '"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead',
+        '"skill" looks like a key, hash or seed phrase',
       ])
     })
 
     it('should refuse a hex key split into short slug segments', () => {
       assert.deepEqual(validate({ ...REPORT, fingerprint: ['a', 'b', 'c', 'd'].map(c => c.repeat(16)).join('-') }), [
-        '"fingerprint" looks like a key or hash; describe the area and symptom instead',
+        '"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead',
       ])
+    })
+
+    it('should refuse a hex key broken up by a word, and a seed phrase written as a slug', () => {
+      assert.deepEqual(
+        [
+          validate({ ...REPORT, fingerprint: `${'a'.repeat(16)}-zz-${'b'.repeat(16)}` }),
+          validate({ ...REPORT, fingerprint: `${'abandon-'.repeat(11)}about` })
+        ],
+        [
+          ['"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead'],
+          ['"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead']
+        ]
+      )
     })
 
     it('should exit with code 2 on submit', async () => {
@@ -352,6 +539,40 @@ describe('report-sdk-issue', () => {
         cases.map(([input]) => redact(input, '/nowhere')),
         cases.map(([, expected]) => expected)
       )
+    })
+
+    it('should redact adversarial input at the size limit within 50 ms each', () => {
+      const inputs = [
+        'auth-'.repeat(2000),
+        'token-api-key-'.repeat(700),
+        'A_KEY_'.repeat(1600),
+        'a.'.repeat(5000),
+        'a@b.'.repeat(2500),
+        '/Users/' + 'a '.repeat(5000),
+        '-----BEGIN ' + 'A '.repeat(5000),
+        'a://a:'.repeat(1600),
+        'password: '.repeat(1000),
+        'secret="' + '\\'.repeat(5000)
+      ]
+      const slow = inputs
+        .map(input => {
+          const started = performance.now()
+          redact(input, '/nowhere')
+          return [input.slice(0, 12), performance.now() - started]
+        })
+        .filter(([, ms]) => ms > 50)
+      assert.deepEqual(slow, [])
+    })
+
+    it('should keep the Authorization scheme and redact its token', () => {
+      assert.equal(
+        redact('Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456', '/nowhere'),
+        'Authorization: Bearer <TOKEN>'
+      )
+    })
+
+    it('should leave words that only contain a credential keyword alone', () => {
+      assert.equal(redact('author: jane, Tokenizer: fails', '/nowhere'), 'author: jane, Tokenizer: fails')
     })
 
     it('should leave URL paths that merely contain /home alone', () => {
