@@ -273,7 +273,7 @@ Skybox.createOrReplace(engine.RootEntity, {
 Skybox.deleteFrom(engine.RootEntity)  // back to the default sky, reflections and lighting
 ```
 
-Defaults (from the protocol): `sun.visible` true, `fog.density` 0.0005 (≈ 2 km), `clouds.opacity` 1 (0 hides clouds), `clouds.speed` 0.01 (0 = static), `stars.brightness` 4.62 (stars only render at night); every gradient unset = time-of-day default. Keep gradients to 8 keys or fewer: the Explorer resamples longer ones to 8 evenly spaced keys.
+Defaults (from the protocol): `sun.visible` true, `fog.density` 0.0005 (≈ 2 km), `clouds.opacity` 1 (0 hides clouds), `clouds.speed` 0.01 rad/s around the sky axis (0 = static, negative reverses), `stars.brightness` 4.62 (multiplier on the star texture, 0 hides them; stars only render at night); every gradient unset = time-of-day default. Keep gradients to 8 keys or fewer: the Explorer resamples longer ones to 8 evenly spaced keys.
 
 - `skyColors` also drive the ambient light: zenith -> sky ambient, horizon -> equator ambient, nadir -> ground ambient. There is no separate ambient field, so black sky colors give black ambient.
 - `skyColors.rim` (horizon-line glow) unset => follows the `horizon` override when set, else the default ramp. Set it only for an accent. `clouds.color` unset => default time-of-day cloud tint even on a recolored sky.
