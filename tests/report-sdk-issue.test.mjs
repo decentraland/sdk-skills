@@ -216,6 +216,12 @@ describe('report-sdk-issue', () => {
       ])
     })
 
+    it('should refuse a hex key split into short slug segments', () => {
+      assert.deepEqual(validate({ ...REPORT, fingerprint: ['a', 'b', 'c', 'd'].map(c => c.repeat(16)).join('-') }), [
+        '"fingerprint" looks like a key or hash; describe the area and symptom instead',
+      ])
+    })
+
     it('should exit with code 2 on submit', async () => {
       await run(sceneDir, ['consent', '--grant'])
       const { code } = await run(sceneDir, ['submit'], { input: { ...REPORT, kind: 'nope' } })
@@ -256,6 +262,25 @@ describe('report-sdk-issue', () => {
           "const authToken = '<REDACTED>'",
           '<TOKEN>',
         ].join('\n')
+      )
+    })
+
+    it('should strip unquoted pairs, seed phrases, unterminated PEM keys, URL credentials and hex variants', () => {
+      const hex = 'a'.repeat(64)
+      const cases = [
+        ['password=hunter2secret', 'password=<REDACTED>'],
+        ['apiKey: abcd1234efgh', 'apiKey: <REDACTED>'],
+        ['MNEMONIC="word1 word2 word3"', 'MNEMONIC="<REDACTED>"'],
+        ['-----BEGIN PRIVATE KEY-----\nMIIEvQIBADAN', '<PRIVATE_KEY>'],
+        ['postgres://admin:s3cret@db:5432/app', 'postgres://<REDACTED>@db:5432/app'],
+        [`0X${'b'.repeat(64)}`, '<HEX_SECRET>'],
+        [`KEY_${hex}`, 'KEY_<HEX_SECRET>'],
+        ['"apiKey": "abc\\"leaked-part"', '"apiKey": "<REDACTED>"'],
+        ['type Config = { apiKey: string }', 'type Config = { apiKey: string }'],
+      ]
+      assert.deepEqual(
+        cases.map(([input]) => redact(input, '/nowhere')),
+        cases.map(([, expected]) => expected)
       )
     })
 

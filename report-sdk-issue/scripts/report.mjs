@@ -42,12 +42,22 @@ const MAX_FLUSH_PER_RUN = 5
 
 const KINDS = ['bug', 'limitation', 'docs-gap']
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
-// A slug segment of 32+ hex characters, with or without 0x: a key, hash or token rather than
-// words. Slugs reach the issue footer and labels, where the service does not redact.
-const HEX_SEGMENT = /(?:^|-)(?:0x)?[0-9a-f]{32,}(?=-|$)/
-// Names whose value is a credential, in `name: "value"`, `name = 'value'` and JSON pairs.
+// A run of 32+ hex characters, with or without 0x, once the dashes are removed: a key, hash or
+// token rather than words, even split into short segments. Slugs reach the issue footer and
+// labels, where the service does not redact.
+const HEX_RUN = /(?:0x)?[0-9a-f]{32,}/
+const carriesHex = slug => HEX_RUN.test(slug.replace(/-/g, ''))
+// Names whose value is a credential, in `name: value`, `name = 'value'` and JSON pairs. Kept in
+// step with the reporting service's redaction (workers/sdk-issue-reports in cloudflare-workers).
 const SECRET_NAME =
-  '[A-Za-z0-9_-]*(?:api[_-]?key|private[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|credential|auth)[A-Za-z0-9_-]*'
+  '[A-Za-z0-9_-]*(?:api[_-]?key|private[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|passphrase|mnemonic|seed[_-]?phrase|credential|auth)[A-Za-z0-9_-]*'
+
+/** Type names that follow `name:` in TypeScript annotations; not values, so left alone. */
+const TYPE_NAMES = '(?:string|number|boolean|undefined|null|any|unknown)\\b'
+
+/** Hex runs are bounded by non-hex characters, not word boundaries, so `KEY_<hex>` is caught too. */
+const NOT_HEX_BEFORE = '(?<![0-9a-fA-F])'
+const NOT_HEX_AFTER = '(?![0-9a-fA-F])'
 const LIMITS = { title: 120, description: 10000, workaround: 5000, fingerprint: 120, skill: 80, agent: 40 }
 const INPUT_FIELDS = ['title', 'description', 'workaround', 'kind', 'fingerprint', 'skill', 'agent']
 
@@ -153,13 +163,24 @@ export function redact(text, root) {
   return result
     .replace(/(?<=^|[\s'"`(=,[]|file:\/\/)(?:\/mnt\/[a-z])?\/(?:Users|home)\/[^/\s'"`]+/gim, '~')
     .replace(/(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)[^\\/\s'"`]+/gi, '~')
-    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '<PRIVATE_KEY>')
-    .replace(new RegExp(`("${SECRET_NAME}"\\s*:\\s*")[^"]*"`, 'gi'), '$1<REDACTED>"')
-    .replace(new RegExp(`(\\b${SECRET_NAME}\\s*[:=]\\s*)(['"\`])[^'"\`\\n]+\\2`, 'gi'), '$1$2<REDACTED>$2')
-    .replace(/\b([A-Z0-9_]*(?:_KEY|KEY_|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)[A-Z0-9_]*)=(?!<)[^\s'"`&]+/g, '$1=<REDACTED>')
-    .replace(/\b0x[a-fA-F0-9]{64}\b/g, '<HEX_SECRET>')
-    .replace(/\b[a-fA-F0-9]{64}\b/g, '<HEX_SECRET>')
-    .replace(/\b0x[a-fA-F0-9]{40}\b/g, '<ADDRESS>')
+    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g, '<PRIVATE_KEY>')
+    .replace(/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/?#@:]+:[^\s/?#@]+@/gi, '$1<REDACTED>@')
+    .replace(new RegExp(`("${SECRET_NAME}"\\s*:\\s*")(?:[^"\\\\\\n]|\\\\.)*"`, 'gi'), '$1<REDACTED>"')
+    .replace(
+      new RegExp(`(\\b${SECRET_NAME}\\s*[:=]\\s*)(['"\`])(?:\\\\.|(?!\\2)[^\\\\\\n])+\\2`, 'gi'),
+      '$1$2<REDACTED>$2',
+    )
+    .replace(
+      new RegExp(`(\\b${SECRET_NAME}\\s*[:=]\\s*)(?![\\s'"\`<]|${TYPE_NAMES})[^\\s,;'"\`&)}\\]]+`, 'gi'),
+      '$1<REDACTED>',
+    )
+    .replace(
+      /\b([A-Z0-9_]*(?:_KEY|KEY_|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?|MNEMONIC|SEED)[A-Z0-9_]*)=(?!<)[^\s'"`&]+/g,
+      '$1=<REDACTED>',
+    )
+    .replace(new RegExp(`${NOT_HEX_BEFORE}0[xX][0-9a-fA-F]{64,}${NOT_HEX_AFTER}`, 'g'), '<HEX_SECRET>')
+    .replace(new RegExp(`(?<![0-9a-fA-FxX])[0-9a-fA-F]{64,}${NOT_HEX_AFTER}`, 'g'), '<HEX_SECRET>')
+    .replace(new RegExp(`${NOT_HEX_BEFORE}0[xX][0-9a-fA-F]{40}${NOT_HEX_AFTER}`, 'g'), '<ADDRESS>')
     .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+/g, '<TOKEN>')
     .replace(/\b(?:sk|pk|rk)[-_](?:live|test)?[-_]?[A-Za-z0-9]{16,}\b/g, '<TOKEN>')
     .replace(/\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g, '<TOKEN>')
@@ -189,11 +210,11 @@ export function validate(input) {
   if (typeof input.kind === 'string' && !KINDS.includes(input.kind)) errors.push(`"kind" must be one of ${KINDS.join(', ')}`)
   if (typeof input.fingerprint === 'string' && !SLUG.test(input.fingerprint))
     errors.push('"fingerprint" must be a lowercase kebab-case slug, e.g. ui-input-controlled-reset')
-  else if (typeof input.fingerprint === 'string' && HEX_SEGMENT.test(input.fingerprint))
+  else if (typeof input.fingerprint === 'string' && carriesHex(input.fingerprint))
     errors.push('"fingerprint" looks like a key or hash; describe the area and symptom instead')
   if (typeof input.skill === 'string' && input.skill !== '' && !SLUG.test(input.skill))
     errors.push('"skill" must be a skill name, e.g. build-ui')
-  else if (typeof input.skill === 'string' && HEX_SEGMENT.test(input.skill)) errors.push('"skill" looks like a key or hash')
+  else if (typeof input.skill === 'string' && carriesHex(input.skill)) errors.push('"skill" looks like a key or hash')
   return errors
 }
 
