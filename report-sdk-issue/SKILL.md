@@ -56,7 +56,7 @@ node {baseDir}/scripts/report.mjs consent --grant   # yes
 node {baseDir}/scripts/report.mjs consent --deny    # no
 ```
 
-The answer is stored in `.dcl-sdk-reports.json` at the scene root. The script adds that file to `.gitignore` and `.dclignore`, so it's never committed or deployed. If the user later says "stop sending SDK reports" or "you can send them again", run the matching command. Don't ask any other time.
+The answer is stored in a `.dcl-sdk-reports/` folder at the scene root, next to the record of sent reports. The folder carries its own `.gitignore`, so git ignores it without the scene's `.gitignore` being touched, and deploys leave it out like every path starting with a dot. Don't add it to `.gitignore` or `.dclignore`. If the user later says "stop sending SDK reports" or "you can send them again", run the matching command. Don't ask any other time.
 
 **Running as a subagent?** There's no user to ask. On `consent:unknown`, skip the report, apply the workaround, and tell your caller that an SDK issue could be reported if the user agrees.
 
@@ -94,19 +94,19 @@ In a shell without heredocs (e.g. PowerShell), write the JSON to a temporary fil
 
 | First line | Tell the user (one line) |
 |---|---|
-| `sent` | "I reported this SDK issue to the Decentraland team: <title>." |
-| `queued` | "I saved a report of this SDK issue for the Decentraland team; it'll be sent automatically." |
+| `queued` | "I'm reporting this SDK issue to the Decentraland team: <title>." |
 | `already-reported` | Nothing. |
-| `rejected` | Nothing; carry on. |
 | `invalid: …` | Fix the listed fields and submit again. |
 | `consent:…` | You skipped step 2; go back to it. |
 
-Then apply the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it.
+`submit` returns as soon as the report is saved: a background process sends it, so don't wait for it or check on it. Go straight to the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it. If `consent` itself fails (for example, the scene folder is read-only), don't ask the user again during this session.
 
-Queued reports are retried automatically on later `check` and `submit` runs, and they're never duplicated.
+A report that couldn't be sent stays queued and is retried in the background on later `check` and `submit` runs, never duplicated. A report the service keeps failing on is given up after a few tries, and then the same issue can be reported again.
 
 ## Reference
 
 - Request and response contract for the reporting service: `{baseDir}/references/api.md`
-- `node {baseDir}/scripts/report.mjs status` shows the consent, the endpoint, and how many reports were sent, are pending, or were rejected.
+- `node {baseDir}/scripts/report.mjs status` shows the consent, the endpoint, and how many reports were sent, are pending, were rejected, or were given up after repeated failures.
+- `node {baseDir}/scripts/report.mjs flush` sends queued reports right away and waits for the result. Only for troubleshooting; normal use never needs it.
 - To disable reporting on a machine or in CI, set `DCL_SDK_ISSUE_REPORTS=off`. This always wins over a stored consent.
+- `DCL_SDK_ISSUE_REPORTS_URL` points the script at another service (an https URL). Set to `none`, `off` or empty, it keeps queueing reports without sending them.
