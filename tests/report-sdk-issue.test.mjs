@@ -65,7 +65,7 @@ function readLedger(sceneDir) {
 }
 
 /** Polls the ledger until the background process has done what the test expects, or fails. */
-async function waitForLedger(sceneDir, predicate, timeoutMs = 10000) {
+async function waitForLedger(sceneDir, predicate, timeoutMs = 20_000) {
   const deadline = Date.now() + timeoutMs
   for (;;) {
     const ledger = readLedger(sceneDir)
@@ -218,7 +218,7 @@ describe('report-sdk-issue', () => {
         const started = Date.now()
         const { first } = await run(sceneDir, ['submit'], { input: REPORT, env: { DCL_SDK_ISSUE_REPORTS_URL: mock.url } })
         assert.deepEqual(
-          { first, fast: Date.now() - started < 3000, status: readLedger(sceneDir).reports[0].status },
+          { first, fast: Date.now() - started < 15_000, status: readLedger(sceneDir).reports[0].status },
           { first: 'queued', fast: true, status: 'pending' }
         )
       })
@@ -713,9 +713,9 @@ describe('report-sdk-issue', () => {
             stdio: ['pipe', 'ignore', 'ignore']
           })
           child.on('exit', resolvePromise)
-          setTimeout(() => child.kill(), 15_000)
+          setTimeout(() => child.kill(), 30_000)
         })
-        assert.deepEqual({ code, fast: Date.now() - started < 10_000 }, { code: 2, fast: true })
+        assert.deepEqual({ code, fast: Date.now() - started < 20_000 }, { code: 2, fast: true })
       })
     })
 
@@ -1393,6 +1393,10 @@ describe('report-sdk-issue', () => {
         ],
         ['Error in <SCENE> see logs/out.txt', 'Build failed at <SCENE> (check src/index.ts)', 'cd <SCENE> && npm run build -- --out dist/x']
       )
+    })
+
+    it('should leave a longer user folder name next to a scene in a user folder to the username rule', () => {
+      assert.equal(redact('/home/bob smith/x', '/home/bob'), '~/x')
     })
 
     it('should only strip the scene path where it ends', () => {

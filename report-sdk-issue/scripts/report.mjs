@@ -284,7 +284,8 @@ var HARMLESS_QUOTED = "(?:['\"`](?:include|omit|same-origin|[^\\w\\s]{1,3})['\"`
 var NOT_A_VALUE = "(?:string|number|boolean|bigint|object|undefined|null|nil|none|any|unknown|never|void|true|false|yes|no|on|off|required|optional|empty|missing|n/a|tbd|todo|redacted|[01]|x{3,}|\\*{3,})(?=$|[\\s,;)}\\]|<\\[&])";
 var CODE_READ = "(?:(?:await|new|typeof|yield)\\s|[A-Za-z_$][\\w$.]{0,80}\\(|\\$\\{\\{?|\\$[A-Za-z_]\\w{0,40}(?![\\w$])|%[A-Z_]{1,40}%)";
 var CREDENTIAL_TYPE = "(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)";
-var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|[A-Z][a-z][A-Za-z]{0,30}${CREDENTIAL_TYPE}(?=$|[\\s,;)}\\]>|])|${CREDENTIAL_TYPE}(?:[A-Z][a-z]{1,20}){0,2}(?=[;,)>|\\]]|${HS}*[|=])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
+var TYPE_SUFFIX = "(?:Options|Config|Provider|Response|Request|Type|Data|Info|Pair|Store|Manager|Payload|Params|Result|Props|State|Handler|Service|Client|Chain)";
+var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|(?<=:${HS}{0,20})[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|[A-Z][a-z][A-Za-z]{0,30}(?:Token|Key|Auth|Credentials?)(?=$|[\\s,;)}\\]>|])|(?<=:${HS}{0,20})${CREDENTIAL_TYPE}${TYPE_SUFFIX}?(?=[;,)>|\\]]|${HS}*[|=])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
 var ENV_CODE_VALUE = `(?:${CODE_READ}|(?:process|import\\.meta|env|config|settings|secrets|vars|this|globalThis|os\\.environ)[.[])`;
 var PROSE_START = "(?:the|a|an|it|is|this|that|not|no|none|only|see|via|in|on|was|were|has|have)\\s";
 var LINE_VALUE = `[^\\s#](?:[^\\s#]|#(?!\\s)|${HS}+(?![\\s#]|&&|\\|\\||(?:npm|npx|node|yarn|pnpm|bun|sdk-commands)(?:\\s|$)))*`;
@@ -407,21 +408,21 @@ var PARAMETER_SCHEME = "(?:Digest|Signature|AWS4-HMAC-SHA256|OAuth|Hawk)";
 var AUTHORIZATION = `(?<![\\w-])((?:\\\\?['"])?:?(?:proxy-|x-)?authorization(?:\\\\?['"])?${SEPARATOR}(?:\\\\?['"])?)`;
 var redactConfigValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
-  if (/[a-z][A-Z]/.test(prefix) && /:\s*$/.test(prefix) && /^[a-z]{1,20}[,;]?$/.test(value))
+  if (keepsWord(prefix, value.replace(/[,;]$/, "")))
     return match;
   const close = value.length > 1 && /[;,]$/.test(value) ? value.slice(-1) : "";
   return `${prefix}<REDACTED>${close}`;
 };
 var redactInlineValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
-  if (/:\s*$/.test(prefix) && /^[a-z]{1,20}$/.test(value)) {
-    const name = prefix.toLowerCase();
-    if (INLINE_WORDS.has(value) || name.includes(value))
-      return match;
-  }
-  return `${prefix}<REDACTED>`;
+  return keepsWord(prefix, value) ? match : `${prefix}<REDACTED>`;
 };
-var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json secrets tokens keys".split(" "));
+function keepsWord(prefix, value) {
+  if (!/:\s*$/.test(prefix) || !/^[a-z]{1,20}$/.test(value))
+    return false;
+  return /[a-z][A-Z]/.test(prefix) || INLINE_WORDS.has(value);
+}
+var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json secrets tokens keys token password secret key apikey auth mnemonic failed failure revoked refreshed incorrect wrong reset hidden guest denied rejected accepted granted valid unset changed updated saved stored created removed deleted enabled disabled ok success successful unauthorized forbidden pending".split(" "));
 var redactKeyLiteral = (match, ...args) => {
   const {prefix, literal} = args[args.length - 1];
   const value = literal.slice(1, -1);
@@ -430,11 +431,11 @@ var redactKeyLiteral = (match, ...args) => {
 };
 var STEPS = [
   [
-    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\s'"`)]{1,40}(?: [^/\s'"`)]{1,40})?(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
+    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\s'"`)]{1,40}(?: [^/\s'"`)]{1,40}){0,3}(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
     "~"
   ],
   [
-    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\s'"`)]{1,40}(?: [^\\/\s'"`)]{1,40})?(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
+    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\s'"`)]{1,40}(?: [^\\/\s'"`)]{1,40}){0,3}(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
     "~"
   ],
   [/\\\\wsl(?:\$|\.localhost)\\[^\\\s]{1,40}\\home\\[^\\\s'"`]+/gi, "~"],
@@ -1001,10 +1002,10 @@ export function redact(text, root) {
     [root, '<SCENE>'],
     [home, '~']
   ]) {
-    // A home directly under /Users, /home or C:\Users is a user name, which may be the first word of
-    // a name with a space (`/home/bob smith/`): that is left to the username rule rather than
-    // turned into `~ smith/`. Nothing else is skipped, so the scene path goes wherever it ends.
-    const userHome = path === home && /[\\/](?:Users|home)[\\/][^\\/]+[\\/]?$/i.test(path)
+    // A path directly under /Users, /home or C:\Users ends in a user name, which may be the first
+    // word of a name with a space (`/home/bob smith/`): that is left to the username rule rather
+    // than turned into `~ smith/`. Nothing else is skipped, so a scene path goes wherever it ends.
+    const userHome = /[\\/](?:Users|home)[\\/][^\\/]+[\\/]?$/i.test(path)
     const nameGoesOn = userHome ? '| [^/\\\\\\s]{1,40}[/\\\\]' : ''
     for (const variant of pathSpellings(path)) {
       // Case-insensitive (Windows and macOS paths are), and only where the path ends, so a home of
