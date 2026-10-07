@@ -420,9 +420,14 @@ var redactInlineValue = (match, ...args) => {
   return keepsWord(prefix, value) ? match : `${prefix}<REDACTED>`;
 };
 function keepsWord(prefix, value) {
-  return /:\s*$/.test(prefix) && INLINE_WORDS.has(value);
+  if (!/:\s*$/.test(prefix))
+    return false;
+  if (INLINE_WORDS.has(value))
+    return true;
+  return SCENE_WORDS.has(value) && !/pass|pwd|secret|mnemonic|phrase/i.test(prefix);
 }
-var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json nft mana wearable emote asset contract address player coin currency reward balance amount failed failure revoked refreshed incorrect wrong reset hidden guest denied rejected accepted granted valid unset changed updated saved stored created removed deleted enabled disabled ok success successful unauthorized forbidden pending".split(" "));
+var SCENE_WORDS = new Set("nft mana wearable emote asset contract address player coin currency reward balance amount".split(" "));
+var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json failed failure revoked refreshed incorrect wrong reset hidden guest denied rejected accepted granted valid unset changed updated saved stored created removed deleted enabled disabled ok success successful unauthorized forbidden pending".split(" "));
 var redactKeyLiteral = (match, ...args) => {
   const {prefix, literal} = args[args.length - 1];
   const value = literal.slice(1, -1);
@@ -726,12 +731,12 @@ function writeLedger(root, ledger) {
   try {
     writeFileSync(temporary, `${JSON.stringify(ledger, null, 2)}\n`)
     renameWithRetry(temporary, path)
-    // Moved: the ledger an earlier version kept in the scene root now lives in STATE_DIR.
+    // Moved: the ledger an earlier version kept in the scene root now lives in STATE_DIR, and is
+    // only read when STATE_DIR has none. Best effort: the ledger is already written, and throwing
+    // here would make updateLedger retry a change that already happened.
     try {
       unlinkSync(join(root, LEGACY_LEDGER_FILE))
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err
-    }
+    } catch {}
   } catch (err) {
     try {
       unlinkSync(temporary)

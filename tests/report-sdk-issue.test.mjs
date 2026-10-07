@@ -1006,6 +1006,28 @@ describe('report-sdk-issue', () => {
     })
   })
 
+  describe('when a ledger from an earlier version cannot be removed after the move', () => {
+    let first
+    let ids
+
+    beforeEach(async () => {
+      await run(sceneDir, ['consent', '--grant'])
+      writeFileSync(legacyLedgerPath(sceneDir), JSON.stringify({ consent: 'granted', reports: [] }))
+      // The scene root is read-only, so the old file stays; the state folder is still writable.
+      chmodSync(sceneDir, 0o555)
+      try {
+        first = (await run(sceneDir, ['submit'], { input: REPORT })).first
+        ids = readLedger(sceneDir).reports.map(r => r.fingerprint)
+      } finally {
+        chmodSync(sceneDir, 0o755)
+      }
+    })
+
+    it('should still queue the report once', () => {
+      assert.deepEqual({ first, ids }, { first: 'queued', ids: [REPORT.fingerprint] })
+    })
+  })
+
   describe('when the ledger file is not a ledger', () => {
     beforeEach(() => {
       writeLedgerFile(sceneDir, '[]')
