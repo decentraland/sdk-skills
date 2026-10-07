@@ -35,7 +35,7 @@ function run(sceneDir, args, { input, raw, env = {} } = {}) {
           HOME: homeDir,
           USERPROFILE: homeDir,
           DCL_SDK_ISSUE_REPORTS: '',
-          DCL_SDK_ISSUE_REPORTS_URL: '',
+          DCL_SDK_ISSUE_REPORTS_URL: 'none',
           ...env
         }
       },
@@ -154,7 +154,7 @@ describe('report-sdk-issue', () => {
       assert.equal(existsSync(join(sceneDir, '.dclignore')), false)
     })
 
-    describe('and the reporting endpoint is not configured', () => {
+    describe('and sending is turned off', () => {
       it('should queue the report as pending', async () => {
         const { first } = await run(sceneDir, ['submit'], { input: REPORT })
         assert.equal(first, 'queued')
@@ -709,7 +709,7 @@ describe('report-sdk-issue', () => {
         const started = Date.now()
         const code = await new Promise(resolvePromise => {
           const child = spawn(process.execPath, [SCRIPT, 'submit', '--dir', sceneDir], {
-            env: { ...process.env, HOME: homeDir, DCL_SDK_ISSUE_REPORTS: '', DCL_SDK_ISSUE_REPORTS_URL: '' },
+            env: { ...process.env, HOME: homeDir, DCL_SDK_ISSUE_REPORTS: '', DCL_SDK_ISSUE_REPORTS_URL: 'none' },
             stdio: ['pipe', 'ignore', 'ignore']
           })
           child.on('exit', resolvePromise)
@@ -1009,7 +1009,7 @@ describe('report-sdk-issue', () => {
 
     it('should still run', async () => {
       const stdout = await new Promise(resolvePromise =>
-        execFile(process.execPath, [link, 'status', '--dir', sceneDir], { env: { ...process.env, HOME: homeDir } }, (_err, out) =>
+        execFile(process.execPath, [link, 'status', '--dir', sceneDir], { env: { ...process.env, HOME: homeDir, DCL_SDK_ISSUE_REPORTS_URL: 'none' } }, (_err, out) =>
           resolvePromise(out)
         )
       )

@@ -25,7 +25,8 @@
 //
 // Environment:
 //   DCL_SDK_ISSUE_REPORTS=off         disables reporting everywhere (wins over a granted consent)
-//   DCL_SDK_ISSUE_REPORTS_URL=<url>   overrides the reporting endpoint (base URL; /reports is appended)
+//   DCL_SDK_ISSUE_REPORTS_URL=<url>   overrides the reporting endpoint (base URL; /reports is appended);
+//                                     `none` queues reports without sending them
 //
 // The first line of output is always the machine-readable result; anything after it is for humans.
 // Exit codes: 0 for every result above, 2 for invalid input or usage, 1 for unexpected errors.
@@ -49,9 +50,8 @@ import { TextDecoder } from 'node:util'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// The reporting service is not live yet. While this is null, reports are validated and queued in
-// the ledger as pending; they are sent on the first run after this constant gets a URL.
-const DEFAULT_ENDPOINT = null
+// The reporting service (ops/cloudflare-workers, workers/sdk-issue-reports).
+const DEFAULT_ENDPOINT = 'https://sdk-issue-reports.decentraland.org'
 
 const LEDGER_FILE = '.dcl-sdk-reports.json'
 const LEDGER_LOCK_FILE = '.dcl-sdk-reports.lock'
@@ -623,7 +623,7 @@ function isDisabledByEnv() {
 
 function getEndpoint() {
   const url = process.env.DCL_SDK_ISSUE_REPORTS_URL || DEFAULT_ENDPOINT
-  return url ? `${url.replace(/\/+$/, '')}/reports` : null
+  return url && url !== 'none' ? `${url.replace(/\/+$/, '')}/reports` : null
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1384,7 +1384,7 @@ async function submit(root, options) {
   })
   if (known) return `already-reported\nThis issue was already reported from this scene (${known.status}).`
 
-  if (!getEndpoint()) return 'queued\nSaved locally; it will be sent automatically once the reporting endpoint is live.'
+  if (!getEndpoint()) return 'queued\nSaved locally; sending is turned off on this machine (DCL_SDK_ISSUE_REPORTS_URL=none).'
   startBackgroundFlush(root)
   return 'queued\nSaved; it is being sent to the Decentraland SDK team in the background.'
 }
@@ -1396,7 +1396,7 @@ function status(root) {
   return [
     `consent:${getConsent(ledger)}`,
     `scene: ${root}`,
-    `endpoint: ${getEndpoint() || 'not configured yet'}`,
+    `endpoint: ${getEndpoint() || 'off (DCL_SDK_ISSUE_REPORTS_URL=none)'}`,
     `reports: ${counts.sent} sent, ${counts.pending} pending, ${counts.rejected} rejected, ${counts.failed} given up`,
     ...(isInBackoff(ledger) ? [`backing off until ${ledger.backoffUntil}`] : [])
   ].join('\n')
