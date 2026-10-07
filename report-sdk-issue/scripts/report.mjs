@@ -285,7 +285,7 @@ var NOT_A_VALUE = "(?:string|number|boolean|bigint|object|undefined|null|nil|non
 var CODE_READ = "(?:(?:await|new|typeof|yield)\\s|[A-Za-z_$][\\w$.]{0,80}\\(|\\$\\{\\{?|\\$[A-Za-z_]\\w{0,40}(?![\\w$])|%[A-Z_]{1,40}%)";
 var CREDENTIAL_TYPE = "(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)";
 var TYPE_SUFFIX = "(?:Options|Config|Provider|Response|Request|Type|Data|Info|Pair|Store|Manager|Payload|Params|Result|Props|State|Handler|Service|Client|Chain)";
-var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|(?<=:${HS}{0,20})[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|[A-Z][a-z][A-Za-z]{0,30}(?:Token|Key|Auth|Credentials?)(?=$|[\\s,;)}\\]>|])|(?<=:${HS}{0,20})${CREDENTIAL_TYPE}${TYPE_SUFFIX}?(?=[;,)>|\\]]|${HS}*[|=])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
+var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|(?<=:${HS}{0,20})[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|(?<=:${HS}{0,20})[A-Z][a-z][A-Za-z]{0,30}(?:Token|Key|Auth|Credentials?)(?=$|[\\s,;)}\\]>|])|(?<=:${HS}{0,20})${CREDENTIAL_TYPE}${TYPE_SUFFIX}?(?=[;,)>|\\]]|${HS}*[|=])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
 var ENV_CODE_VALUE = `(?:${CODE_READ}|(?:process|import\\.meta|env|config|settings|secrets|vars|this|globalThis|os\\.environ)[.[])`;
 var PROSE_START = "(?:the|a|an|it|is|this|that|not|no|none|only|see|via|in|on|was|were|has|have)\\s";
 var LINE_VALUE = `[^\\s#](?:[^\\s#]|#(?!\\s)|${HS}+(?![\\s#]|&&|\\|\\||(?:npm|npx|node|yarn|pnpm|bun|sdk-commands)(?:\\s|$)))*`;
@@ -418,11 +418,9 @@ var redactInlineValue = (match, ...args) => {
   return keepsWord(prefix, value) ? match : `${prefix}<REDACTED>`;
 };
 function keepsWord(prefix, value) {
-  if (!/:\s*$/.test(prefix) || !/^[a-z]{1,20}$/.test(value))
-    return false;
-  return /[a-z][A-Z]/.test(prefix) || INLINE_WORDS.has(value);
+  return /:\s*$/.test(prefix) && INLINE_WORDS.has(value);
 }
-var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json secrets tokens keys token password secret key apikey auth mnemonic failed failure revoked refreshed incorrect wrong reset hidden guest denied rejected accepted granted valid unset changed updated saved stored created removed deleted enabled disabled ok success successful unauthorized forbidden pending".split(" "));
+var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json nft mana wearable emote asset contract address player coin currency reward balance amount failed failure revoked refreshed incorrect wrong reset hidden guest denied rejected accepted granted valid unset changed updated saved stored created removed deleted enabled disabled ok success successful unauthorized forbidden pending".split(" "));
 var redactKeyLiteral = (match, ...args) => {
   const {prefix, literal} = args[args.length - 1];
   const value = literal.slice(1, -1);
@@ -431,11 +429,11 @@ var redactKeyLiteral = (match, ...args) => {
 };
 var STEPS = [
   [
-    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\s'"`)]{1,40}(?: [^/\s'"`)]{1,40}){0,3}(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
+    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\s'"`)]{1,40}(?: [^/\s'"`)]{1,40}){0,7}(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
     "~"
   ],
   [
-    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\s'"`)]{1,40}(?: [^\\/\s'"`)]{1,40}){0,3}(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
+    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\s'"`)]{1,40}(?: [^\\/\s'"`)]{1,40}){0,7}(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
     "~"
   ],
   [/\\\\wsl(?:\$|\.localhost)\\[^\\\s]{1,40}\\home\\[^\\\s'"`]+/gi, "~"],
