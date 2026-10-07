@@ -56,7 +56,7 @@ node {baseDir}/scripts/report.mjs consent --grant   # yes
 node {baseDir}/scripts/report.mjs consent --deny    # no
 ```
 
-The answer is stored in `.dcl-sdk-reports.json` at the scene root. The script adds `.dcl-sdk-reports*` (that file and its lock files) to `.gitignore`, and to `.dclignore` when the scene has one, so none of them is ever committed or deployed. If the user later says "stop sending SDK reports" or "you can send them again", run the matching command. Don't ask any other time.
+The answer is stored in a `.dcl-sdk-reports/` folder at the scene root, next to the record of sent reports. The folder carries its own `.gitignore`, so git ignores it without the scene's `.gitignore` being touched, and deploys leave it out like every path starting with a dot. Don't add it to `.gitignore` or `.dclignore`. If the user later says "stop sending SDK reports" or "you can send them again", run the matching command. Don't ask any other time.
 
 **Running as a subagent?** There's no user to ask. On `consent:unknown`, skip the report, apply the workaround, and tell your caller that an SDK issue could be reported if the user agrees.
 

@@ -13,12 +13,12 @@
 // that sends it; check starts one only when reports are already queued. A slow or unreachable
 // service costs the user no time.
 //
-// State lives in the scene folder, so every process that touches a scene shares it whatever its HOME
-// or however the path is spelled: the ledger (.dcl-sdk-reports.json, with the consent and the queued
-// and sent reports) and two lock files (.dcl-sdk-reports.lock around every ledger change, and
-// .dcl-sdk-reports.send.lock for the one background run allowed at a time). All of them match
-// `.dcl-sdk-reports*`, which is added to .gitignore and to an existing .dclignore, so none is ever
-// committed or deployed.
+// State lives in one folder in the scene, .dcl-sdk-reports/, so every process that touches a scene
+// shares it whatever its HOME or however the path is spelled: the ledger (ledger.json, with the
+// consent and the queued and sent reports) and two lock files (ledger.lock around every ledger
+// change, and send.lock for the one background run allowed at a time). The folder holds a .gitignore
+// of `*`, so git ignores all of it without the scene's own .gitignore being touched, and deploys
+// never include it: the SDK leaves out every path starting with a dot.
 //
 // Options:
 //   --dir DIR   scene folder (default: nearest parent of the cwd containing scene.json, else the cwd)
@@ -36,8 +36,8 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import {
-  appendFileSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -53,12 +53,14 @@ import { fileURLToPath } from 'node:url'
 // The reporting service (ops/cloudflare-workers, workers/sdk-issue-reports).
 const DEFAULT_ENDPOINT = 'https://sdk-issue-reports.decentraland.org'
 
-const LEDGER_FILE = '.dcl-sdk-reports.json'
-const LEDGER_LOCK_FILE = '.dcl-sdk-reports.lock'
-const SEND_LOCK_FILE = '.dcl-sdk-reports.send.lock'
-const IGNORE_ENTRY = '.dcl-sdk-reports*'
-// Ignore lines that already cover every file above, in the forms people write them.
-const IGNORE_COVERS = ['.dcl-sdk-reports*', '/.dcl-sdk-reports*', '**/.dcl-sdk-reports*']
+const STATE_DIR = '.dcl-sdk-reports'
+const LEDGER_FILE = join(STATE_DIR, 'ledger.json')
+const LEDGER_LOCK_FILE = join(STATE_DIR, 'ledger.lock')
+const SEND_LOCK_FILE = join(STATE_DIR, 'send.lock')
+// Where earlier versions kept the ledger, in the scene root. Read until the next ledger change,
+// which moves it into STATE_DIR.
+const LEGACY_LEDGER_FILE = '.dcl-sdk-reports.json'
+const STATE_GITIGNORE = '# Created by the report-sdk-issue skill: keeps this folder out of git.\n*\n'
 
 // The service gives each report up to 20 seconds of GitHub calls; waiting longer than that keeps
 // the background run from giving up on, and later resending, a report the service is still filing.
@@ -670,8 +672,8 @@ function isPlainObject(value) {
 }
 
 function readLedger(root) {
-  const path = join(root, LEDGER_FILE)
-  if (!existsSync(path)) return null
+  const path = [LEDGER_FILE, LEGACY_LEDGER_FILE].map(name => join(root, name)).find(existsSync)
+  if (!path) return null
   let ledger
   try {
     ledger = JSON.parse(decodeText(readFileSync(path)))
@@ -688,35 +690,18 @@ function readLedger(root) {
 }
 
 /**
- * Makes sure `.dcl-sdk-reports*` is in .gitignore (created if missing) and in .dclignore when the scene
- * has one. Appends rather than rewrites, in the file's own line endings, and leaves alone a file that
- * already covers the ledger and its lock files. Best effort: a read-only ignore file must not stop
- * the user's answer from being recorded, or the agent would ask again on every issue.
+ * Creates the state folder, with a .gitignore of `*` so git ignores the folder and everything in it,
+ * that .gitignore included. The scene's own ignore files are never touched.
  */
-function ensureIgnored(root) {
-  let ignored = true
-  for (const [name, createIfMissing] of [
-    ['.gitignore', true],
-    ['.dclignore', false]
-  ]) {
-    const path = join(root, name)
-    try {
-      if (!existsSync(path) && !createIfMissing) continue
-      const content = existsSync(path) ? readFileSync(path, 'utf8') : ''
-      const lines = content.split(/\r?\n/).map(line => line.trim())
-      if (lines.some(line => IGNORE_COVERS.includes(line))) continue
-      const eol = content.includes('\r\n') ? '\r\n' : '\n'
-      const separator = content === '' || content.endsWith('\n') ? '' : eol
-      appendFileSync(path, `${separator}${IGNORE_ENTRY}${eol}`)
-    } catch {
-      ignored = false
-    }
+function ensureStateDir(root) {
+  const dir = join(root, STATE_DIR)
+  mkdirSync(dir, { recursive: true })
+  try {
+    writeFileSync(join(dir, '.gitignore'), STATE_GITIGNORE, { flag: 'wx' })
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err
   }
-  if (!ignored) ignoreFailed = true
 }
-
-// Set when an ignore file could not be updated, so the consent command can say so.
-let ignoreFailed = false
 
 /**
  * Renames, retrying for a moment on Windows, where an antivirus or indexer holding the target open
@@ -741,6 +726,12 @@ function writeLedger(root, ledger) {
   try {
     writeFileSync(temporary, `${JSON.stringify(ledger, null, 2)}\n`)
     renameWithRetry(temporary, path)
+    // Moved: the ledger an earlier version kept in the scene root now lives in STATE_DIR.
+    try {
+      unlinkSync(join(root, LEGACY_LEDGER_FILE))
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err
+    }
   } catch (err) {
     try {
       unlinkSync(temporary)
@@ -919,6 +910,8 @@ function sleepSync(ms) {
  * @param mutate Receives the current ledger (or null) and returns the ledger to write, or null
  */
 export function updateLedger(root, mutate) {
+  // The lock lives in the state folder, so the folder comes first.
+  ensureStateDir(root)
   const path = join(root, LEDGER_LOCK_FILE)
   for (let attempt = 1; ; attempt++) {
     // Each attempt gets the full wait, so a retry that finds the lock busy does not give up at once.
@@ -930,8 +923,6 @@ export function updateLedger(root, mutate) {
       release = tryLock(path, LEDGER_LOCK_STALE_MS)
     }
     try {
-      // Under the lock, so concurrent first runs add the ignore line once.
-      ensureIgnored(root)
       const next = mutate(readLedger(root))
       // A lock taken over while this run held it (it overran the stale time) is no longer this
       // run's: writing now could overwrite the new holder's change, so start over instead.
@@ -1294,7 +1285,8 @@ function startBackgroundFlush(root) {
  * finishes and a report was queued while it was finishing, it starts another run for it.
  */
 async function flush(root, options = {}) {
-  if (!existsSync(join(root, LEDGER_FILE))) return 'flushed\nNothing is queued.'
+  if (!readLedger(root)) return 'flushed\nNothing is queued.'
+  ensureStateDir(root)
   const release = tryLock(join(root, SEND_LOCK_FILE), SEND_LOCK_STALE_MS)
   if (!release) return "busy\nAnother run is already sending this scene's queued reports."
   const counts = { sent: 0, rejected: 0, failed: 0, pending: 0 }
@@ -1444,8 +1436,7 @@ function consent(root, options) {
     next.consentAt = new Date().toISOString()
     return next
   })
-  let note = isDisabledByEnv() ? '\nNote: DCL_SDK_ISSUE_REPORTS disables reporting on this machine regardless.' : ''
-  if (ignoreFailed) note += `\nNote: could not add ${IGNORE_ENTRY} to .gitignore or .dclignore; add it by hand so the report ledger is never committed or deployed.`
+  const note = isDisabledByEnv() ? '\nNote: DCL_SDK_ISSUE_REPORTS disables reporting on this machine regardless.' : ''
   return `consent:${ledger.consent}${note}`
 }
 

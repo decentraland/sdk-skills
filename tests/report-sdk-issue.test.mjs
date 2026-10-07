@@ -1,8 +1,8 @@
 // Tests for report-sdk-issue/scripts/report.mjs. Run with: node --test tests/
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,8 +45,18 @@ function run(sceneDir, args, { input, raw, env = {} } = {}) {
   })
 }
 
-const ledgerLockPath = sceneDir => join(sceneDir, '.dcl-sdk-reports.lock')
-const sendLockPath = sceneDir => join(sceneDir, '.dcl-sdk-reports.send.lock')
+// Everything the script keeps lives in one folder in the scene.
+const stateDir = sceneDir => join(sceneDir, '.dcl-sdk-reports')
+const ledgerPath = sceneDir => join(stateDir(sceneDir), 'ledger.json')
+const ledgerLockPath = sceneDir => join(stateDir(sceneDir), 'ledger.lock')
+const sendLockPath = sceneDir => join(stateDir(sceneDir), 'send.lock')
+// Where earlier versions kept the ledger.
+const legacyLedgerPath = sceneDir => join(sceneDir, '.dcl-sdk-reports.json')
+
+function writeLedgerFile(sceneDir, content) {
+  mkdirSync(stateDir(sceneDir), { recursive: true })
+  writeFileSync(ledgerPath(sceneDir), typeof content === 'string' ? content : JSON.stringify(content))
+}
 
 function writeEmptyLock(path, ageMs) {
   writeFileSync(path, '')
@@ -61,7 +71,7 @@ async function queueReports(sceneDir, count) {
 }
 
 function readLedger(sceneDir) {
-  return JSON.parse(readFileSync(join(sceneDir, '.dcl-sdk-reports.json'), 'utf8'))
+  return JSON.parse(readFileSync(ledgerPath(sceneDir), 'utf8'))
 }
 
 /** Polls the ledger until the background process has done what the test expects, or fails. */
@@ -123,8 +133,9 @@ describe('report-sdk-issue', () => {
   })
 
   afterEach(() => {
-    rmSync(sceneDir, { recursive: true, force: true })
-    rmSync(homeDir, { recursive: true, force: true })
+    // Retried: a background run of the script may still be writing into the scene for a moment.
+    rmSync(sceneDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 })
+    rmSync(homeDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 })
   })
 
   describe('when the user has not answered the consent question', () => {
@@ -136,7 +147,7 @@ describe('report-sdk-issue', () => {
     it('should refuse to submit and not create the ledger', async () => {
       const { first } = await run(sceneDir, ['submit'], { input: REPORT })
       assert.equal(first, 'consent:unknown')
-      assert.equal(existsSync(join(sceneDir, '.dcl-sdk-reports.json')), false)
+      assert.equal(existsSync(stateDir(sceneDir)), false)
     })
   })
 
@@ -145,13 +156,15 @@ describe('report-sdk-issue', () => {
       await run(sceneDir, ['consent', '--grant'])
     })
 
-    it('should add the ledger and its lock files to .gitignore exactly once', async () => {
-      await run(sceneDir, ['consent', '--grant'])
-      assert.equal(readFileSync(join(sceneDir, '.gitignore'), 'utf8'), 'node_modules\n.dcl-sdk-reports*\n')
+    it('should leave the scene\'s .gitignore alone and not create a .dclignore', () => {
+      assert.deepEqual(
+        { gitignore: readFileSync(join(sceneDir, '.gitignore'), 'utf8'), dclignore: existsSync(join(sceneDir, '.dclignore')) },
+        { gitignore: 'node_modules', dclignore: false }
+      )
     })
 
-    it('should not create a .dclignore the scene does not have', () => {
-      assert.equal(existsSync(join(sceneDir, '.dclignore')), false)
+    it('should keep its folder out of git with a .gitignore of its own', () => {
+      assert.equal(readFileSync(join(stateDir(sceneDir), '.gitignore'), 'utf8').split('\n').includes('*'), true)
     })
 
     describe('and sending is turned off', () => {
@@ -773,7 +786,7 @@ describe('report-sdk-issue', () => {
         await queueReports(sceneDir, 1)
         const ledger = readLedger(sceneDir)
         ledger.reports[0].createdAt = new Date(Date.now() - 90 * 86_400_000).toISOString()
-        writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), JSON.stringify(ledger))
+        writeLedgerFile(sceneDir, ledger)
       })
 
       afterEach(() => {
@@ -816,7 +829,7 @@ describe('report-sdk-issue', () => {
         await queueReports(sceneDir, 1)
         const ledger = readLedger(sceneDir)
         ledger.backoffUntil = '2099-01-01T00:00:00.000Z'
-        writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), JSON.stringify(ledger))
+        writeLedgerFile(sceneDir, ledger)
       })
 
       afterEach(() => {
@@ -843,8 +856,8 @@ describe('report-sdk-issue', () => {
           sdkVersion: 'file:../../work/acme-client/sdk',
           metadata: { os: 'darwin', node: '20.0.0', agent: 'jane.doe@example.com' }
         }
-        writeFileSync(
-          join(sceneDir, '.dcl-sdk-reports.json'),
+        writeLedgerFile(
+          sceneDir,
           JSON.stringify({
             consent: 'granted',
             reports: [
@@ -948,41 +961,60 @@ describe('report-sdk-issue', () => {
     })
   })
 
-  describe('when the scene files use CRLF line endings and already ignore the ledger', () => {
+  describe('when the scene is a git repository', () => {
+    let status
+
     beforeEach(async () => {
-      writeFileSync(join(sceneDir, '.gitignore'), 'node_modules\r\n')
-      writeFileSync(join(sceneDir, '.dclignore'), 'node_modules\r\n/.dcl-sdk-reports*\r\n')
+      execFileSync('git', ['init', '-q'], { cwd: sceneDir })
       await run(sceneDir, ['consent', '--grant'])
+      await run(sceneDir, ['submit'], { input: REPORT })
+      status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: sceneDir, encoding: 'utf8' })
     })
 
-    it('should append in CRLF to .gitignore and leave .dclignore as it was', () => {
-      assert.deepEqual(
-        [readFileSync(join(sceneDir, '.gitignore'), 'utf8'), readFileSync(join(sceneDir, '.dclignore'), 'utf8')],
-        ['node_modules\r\n.dcl-sdk-reports*\r\n', 'node_modules\r\n/.dcl-sdk-reports*\r\n']
-      )
+    it('should not show any of the script\'s files to git', () => {
+      assert.equal(status.includes('dcl-sdk-reports'), false, status)
     })
   })
 
-  describe('when the scene has a .dclignore without the ledger', () => {
-    beforeEach(async () => {
-      writeFileSync(join(sceneDir, '.dclignore'), 'node_modules')
-      await run(sceneDir, ['consent', '--grant'])
+  describe('when a ledger from an earlier version is in the scene root', () => {
+    beforeEach(() => {
+      writeFileSync(
+        legacyLedgerPath(sceneDir),
+        JSON.stringify({
+          consent: 'granted',
+          reports: [{ clientReportId: 'old-1', fingerprint: REPORT.fingerprint, status: 'pending', createdAt: new Date().toISOString() }]
+        })
+      )
     })
 
-    it('should append the ledger to it', () => {
-      assert.equal(readFileSync(join(sceneDir, '.dclignore'), 'utf8'), 'node_modules\n.dcl-sdk-reports*\n')
+    it('should read the consent and reports from it', async () => {
+      const { first } = await run(sceneDir, ['check', '--fingerprint', REPORT.fingerprint])
+      assert.equal(first, 'reported')
+    })
+
+    describe('and the ledger changes', () => {
+      beforeEach(async () => {
+        await run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: 'after-the-move' } })
+      })
+
+      it('should move it into the state folder, keeping what it held', () => {
+        assert.deepEqual(
+          { legacyLeft: existsSync(legacyLedgerPath(sceneDir)), ids: readLedger(sceneDir).reports.map(r => r.fingerprint) },
+          { legacyLeft: false, ids: [REPORT.fingerprint, 'after-the-move'] }
+        )
+      })
     })
   })
 
   describe('when the ledger file is not a ledger', () => {
     beforeEach(() => {
-      writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), '[]')
+      writeLedgerFile(sceneDir, '[]')
     })
 
     it('should fail without replacing it', async () => {
       const { code } = await run(sceneDir, ['consent', '--grant'])
       assert.deepEqual(
-        { code, content: readFileSync(join(sceneDir, '.dcl-sdk-reports.json'), 'utf8') },
+        { code, content: readFileSync(ledgerPath(sceneDir), 'utf8') },
         { code: 1, content: '[]' }
       )
     })
@@ -990,7 +1022,7 @@ describe('report-sdk-issue', () => {
 
   describe('when the ledger holds entries that are not reports', () => {
     beforeEach(() => {
-      writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), JSON.stringify({ consent: 'granted', reports: [null, 3, {}] }))
+      writeLedgerFile(sceneDir, { consent: 'granted', reports: [null, 3, {}] })
     })
 
     it('should ignore them', async () => {
@@ -1022,25 +1054,30 @@ describe('report-sdk-issue', () => {
       chmodSync(join(sceneDir, '.gitignore'), 0o444)
     })
 
-    it('should still record the answer, and say the ledger is not ignored', async () => {
-      const { first, stdout } = await run(sceneDir, ['consent', '--grant'])
-      assert.deepEqual({ first, warned: stdout.includes('add it by hand') }, { first: 'consent:granted', warned: true })
+    it('should record the answer without needing it', async () => {
+      const { first } = await run(sceneDir, ['consent', '--grant'])
+      assert.equal(first, 'consent:granted')
     })
   })
 
   describe('when several first runs record consent at once', () => {
+    let results
+
     beforeEach(async () => {
-      await Promise.all(Array.from({ length: 8 }, () => run(sceneDir, ['consent', '--grant'])))
+      results = await Promise.all(Array.from({ length: 8 }, () => run(sceneDir, ['consent', '--grant'])))
     })
 
-    it('should add the ignore line once', () => {
-      assert.equal(readFileSync(join(sceneDir, '.gitignore'), 'utf8'), 'node_modules\n.dcl-sdk-reports*\n')
+    it('should record it from every one of them', () => {
+      assert.deepEqual(
+        { granted: results.filter(r => r.first === 'consent:granted').length, consent: readLedger(sceneDir).consent },
+        { granted: 8, consent: 'granted' }
+      )
     })
   })
 
   describe('when the ledger starts with a byte order mark', () => {
     beforeEach(() => {
-      writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), `\uFEFF${JSON.stringify({ consent: 'granted', reports: [] })}`)
+      writeLedgerFile(sceneDir, `\uFEFF${JSON.stringify({ consent: 'granted', reports: [] })}`)
     })
 
     it('should read it', async () => {
@@ -1060,9 +1097,8 @@ describe('report-sdk-issue', () => {
       results = await Promise.all(
         Array.from({ length: 50 }, (_, i) => run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env }))
       )
-    })
-
-    afterEach(() => {
+      // Closed here rather than in an afterEach: on Node 18 the outer afterEach, which removes the
+      // scene, runs first, and the background sends this answers must be done by then.
       mock.close()
     })
 
@@ -1143,7 +1179,8 @@ describe('report-sdk-issue', () => {
     let inode
 
     beforeEach(() => {
-      lock = join(sceneDir, '.dcl-sdk-reports.lock')
+      mkdirSync(stateDir(sceneDir), { recursive: true })
+      lock = ledgerLockPath(sceneDir)
       writeFileSync(lock, JSON.stringify({ token: 'live', pid: process.pid, at: Date.now() }))
       inode = statSync(lock).ino
     })
@@ -1162,13 +1199,13 @@ describe('report-sdk-issue', () => {
     let calls
 
     beforeEach(() => {
-      writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), JSON.stringify({ consent: 'granted', reports: [] }))
+      writeLedgerFile(sceneDir, { consent: 'granted', reports: [] })
       calls = 0
       updateLedger(realpathSync(sceneDir), ledger => {
         calls++
         // Another process takes the lock over, then dies holding it.
         if (calls === 1) {
-          writeFileSync(join(sceneDir, '.dcl-sdk-reports.lock'), JSON.stringify({ token: 'other', pid: 2 ** 22 + 12345, at: Date.now() }))
+          writeFileSync(ledgerLockPath(sceneDir), JSON.stringify({ token: 'other', pid: 2 ** 22 + 12345, at: Date.now() }))
         }
         ledger.reports.push({ clientReportId: `change-${calls}`, fingerprint: 'x', status: 'sent' })
         return ledger
