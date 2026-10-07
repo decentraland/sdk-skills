@@ -283,7 +283,8 @@ var ESCAPED_QUOTED = '\\\\"(?:(?!\\\\")[^\\n])+\\\\"';
 var HARMLESS_QUOTED = "(?:['\"`](?:include|omit|same-origin|[^\\w\\s]{1,3})['\"`])";
 var NOT_A_VALUE = "(?:string|number|boolean|bigint|object|undefined|null|nil|none|any|unknown|never|void|true|false|yes|no|on|off|required|optional|empty|missing|n/a|tbd|todo|redacted|[01]|x{3,}|\\*{3,})(?=$|[\\s,;)}\\]|<\\[&])";
 var CODE_READ = "(?:(?:await|new|typeof|yield)\\s|[A-Za-z_$][\\w$.]{0,80}\\(|\\$\\{\\{?|\\$[A-Za-z_]\\w{0,40}(?![\\w$])|%[A-Z_]{1,40}%)";
-var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|(?:[A-Z][A-Za-z]{0,30})?(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)[A-Za-z]{0,20}(?=$|[\\s,;)}])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
+var CREDENTIAL_TYPE = "(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)";
+var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|[A-Z][a-z][A-Za-z]{0,30}${CREDENTIAL_TYPE}(?=$|[\\s,;)}\\]>|])|${CREDENTIAL_TYPE}(?:[A-Z][a-z]{1,20}){0,2}(?=[;,)>|\\]]|${HS}*[|=])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
 var ENV_CODE_VALUE = `(?:${CODE_READ}|(?:process|import\\.meta|env|config|settings|secrets|vars|this|globalThis|os\\.environ)[.[])`;
 var PROSE_START = "(?:the|a|an|it|is|this|that|not|no|none|only|see|via|in|on|was|were|has|have)\\s";
 var LINE_VALUE = `[^\\s#](?:[^\\s#]|#(?!\\s)|${HS}+(?![\\s#]|&&|\\|\\||(?:npm|npx|node|yarn|pnpm|bun|sdk-commands)(?:\\s|$)))*`;
@@ -413,10 +414,14 @@ var redactConfigValue = (match, ...args) => {
 };
 var redactInlineValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
-  if (/:\s*$/.test(prefix) && /^[a-z]{1,20}$/.test(value))
-    return match;
+  if (/:\s*$/.test(prefix) && /^[a-z]{1,20}$/.test(value)) {
+    const name = prefix.toLowerCase();
+    if (INLINE_WORDS.has(value) || name.includes(value))
+      return match;
+  }
   return `${prefix}<REDACTED>`;
 };
+var INLINE_WORDS = new Set("input value values data args arg params options opts config cfg env props state entity item result res response body user account wallet identifier keyword expression expected required missing invalid expired empty undefined null none string number field header headers query payload credentials session storage signer provider ctx context req request self it err error msg message text raw json secrets tokens keys".split(" "));
 var redactKeyLiteral = (match, ...args) => {
   const {prefix, literal} = args[args.length - 1];
   const value = literal.slice(1, -1);
@@ -425,11 +430,11 @@ var redactKeyLiteral = (match, ...args) => {
 };
 var STEPS = [
   [
-    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\n'"`)]{1,60}?(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
+    /(?<=^|[^\w.~>-]|:\/\/\/?|:\/\/file)(?:(?:\/mnt\/[a-z]|\/cygdrive\/[a-z]|\/[a-zA-Z](?=\/[Uu]sers\/))\/[Uu]sers|\/(?:Users|home))\/(?!(?:Shared|Public|Guest)(?![\w-]))(?:[^/\s'"`)]{1,40}(?: [^/\s'"`)]{1,40})?(?=\/)|[^/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w/]))?)/gm,
     "~"
   ],
   [
-    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\n'"`)]{1,60}?(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
+    /(?<![\w])[A-Za-z]:(?:\\{1,2}|\/)Users(?:\\{1,2}|\/)(?!Public(?![\w-]))(?:[^\\/\s'"`)]{1,40}(?: [^\\/\s'"`)]{1,40})?(?=[\\/])|[^\\/\s'"`)]+(?: [A-Z][a-z]{1,20}(?![\w\\/]))?)/gi,
     "~"
   ],
   [/\\\\wsl(?:\$|\.localhost)\\[^\\\s]{1,40}\\home\\[^\\\s'"`]+/gi, "~"],
@@ -916,8 +921,9 @@ function sleepSync(ms) {
  */
 export function updateLedger(root, mutate) {
   const path = join(root, LEDGER_LOCK_FILE)
-  const deadline = Date.now() + LEDGER_LOCK_WAIT_MS
   for (let attempt = 1; ; attempt++) {
+    // Each attempt gets the full wait, so a retry that finds the lock busy does not give up at once.
+    const deadline = Date.now() + LEDGER_LOCK_WAIT_MS
     let release = tryLock(path, LEDGER_LOCK_STALE_MS)
     while (!release) {
       if (Date.now() > deadline) throw new Error("the scene's report ledger is locked by another run")
@@ -990,18 +996,20 @@ function pathSpellings(path) {
 export function redact(text, root) {
   if (!text) return text
   let result = text
+  const home = homedir()
   for (const [path, placeholder] of [
     [root, '<SCENE>'],
-    [homedir(), '~']
+    [home, '~']
   ]) {
+    // A home directly under /Users, /home or C:\Users is a user name, which may be the first word of
+    // a name with a space (`/home/bob smith/`): that is left to the username rule rather than
+    // turned into `~ smith/`. Nothing else is skipped, so the scene path goes wherever it ends.
+    const userHome = path === home && /[\\/](?:Users|home)[\\/][^\\/]+[\\/]?$/i.test(path)
+    const nameGoesOn = userHome ? '| [^/\\\\\\s]{1,40}[/\\\\]' : ''
     for (const variant of pathSpellings(path)) {
       // Case-insensitive (Windows and macOS paths are), and only where the path ends, so a home of
-      // /home/al leaves /home/alice, and /home/bob leaves /home/bob smith/, to the username rule
-      // rather than turning them into ~ice and ~ smith.
-      const pattern = new RegExp(
-        `${escapeRegExp(variant)}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}]| [^/\\\\\\n]{1,40}[/\\\\])`,
-        'giu'
-      )
+      // /home/al leaves /home/alice to the username rule rather than turning it into ~ice.
+      const pattern = new RegExp(`${escapeRegExp(variant)}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}]${nameGoesOn})`, 'giu')
       result = result.replace(pattern, placeholder)
     }
   }
@@ -1461,7 +1469,8 @@ async function submit(root, options) {
   if (!payload) throw new UsageError('invalid: the report has nothing left to send after redaction')
   let known
   updateLedger(root, current => {
-    const latest = current || ledger
+    // A copy, so a retry (see updateLedger) does not find this attempt's entry already in it.
+    const latest = current || { ...ledger, reports: [...ledger.reports] }
     known = latest.reports.find(entry => entry.fingerprint === input.fingerprint && settles(entry))
     if (known) return null
     // Queued first and sent by a background process, so the agent never waits on the network.

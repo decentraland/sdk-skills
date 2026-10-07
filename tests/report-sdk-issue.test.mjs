@@ -1383,6 +1383,18 @@ describe('report-sdk-issue', () => {
       )
     })
 
+    it('should strip the scene path even when a later word has a slash', () => {
+      const root = '/work/acme-unreleased-game'
+      assert.deepEqual(
+        [
+          redact(`Error in ${root} see logs/out.txt`, root),
+          redact(`Build failed at ${root} (check src/index.ts)`, root),
+          redact(`cd ${root} && npm run build -- --out dist/x`, root)
+        ],
+        ['Error in <SCENE> see logs/out.txt', 'Build failed at <SCENE> (check src/index.ts)', 'cd <SCENE> && npm run build -- --out dist/x']
+      )
+    })
+
     it('should only strip the scene path where it ends', () => {
       assert.equal(redact('/srv/al/x and /srv/alice/y', '/srv/al'), '<SCENE>/x and /srv/alice/y')
     })
