@@ -78,6 +78,8 @@ const MAX_PENDING_AGE_MS = 30 * 24 * 60 * 60_000
 const SEND_LOCK_STALE_MS = 30 * 60_000
 const LEDGER_LOCK_STALE_MS = 30_000
 const LEDGER_LOCK_WAIT_MS = 5_000
+// How many times a ledger change is tried when the lock is lost or a file operation fails.
+const LEDGER_ATTEMPTS = 3
 // A lock file is written right after it is created, so one that still is not a lock record after
 // this long was left empty or partial by a process that died or a full disk, and is stale.
 const UNREADABLE_LOCK_STALE_MS = 2_000
@@ -288,12 +290,18 @@ var ESCAPED_QUOTED = '\\\\"(?:(?!\\\\")[^\\n])+\\\\"';
 var HARMLESS_QUOTED = "(?:['\"`](?:include|omit|same-origin|[^\\w\\s]{1,3})['\"`])";
 var NOT_A_VALUE = "(?:string|number|boolean|bigint|object|undefined|null|nil|none|any|unknown|never|void|true|false|yes|no|on|off|required|optional|empty|missing|n/a|tbd|todo|redacted|[01]|x{3,}|\\*{3,})(?=$|[\\s,;)}\\]|<\\[&])";
 var CODE_READ = "(?:(?:await|new|typeof|yield)\\s|[A-Za-z_$][\\w$.]{0,80}\\(|\\$\\{\\{?|\\$[A-Za-z_]\\w{0,40}(?![\\w$])|%[A-Z_]{1,40}%)";
-var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|[A-Z][A-Za-z]{0,30}(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)[A-Za-z]{0,20}(?=$|[\\s,;)}])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
+var CODE_VALUE = `(?:${CODE_READ}|(?!(?:true|false|null|undefined|nil|none)\\.)[A-Za-z_$][\\w$]{0,40}(?:\\??\\.[A-Za-z_$][\\w$]{0,40}){1,8}|[A-Z]{1,21}[a-z][A-Za-z]{0,40}(?=[<\\[;|]|${HS}+\\|)|(?:[A-Z][A-Za-z]{0,30})?(?:Token|Key|Secret|Password|Auth|Credentials?|Mnemonic|Phrase|Pass)[A-Za-z]{0,20}(?=$|[\\s,;)}])|\\/(?![\\s*/])[^/\\n]{1,200}\\/[a-z]{0,6}(?=[.\\s,;)]|$)|[a-z]{2,21}(?:[A-Z][a-z]{2,20}){1,4}(?=$|[\\s,;)}\\]])|[A-Z][A-Z0-9]{0,20}_[A-Z0-9_]{1,40}(?=$|[\\s,;)}\\]]))`;
 var ENV_CODE_VALUE = `(?:${CODE_READ}|(?:process|import\\.meta|env|config|settings|secrets|vars|this|globalThis|os\\.environ)[.[])`;
 var PROSE_START = "(?:the|a|an|it|is|this|that|not|no|none|only|see|via|in|on|was|were|has|have)\\s";
 var LINE_VALUE = `[^\\s#](?:[^\\s#]|#(?!\\s)|${HS}+(?![\\s#]|&&|\\|\\||(?:npm|npx|node|yarn|pnpm|bun|sdk-commands)(?:\\s|$)))*`;
+function notAValue(code) {
+  return `(?![\\s'"\`<\\[{(]|${NOT_A_VALUE}|${code}|${PROSE_START}|\\d{1,6}${HS}*,|\\d{1,6}\\.\\d{1,6}(?![\\w.]))`;
+}
 function configValue(code) {
-  return `(?![\\s'"\`<\\[{(]|${NOT_A_VALUE}|${code}|${PROSE_START}|\\d{1,6}${HS}*,|\\d{1,6}\\.\\d{1,6}(?![\\w.]))(?<value>${LINE_VALUE})`;
+  return `${notAValue(code)}(?<value>${LINE_VALUE})`;
+}
+function inlineValue(code) {
+  return `${notAValue(code)}(?![$%]|\\{\\{)(?<value>[^\\s,;}\\])<'"\`]+)`;
 }
 var SAFE_RANDOM_SHAPES = [
   /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/,
@@ -399,6 +407,12 @@ var AUTHORIZATION = `(?<![\\w-])((?:\\\\?['"])?:?(?:proxy-|x-)?authorization(?:\
 var redactConfigValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
   if (/[a-z][A-Z]/.test(prefix) && /:\s*$/.test(prefix) && /^[a-z]{1,20}[,;]?$/.test(value))
+    return match;
+  return `${prefix}<REDACTED>`;
+};
+var redactInlineValue = (match, ...args) => {
+  const {prefix, value} = args[args.length - 1];
+  if (/:\s*$/.test(prefix) && /^[a-z]{1,20}$/.test(value))
     return match;
   return `${prefix}<REDACTED>`;
 };
@@ -530,6 +544,7 @@ var STEPS = [
     new RegExp(`(?<prefix>^${HS}*(?:export${HS}+|set${HS}+|\\$env:|-${HS}+)?${NAME}${SEPARATOR})${configValue(CODE_VALUE)}`, "gm"),
     redactConfigValue
   ],
+  [new RegExp(`(?<prefix>(?:${ENV_NAME}|${NAME})${SEPARATOR})${inlineValue(CODE_VALUE)}`, "g"), redactInlineValue],
   [
     new RegExp(`((?:-H|--header)${HS}+(?<hq>['"])(?:${NAME}|${ENV_NAME})${HS}*:${HS}*)(?![\\s<]|\\$|\\{\\{)[^'"\\n]+(?=\\k<hq>)`, "g"),
     "$1<REDACTED>"
@@ -546,7 +561,7 @@ var STEPS = [
   ],
   [/(?<![\w-])(_auth(?:Token)?|_password)([ \t]*=[ \t]*)(?!<|\$\{)[^\s'"`]+/g, "$1$2<REDACTED>"],
   [
-    /((?:[?&#;]|, )(?:access[_-]?token|id_?token|refresh_?token|auth_?token|session[_-]?token|token|api[_-]?key|apikey|key|private[_-]?key|privatekey|secret|client_?secret|signature|sig|x-amz-signature|x-amz-security-token|auth|password|passwd|pass|pwd|passphrase|code_verifier|session[_-]?id|sessionid|session|sid|jwt|seed|mnemonic)=)(?!<|\$\{|\{|(?:true|false|null|undefined)(?![\w-]))[^&\s'"`,;)}\]>]+/gi,
+    /((?:[?&#;]|, )(?:(?:[a-z0-9]{1,30}[_-]){1,3}(?:token|key|secret|signature|sig|auth|password)|access[_-]?token|id_?token|refresh_?token|auth_?token|session[_-]?token|token|api[_-]?key|apikey|key|private[_-]?key|privatekey|secret|client_?secret|signature|sig|x-amz-signature|x-amz-security-token|auth|password|passwd|pass|pwd|passphrase|code_verifier|session[_-]?id|sessionid|session|sid|jwt|seed|mnemonic)=)(?!<|\$\{|\{|(?:true|false|null|undefined)(?![\w-]))[^&\s'"`,;)}\]>]+/gi,
     "$1<REDACTED>"
   ],
   [
@@ -737,7 +752,7 @@ function isAlive(pid) {
  * dated well in the future, or it is not a lock record (empty or partial after a crash or a full
  * disk) and its file is a couple of seconds old or dated in the future.
  */
-function isStale(path, content, staleMs) {
+export function isStale(path, content, staleMs) {
   let holder
   try {
     holder = JSON.parse(content)
@@ -746,7 +761,15 @@ function isStale(path, content, staleMs) {
     const age = Date.now() - holder.at
     return !isAlive(holder.pid) || age > staleMs || age < -LOCK_CLOCK_SKEW_MS
   }
-  const age = Date.now() - statSync(path).mtimeMs
+  let mtimeMs
+  try {
+    mtimeMs = statSync(path).mtimeMs
+  } catch (err) {
+    // Released between the read and now: gone, so as good as stale; the caller tries to take it.
+    if (err.code === 'ENOENT') return true
+    throw err
+  }
+  const age = Date.now() - mtimeMs
   return age > Math.min(staleMs, UNREADABLE_LOCK_STALE_MS) || age < -LOCK_CLOCK_SKEW_MS
 }
 
@@ -763,8 +786,10 @@ function isBusy(err, path) {
  * read-only folder, a full disk) is thrown, not mistaken for "busy".
  *
  * The file holds an owner token, the pid and the time. A stale lock is taken over by one process at
- * a time: it first creates a takeover marker next to the lock, then moves the lock aside, checks it
- * is the same stale one, and creates its own. No hard links are used, so it works on every file
+ * a time: it first creates a takeover marker next to the lock, then reads the lock again and, only if
+ * it is still the same stale one, moves it aside and creates its own. With the marker held, only a
+ * live holder releasing its lock can change it, so a lock someone else took meanwhile is never moved.
+ * The returned release also has `holds()`, to check the lock is still this owner's before a write. No hard links are used, so it works on every file
  * system (exFAT and FAT32 have none). The returned release only removes
  * the file if it still holds this owner's token.
  */
@@ -780,18 +805,30 @@ function tryLock(path, staleMs) {
       throw err
     }
   }
+  const holds = () => {
+    try {
+      return JSON.parse(readFileSync(path, 'utf8')).token === token
+    } catch {
+      return false
+    }
+  }
   const release = () => {
     try {
-      if (JSON.parse(readFileSync(path, 'utf8')).token === token) unlinkSync(path)
+      if (holds()) unlinkSync(path)
     } catch {}
   }
+  release.holds = holds
   if (take()) return release
   if (!takeOverIfStale(path, staleMs)) return undefined
   return take() ? release : undefined
 }
 
-/** Removes a stale lock, serialised through a takeover marker. Returns whether it was removed. */
-function takeOverIfStale(path, staleMs) {
+/**
+ * Removes a stale lock, serialised through a takeover marker. Returns whether it was removed.
+ *
+ * @param observed The lock's content as the caller read it; read here when not given
+ */
+export function takeOverIfStale(path, staleMs, observed) {
   const read = () => {
     try {
       return readFileSync(path, 'utf8')
@@ -800,7 +837,7 @@ function takeOverIfStale(path, staleMs) {
       throw err
     }
   }
-  const observed = read()
+  observed ??= read()
   if (observed === undefined) return true
   if (!isStale(path, observed, staleMs)) return false
   const marker = `${path}.takeover`
@@ -815,8 +852,13 @@ function takeOverIfStale(path, staleMs) {
     return false
   }
   try {
-    // Moved aside rather than removed, so a lock its holder released and someone else re-took since
-    // it was read is put back instead of lost.
+    // Read again under the marker: another process may have taken the stale lock over, and a new
+    // holder created a fresh one, since it was first read.
+    const current = read()
+    if (current === undefined) return true
+    if (current !== observed || !isStale(path, current, staleMs)) return false
+    // Moved aside rather than removed, so a lock its live holder released, and someone else took,
+    // between that read and the move is put back instead of lost.
     const aside = `${marker}.${randomUUID()}`
     try {
       renameSync(path, aside)
@@ -825,13 +867,13 @@ function takeOverIfStale(path, staleMs) {
       throw err
     }
     const moved = readFileSync(aside, 'utf8')
-    if (moved === observed && isStale(aside, moved, staleMs)) {
+    if (moved === current && isStale(aside, moved, staleMs)) {
       unlinkSync(aside)
       return true
     }
     // Restored with its content, so its holder's release still recognises it. If yet another
-    // process created the lock meanwhile, the restore fails and both hold it: a window of
-    // microseconds after a holder released a lock it had held past its stale time, accepted.
+    // process created the lock meanwhile, the restore fails; the holder whose lock was moved finds
+    // out through holds() before it writes (see updateLedger).
     try {
       writeFileSync(path, moved, { flag: 'wx' })
     } catch {}
@@ -855,23 +897,36 @@ function sleepSync(ms) {
  *
  * @param mutate Receives the current ledger (or null) and returns the ledger to write, or null
  */
-function updateLedger(root, mutate) {
+export function updateLedger(root, mutate) {
   const path = join(root, LEDGER_LOCK_FILE)
   const deadline = Date.now() + LEDGER_LOCK_WAIT_MS
-  let release = tryLock(path, LEDGER_LOCK_STALE_MS)
-  while (!release) {
-    if (Date.now() > deadline) throw new Error("the scene's report ledger is locked by another run")
-    sleepSync(20)
-    release = tryLock(path, LEDGER_LOCK_STALE_MS)
-  }
-  try {
-    // Under the lock, so concurrent first runs add the ignore line once.
-    ensureIgnored(root)
-    const next = mutate(readLedger(root))
-    if (next) writeLedger(root, next)
-    return next
-  } finally {
-    release()
+  for (let attempt = 1; ; attempt++) {
+    let release = tryLock(path, LEDGER_LOCK_STALE_MS)
+    while (!release) {
+      if (Date.now() > deadline) throw new Error("the scene's report ledger is locked by another run")
+      sleepSync(20)
+      release = tryLock(path, LEDGER_LOCK_STALE_MS)
+    }
+    try {
+      // Under the lock, so concurrent first runs add the ignore line once.
+      ensureIgnored(root)
+      const next = mutate(readLedger(root))
+      // A lock taken over while this run held it (it overran the stale time) is no longer this
+      // run's: writing now could overwrite the new holder's change, so start over instead.
+      if (!release.holds()) {
+        if (attempt < LEDGER_ATTEMPTS) continue
+        throw new Error("lost the scene's report ledger lock to another run")
+      }
+      if (next) writeLedger(root, next)
+      return next
+    } catch (err) {
+      // A file system hiccup (a file vanishing or busy for a moment) gets another try, so the report
+      // being queued is not lost.
+      if (attempt < LEDGER_ATTEMPTS && typeof err.code === 'string') continue
+      throw err
+    } finally {
+      release()
+    }
   }
 }
 

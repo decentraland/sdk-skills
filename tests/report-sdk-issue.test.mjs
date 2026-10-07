@@ -2,13 +2,13 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { redact, validate } from '../report-sdk-issue/scripts/report.mjs'
+import { isStale, redact, takeOverIfStale, updateLedger, validate } from '../report-sdk-issue/scripts/report.mjs'
 
 const SCRIPT = fileURLToPath(new URL('../report-sdk-issue/scripts/report.mjs', import.meta.url))
 
@@ -1046,6 +1046,82 @@ describe('report-sdk-issue', () => {
     it('should read it', async () => {
       const { first } = await run(sceneDir, ['check', '--fingerprint', REPORT.fingerprint])
       assert.equal(first, 'not-reported')
+    })
+  })
+
+  describe('when many reports are submitted at once against a slow service', () => {
+    let mock
+    let results
+
+    beforeEach(async () => {
+      await run(sceneDir, ['consent', '--grant'])
+      mock = await startServer(() => null)
+      const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
+      results = await Promise.all(
+        Array.from({ length: 50 }, (_, i) => run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env }))
+      )
+    })
+
+    afterEach(() => {
+      mock.close()
+    })
+
+    it('should queue every one of them', () => {
+      assert.deepEqual(
+        { queued: results.filter(r => r.first === 'queued').length, inLedger: readLedger(sceneDir).reports.length },
+        { queued: 50, inLedger: 50 }
+      )
+    })
+  })
+
+  describe('when a lock is released while its age is being checked', () => {
+    it('should count it as stale, so the caller takes it', () => {
+      assert.equal(isStale(join(sceneDir, 'released.lock'), '', 30_000), true)
+    })
+  })
+
+  describe('when a stale lock seen earlier has meanwhile been replaced by a live holder', () => {
+    let lock
+    let inode
+
+    beforeEach(() => {
+      lock = join(sceneDir, '.dcl-sdk-reports.lock')
+      writeFileSync(lock, JSON.stringify({ token: 'live', pid: process.pid, at: Date.now() }))
+      inode = statSync(lock).ino
+    })
+
+    it('should leave the live holder\'s lock in place, untouched', () => {
+      const stale = JSON.stringify({ token: 'dead', pid: 2 ** 22 + 12345, at: Date.now() })
+      const removed = takeOverIfStale(lock, 30_000, stale)
+      assert.deepEqual(
+        { removed, token: JSON.parse(readFileSync(lock, 'utf8')).token, sameFile: statSync(lock).ino === inode },
+        { removed: false, token: 'live', sameFile: true }
+      )
+    })
+  })
+
+  describe('when the ledger lock is taken over while a change is being made', () => {
+    let calls
+
+    beforeEach(() => {
+      writeFileSync(join(sceneDir, '.dcl-sdk-reports.json'), JSON.stringify({ consent: 'granted', reports: [] }))
+      calls = 0
+      updateLedger(realpathSync(sceneDir), ledger => {
+        calls++
+        // Another process takes the lock over, then dies holding it.
+        if (calls === 1) {
+          writeFileSync(join(sceneDir, '.dcl-sdk-reports.lock'), JSON.stringify({ token: 'other', pid: 2 ** 22 + 12345, at: Date.now() }))
+        }
+        ledger.reports.push({ clientReportId: `change-${calls}`, fingerprint: 'x', status: 'sent' })
+        return ledger
+      })
+    })
+
+    it('should not write with the lost lock, and make the change again under a new one', () => {
+      assert.deepEqual(
+        { calls, ids: readLedger(sceneDir).reports.map(r => r.clientReportId) },
+        { calls: 2, ids: ['change-2'] }
+      )
     })
   })
 
