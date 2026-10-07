@@ -26,7 +26,7 @@
 // Environment:
 //   DCL_SDK_ISSUE_REPORTS=off         disables reporting everywhere (wins over a granted consent)
 //   DCL_SDK_ISSUE_REPORTS_URL=<url>   overrides the reporting endpoint (base URL; /reports is appended);
-//                                     `none` queues reports without sending them
+//                                     `none`, `off` or empty queues reports without sending them
 //
 // The first line of output is always the machine-readable result; anything after it is for humans.
 // Exit codes: 0 for every result above, 2 for invalid input or usage, 1 for unexpected errors.
@@ -102,18 +102,11 @@ const INPUT_FIELDS = ['title', 'description', 'workaround', 'kind', 'fingerprint
 // The service refuses bodies over 32 KB; the payload is fitted under this, with room to spare.
 const MAX_PAYLOAD_BYTES = 30_000
 
-// Whether a slug carries a secret rather than words. Slugs reach the issue footer and labels, where
-// the service does not redact, so this refuses 32+ hex characters across the hex-only segments (a
-// key split up, even by a word) and more than 10 segments (a seed phrase as a slug). The service
-// applies the same rule.
-const MAX_SLUG_SEGMENTS = 10
+// Whether a slug carries a secret rather than words: the service's own rule (slugCarriesSecret in
+// the generated redaction block below). Slugs reach the issue footer and labels, where the service
+// does not redact.
 function carriesSecret(slug) {
-  const segments = slug.split('-')
-  const hexLength = segments
-    .map(segment => segment.replace(/^0x/, ''))
-    .filter(segment => /^[0-9a-f]+$/.test(segment))
-    .reduce((total, segment) => total + segment.length, 0)
-  return hexLength >= 32 || segments.length > MAX_SLUG_SEGMENTS
+  return slugCarriesSecret(slug)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -401,6 +394,13 @@ function redactSeedPhrases(text) {
     result = `${result.slice(0, start)}<SEED_PHRASE>${result.slice(end)}`;
   return result;
 }
+var MAX_SLUG_SEGMENTS = 10;
+function slugCarriesSecret(slug) {
+  const segments = slug.split("-");
+  const hexLength = segments.map((segment) => segment.replace(/^0x/, "")).filter((segment) => /^[0-9a-f]+$/.test(segment)).reduce((total, segment) => total + segment.length, 0);
+  const seedWords = segments.filter((segment) => BIP39_WORDS.has(segment)).length;
+  return hexLength >= 32 || segments.length > MAX_SLUG_SEGMENTS || seedWords >= 8 || segments.some((segment) => segment.length >= 20 && looksRandom(segment));
+}
 var AUTH_SCHEME = "(?:Bearer|Basic|Token|Bot|Negotiate|NTLM|DPoP|JWT|ApiKey|GoogleLogin)";
 var PARAMETER_SCHEME = "(?:Digest|Signature|AWS4-HMAC-SHA256|OAuth|Hawk)";
 var AUTHORIZATION = `(?<![\\w-])((?:\\\\?['"])?:?(?:proxy-|x-)?authorization(?:\\\\?['"])?${SEPARATOR}(?:\\\\?['"])?)`;
@@ -408,7 +408,8 @@ var redactConfigValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
   if (/[a-z][A-Z]/.test(prefix) && /:\s*$/.test(prefix) && /^[a-z]{1,20}[,;]?$/.test(value))
     return match;
-  return `${prefix}<REDACTED>`;
+  const close = value.length > 1 && /[;,]$/.test(value) ? value.slice(-1) : "";
+  return `${prefix}<REDACTED>${close}`;
 };
 var redactInlineValue = (match, ...args) => {
   const {prefix, value} = args[args.length - 1];
@@ -475,7 +476,7 @@ var STEPS = [
     /(?<![\w-])((?:(?:docker|podman|nerdctl)[ \t]+login|sshpass)(?:[ \t][^\n]{0,200}?)?[ \t]-p(?:[ \t]+|(?=\S)))(?!['"]?(?:\$|\{\{|<))(['"]?)[^\s'"]+\2/g,
     "$1$2<REDACTED>$2"
   ],
-  [/(?<=[ \t"'])((?:ssl)?(?:password|passwd|pwd)=)(?![<$\u201c\u2018\u00ab])[^\s'"]+/gi, "$1<REDACTED>"],
+  [/(?<=[ \t"'])((?:ssl)?(?:password|passwd|pwd)=)(?![<$\u201c\u2018\u00ab])[^\s'"),;]+/gi, "$1<REDACTED>"],
   [/(\b(?:machine|default)\b[^\n]{0,200}?[ \t]password[ \t]+)(?!\$|\{\{|<)\S+/g, "$1<REDACTED>"],
   [
     /((?:npm|yarn|pnpm)[ \t]+config[ \t]+set[ \t]+\S{0,200}?(?:_auth(?:Token)?|_password|npmAuthToken|npmAuthIdent)(?:[ \t]+|=))(['"]?)[^\s'"]+\2/g,
@@ -636,9 +637,24 @@ function isDisabledByEnv() {
   return ['off', '0', 'false', 'no', 'disabled'].includes(value)
 }
 
+/**
+ * The reporting endpoint, or null when sending is off: DCL_SDK_ISSUE_REPORTS_URL set to `none`,
+ * `off` or empty (in any case), or to something that is not an https URL (http only on loopback,
+ * for local testing).
+ */
 function getEndpoint() {
-  const url = process.env.DCL_SDK_ISSUE_REPORTS_URL || DEFAULT_ENDPOINT
-  return url && url !== 'none' ? `${url.replace(/\/+$/, '')}/reports` : null
+  const override = process.env.DCL_SDK_ISSUE_REPORTS_URL
+  const value = override === undefined ? DEFAULT_ENDPOINT : override.trim()
+  if (['', 'none', 'off'].includes(value.toLowerCase())) return null
+  let url
+  try {
+    url = new URL(value)
+  } catch {
+    return null
+  }
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) return null
+  return `${value.replace(/\/+$/, '')}/reports`
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -847,7 +863,8 @@ export function takeOverIfStale(path, staleMs, observed) {
     if (!isBusy(err, marker)) throw err
     // A marker left by a process that died mid-takeover is removed; the caller tries again later.
     try {
-      if (Date.now() - statSync(marker).mtimeMs > TAKEOVER_STALE_MS) unlinkSync(marker)
+      const age = Date.now() - statSync(marker).mtimeMs
+      if (age > TAKEOVER_STALE_MS || age < -LOCK_CLOCK_SKEW_MS) unlinkSync(marker)
     } catch {}
     return false
   }
@@ -944,7 +961,12 @@ function escapeRegExp(text) {
  */
 function pathSpellings(path) {
   if (!path || path.length < 2) return []
-  const spellings = new Set([path, path.replace(/\\/g, '/'), path.replace(/\\/g, '\\\\')])
+  const spellings = new Set([
+    path,
+    path.replace(/\\/g, '/'),
+    path.replace(/\\/g, '\\\\'),
+    path.replace(/\\/g, '\\\\\\\\')
+  ])
   const drive = /^([A-Za-z]):[\\/](.*)$/.exec(path)
   if (drive) {
     const rest = drive[2].replace(/\\/g, '/')
@@ -954,6 +976,7 @@ function pathSpellings(path) {
   for (const spelling of [...spellings]) {
     try {
       spellings.add(encodeURI(spelling))
+      spellings.add(encodeURIComponent(spelling))
     } catch {}
   }
   return [...spellings].filter(spelling => spelling.length > 1).sort((a, b) => b.length - a.length)
@@ -973,8 +996,12 @@ export function redact(text, root) {
   ]) {
     for (const variant of pathSpellings(path)) {
       // Case-insensitive (Windows and macOS paths are), and only where the path ends, so a home of
-      // /home/al leaves /home/alice to the username rule rather than turning it into ~ice.
-      const pattern = new RegExp(`${escapeRegExp(variant)}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}])`, 'giu')
+      // /home/al leaves /home/alice, and /home/bob leaves /home/bob smith/, to the username rule
+      // rather than turning them into ~ice and ~ smith.
+      const pattern = new RegExp(
+        `${escapeRegExp(variant)}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}]| [^/\\\\\\n]{1,40}[/\\\\])`,
+        'giu'
+      )
       result = result.replace(pattern, placeholder)
     }
   }
@@ -1080,7 +1107,12 @@ function sanitizePayload(stored, root) {
     fingerprint: stored.fingerprint
   }
   if (!payload.title || !payload.description || !KINDS.includes(payload.kind)) return null
-  if (typeof payload.fingerprint !== 'string' || !SLUG.test(payload.fingerprint) || carriesSecret(payload.fingerprint))
+  if (
+    typeof payload.fingerprint !== 'string' ||
+    payload.fingerprint.length > LIMITS.fingerprint ||
+    !SLUG.test(payload.fingerprint) ||
+    carriesSecret(payload.fingerprint)
+  )
     return null
   const workaround = text(stored.workaround, LIMITS.workaround)
   if (workaround) payload.workaround = workaround
@@ -1331,13 +1363,19 @@ function decodeText(bytes) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(body)
   } catch {
-    try {
-      return new TextDecoder('windows-1252').decode(body)
-    } catch {
-      return body.toString('latin1')
-    }
+    // Mapped by hand: some Node versions decode 0x80-0x9F as invisible control characters instead
+    // of the euro sign, curly quotes and dashes Windows puts there.
+    return Array.from(body, byte => (byte >= 0x80 && byte <= 0x9f ? CP1252_HIGH[byte - 0x80] : String.fromCharCode(byte))).join('')
   }
 }
+
+/** Windows-1252 characters for bytes 0x80 to 0x9F; the rest of the code page matches Latin-1. */
+const CP1252_HIGH = [
+  '\u20ac', '\u0081', '\u201a', '\u0192', '\u201e', '\u2026', '\u2020', '\u2021',
+  '\u02c6', '\u2030', '\u0160', '\u2039', '\u0152', '\u008d', '\u017d', '\u008f',
+  '\u0090', '\u2018', '\u2019', '\u201c', '\u201d', '\u2022', '\u2013', '\u2014',
+  '\u02dc', '\u2122', '\u0161', '\u203a', '\u0153', '\u009d', '\u017e', '\u0178'
+]
 
 /**
  * Reads the report from stdin, within one overall deadline, and then stops reading so an open but
@@ -1439,7 +1477,7 @@ async function submit(root, options) {
   })
   if (known) return `already-reported\nThis issue was already reported from this scene (${known.status}).`
 
-  if (!getEndpoint()) return 'queued\nSaved locally; sending is turned off on this machine (DCL_SDK_ISSUE_REPORTS_URL=none).'
+  if (!getEndpoint()) return 'queued\nSaved locally; sending is turned off on this machine (DCL_SDK_ISSUE_REPORTS_URL).'
   startBackgroundFlush(root)
   return 'queued\nSaved; it is being sent to the Decentraland SDK team in the background.'
 }
@@ -1451,7 +1489,7 @@ function status(root) {
   return [
     `consent:${getConsent(ledger)}`,
     `scene: ${root}`,
-    `endpoint: ${getEndpoint() || 'off (DCL_SDK_ISSUE_REPORTS_URL=none)'}`,
+    `endpoint: ${getEndpoint() || 'off (DCL_SDK_ISSUE_REPORTS_URL is none, off, empty or not an https URL)'}`,
     `reports: ${counts.sent} sent, ${counts.pending} pending, ${counts.rejected} rejected, ${counts.failed} given up`,
     ...(isInBackoff(ledger) ? [`backing off until ${ledger.backoffUntil}`] : [])
   ].join('\n')

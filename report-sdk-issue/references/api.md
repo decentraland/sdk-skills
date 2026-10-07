@@ -2,7 +2,7 @@
 
 `scripts/report.mjs` sends reports to `POST <endpoint>/reports`. The service turns each report into an issue in a private GitHub repository the SDK team triages. This file is the contract the service implements; change both together.
 
-The endpoint is the `DEFAULT_ENDPOINT` constant in `scripts/report.mjs` (`https://sdk-issue-reports.decentraland.org`), overridable with `DCL_SDK_ISSUE_REPORTS_URL`. Setting that to `none` keeps reports validated and queued in the ledger as `pending` without sending them.
+The endpoint is the `DEFAULT_ENDPOINT` constant in `scripts/report.mjs` (`https://sdk-issue-reports.decentraland.org`), overridable with `DCL_SDK_ISSUE_REPORTS_URL`. The override must be an https URL (http only on `localhost` or `127.0.0.1`). Setting it to `none`, `off` or empty, or to anything else, keeps reports validated and queued in the ledger as `pending` without sending them.
 
 ## Request
 

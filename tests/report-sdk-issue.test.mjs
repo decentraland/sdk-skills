@@ -1074,6 +1074,64 @@ describe('report-sdk-issue', () => {
     })
   })
 
+  describe('when sending is turned off or pointed somewhere unsafe', () => {
+    let statuses
+
+    beforeEach(async () => {
+      statuses = []
+      for (const url of ['', 'NONE', ' none ', 'off', 'http://reports.example.com', 'not a url']) {
+        const { stdout } = await run(sceneDir, ['status'], { env: { DCL_SDK_ISSUE_REPORTS_URL: url } })
+        statuses.push(stdout.split('\n')[2])
+      }
+    })
+
+    it('should not use an endpoint for any of them', () => {
+      assert.equal(statuses.every(line => line.startsWith('endpoint: off')), true, statuses.join('\n'))
+    })
+  })
+
+  describe('when the report file is Windows ANSI with curly quotes and a euro sign', () => {
+    let file
+
+    beforeEach(async () => {
+      await run(sceneDir, ['consent', '--grant'])
+      file = join(homeDir, 'report.json')
+      const json = JSON.stringify({ ...REPORT, title: 'PRICE_EURO_EURO' })
+      // 0x80 is the euro sign and 0x93/0x94 are curly double quotes in Windows-1252.
+      const bytes = Buffer.from(json, 'latin1')
+      const at = bytes.indexOf('PRICE_EURO_EURO')
+      const title = Buffer.from([0x93, 0x31, 0x30, 0x20, 0x80, 0x94])
+      writeFileSync(file, Buffer.concat([bytes.subarray(0, at), title, bytes.subarray(at + 'PRICE_EURO_EURO'.length)]))
+      await run(sceneDir, ['submit', '--file', file])
+    })
+
+    it('should read them as those characters', () => {
+      assert.equal(readLedger(sceneDir).reports[0].title, '\u201c10 \u20ac\u201d')
+    })
+  })
+
+  describe('when a takeover marker is dated in the future', () => {
+    let mock
+    let results
+
+    beforeEach(async () => {
+      await run(sceneDir, ['consent', '--grant'])
+      mock = await startServer(() => ({ status: 201, json: { issueNumber: 1 } }))
+      await queueReports(sceneDir, 1)
+      writeFileSync(sendLockPath(sceneDir), JSON.stringify({ token: 'dead', pid: 2 ** 22 + 12345, at: Date.now() }))
+      writeEmptyLock(`${sendLockPath(sceneDir)}.takeover`, -3600_000)
+      results = [(await flushWith(sceneDir, mock.url)).first, (await flushWith(sceneDir, mock.url)).first]
+    })
+
+    afterEach(() => {
+      mock.close()
+    })
+
+    it('should clear it and take the lock on the next try', () => {
+      assert.deepEqual(results, ['busy', 'flushed'])
+    })
+  })
+
   describe('when a lock is released while its age is being checked', () => {
     it('should count it as stale, so the caller takes it', () => {
       assert.equal(isStale(join(sceneDir, 'released.lock'), '', 30_000), true)
@@ -1163,6 +1221,19 @@ describe('report-sdk-issue', () => {
         [
           validate({ ...REPORT, fingerprint: `${'a'.repeat(16)}-zz-${'b'.repeat(16)}` }),
           validate({ ...REPORT, fingerprint: `${'abandon-'.repeat(11)}about` })
+        ],
+        [
+          ['"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead'],
+          ['"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead']
+        ]
+      )
+    })
+
+    it('should refuse a fingerprint of seed words or with a random-looking key', () => {
+      assert.deepEqual(
+        [
+          validate({ ...REPORT, fingerprint: 'abandon-ability-able-about-above-absent-absorb-abstract-absurd-abuse' }),
+          validate({ ...REPORT, fingerprint: 'leak-k3j9x0q2m7v5t1z8r4w6y2n0b9c3h7f5d1s8a4p6g2' })
         ],
         [
           ['"fingerprint" looks like a key, hash or seed phrase; describe the area and symptom instead'],
@@ -1300,6 +1371,16 @@ describe('report-sdk-issue', () => {
         'D:/Work/AcmeCorp/my-scene/src'
       ].join('\n')
       assert.equal(redact(text, root).includes('AcmeCorp'), false)
+    })
+
+    it('should strip the scene path when it is URL-encoded as a component or doubly escaped', () => {
+      assert.deepEqual(
+        [
+          redact('%2Fsrv%2Facme%2Fscene%2Fx', '/srv/acme/scene'),
+          redact('C:\\\\\\\\Work\\\\\\\\Acme\\\\\\\\scene\\\\\\\\x', 'C:\\Work\\Acme\\scene')
+        ],
+        ['<SCENE>%2Fx', '<SCENE>\\\\\\\\x']
+      )
     })
 
     it('should only strip the scene path where it ends', () => {

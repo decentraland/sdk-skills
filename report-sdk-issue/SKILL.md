@@ -109,3 +109,4 @@ A report that couldn't be sent stays queued and is retried in the background on 
 - `node {baseDir}/scripts/report.mjs status` shows the consent, the endpoint, and how many reports were sent, are pending, were rejected, or were given up after repeated failures.
 - `node {baseDir}/scripts/report.mjs flush` sends queued reports right away and waits for the result. Only for troubleshooting; normal use never needs it.
 - To disable reporting on a machine or in CI, set `DCL_SDK_ISSUE_REPORTS=off`. This always wins over a stored consent.
+- `DCL_SDK_ISSUE_REPORTS_URL` points the script at another service (an https URL). Set to `none`, `off` or empty, it keeps queueing reports without sending them.
