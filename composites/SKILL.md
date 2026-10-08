@@ -86,6 +86,8 @@ Only place the model if its Transform position satisfies all four bounds.
 
 For tree/vegetation models where the bounding box is unknown, assume a **12 m safe buffer** from all edges — i.e., place origins in `[12, maxX-12]` × `[12, maxZ-12]`.
 
+**Placing architecture: budget for third-person scale, not realistic scale.** Oversized rooms change how much parcel area a floorplan needs, so size them at bounds time. The dimensions are in **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
+
 ### Examples
 
 | scene.json parcels          | parcelsWide | parcelsDeep | Valid X | Valid Z |

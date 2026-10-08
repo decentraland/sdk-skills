@@ -12,6 +12,29 @@ The milder version of the same cause — usage and import landing in separate sa
 
 The player can land outside the scene (e.g. parcel `0,-1`); `get_scene_state` then reports a null scene and `reload_scene` fails with "no scene at the current parcel". Check `get_player_state` → `parcel`, `move_to` back inside, and the scene loads again.
 
+## "The preview launched but its MCP server never answered" (Creator Hub `launch_preview` path)
+
+A stale Explorer process, not a broken scene. `stop_preview` kills only the Hub's `sdk-commands` child — the Explorer app survives it, holding its MCP on the *previous* ephemeral port — and `preview_status` reports "not running" because it checks that child's process handle, not the app. The next `launch_preview` picks a new port the surviving single-instance window never binds, and the Hub times out after ~45 s.
+
+Check the OS, not just the tool, then close the stale instance and launch **once**:
+
+```bash
+pgrep -fl '[M]acOS/Explorer'; pgrep -fl '[d]cl_watchdog'
+pkill -f '[d]cl_watchdog'; pkill -f '[D]ecentraland.app/Contents/MacOS/Explorer'
+for i in $(seq 1 30); do pgrep -f '[M]acOS/Explorer' >/dev/null || break; sleep 1; done   # wait up to 30 s
+```
+
+On Windows (PowerShell):
+
+```powershell
+Get-Process Decentraland, dcl_watchdog -ErrorAction SilentlyContinue
+Stop-Process -Name dcl_watchdog -Force -ErrorAction SilentlyContinue
+Stop-Process -Name Decentraland -Force -ErrorAction SilentlyContinue
+Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
+```
+
+Keep the brackets in the patterns, so they can't match the shell running the command (see **creator-hub-mcp**). Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
+
 ## The connection dropped
 
 The client probably crashed or was closed — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.

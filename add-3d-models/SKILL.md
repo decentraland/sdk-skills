@@ -13,9 +13,45 @@ description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContai
 
 Then compute the safe placement zone: `safeMinX = -bbox.minX + edgeMargin (>=1m)` etc. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
 
+## RULE: Geometry baked in world coordinates — check the bounds in DCL axes, and probe the axes first
+
+The bounding-box rule above assumes a model built around its own origin and positioned by `Transform`. The moment you **bake world-space placement into the mesh** — merged floor/wall chunks for a whole zone, a kitbashed layout exported as one GLB, anything placed by a script in Blender rather than by an entity `Transform` — the model's placement depends on the **axis convention of the exporter**, and a wrong guess puts the geometry outside the scene while every number you can read still looks right.
+
+**Failure mode, observed 2026-10-08 (cost ~1.5 h):** rendering is clipped at the scene boundary, so **only the portions of a mesh that fall outside the parcels disappear — the rest of the model stays visible**. That is what makes a bad axis guess so confusing: when the whole baked mesh lands outside (e.g. mirrored in X), **all** of it is clipped, with no error, even though the entity's own `Transform.position` is inside the scene. Both the Explorer and the Creator Hub editor clip it the same way, and the Creator Hub's `get_scene_metrics.entitiesOutOfBoundaries` did **not** list it — under the Bevy renderer that list is a hardcoded empty array (verified in the inspector's `BevyRenderer`), so it can never warn you; under Babylon it is bounds-based and would. The tell is a contradiction between two reads:
+
+- `explorer_get_scene_content_stats` counts the model's triangles — so the GLB loaded fine;
+- `explorer_get_scene_content_breakdown` shows the source with N `renderers` and **`visibleRenderers: 0` from every viewpoint**;
+- scene logs are clean.
+
+Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendered normally in the same scene.
+
+**So, before baking the real thing, export a cheap asymmetric probe and look at it.** A symmetric box tells you nothing — mirror and rotation errors are invisible on it. Use a model with one obviously distinguishable side: a short bar along +X plus a different-length bar along +Z, or any asset with one open end. Place it at a known position, then confirm in-world (**unity-explorer-mcp**): screenshot from a known camera pose, walk into it and read the blocked position from `explorer_get_player_state`, or both. Only then bake the full set. One throwaway export is far cheaper than re-baking a kit.
+
+**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.** Note also that the bounding-box script in `{baseDir}/references/model-patterns.md` reports **glTF** axes, which are not DCL axes on every component — convert before comparing against scene bounds.
+
 ## RULE: Account for model depth before neighboring entities
 
 Two models don't overlap just because their origins are different. Always verify that `origin +/- extent` doesn't intersect any neighbor's bounding box. Pay special attention to deep arch/gateway models (can extend 14 m in +/-Z) and rotated models (rotating 90deg around Y swaps X and Z extents).
+
+## RULE: Scale interiors up for the third-person camera
+
+**This is the canonical copy of this guidance; other skills link here instead of repeating the numbers.** It is design guidance from practice (Decentraland staff feedback after walking a scene in the Explorer, 2026-10-08), not an engine constant.
+
+Decentraland is mostly played in the default third-person camera, which sits **behind and above** the avatar. Interiors therefore feel much smaller on screen than their real-world dimensions suggest: the camera crowds the ceiling, the avatar fills the frame, and ordinary rooms read as corridors. **Do not build rooms at realistic scale.** Give the envelope roughly **1.5× to 2× real headroom**:
+
+| Element | Real-world | Build it at |
+| --- | --- | --- |
+| Ceiling height | 2.5–3 m | **5–6 m** |
+| Doorway / opening on a main route | ~2.1 m × 0.9 m | **~4 m tall, ≥3 m wide** |
+| Corridor width | 1.2–1.8 m | **4 m+** |
+| Any gap the avatar must walk through | — | **≥1.2 m clear** |
+
+- **Keep hand-scale props near human scale.** Chairs, desks, counters, railings, screens and signage stay roughly life-size, so the avatar still reads as a person in the room. Scaling the furniture with the envelope just rebuilds the cramped feeling one size larger: grow the *room*, not its contents.
+- **This applies when scaling a catalog model too.** The model-swap audit below picks `scale` from native size; for architecture the target is the oversized figure, not the realistic one.
+- **Plan floor area with these numbers.** Oversized rooms change how much parcel area a floorplan needs, so apply them when computing bounds (see **composites** Step 0), not after placing.
+- **Judge it from the retail camera, never from a free camera or the editor viewport.** Those views flatter interiors because they can sit outside the geometry. Walk the route in `third_person` and screenshot from there (**unity-explorer-mcp**). If the camera clips the ceiling or the avatar's head crowds the top of the frame, the room is too short.
+
+*Observed, same session:* a first interior shell built at near-realistic heights (4 m ceilings, 2.8 m doorways, a 2.2 m aircraft cabin, a 2.6 m jet bridge) read cramped in third person, and the creator asked for more headroom. A 0.75 m clear metal-detector arch needed near-exact alignment before the avatar would pass through it at all.
 
 ## RULE: Single-sided models — orient the rendered face toward players
 
@@ -100,6 +136,8 @@ Choose the mask based on role:
 
 **Entities entirely outside scene parcels are not rendered** — no error shown; a model that straddles the boundary still renders the part that is inside. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
 
+**The clipping applies to the geometry, not to the entity's position.** A `Transform` sitting at a legal position does not save geometry that reaches outside the parcels — the portions outside are clipped silently, and the rest of the model stays visible. A mesh baked wholly outside therefore disappears completely. Do not rely on the Creator Hub's `entitiesOutOfBoundaries` to catch it: it is an empty stub under the Bevy renderer. See the world-coordinate rule above for the symptom and the probe workflow.
+
 ## Loading a 3D Model in TypeScript (dynamic entities only)
 
 Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/Models/`.
@@ -169,8 +207,10 @@ The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i 
 | --------------------------- | ------------------------------ | ------------------------------------------------------------ |
 | Model not visible           | Wrong file path                | Verify path relative to project root                         |
 | Model not visible           | Outside scene boundaries       | Check position is within 0-16 per parcel                     |
+| Part of a model is cut off  | Those portions are outside the parcels (clipped at the boundary) | Move/scale the model so its bounds fit inside the scene |
 | Model not visible           | Scale is 0 or very small       | Check `Transform.scale`                                      |
 | Model loads but looks wrong | Y-up vs Z-up mismatch          | Re-export from Blender with "Y Up"                           |
+| Triangles counted, 0 visible renderers from every viewpoint | Mesh baked wholly outside the parcels (entity position can still be inside) | Check the GLB's bounds in **DCL** axes; see the world-coordinate rule above |
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
 | Click through walls         | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`)      |

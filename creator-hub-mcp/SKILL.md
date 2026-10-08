@@ -95,20 +95,89 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 
 ## Workflow
 
-**Read before you write.** `get_project_info` for parcels (compute bounds exactly as in the **composites** skill Step 0 — the tools do not stop you from placing entities outside the scene; `get_scene_metrics` only reports them afterwards). `scene_state` to see what exists and avoid duplicate names. `get_selection` whenever the user's request refers to what they have selected.
+**Read before you write.** `get_project_info` for parcels (compute bounds exactly as in the **composites** skill Step 0 — the tools do not stop you from placing entities outside the scene, and `get_scene_metrics` is a weaker safety net than it looks — see the Bevy-renderer gotcha below). `scene_state` to see what exists and avoid duplicate names. `get_selection` whenever the user's request refers to what they have selected.
 
 **Adding a model.**
 
 - *Catalog item* → `search_catalog` then `place_smart_item`. Files land in `assets/asset-packs/<pkg>/` automatically.
+- *Architecture* (rooms, corridors, doorways, anything the avatar walks through or into) → size the envelope for the **third-person camera** before placing; realistic dimensions read cramped in-world. The dimensions are in **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
 - *Model the user already has, or one you authored* → put the GLB under `assets/Models/` (see the **add-3d-models** skill for Blender authoring and the bounding-box audit), then `create_entity` (with a `name`), `set_component` `Transform` (`{position:{x,y,z}, rotation:{x,y,z,w}, scale:{x,y,z}}`), and `set_component` `core::GltfContainer` (`{src, visibleMeshesCollisionMask, invisibleMeshesCollisionMask}` — mask rules and the animation/collider checks from **add-3d-models** still apply; add `core::Animator` when the GLB has clips).
 - *Lights* → `search_catalog` with category `lights` to find Spotlight and Point Light Smart Items, then `place_smart_item`. These include the light model, `LightSource`, and toggle actions. Only create a bare `LightSource` entity manually when you need an invisible light source or non-standard parameters -- see **lighting-environment** for the full `LightSource` API and the Smart Item rule.
 - *Behaviour on it* → a Smart Item if one fits (`search_catalog` first), otherwise write a script under `assets/Scripts/` and `attach_script` (rules in **script-components**), or reference the entity by name from `src/` code (`engine.getEntityOrNullByName`).
 
 **Component shapes.** `set_component` validates against the real schema. Before your first write of a component type, `entity_detail` on any entity that already has it — or read its entry in the **composites** format catalog. For `asset-packs::Script`, params are positional inside `layout` (see **script-components**); prefer `attach_script` and let the editor build the layout.
 
-**After writing.** Read-after-write is safe: the server waits for the autosave before returning from a mutation, so a following `scene_state` is fresh. Check `get_scene_metrics` when you added geometry. `editor_screenshot` shows the result without a preview; `launch_preview` + `explorer_*` when you need the running scene (walk, click, logs, FPS). The iteration loop, camera framing, and performance references in the **unity-explorer-mcp** skill apply to the `explorer_*` tools unchanged — skip that skill's Setup section (no `claude mcp add`, no bind gate) because the tools arrive through the `creator-hub` server. When done, leave the camera in third person and `stop_preview` if you launched it only to check.
+**After writing.** Read-after-write is safe *while the data layer is alive* — the server waits for the autosave before returning from a mutation, so a following `scene_state` is fresh. It stops being safe the moment that process dies (next rule), which is why the check below is on disk and not on a tool answer. Check `get_scene_metrics` when you added geometry. `editor_screenshot` shows the result without a preview; `launch_preview` + `explorer_*` when you need the running scene (walk, click, logs, FPS). The iteration loop, camera framing, and performance references in the **unity-explorer-mcp** skill apply to the `explorer_*` tools unchanged — skip that skill's Setup section (no `claude mcp add`, no bind gate) because the tools arrive through the `creator-hub` server. When done, leave the camera in third person and `stop_preview` if you launched it only to check.
 
 **Mistakes.** Undo is the user's — tell them what to undo, or `remove_entity` / `set_component` back to the previous value. Never "repair" a mistake by editing `main.composite`.
+
+## RULE — confirm a batch landed on disk; the data layer can die silently
+
+The thing that holds the editor's engine and writes `assets/scene/main.composite` is the **@dcl/inspector data layer**, and under the **Bevy** renderer it runs in a **separate child process** — logged by the app as `[UtilityProcess] Running "sdk-commands start --port <n> --no-browser --no-client --data-layer"` (assembled in `main/src/modules/bevy-realm.ts`; the port is ephemeral, the binary is the *scene's* `node_modules/@dcl/sdk-commands`). Under the Babylon renderer the same data layer runs inside the inspector iframe instead. Either way the Electron main process never writes the composite — it only reads it.
+
+When that data layer dies, the MCP server in the Electron app stays up and **keeps answering every call as if nothing were wrong**. Nothing in a tool result tells you the scene stopped changing.
+
+**So after every batch of mutations, check the file, not the tool:** `assets/scene/main.composite`'s modification time must have advanced (`ls -l`/`stat`). An unchanged mtime across a batch means the edits exist only in a process that is gone.
+
+```bash
+stat -f '%m %N' "assets/scene/main.composite"   # macOS; coreutils: stat -c '%Y %n'
+```
+
+```powershell
+(Get-Item "assets\scene\main.composite").LastWriteTime   # Windows (PowerShell)
+```
+
+**Observed symptoms of a dead data layer** (2026-10-08 session; check these when the mtime is stale):
+
+- `set_component`, `create_entity`, `place_smart_item` and friends all still return success.
+- `scene_state` / `entity_detail` keep returning the **pre-crash** values — a read-back "confirming" your write is confirming the old snapshot.
+- `editor_screenshot` returns a blank image.
+- `get_scene_metrics` returned all zeros with an empty `entitiesOutOfBoundaries` — **but do not use that as the tell** — under the Bevy renderer those fields are hardcoded zeros anyway (see Gotchas). The mtime check is the reliable one.
+
+**Recovery is the user's, and your in-memory edits are lost.** There is no tool that restarts the data layer. Stop writing, look at the Creator Hub main log (macOS: `~/Library/Logs/creator-hub/main.log`; Windows: `%APPDATA%\creator-hub\logs\main.log`) for an `Exiting "sdk-commands start … --data-layer" … exit code=1` line, tell the creator to **close and reopen the scene** in the Creator Hub, then **re-apply every mutation made since the crash** — compare against the composite on disk to find where the truth stops.
+
+*Observed crash, for recognition only — not a claim about the only way it fails:* `TypeError: Cannot read properties of undefined (reading 'deserialize')` inside `node_modules/@dcl/inspector/dist/tooling-entrypoint.js` (`Object.deserialize` → `updateFromCrdt` → `receiveMessages` → `update`), immediately after a `set_scene_settings` call that rewrote `spawnPoints` with range-valued (`[min, max]`) positions, and shortly after six `place_smart_item` calls. Treat range spawn points as a **suspect**, not a proven cause; if you hit it, report it via **report-sdk-issue**.
+
+## Preview lifecycle — `stop_preview` does not close the Explorer
+
+**`stop_preview` never closes the Explorer — by design, and there is no tool that does.** Verified in `main/src/modules/explorer-gateway.ts`: it closes the MCP client/transport and `treeKill`s the `sdk-commands start --explorer-alpha --hub … --mcp --mcp-port <n>` child (logged as `[UtilityProcess] Killing process "…"`), then answers `{ok: true}`. The Explorer app is **not in that process tree** — sdk-commands launches it with `open decentraland://…`, which hands off to the OS and exits — and nothing in the Creator Hub kills it.
+
+`preview_status` does not notice, either: `running` is computed from *the gateway object existing* plus `child.alive()` on that same sdk-commands handle — **not** a probe of the Explorer or its port. So "no preview running" is a statement about the dev server, never about the app.
+
+Why the next launch then fails — verified parts first: each `launch_preview` grabs a **fresh ephemeral MCP port** (`[Gateway] launching preview … with MCP on :53880`) and passes it as `--mcp-port`, and the desktop Explorer is **single-instance**, so a second launch's deep link is handed to the window already open. The inference (not read off the Explorer source) is that the open window keeps its MCP on the *old* port and never binds the new one. Either way, after ~45 s of retries the Hub returns:
+
+> The preview launched but its MCP server never answered. The Explorer may still be starting, or this build has no MCP support. (TypeError: fetch failed)
+
+and — note — that failure path **also kills the dev server it just started**, leaving the Explorer orphaned on a dead realm. Observed 2026-10-08: two launches in a row reproduced it. (Related: `preview_status` can block up to **90 s** polling an Explorer that is up but not ready, so a long hang there is not a crash.)
+
+**Rule — before `launch_preview`, check both the tool and the OS:**
+
+```bash
+pgrep -fl '[M]acOS/Explorer'    # the Explorer app itself
+pgrep -fl '[d]cl_watchdog'      # its watchdog, from /Applications/Decentraland.app
+```
+
+Keep the brackets in these patterns. `pgrep -f` / `pkill -f` match against every process's full command line, and many agent shell tools run commands as `bash -c "<command>"`, so a plain pattern also matches the wrapper shell: the check reports a live Explorer that isn't there, and `pkill` kills the shell running it. `[d]cl_watchdog` still matches the real process, but never the command text itself.
+
+`preview_status` saying "not running" is **not** evidence the Explorer is closed. If either process is alive and you need a clean preview, close the stale instance, **confirm it exited**, then `launch_preview` **once**:
+
+```bash
+pkill -f '[d]cl_watchdog'; pkill -f '[D]ecentraland.app/Contents/MacOS/Explorer'
+for i in $(seq 1 30); do pgrep -f '[M]acOS/Explorer' >/dev/null || break; sleep 1; done   # wait up to 30 s
+```
+
+On **Windows** the Explorer is `Decentraland.exe` and the watchdog `dcl_watchdog.exe`. In PowerShell (matching by process name, so the check never matches the shell running it):
+
+```powershell
+Get-Process Decentraland, dcl_watchdog -ErrorAction SilentlyContinue        # is either alive?
+Stop-Process -Name dcl_watchdog -Force -ErrorAction SilentlyContinue        # watchdog first: it reacts to a non-zero Explorer exit
+Stop-Process -Name Decentraland -Force -ErrorAction SilentlyContinue
+Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue   # confirm it exited
+```
+
+Connected first try on both attempts after that. Prefer reusing a healthy running preview (hot reload + `explorer_reload_scene`) over restarting — only kill when it is stale or the MCP never answered. **When the user owns that Explorer window, ask before killing it.**
+
+**A re-baked GLB can keep rendering its old contents in a running preview.** Not the dev server's doing: `@dcl/sdk-commands` 7.30.1 re-walks the project on every content request, serves current bytes `no-cache`, versions each file's id by `mtime`, and runs a chokidar watcher the Hub never disables — so the staleness is **downstream, in the Explorer's own asset cache**. Observed 2026-10-08: GLBs added or renamed after `launch_preview` were missing in-world until `explorer_reload_scene` (one case) or a full preview restart (another), and a GLB **overwritten in place under the same name** kept showing the old mesh. `src/` hot reload is unaffected. Practical rule: after re-baking a model, export it under a **new file name** and repoint `GltfContainer.src` — that is the form that reloaded reliably; otherwise `explorer_reload_scene` and, if the old mesh persists, restart the preview. (Symptom: the mesh you just exported is absent or visibly stale while `explorer_get_scene_logs` shows no load error. Also check `.dclignore` — an ignored path is never served at all.)
 
 ## Where the skills come from
 
@@ -150,4 +219,5 @@ If a user inside the Creator Hub asks to scaffold a project or publish, point th
 - **The Explorer `--mcp` preview checkbox is a different server.** *Enable MCP Server* lives in the **Play Options** popover (the dropdown arrow on the editor header's **Play** button), in the flyout that opens when you hover the **Desktop Client** row. It launches the Explorer with its own MCP on port 8123 (the **unity-explorer-mcp** skill). The Creator Hub MCP described here is the editor's server; when it is connected, use its `launch_preview` instead of that checkbox.
 - **One Ctrl+Z = one of your operations, not one component write.** Since creator-hub `fdc384b5` a whole synchronous change burst commits as a single undo transaction (the old 200-operation batch cap used to split a big change across several entries, so one Ctrl+Z left orphaned entities behind). A multi-entity op — placing a composite Smart Item, a scripted item with children — is now one entry, and undoing an add removes the entity from the Bevy viewport too. Still describe your changes to the user in the units they will undo them in.
 - **Scene audio can be muted in the editor, but only under Bevy.** The viewport toolbar has a speaker toggle (*Mute scene audio* / *Unmute scene audio*) that forwards every `AudioSource` / `AudioStream` to the renderer at volume 0; the state survives a reload. It is absent under the Babylon renderer, which does not play scene audio at all. So "I can't hear the sound you added" is not evidence the component is wrong — check the renderer and the toggle first, and note that an authored `volume` is not what the Bevy viewport is playing while mute is on.
+- **`get_scene_metrics` reports nothing useful under the Bevy renderer.** Verified in `packages/inspector/src/lib/renderer/bevy/BevyRenderer.ts`: `getSceneMetrics()` returns `{triangles: 0, bodies: 0, materials: 0, textures: 0}` and `getEntitiesOutsideLayout()` returns `[]`, both hardcoded ("No renderer to introspect yet — report zeros"). The limits are still real, and `entities` is derived from the Nodes tree rather than the renderer, but **all-zero content metrics and an empty `entitiesOutOfBoundaries` mean "Bevy", not "empty scene" and not "problem"** — do not read a budget or an out-of-bounds verdict out of them. Under Babylon they are real: `computeEntitiesOutsideLayout` tests each entity's **bounding mesh** against the layout, so it does catch oversized geometry there. For a trustworthy budget either way, `launch_preview` and use `explorer_get_scene_content_stats`.
 - **`asset-packs::Placeholder` `src` needs a resolved file path, not a template variable.** The catalog stores paths with `{assetPath}/model.glb` as a template; setting that string literally via `set_component` produces an invisible or broken gizmo because the engine cannot resolve the variable. `place_smart_item` resolves the path automatically (e.g. to `assets/asset-packs/spotlight/spotlight.glb`). If you must set `Placeholder` manually, use the real on-disk path to the GLB file.
