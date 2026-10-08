@@ -24,6 +24,15 @@ pkill -f dcl_watchdog; pkill -f "Decentraland.app/Contents/MacOS/Explorer"
 until ! pgrep -qf "MacOS/Explorer"; do sleep 1; done
 ```
 
+On Windows (PowerShell):
+
+```powershell
+Get-Process Decentraland, dcl_watchdog -ErrorAction SilentlyContinue
+Stop-Process -Name dcl_watchdog -Force -ErrorAction SilentlyContinue
+Stop-Process -Name Decentraland -Force -ErrorAction SilentlyContinue
+Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
+```
+
 Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
 
 ## The connection dropped

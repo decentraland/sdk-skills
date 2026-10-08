@@ -100,7 +100,7 @@ Names as registered on the `creator-hub` server (`packages/creator-hub/main/src/
 **Adding a model.**
 
 - *Catalog item* → `search_catalog` then `place_smart_item`. Files land in `assets/asset-packs/<pkg>/` automatically.
-- *Architecture* (rooms, corridors, doorways, anything the avatar walks through or into) → size the envelope for the **third-person camera** before placing: ceilings 5–6 m, main openings ~4 m tall × ≥3 m wide, walkable gaps ≥1.2 m clear, props left near human scale. Realistic dimensions read cramped in-world. See **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
+- *Architecture* (rooms, corridors, doorways, anything the avatar walks through or into) → size the envelope for the **third-person camera** before placing; realistic dimensions read cramped in-world. The dimensions are in **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
 - *Model the user already has, or one you authored* → put the GLB under `assets/Models/` (see the **add-3d-models** skill for Blender authoring and the bounding-box audit), then `create_entity` (with a `name`), `set_component` `Transform` (`{position:{x,y,z}, rotation:{x,y,z,w}, scale:{x,y,z}}`), and `set_component` `core::GltfContainer` (`{src, visibleMeshesCollisionMask, invisibleMeshesCollisionMask}` — mask rules and the animation/collider checks from **add-3d-models** still apply; add `core::Animator` when the GLB has clips).
 - *Lights* → `search_catalog` with category `lights` to find Spotlight and Point Light Smart Items, then `place_smart_item`. These include the light model, `LightSource`, and toggle actions. Only create a bare `LightSource` entity manually when you need an invisible light source or non-standard parameters -- see **lighting-environment** for the full `LightSource` API and the Smart Item rule.
 - *Behaviour on it* → a Smart Item if one fits (`search_catalog` first), otherwise write a script under `assets/Scripts/` and `attach_script` (rules in **script-components**), or reference the entity by name from `src/` code (`engine.getEntityOrNullByName`).
@@ -123,6 +123,10 @@ When that data layer dies, the MCP server in the Electron app stays up and **kee
 stat -f '%m %N' "assets/scene/main.composite"   # macOS; coreutils: stat -c '%Y %n'
 ```
 
+```powershell
+(Get-Item "assets\scene\main.composite").LastWriteTime   # Windows (PowerShell)
+```
+
 **Observed symptoms of a dead data layer** (2026-10-08 session; check these when the mtime is stale):
 
 - `set_component`, `create_entity`, `place_smart_item` and friends all still return success.
@@ -130,7 +134,7 @@ stat -f '%m %N' "assets/scene/main.composite"   # macOS; coreutils: stat -c '%Y 
 - `editor_screenshot` returns a blank image.
 - `get_scene_metrics` returned all zeros with an empty `entitiesOutOfBoundaries` — **but do not use that as the tell** — under the Bevy renderer those fields are hardcoded zeros anyway (see Gotchas). The mtime check is the reliable one.
 
-**Recovery is the user's, and your in-memory edits are lost.** There is no tool that restarts the data layer. Stop writing, look at `~/Library/Logs/creator-hub/main.log` (macOS) for an `Exiting "sdk-commands start … --data-layer" … exit code=1` line, tell the creator to **close and reopen the scene** in the Creator Hub, then **re-apply every mutation made since the crash** — compare against the composite on disk to find where the truth stops.
+**Recovery is the user's, and your in-memory edits are lost.** There is no tool that restarts the data layer. Stop writing, look at the Creator Hub main log (macOS: `~/Library/Logs/creator-hub/main.log`; Windows: `%APPDATA%\creator-hub\logs\main.log`) for an `Exiting "sdk-commands start … --data-layer" … exit code=1` line, tell the creator to **close and reopen the scene** in the Creator Hub, then **re-apply every mutation made since the crash** — compare against the composite on disk to find where the truth stops.
 
 *Observed crash, for recognition only — not a claim about the only way it fails:* `TypeError: Cannot read properties of undefined (reading 'deserialize')` inside `node_modules/@dcl/inspector/dist/tooling-entrypoint.js` (`Object.deserialize` → `updateFromCrdt` → `receiveMessages` → `update`), immediately after a `set_scene_settings` call that rewrote `spawnPoints` with range-valued (`[min, max]`) positions, and shortly after six `place_smart_item` calls. Treat range spawn points as a **suspect**, not a proven cause; if you hit it, report it via **report-sdk-issue**.
 
@@ -158,6 +162,15 @@ pgrep -fl dcl_watchdog          # its watchdog, from /Applications/Decentraland.
 ```bash
 pkill -f dcl_watchdog; pkill -f "Decentraland.app/Contents/MacOS/Explorer"
 until ! pgrep -qf "MacOS/Explorer"; do sleep 1; done
+```
+
+On **Windows** the Explorer is `Decentraland.exe` and the watchdog `dcl_watchdog.exe`. In PowerShell (matching by process name, so the check never matches the shell running it):
+
+```powershell
+Get-Process Decentraland, dcl_watchdog -ErrorAction SilentlyContinue        # is either alive?
+Stop-Process -Name dcl_watchdog -Force -ErrorAction SilentlyContinue        # watchdog first: it reacts to a non-zero Explorer exit
+Stop-Process -Name Decentraland -Force -ErrorAction SilentlyContinue
+Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue   # confirm it exited
 ```
 
 Connected first try on both attempts after that. Prefer reusing a healthy running preview (hot reload + `explorer_reload_scene`) over restarting — only kill when it is stale or the MCP never answered. **When the user owns that Explorer window, ask before killing it.**

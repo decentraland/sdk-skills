@@ -106,7 +106,7 @@ For anything deeper, point the user to the official docs: [blender.org/lab/mcp-s
 
 ## Blender ↔ Decentraland axes
 
-For a model built around its own origin this does not matter — the exporter's `+Y up` default lands it upright and the entity `Transform` places it. It matters the moment **placement is baked into the mesh** (world-space kit chunks, a scripted layout exported as one GLB, anything positioned in Blender rather than by a `Transform`). Get it wrong and the geometry lands outside the scene, where it is hidden with no error — see "RULE: Geometry baked in world coordinates" in the parent SKILL.md for the symptom.
+For a model built around its own origin this does not matter — the exporter's `+Y up` default lands it upright and the entity `Transform` places it. It matters the moment **placement is baked into the mesh** (world-space kit chunks, a scripted layout exported as one GLB, anything positioned in Blender rather than by a `Transform`). Get it wrong and the geometry lands outside the scene. Everything outside the parcels is clipped with no error, so a whole chunk that lands outside vanishes completely — see "RULE: Geometry baked in world coordinates" in the parent SKILL.md for the symptom.
 
 **Mapping** — observed in-world 2026-10-08 (two independent asymmetric checks in the Explorer: an aircraft cabin with one open end, and a desk with an off-centre monitor viewed with a 180° Y rotation), then confirmed in both renderers' source (see *Why* below). Blender Z-up, exported with the default glTF `+Y up`:
 
@@ -119,7 +119,7 @@ Equivalently, in glTF terms: **glTF (x, y, z) → DCL (-x, y, z)** — Decentral
 
 - A piece's Blender **-Y** face points to **DCL +Z** at rotation 0.
 - A piece's Blender **+X** side ends up at **DCL -X**.
-- Because of the mirror, a DCL `+90°` yaw is **not** a Blender `+90°` rotation about Z for asymmetric pieces: mirror X, rotate, mirror back (see the helper below).
+- Because of the mirror, **a DCL yaw of +θ is a Blender rotation of −θ about Z** (e.g. DCL `+90°` = Blender `-90°`). The helper below applies that.
 - The bounding-box script in [`model-patterns.md`](model-patterns.md) prints **glTF** axes. Negate its X before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`. (Y and Z carry over.)
 
 *Why, for anyone tempted to re-derive it:* both renderers apply the standard right-handed→left-handed conversion as an **X negation**, and nothing downstream re-flips it. The Unity client uses Decentraland's glTFast fork (`decentraland/unity-gltf`), which negates X on node translations and on every position/normal/tangent; the GLB root is reparented with an identity local TRS and the scene root is a pure parcel translation. The Creator Hub inspector uses Babylon 8.7 with `useRightHandedSystem` left at `false` and the glTF loader in `AUTO`, which puts `rotation = 180° about Y` + `scaling = (1, 1, -1)` on the `__root__` node — composed, also glTF (x, y, z) → (-x, y, z). So editor and client agree; a model that looks right in one looks right in the other.
@@ -132,17 +132,18 @@ Placement helper (headless `bpy`, objects built at the Blender origin):
 import math, mathutils
 
 def place(objs, dcl_x, dcl_z, rot_deg=0.0, dcl_y=0.0):
-    """Move objects built at the origin to DCL (dcl_x, dcl_y, dcl_z), yawed rot_deg in DCL's sense."""
-    rot    = mathutils.Matrix.Rotation(math.radians(rot_deg), 4, 'Z')
-    mirror = mathutils.Matrix.Scale(-1, 4, (1, 0, 0))
-    tr     = mathutils.Matrix.Translation((-dcl_x, -dcl_z, dcl_y))
+    """Move objects built at the origin to DCL (dcl_x, dcl_y, dcl_z), yawed rot_deg in DCL's sense.
+
+    Because DCL mirrors X, a DCL yaw of +θ is a Blender rotation of −θ about Z.
+    """
+    rot = mathutils.Matrix.Rotation(math.radians(-rot_deg), 4, 'Z')
+    tr  = mathutils.Matrix.Translation((-dcl_x, -dcl_z, dcl_y))
     for o in objs:
-        # mirror → rotate in the DCL sense → un-mirror, so asymmetric pieces keep their DCL handedness
-        o.matrix_world = tr @ mirror @ rot @ mirror @ o.matrix_world
+        o.matrix_world = tr @ rot @ o.matrix_world
     return objs
 ```
 
-**Put the object origin at the world origin before exporting a world-baked chunk** (`scene.cursor.location = (0,0,0)` then `bpy.ops.object.origin_set(type='ORIGIN_CURSOR')`), so the exported node carries no translation and the mesh's local bounds equal its world bounds. Observed: both the Explorer and the Creator Hub editor hide meshes whose **local** bounds fall outside the scene even when a node offset would bring them inside — keeping the two identical removes that class of surprise.
+**Put the object origin at the world origin before exporting a world-baked chunk** (`scene.cursor.location = (0,0,0)` then `bpy.ops.object.origin_set(type='ORIGIN_CURSOR')`), so the exported node carries no translation and the mesh's local bounds equal its world bounds. Keeping local and world bounds identical means the bounding-box script's numbers are the numbers the scene boundary is checked against.
 
 ### RULE: probe the axes before baking the real thing
 
@@ -166,24 +167,7 @@ Decentraland's triangle budget is **10,000 triangles per parcel** for the whole 
 
 ## RULE: Build interiors oversized — Decentraland is played in third person
 
-**Design guidance from practice, not an engine constant.** Source: Decentraland staff feedback after walking a scene in the Explorer (2026-10-08).
-
-Decentraland is mostly played in the default third-person camera, which sits **behind and above** the avatar. Interiors therefore feel much smaller on screen than their real-world dimensions suggest — the camera crowds the ceiling, the avatar fills the frame, and ordinary rooms read as corridors. **Do not model rooms at realistic scale.**
-
-Rules of thumb — roughly **1.5× to 2× real headroom** on the envelope:
-
-| Element | Real-world | Build it at |
-| --- | --- | --- |
-| Ceiling height | 2.5–3 m | **5–6 m** |
-| Doorway / opening on a main route | ~2.1 m × 0.9 m | **~4 m tall, ≥3 m wide** |
-| Corridor width | 1.2–1.8 m | **4 m+** |
-| Any gap the avatar must walk through | — | **≥1.2 m clear** |
-
-**Keep hand-scale props near human scale.** Chairs, desks, counters, railings, screens, signage: leave them roughly life-size so the avatar still reads as a person in the room. Scaling the furniture up with the envelope just rebuilds the cramped feeling one size larger — grow the *room*, not its contents.
-
-*Observed, same session:* a first interior shell built at near-realistic heights — 4 m ceilings, 2.8 m doorways, a 2.2 m aircraft cabin, a 2.6 m jet bridge — read cramped and small in third person and the creator asked for more headroom; a 0.75 m clear metal-detector arch needed near-exact alignment before the avatar would pass through it at all.
-
-**Judge it from the retail camera, never from a free camera or the editor viewport.** A free-cam or editor view flatters interiors because it can sit outside the geometry. Walk the route in `third_person` and screenshot from there (**unity-explorer-mcp**); if the camera clips the ceiling or the avatar's head crowds the top of the frame, the room is too short.
+Rooms, corridors and doorways modelled at real-world size read cramped in Decentraland's third-person camera. Size the envelope from the table in "RULE: Scale interiors up for the third-person camera" in the parent SKILL.md (the canonical copy), and keep hand-scale props near life-size.
 
 ## RULE: All materials must be PBR (Principled BSDF)
 
@@ -244,7 +228,7 @@ Run through this before every export (scripts for each check in [`blender-patter
 4. No lights, no cameras.
 5. Collider meshes named `*_collider`, no material slots, low-poly.
 6. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
-7. For architecture: envelope oversized for third person (ceilings 5–6 m, main openings ~4 m tall × ≥3 m wide, walkable gaps ≥1.2 m clear) while props stay near human scale.
+7. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
 8. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
 
 ## Cross-References
