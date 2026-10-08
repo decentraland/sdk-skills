@@ -153,15 +153,17 @@ and — note — that failure path **also kills the dev server it just started**
 **Rule — before `launch_preview`, check both the tool and the OS:**
 
 ```bash
-pgrep -fl "MacOS/Explorer"      # the Explorer app itself
-pgrep -fl dcl_watchdog          # its watchdog, from /Applications/Decentraland.app
+pgrep -fl '[M]acOS/Explorer'    # the Explorer app itself
+pgrep -fl '[d]cl_watchdog'      # its watchdog, from /Applications/Decentraland.app
 ```
+
+Keep the brackets in these patterns. `pgrep -f` / `pkill -f` match against every process's full command line, and many agent shell tools run commands as `bash -c "<command>"`, so a plain pattern also matches the wrapper shell: the check reports a live Explorer that isn't there, and `pkill` kills the shell running it. `[d]cl_watchdog` still matches the real process, but never the command text itself.
 
 `preview_status` saying "not running" is **not** evidence the Explorer is closed. If either process is alive and you need a clean preview, close the stale instance, **confirm it exited**, then `launch_preview` **once**:
 
 ```bash
-pkill -f dcl_watchdog; pkill -f "Decentraland.app/Contents/MacOS/Explorer"
-until ! pgrep -qf "MacOS/Explorer"; do sleep 1; done
+pkill -f '[d]cl_watchdog'; pkill -f '[D]ecentraland.app/Contents/MacOS/Explorer'
+for i in $(seq 1 30); do pgrep -f '[M]acOS/Explorer' >/dev/null || break; sleep 1; done   # wait up to 30 s
 ```
 
 On **Windows** the Explorer is `Decentraland.exe` and the watchdog `dcl_watchdog.exe`. In PowerShell (matching by process name, so the check never matches the shell running it):

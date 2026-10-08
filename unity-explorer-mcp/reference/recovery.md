@@ -19,9 +19,9 @@ A stale Explorer process, not a broken scene. `stop_preview` kills only the Hub'
 Check the OS, not just the tool, then close the stale instance and launch **once**:
 
 ```bash
-pgrep -fl "MacOS/Explorer"; pgrep -fl dcl_watchdog
-pkill -f dcl_watchdog; pkill -f "Decentraland.app/Contents/MacOS/Explorer"
-until ! pgrep -qf "MacOS/Explorer"; do sleep 1; done
+pgrep -fl '[M]acOS/Explorer'; pgrep -fl '[d]cl_watchdog'
+pkill -f '[d]cl_watchdog'; pkill -f '[D]ecentraland.app/Contents/MacOS/Explorer'
+for i in $(seq 1 30); do pgrep -f '[M]acOS/Explorer' >/dev/null || break; sleep 1; done   # wait up to 30 s
 ```
 
 On Windows (PowerShell):
@@ -33,7 +33,7 @@ Stop-Process -Name Decentraland -Force -ErrorAction SilentlyContinue
 Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
 ```
 
-Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
+Keep the brackets in the patterns, so they can't match the shell running the command (see **creator-hub-mcp**). Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
 
 ## The connection dropped
 
