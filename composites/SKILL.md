@@ -86,6 +86,8 @@ Only place the model if its Transform position satisfies all four bounds.
 
 For tree/vegetation models where the bounding box is unknown, assume a **12 m safe buffer** from all edges — i.e., place origins in `[12, maxX-12]` × `[12, maxZ-12]`.
 
+**Placing architecture: budget for third-person scale, not realistic scale.** Rooms, corridors and doorways sized to real-world dimensions read cramped in Decentraland's default third-person camera — plan on ceilings 5–6 m, main openings ~4 m tall × ≥3 m wide, and walkable gaps ≥1.2 m clear. That changes how much parcel area a floorplan needs, so do it at bounds time rather than after. See **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
+
 ### Examples
 
 | scene.json parcels          | parcelsWide | parcelsDeep | Valid X | Valid Z |

@@ -8,7 +8,8 @@
 ## Downloading models
 
 - Free CC0 model sources that download cleanly via curl: kenney.nl (zip URL is on the asset page, FBX+OBJ+GLTF inside), and itch.io free packs via the scripted flow: POST `<game>/download_url` with the page's csrf_token → GET the returned key URL → grab `data-upload_id` → POST `<game>/file/<id>?source=game_download` → signed CDN URL (expires ~60s, download immediately).
-- Downloaded GLBs into the scene folder hot-load without restarting the dev server. Many props ship with no colliders — cross-examine solidity: walk onto them and check the player's `y` via `get_player_state`; add `visibleMeshesCollisionMask: 3` for anything that should be solid.
+- Downloaded GLBs into the scene folder hot-load without restarting the dev server — the server re-walks the project per request and serves current bytes. **The Explorer's own asset cache is the weak link**: observed 2026-10-08 (under the Creator Hub's `launch_preview`), GLBs added or renamed after launch were missing in-world until `reload_scene` or a preview restart, and a GLB **overwritten in place under the same name** kept rendering its old contents. Symptom: the mesh you just exported is absent or visibly stale while `get_scene_logs` shows no load error. Re-bake to a **new file name** and repoint `src` rather than debugging the cache.
+- Many props ship with no colliders — cross-examine solidity: walk onto them and check the player's `y` via `get_player_state`; add `visibleMeshesCollisionMask: 3` for anything that should be solid.
 
 ## Blender authoring & conversion
 
