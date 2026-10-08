@@ -21,6 +21,8 @@ Most limits scale with parcel count `n` (triangles, entities, bodies linear; mat
 
 For the full limits table across all parcel counts, see the **optimize-scene** skill.
 
+**Mobile adds a second, flat budget that does not scale with parcels** — and two of its rows constrain *design*, not just optimization: **8 light sources** (2 shadow-casting) and **8 VFX emitters** per scene, soft. Worse, each mobile graphics profile only lights the **nearest** few sources — **zero on Very Low** — so a design whose readability depends on a specific lamp, spotlight or particle effect being visible fails on low-end phones. Budget lighting and VFX as *accents* over a baseline that reads with no dynamic lights at all. Full table and the runtime-clamp rules: **optimize-scene** → *Mobile Scene Limits*.
+
 ## 3. Texture Requirements
 
 - **Dimensions must be power-of-two**: 256, 512, 1024, 2048
@@ -197,7 +199,8 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - [ ] **Multiplayer compatible**: Works correctly with 1 player and with 5+ simultaneous players.
 - [ ] **Within scene limits**: Triangle count, entity count, texture count, and file size all within budget for the target parcel count.
 - [ ] **Performance acceptable**: Maintains 30+ FPS during gameplay with target entity/triangle counts.
-- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Note: `borderRadius` is unsupported on mobile UI; `LightSource` (dynamic lights) ships on mobile v1.13.0 (Sept 2026). Smart Items are not officially supported on mobile.
+- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Gaps as of Oct 2026: `borderRadius` and `UiBackground` nine-slice are unsupported on mobile UI; **Draco-compressed GLBs do not load at all** (ship uncompressed meshes); Smart Items are not officially supported. Now available: `LightSource`, `ParticleSystem`, avatar masks (v1.13.0); audio parity, `AudioEvent`, `AudioAnalysis`, `AvatarNametag` (v1.14.0). Full list: **advanced-input** → *Mobile considerations*.
+- [ ] **Within mobile scene limits**: ≤ 8 light sources (2 shadow-casting) and ≤ 8 VFX emitters, and the scene still reads on the Very Low graphics profile where no scene light is active. See **optimize-scene** → *Mobile Scene Limits*.
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
 

@@ -188,6 +188,7 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - Use texture atlases when possible to reduce draw calls
 - Materials in models should use PBR for best results
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
+- ⚠️ **No Draco compression if the scene targets mobile.** The mobile client does not support `KHR_draco_mesh_compression` and cannot load a Draco-compressed GLTF/GLB — the model is simply absent, with no visible error. Ship uncompressed meshes and reduce triangles/texture size instead. Desktop and Bevy load Draco fine, so a Draco model that "works in preview" can still be invisible on a phone — this is a mobile-only failure mode worth checking explicitly. (Docs commit `b4d4c88`, Oct 2026. Note the `54,-55-Testing-3d-models` engine scene below includes a Draco variant — it is a desktop capability test, not a cross-platform recommendation.)
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.
 

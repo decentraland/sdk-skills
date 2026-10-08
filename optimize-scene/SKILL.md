@@ -27,6 +27,36 @@ File limits count only what is actually uploaded on deploy. Make sure `.dclignor
 
 Important: Except for the MB size limits, all other limits can be exceeded. It's generally not recommended to go over them because of performance impact, but if a user tests their scene and determines that it's good enough, it should be ok to publish.
 
+## Mobile Scene Limits
+
+A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading. Verified against docs commit `8139a7f` (Oct 2026).
+
+| Metric | Soft | Hard |
+| --- | --- | --- |
+| Triangles | 1,000,000 | 1,200,000 |
+| Entities | 4,800 | 6,000 |
+| Meshes (bodies) | 2,400 | 3,000 |
+| Geometries | 1,000 | 2,000 |
+| Materials | 400 | 500 |
+| Textures | 400 | 500 |
+| Colliders | 1,200 | 1,500 |
+| **VFX emitters** | **8** | **10** |
+| **Live particles** | **25,000** | **50,000** |
+| **Light sources** | **8** | **16** |
+| **Shadow lights** | **2** | **4** |
+| Content size | 120 MB | 150 MB |
+| External content | 40 MB | 50 MB |
+| Memory (process RSS) | 1,638 MB | 2,048 MB |
+| Draw calls | 1,000 | 2,000 |
+| Performance (higher is better) | 90% | 85% |
+
+**Lights and particles count what is *authored*, not what the engine runs.**
+
+- Each mobile **graphics profile** activates only a budget of the **nearest** light sources — **0 on Very Low up to 8 on High** — and may disable shadows entirely. A scene that authors 20 lights still pays the full scene cost even though at most 8 ever emit. Author to the 8/16 limit; do not rely on the runtime budget to make an over-lit scene cheap. See **lighting-environment**.
+- Particles are additionally **clamped at runtime**: **5,000 per emitter, 50,000 per scene**. Anything authored above those caps is silently reduced, so exceeding them only wastes scene budget with no visual gain. See **particle-system**.
+
+Measure without a device: Creator Hub > Preview > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device.
+
 ## Entity Count Optimization
 
 ### Reuse Entities
@@ -383,6 +413,8 @@ When running the scene locally with `npm run start`:
 # Optimize a GLB with Draco compression
 npx @gltf-transform/cli optimize input.glb output.glb --compress draco
 ```
+
+⚠️ **Draco is desktop/web only.** The mobile client does not support `KHR_draco_mesh_compression` and cannot load a Draco-compressed GLTF/GLB at all — the model simply does not appear. If the scene targets mobile, ship uncompressed meshes and cut triangles/textures instead (docs commit `b4d4c88`). Run `optimize` with `--compress false` for a cross-platform build. [UNVERIFIED: whether the other `gltf-transform` compression modes (`meshopt`, `quantize`) load on mobile — the docs only call out Draco.]
 
 ## Example scenes
 

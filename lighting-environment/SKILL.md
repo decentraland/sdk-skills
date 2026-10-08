@@ -285,10 +285,22 @@ Constraints:
 ## Platform Support
 
 - **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows).
-- **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) ships in **v1.13.0 (September 2026)**. Until then the mobile renderer ignores the component.
+- **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) is **available since v1.13.0** — no longer a parity gap. Budgeted at runtime, see below.
 - **Bevy explorer:** Full support (point lights, spot lights, shadows).
 
-Verified against docs commit `09c5818` (mobile parity tracker, Aug 2026).
+Verified against docs commits `b4d4c88` (mobile parity tracker) and `8139a7f` (mobile limits), Oct 2026.
+
+### Mobile light budget
+
+Mobile enforces flat scene limits on **authored** lights: **8 soft / 16 hard** light sources, **2 soft / 4 hard** shadow-casting lights. Soft = warning in the mobile performance panel; hard = the scene will not load.
+
+On top of that, each mobile **graphics profile** only activates a budget of the **nearest** light sources — **0 on Very Low, up to 8 on High** — and lower profiles may disable shadows entirely. So:
+
+- Authoring 20 lights still costs the full scene budget even though at most 8 ever emit. Author to 8, do not lean on the runtime budget.
+- Never make gameplay-critical visibility depend on a specific light being lit: on Very Low **no** scene light is active. Keep a baseline readable with ambient/emissive materials and the skybox, and treat `LightSource` as accent.
+- Shadows are not guaranteed. Do not use a cast shadow as the only cue for an object's position.
+
+Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
 
 ## Gotchas
 
