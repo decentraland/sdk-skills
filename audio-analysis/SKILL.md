@@ -15,9 +15,13 @@ Real-time audio signal analysis attached to any entity that already has an `Audi
 
 Values are derived from live audio frames. If the source is paused, muted, or not yet loaded, `amplitude` and all `bands[]` stay at `0`. There is no "ready" event — start your reactive systems unconditionally, they will simply animate toward `0` while silent.
 
-## RULE: Only the Unity explorer implements this
+## RULE: Not implemented everywhere — always design a silent fallback
 
-Bevy and the mobile Godot explorer ignore the component (no analysis written). Treat `AudioAnalysis` as a Unity-explorer-only enhancement and design fallbacks (e.g. a base scale that doesn't depend on `amplitude`) so the scene still looks reasonable elsewhere.
+- **Unity (desktop):** implemented.
+- **Mobile (Godot):** `AudioAnalysis` (`PBAudioAnalysis`) ships in mobile **v1.14.0 (Sep 2026)** along with the broader audio parity work and `AudioEvent` (docs commit `b4d4c88`). Older mobile clients write no analysis.
+- **Bevy:** ignores the component (no analysis written).
+
+Where it is unimplemented the values simply stay at `0` — same shape as silence — so the scene never errors, it just goes still. Always design a fallback that does not depend on `amplitude` (e.g. a base scale, a looping tween) so the scene still reads on every client.
 
 ## RULE: Read via `readIntoView` into a pre-allocated view
 

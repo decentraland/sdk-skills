@@ -241,7 +241,7 @@ Material.setBasicMaterial(plane, {
 | `ts.fontSize = 1` | Field on the create payload: `TextShape.create(e, { fontSize: 1, ... })` |
 | `ts.color = Color3.White()` | `textColor: Color4.White()` (note rename: `color` → `textColor`) |
 | `ts.shadowColor = Color3.Gray()` / `ts.shadowOffsetX/Y` | Same fields exist on SDK7 `TextShape`: `shadowColor` (`Color3`), `shadowBlur`, `shadowOffsetX`, `shadowOffsetY`. (`outlineWidth` / `outlineColor` are often preferred for legibility.) |
-| `ts.font` (string name) | `font: Font.F_SANS_SERIF` (enum) |
+| `ts.font` (string name) | `font: Font.F_SANS_SERIF` (enum). Only `F_SANS_SERIF` / `F_SERIF` / `F_MONOSPACE` exist — an SDK6 scene that referenced a custom font name has no SDK7 equivalent yet. A scene-supplied TTF (`fontSrc`) is merged in the protocol but **ships in no published `@dcl/sdk` as of 2026-10-08**; see **build-ui** → `references/custom-fonts.md`. |
 
 ## Animations (model clips)
 

@@ -101,4 +101,13 @@ While the player is gliding (glider open), forces behave differently:
 - The **upward component** of a continuous force can **lift** a gliding player. `glidingFallingSpeed` (in `AvatarLocomotionSettings`) only caps *descent* speed; it does not cancel upward motion, so an angled or vertical current pushes the player along the full force direction. Enables thermal updrafts / wind corridors.
 - **One-shot impulses** (`applyImpulseToPlayer`, `applyKnockbackToPlayer`) are **NOT** affected by gliding — identical whether the glider is open or closed.
 
+## Mobile does not move exactly like desktop
+
+The mobile (Godot) client has a **known, open inconsistency with Unity in the player capsule, step offset and ground contact** (docs commit `b4fd305`, Oct 2026 — no ETA). Consequences for authoring:
+
+- A step, kerb or ledge height tuned until it "just barely" works on desktop may be unclimbable — or climbable when it shouldn't be — on a phone.
+- Landing position after an impulse or knockback can differ, so a jump gap calibrated to the pixel on desktop is not safe on mobile.
+
+Give traversal geometry a **margin** rather than tuning to the exact threshold, and keep a forgiving landing area on any forced-movement mechanic. Verify on a device before shipping precision platforming. Mobile parity list: **advanced-input** → *Mobile considerations*.
+
 For full code examples (launch pad, wind tunnel, repulsion field, coordinate conversion), see `{baseDir}/references/physics-patterns.md`.
