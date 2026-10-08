@@ -100,15 +100,15 @@ The **rest pose** of the armature is an A/T-pose. The **idle** the runtime blend
 
 ## Mirroring: legs yes, upper body no
 
-The docs state that mirroring behaviour on shoulders, arms, hands and fingers is not possible. Measured (Blender 5.1.1, 2026-10-02) by posing `.L`, deriving `.R` with each of the eight sign patterns and comparing world positions of the downstream deform bones:
+The docs state that mirroring behaviour on shoulders, arms, hands and fingers is not possible. Measured (Blender 5.1.1, 2026-10-07) by posing the `.L` controls, running **Pose ▸ Copy Pose / Paste X-Flipped**, and comparing world positions of the downstream deform bones against a perfect mirror:
 
-| Controls | `.R` rotation from `.L` (quaternion `x, y, z`, same for Euler XYZ) | `.R` location from `.L` | Why |
-| --- | --- | --- | --- |
-| `CTRL_FK_Avatar_UpLeg` / `_Leg` / `_Foot` / `_ToeBase`, `CTRL_IK_Foot*`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` | `(+x, −y, −z)` — what Blender's **Paste X-Flipped** does | `(−x, y, z)` | right-leg bone frames are the mirror of the left with **X** flipped |
-| `CTRL_Avatar_Shoulder`, `CTRL_FK_Avatar_Arm` / `_ForeArm` / `_Hand`, `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow`, `CTRL_Avatar_Hand*{1,2,3}` | `(−x, −y, +z)` | `(x, y, −z)` | right-arm bone frames are the mirror of the left with **Z** flipped instead, so the standard flip fails |
+| Controls | Paste X-Flipped | Fix after pasting (the rig animator's rule) |
+| --- | --- | --- |
+| `CTRL_FK_Avatar_UpLeg` / `_Leg` / `_Foot` / `_ToeBase`, `CTRL_IK_Foot*`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` | IK exact (0.000 m); FK within ~3 cm at the foot | none |
+| `CTRL_Avatar_Shoulder`, `CTRL_FK_Avatar_Arm` / `_ForeArm` / `_Hand`, `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow`, `CTRL_Avatar_Hand*{1,2,3}` | 40–70 cm off at the hand and fingertips | **negate X and Z, keep Y** on the pasted control — rotation (quaternion or Euler, same signs) and location — then exact (0.000 m) |
 
-With the right pattern the whole arm chain, fingers included, mirrors to ≈ 1 mm, and IK legs mirror exactly. FK legs keep a 5–10 cm residual at the foot: the left and right leg rest frames differ by a few degrees of roll. The wrong pattern, or the same values on both sides, is off by 25–90 cm at the hand. Note that `Starting_Pose` itself is not symmetric (hands ≈ 2 cm, feet ≈ 8 cm off a mirror; `CTRL_IK_Foot.L` / `.R` idle at different offsets), so mirroring a side overwrites that idle asymmetry.
+Why: the right-leg bone frames are the mirror of the left ones, which is what X-flipped paste assumes. The right-arm frames are the mirror of the left with the local **Z** axis flipped instead of X, so the flipped paste comes out rotated the wrong way; negating X and Z corrects it exactly.
 
-The pattern holds for the displayed pose values, which include the `Starting_Pose` offset (`CTRL_FK_Avatar_Arm.L` idles at quaternion `(0.78, −0.08, 0.21, 0.51)`, `.R` at `(0.79, 0.06, −0.21, 0.52)`), and for deltas applied on top of them. `mirror_side()` in `{baseDir}/references/blender-emote-patterns.md` implements the table.
+Equivalent if you set the `.R` values directly from the raw `.L` values instead of pasting: upper body `(w, x, y, z)` → `(w, −x, −y, z)` and location `(x, y, −z)`; legs `(w, x, −y, −z)` and location `(−x, y, z)`. That lands within ~1 mm for the arms and ~5–10 cm for FK legs rather than exactly, because Paste X-Flipped also compensates the small roll differences between left and right rest bones and a raw sign flip does not. In a script, evaluate the pose (`view_layer.update()`) before pasting — the flipped paste is computed from the evaluated pose. `Starting_Pose` itself follows the same relation (`CTRL_FK_Avatar_Arm.L` idles at quaternion `(0.78, −0.08, 0.21, 0.51)`, `.R` at `(0.79, 0.06, −0.21, 0.52)`), though it is not perfectly symmetric (hands ≈ 2 cm, feet ≈ 8 cm off a mirror).
 
-When posing one joint rather than mirroring, still detect its sign programmatically (`auto_sign`, same file); the same angle never does the same thing on both sides of the upper body.
+`mirror_side()` in `{baseDir}/references/blender-emote-patterns.md` runs the paste and the fix. When posing one joint rather than mirroring, still detect its sign programmatically (`auto_sign`, same file); the same angle never does the same thing on both sides of the upper body.

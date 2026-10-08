@@ -110,37 +110,36 @@ def new_action(name):
 
 ## Mirroring one side onto the other
 
-Legs and feet mirror with Blender's standard X-flip; shoulders, arms, hands and fingers need a different sign pattern (measured — see `{baseDir}/references/avatar-rig.md` → "Mirroring"). This copies every `.L` control onto `.R` (or back) with the right pattern per chain, including the per-side `FK > IK` properties:
+Blender's **Paste X-Flipped** mirrors the legs and feet exactly but not the upper body. The rig animator's fix — negate **X and Z**, keep Y, on every pasted shoulder/arm/hand/finger control — makes it exact (measured 0.000 m; see `{baseDir}/references/avatar-rig.md` → "Mirroring"). This does both steps for every `CTRL_*.src` control, plus the per-side `FK > IK` properties. The pose operators work headless too; the armature just has to be in Pose mode.
 
 ```python
 LEG_CTRL = ('CTRL_FK_Avatar_UpLeg', 'CTRL_FK_Avatar_Leg', 'CTRL_FK_Avatar_Foot', 'CTRL_FK_Avatar_ToeBase',
             'CTRL_IK_Foot', 'CTRL_IK_Foot_Roll', 'CTRL_IK_Foot_ToeTip', 'CTRL_IK_Avatar_ToeBase', 'CTRL_Avatar_Knee')
 
 def mirror_side(src='L'):
-    """Mirror every CTRL_*.src onto the other side. Legs: (x,-y,-z) rot, (-x,y,z) loc.
-    Shoulder/arm/hand/fingers: (-x,-y,z) rot, (x,y,-z) loc."""
+    """Paste X-Flipped every CTRL_*.src onto the other side, then negate X and Z (rotation and
+    location) on the pasted upper-body controls. Legs/feet are right straight from the paste."""
     dst = 'R' if src == 'L' else 'L'
     ub = arm.pose.bones['CTRL_Avatar_UpperBody']
     for limb in ('Arm', 'Leg'):
         ub['FK > IK %s %s' % (limb, dst)] = ub['FK > IK %s %s' % (limb, src)]
+    vl.objects.active = arm
+    if arm.mode != 'POSE':
+        bpy.ops.object.mode_set(mode='POSE')
+    vl.update()            # the flipped paste is computed from the EVALUATED pose — never paste un-updated
+    for pb in arm.pose.bones:                                   # Blender 5: select on the pose bone
+        pb.select = pb.name.startswith('CTRL_') and pb.name.endswith('.' + src)
+    bpy.ops.pose.copy()
+    bpy.ops.pose.paste(flipped=True, selected_mask=False)
     for pb in arm.pose.bones:
-        if not (pb.name.startswith('CTRL_') and pb.name.endswith('.' + src)):
-            continue
-        other = arm.pose.bones.get(pb.name[:-1] + dst)
-        if other is None:
-            continue
-        q, l = pb.rotation_quaternion, pb.location
-        if pb.name[:-2] in LEG_CTRL:
-            other.rotation_quaternion = Quaternion((q.w, q.x, -q.y, -q.z))
-            other.location = Vector((-l.x, l.y, l.z))
-        else:
-            other.rotation_quaternion = Quaternion((q.w, -q.x, -q.y, q.z))
-            other.location = Vector((l.x, l.y, -l.z))
-        other.scale = pb.scale.copy()
+        if pb.name.startswith('CTRL_') and pb.name.endswith('.' + dst) and pb.name[:-2] not in LEG_CTRL:
+            q, l = pb.rotation_quaternion, pb.location
+            pb.rotation_quaternion = Quaternion((q.w, -q.x, q.y, -q.z))   # negate X and Z, keep Y
+            pb.location = Vector((-l.x, l.y, -l.z))
     vl.update()
 ```
 
-Verified on the rig: arm chain and fingers mirror to ~1 mm, IK legs exactly, FK legs within 5–10 cm at the foot (the left/right rest bone rolls differ slightly).
+Verified: arm chain and fingers 0.000 m, IK legs 0.000 m, FK legs within ~3 cm (left/right rest rolls differ slightly). Without the operators, setting `.R` directly from the raw `.L` values: upper body `(w, −x, −y, z)` and location `(x, y, −z)`, legs `(w, x, −y, −z)` and location `(−x, y, z)` — within ~1 mm for the arms, ~5–10 cm for FK legs, since the flipped paste compensates the roll differences and a raw sign flip does not.
 
 ## Sign detection for a single joint
 

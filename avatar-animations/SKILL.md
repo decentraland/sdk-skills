@@ -74,13 +74,13 @@ World axes alone do not give a perfect arm pose, though. Arms move in many direc
 
 Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls) — `rl()` is correct there.
 
-## RULE: Legs mirror, the upper body does not — use the right sign pattern per chain
+## RULE: Legs mirror, the upper body does not — fix the pasted upper body by flipping X and Z
 
-Blender's **Pose ▸ Paste X-Flipped** only works on half of this rig. Measured on `Avatar_File.blend` (per-control table in `{baseDir}/references/avatar-rig.md`):
+Blender's **Pose ▸ Copy Pose / Paste X-Flipped** only works on half of this rig (verified on `Avatar_File.blend`; numbers in `{baseDir}/references/avatar-rig.md`):
 
-- **Legs and feet mirror normally**, FK or IK: paste flipped, or in script negate the **Y and Z** rotation components (quaternion or Euler) and the **X** of any location between `.L` and `.R`. IK legs mirror exactly; FK legs keep a 5–10 cm residual at the foot because the left and right rest bone rolls differ by a few degrees — fine for posing, confirm in a render.
-- **Shoulders, upper arms, forearms, hands and fingers do not.** Paste-flipped, or the same values on both sides, lands the other hand tens of centimetres away. To mirror them negate the **X and Y** components and keep **Z** — quaternion `(w, x, y, z)` → `(w, −x, −y, z)`, same signs for Euler XYZ. Verified to ~1 mm at the hand for the whole arm chain, FK and IK. Fingers follow the same pattern but have 15 controls per hand and locked axes, so confirm them in a render.
-- `mirror_side('L')` in `{baseDir}/references/blender-emote-patterns.md` applies the right pattern to every control at once.
+- **Legs and feet mirror normally**, FK or IK — Paste X-Flipped is exact for IK legs and within ~3 cm for FK legs.
+- **Shoulders, upper arms, forearms, hands and fingers do not** — Paste X-Flipped lands the other hand 40–70 cm away. The rig animator's fix: on every pasted upper-body control, **negate the X and Z values and keep Y**. Example: a pasted arm reading X −0.5, Z 0.1 becomes X 0.5, Z −0.1. Apply it to the rotation (quaternion or Euler) and, on the IK hand and elbow controls, to the location too. Verified exact (0.000 m) for the whole arm chain, FK and IK, all 30 finger controls included.
+- `mirror_side('L')` in `{baseDir}/references/blender-emote-patterns.md` does both steps for every control at once.
 - When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). The same angle on `.L` and `.R` does not produce a symmetric pose.
 
 ## RULE: FK or IK — lose contact → FK, keep contact → IK
