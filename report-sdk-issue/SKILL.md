@@ -7,7 +7,7 @@ description: Report a Decentraland SDK bug, engine/Explorer runtime limitation, 
 
 When a scene hits an SDK, engine, or Explorer defect and you are about to work around it, report it first. The SDK team uses these reports to fix the platform, and the fix removes the need for the workaround in every future scene.
 
-Everything goes through one script, `{baseDir}/scripts/report.mjs` (Node ≥ 18, no dependencies). The first line of its output is always the result token; read that line.
+Everything goes through one script, `{baseDir}/scripts/report.mjs` (Node ≥ 18, no dependencies). The first line of its output is always the result token; read that line. Run the script; don't open it or `scripts/redaction.mjs` to read them. This page has everything you need, and reading them only costs time.
 
 ## 1. Decide whether it's reportable
 

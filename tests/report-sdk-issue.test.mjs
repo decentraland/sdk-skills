@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -72,6 +73,17 @@ async function queueReports(sceneDir, count) {
 
 function readLedger(sceneDir) {
   return JSON.parse(readFileSync(ledgerPath(sceneDir), 'utf8'))
+}
+
+/** Waits until no background run holds the scene's send lock for a moment, so cleanup doesn't race it. */
+async function waitForBackgroundRuns(sceneDir, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs
+  let quietSince = Date.now()
+  while (Date.now() < deadline) {
+    if (existsSync(sendLockPath(sceneDir))) quietSince = Date.now()
+    else if (Date.now() - quietSince > 1000) return
+    await new Promise(resolveTimer => setTimeout(resolveTimer, 100))
+  }
 }
 
 /** Polls the ledger until the background process has done what the test expects, or fails. */
@@ -1109,6 +1121,9 @@ describe('report-sdk-issue', () => {
   })
 
   describe('when many reports are submitted at once against a slow service', () => {
+    // Fewer on Windows: starting 50 Node processes at once on a small CI runner there can outlast
+    // the 5 s ledger-lock wait, and a real scene sees a handful of runs at a time.
+    const count = process.platform === 'win32' ? 20 : 50
     let mock
     let results
 
@@ -1117,17 +1132,23 @@ describe('report-sdk-issue', () => {
       mock = await startServer(() => null)
       const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
       results = await Promise.all(
-        Array.from({ length: 50 }, (_, i) => run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env }))
+        Array.from({ length: count }, (_, i) =>
+          run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env })
+        )
       )
       // Closed here rather than in an afterEach: on Node 18 the outer afterEach, which removes the
-      // scene, runs first, and the background sends this answers must be done by then.
+      // scene, runs first, so the background sends this answers must be done by then.
       mock.close()
+      await waitForBackgroundRuns(sceneDir)
     })
 
     it('should queue every one of them', () => {
       assert.deepEqual(
-        { queued: results.filter(r => r.first === 'queued').length, inLedger: readLedger(sceneDir).reports.length },
-        { queued: 50, inLedger: 50 }
+        {
+          notQueued: results.filter(r => r.first !== 'queued').map(r => r.stdout.trim()),
+          inLedger: readLedger(sceneDir).reports.length
+        },
+        { notQueued: [], inLedger: count }
       )
     })
   })
@@ -1305,6 +1326,26 @@ describe('report-sdk-issue', () => {
       await run(sceneDir, ['consent', '--grant'])
       const { code } = await run(sceneDir, ['submit'], { input: { ...REPORT, kind: 'nope' } })
       assert.equal(code, 2)
+    })
+  })
+
+  describe('when reading the generated redaction module', () => {
+    let recorded
+    let actual
+
+    beforeEach(() => {
+      // CRLF tolerated, in case a checkout converts line endings despite .gitattributes.
+      const source = readFileSync(new URL('../report-sdk-issue/scripts/redaction.mjs', import.meta.url), 'utf8').replace(
+        /\r\n/g,
+        '\n'
+      )
+      const end = source.indexOf('\n\n')
+      recorded = /^\/\/ sha256: ([0-9a-f]{64})/m.exec(source.slice(0, end))?.[1]
+      actual = createHash('sha256').update(source.slice(end + 2)).digest('hex')
+    })
+
+    it('should match the hash in its header, so it is the service bundle it names and was not edited by hand', () => {
+      assert.equal(actual, recorded)
     })
   })
 
