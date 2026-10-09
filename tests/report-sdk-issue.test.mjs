@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -1305,6 +1306,22 @@ describe('report-sdk-issue', () => {
       await run(sceneDir, ['consent', '--grant'])
       const { code } = await run(sceneDir, ['submit'], { input: { ...REPORT, kind: 'nope' } })
       assert.equal(code, 2)
+    })
+  })
+
+  describe('when reading the generated redaction module', () => {
+    let recorded
+    let actual
+
+    beforeEach(() => {
+      const source = readFileSync(new URL('../report-sdk-issue/scripts/redaction.mjs', import.meta.url), 'utf8')
+      const end = source.indexOf('\n\n')
+      recorded = /^\/\/ sha256: ([0-9a-f]{64})/m.exec(source.slice(0, end))?.[1]
+      actual = createHash('sha256').update(source.slice(end + 2)).digest('hex')
+    })
+
+    it('should match the hash in its header, so it is the service bundle it names and was not edited by hand', () => {
+      assert.equal(actual, recorded)
     })
   })
 

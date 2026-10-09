@@ -107,8 +107,8 @@ const INPUT_FIELDS = ['title', 'description', 'workaround', 'kind', 'fingerprint
 const MAX_PAYLOAD_BYTES = 30_000
 
 // Whether a slug carries a secret rather than words: the service's own rule (slugCarriesSecret in
-// the generated redaction block below). Slugs reach the issue footer and labels, where the service
-// does not redact.
+// the generated redaction.mjs next to this file). Slugs reach the issue footer and labels, where the
+// service does not redact.
 function carriesSecret(slug) {
   return slugCarriesSecret(slug)
 }
