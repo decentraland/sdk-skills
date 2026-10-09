@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), detect who is speaking in nearby voice chat (PlayerVoiceState), whisper/quiet/mute/isolate voices in zones (VoiceChatModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -399,6 +399,58 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 
 **Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the modifier region. Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
 
+## Nearby Voice Chat
+
+Requires an `@dcl/sdk` release newer than 7.30.1. To disable voice chat for the whole scene instead, use the scene-level feature toggle in `scene.json` (see **create-scene**).
+
+### Detect who is speaking (`PlayerVoiceState`)
+
+The engine writes `PlayerVoiceState` on every player entity in the scene, including `engine.PlayerEntity`. It is **read-only**: read it with `getOrNull`, never `getMutable`. A missing component means "not speaking" (voice chat unavailable or off).
+
+```typescript
+import { engine, PlayerIdentityData, PlayerVoiceState } from '@dcl/sdk/ecs'
+
+engine.addSystem(() => {
+	for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+		const isSpeaking = PlayerVoiceState.getOrNull(entity)?.isSpeaking ?? false
+		setSpeakingMarker(identity.address, isSpeaking)
+	}
+})
+```
+
+`isSpeaking` covers **nearby voice chat only** (never private or community calls), and a player's state reaches only the scene they stand in. `engine.getEntitiesWith(PlayerIdentityData)` includes the local player.
+
+### Shape voices in a region (`VoiceChatModifierArea`)
+
+The effect follows the **speaker**: players speaking inside the region are heard with the modifier by every listener.
+
+```typescript
+import { engine, Transform, VoiceChatModifierArea } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+const stage = engine.addEntity()
+Transform.create(stage, { position: Vector3.create(8, 0, 8) })
+VoiceChatModifierArea.create(stage, {
+	area: Vector3.create(16, 6, 12),
+	mute: true,
+	excludeIds: [performerAddress],
+})
+```
+
+| Field | Effect | Default |
+| --- | --- | --- |
+| `area` | Region size (`Vector3`). `Transform.scale` is ignored; rotation applies. | required |
+| `maxDistance` | Meters at which the voice fades out; `3` whispers. Min `0.1`; values beyond the client's nearby range do nothing. | client range |
+| `volumeScale` | Voice volume `0`–`1` (cannot amplify). | `1` |
+| `mute` | Voice not heard at all. | `false` |
+| `isolate` | Only listeners inside the same area hear speakers inside it, and they only hear speakers inside it (private booth). | `false` |
+| `excludeIds` | Wallet addresses treated as outside the area (also for isolation). | `[]` |
+
+- Overlapping areas: the **most restrictive** value per field wins (lowest `volumeScale`, shortest `maxDistance`, any `mute`).
+- Only listeners standing in the same scene are affected; enforcement is client-side, so it is not a security boundary.
+- A muted speaker still reports `isSpeaking: true`.
+- Do not put a `VoiceChatModifierArea` on the same entity as `AvatarModifierArea`, `CameraModeArea`, or `TriggerArea` — they share one trigger region; use separate entities.
+
 ## Avatar Locomotion Settings
 
 Adjust the player's movement speed and jump height:
@@ -579,6 +631,7 @@ Engine-team test scenes (exercised against the real engine):
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
+- [60,60-nearby-voice-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/60,60-nearby-voice-areas) — `VoiceChatModifierArea` whisper corner, mute zone, isolation booth, quiet zone, overlapping whisper + quiet (most restrictive wins), and a muted stage with an `excludeIds` performer; a speaking marker above every player driven by `PlayerVoiceState.getOrNull(entity)?.isSpeaking`.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
 - [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Also includes `loop: false` + mask pair (plays once then returns upper body to locomotion) and `loop: true` + mask pair (repeats until stopped) for verifying the masked-emote loop flag is respected.
