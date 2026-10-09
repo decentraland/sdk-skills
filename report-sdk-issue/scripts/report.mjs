@@ -310,8 +310,23 @@ function isBusy(err) {
   // On Windows, a lock file that another process is deleting ("delete pending") refuses to be
   // opened, created, read or moved with EPERM (or EACCES/EBUSY) until it is gone, and may not show
   // as existing meanwhile. That is another run releasing the lock, so it means "try again". A
-  // folder that is really read-only then fails after the lock wait instead of at once.
-  return platform() === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(err.code)
+  // folder that is really access-denied then fails after the lock wait instead of at once; the
+  // code is kept so that failure can name it (see lockedMessage).
+  if (platform() === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(err.code)) {
+    lastWindowsBusyCode = err.code
+    return true
+  }
+  return false
+}
+
+// The last Windows error read as "busy", if any (see isBusy).
+let lastWindowsBusyCode
+
+/** Why a lock could not be taken, naming a Windows error read as "busy" in case it was not contention. */
+function lockedMessage(what) {
+  return lastWindowsBusyCode === undefined
+    ? what
+    : `${what} (Windows reported ${lastWindowsBusyCode}; if nothing else is reporting from this scene, check the permissions of its .dcl-sdk-reports folder)`
 }
 
 /**
@@ -406,10 +421,22 @@ export function takeOverIfStale(path, staleMs, observed) {
       if (err.code === 'ENOENT') return true
       throw err
     }
-    const moved = readFileSync(aside, 'utf8')
-    if (moved === current && isStale(aside, moved, staleMs)) {
-      unlinkSync(aside)
-      return true
+    let moved
+    try {
+      moved = readFileSync(aside, 'utf8')
+      if (moved === current && isStale(aside, moved, staleMs)) {
+        unlinkSync(aside)
+        return true
+      }
+    } catch (err) {
+      // Put the lock back if nothing has taken its place, or drop it, so no *.takeover.<uuid> file
+      // is left behind. Checked first because rename replaces an existing file; a lock created in
+      // between is the same accepted window as a failed restore below.
+      try {
+        if (!existsSync(path)) renameSync(aside, path)
+        else unlinkSync(aside)
+      } catch {}
+      throw err
     }
     // Restored with its content, so its holder's release still recognises it. If yet another
     // process created the lock meanwhile, the restore fails; the holder whose lock was moved finds
@@ -446,7 +473,7 @@ export function updateLedger(root, mutate) {
     const deadline = Date.now() + LEDGER_LOCK_WAIT_MS
     let release = tryLock(path, LEDGER_LOCK_STALE_MS)
     while (!release) {
-      if (Date.now() > deadline) throw new Error("the scene's report ledger is locked by another run")
+      if (Date.now() > deadline) throw new Error(lockedMessage("the scene's report ledger is locked by another run"))
       sleepSync(20)
       release = tryLock(path, LEDGER_LOCK_STALE_MS)
     }
@@ -816,7 +843,7 @@ async function flush(root, options = {}) {
   if (!readLedger(root)) return 'flushed\nNothing is queued.'
   ensureStateDir(root)
   const release = tryLock(join(root, SEND_LOCK_FILE), SEND_LOCK_STALE_MS)
-  if (!release) return "busy\nAnother run is already sending this scene's queued reports."
+  if (!release) return `busy\n${lockedMessage("Another run is already sending this scene's queued reports.")}`
   const counts = { sent: 0, rejected: 0, failed: 0, pending: 0 }
   const tried = new Set()
   let stoppedForBackoff = false
