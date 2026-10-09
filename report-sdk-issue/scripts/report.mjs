@@ -319,7 +319,9 @@ function isBusy(err) {
   return false
 }
 
-// The last Windows error read as "busy", if any (see isBusy).
+// The Windows error the latest attempt to take a lock read as "busy", if any (see isBusy). Cleared
+// at the start of every attempt (tryLock), so ordinary contention earlier in the run doesn't add
+// the permissions hint to a later message.
 let lastWindowsBusyCode
 
 /** Why a lock could not be taken, naming a Windows error read as "busy" in case it was not contention. */
@@ -342,6 +344,7 @@ function lockedMessage(what) {
  * the file if it still holds this owner's token.
  */
 function tryLock(path, staleMs) {
+  lastWindowsBusyCode = undefined
   const token = randomUUID()
   const content = JSON.stringify({ token, pid: process.pid, at: Date.now() })
   const take = () => {
