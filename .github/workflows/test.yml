@@ -1,0 +1,24 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # report-sdk-issue's script supports Node 18 and up; Creator Hub runs it on newer ones.
+        node: [18, 24]
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # A shell glob, not a directory: Node 24 reads `node --test tests/` as a file path.
+      - run: node --test tests/*.test.mjs
+        shell: bash

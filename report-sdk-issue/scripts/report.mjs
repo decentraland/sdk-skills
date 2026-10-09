@@ -305,11 +305,13 @@ export function isStale(path, content, staleMs) {
 }
 
 /** Whether creating a file failed because another process holds it. */
-function isBusy(err, path) {
+function isBusy(err) {
   if (err.code === 'EEXIST') return true
-  // On Windows, a lock file being deleted while another process has it open refuses new creates
-  // with EPERM until it is gone.
-  return platform() === 'win32' && (err.code === 'EPERM' || err.code === 'EACCES') && existsSync(path)
+  // On Windows, a lock file that another process is deleting ("delete pending") refuses to be
+  // opened, created, read or moved with EPERM (or EACCES/EBUSY) until it is gone, and may not show
+  // as existing meanwhile. That is another run releasing the lock, so it means "try again". A
+  // folder that is really read-only then fails after the lock wait instead of at once.
+  return platform() === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(err.code)
 }
 
 /**
@@ -332,7 +334,7 @@ function tryLock(path, staleMs) {
       writeFileSync(path, content, { flag: 'wx' })
       return true
     } catch (err) {
-      if (isBusy(err, path)) return false
+      if (isBusy(err)) return false
       throw err
     }
   }
@@ -350,7 +352,13 @@ function tryLock(path, staleMs) {
   }
   release.holds = holds
   if (take()) return release
-  if (!takeOverIfStale(path, staleMs)) return undefined
+  try {
+    if (!takeOverIfStale(path, staleMs)) return undefined
+  } catch (err) {
+    // The lock changed under us in a way only Windows reports as an error (see isBusy): busy.
+    if (isBusy(err)) return undefined
+    throw err
+  }
   return take() ? release : undefined
 }
 
@@ -375,7 +383,7 @@ export function takeOverIfStale(path, staleMs, observed) {
   try {
     writeFileSync(marker, String(process.pid), { flag: 'wx' })
   } catch (err) {
-    if (!isBusy(err, marker)) throw err
+    if (!isBusy(err)) throw err
     // A marker left by a process that died mid-takeover is removed; the caller tries again later.
     try {
       const age = Date.now() - statSync(marker).mtimeMs

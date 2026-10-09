@@ -75,6 +75,17 @@ function readLedger(sceneDir) {
   return JSON.parse(readFileSync(ledgerPath(sceneDir), 'utf8'))
 }
 
+/** Waits until no background run holds the scene's send lock for a moment, so cleanup doesn't race it. */
+async function waitForBackgroundRuns(sceneDir, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs
+  let quietSince = Date.now()
+  while (Date.now() < deadline) {
+    if (existsSync(sendLockPath(sceneDir))) quietSince = Date.now()
+    else if (Date.now() - quietSince > 1000) return
+    await new Promise(resolveTimer => setTimeout(resolveTimer, 100))
+  }
+}
+
 /** Polls the ledger until the background process has done what the test expects, or fails. */
 async function waitForLedger(sceneDir, predicate, timeoutMs = 20_000) {
   const deadline = Date.now() + timeoutMs
@@ -1110,6 +1121,9 @@ describe('report-sdk-issue', () => {
   })
 
   describe('when many reports are submitted at once against a slow service', () => {
+    // Fewer on Windows: starting 50 Node processes at once on a small CI runner there can outlast
+    // the 5 s ledger-lock wait, and a real scene sees a handful of runs at a time.
+    const count = process.platform === 'win32' ? 20 : 50
     let mock
     let results
 
@@ -1118,17 +1132,23 @@ describe('report-sdk-issue', () => {
       mock = await startServer(() => null)
       const env = { DCL_SDK_ISSUE_REPORTS_URL: mock.url }
       results = await Promise.all(
-        Array.from({ length: 50 }, (_, i) => run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env }))
+        Array.from({ length: count }, (_, i) =>
+          run(sceneDir, ['submit'], { input: { ...REPORT, fingerprint: `burst-${i}` }, env })
+        )
       )
       // Closed here rather than in an afterEach: on Node 18 the outer afterEach, which removes the
-      // scene, runs first, and the background sends this answers must be done by then.
+      // scene, runs first, so the background sends this answers must be done by then.
       mock.close()
+      await waitForBackgroundRuns(sceneDir)
     })
 
     it('should queue every one of them', () => {
       assert.deepEqual(
-        { queued: results.filter(r => r.first === 'queued').length, inLedger: readLedger(sceneDir).reports.length },
-        { queued: 50, inLedger: 50 }
+        {
+          notQueued: results.filter(r => r.first !== 'queued').map(r => r.stdout.trim()),
+          inLedger: readLedger(sceneDir).reports.length
+        },
+        { notQueued: [], inLedger: count }
       )
     })
   })
@@ -1314,7 +1334,11 @@ describe('report-sdk-issue', () => {
     let actual
 
     beforeEach(() => {
-      const source = readFileSync(new URL('../report-sdk-issue/scripts/redaction.mjs', import.meta.url), 'utf8')
+      // CRLF tolerated, in case a checkout converts line endings despite .gitattributes.
+      const source = readFileSync(new URL('../report-sdk-issue/scripts/redaction.mjs', import.meta.url), 'utf8').replace(
+        /\r\n/g,
+        '\n'
+      )
       const end = source.indexOf('\n\n')
       recorded = /^\/\/ sha256: ([0-9a-f]{64})/m.exec(source.slice(0, end))?.[1]
       actual = createHash('sha256').update(source.slice(end + 2)).digest('hex')
