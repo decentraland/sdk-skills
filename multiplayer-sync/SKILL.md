@@ -134,6 +134,8 @@ engine.addSystem(() => {
 })
 ```
 
+Note: writes to a player's entity (e.g. an `AvatarNametag` plate) are **client-local** and never relayed, and player entity ids are recycled on disconnect — key per-player state by `PlayerIdentityData.address`, never by a cached `Entity`. Details and a deterministic-assignment pattern: **player-avatar** skill, `references/avatar-nametag.md`.
+
 ## Schema Types
 
 Available schema types for custom components:
