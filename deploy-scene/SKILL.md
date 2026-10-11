@@ -105,6 +105,7 @@ Spec:
 
 - `.png` or `.jpg`, **16:9** aspect ratio, recommended **1920x1080 px**. Other sizes work as long as they keep 16:9 — anything else is stretched
 - **Central square safe area:** parts of the platform show a square crop of the central **1080x1080 px**. Keep text, logos and the main subject inside it. In a 1920x1080 image the left and right 420 px bands can be cropped away
+- **Under 1 MB (1,048,576 bytes)** — the Worlds content server rejects anything larger at deploy time (`Invalid thumbnail: size … exceeds maximum of 1048576 bytes (1MB)`), and a plain 1920x1080 PNG can exceed it. Check with `ls -l` before publishing; if it's over, export JPEG instead (`ffmpeg -i images/thumbnail.png -q:v 2 images/thumbnail.jpg`). For a cover you generate rather than capture — Blender render, image tool — see **creator-hub-mcp** > Gotchas
 - Value is a path inside the project (e.g. `images/thumbnail.png`) or a URL to an externally hosted image — an external host must serve permissive CORS headers
 
 **Capture it yourself — ask the user if instead of providing an image they prefer you to capture it** With the **unity-explorer MCP** (see the **unity-explorer-mcp** skill), run the scene in preview, move the camera to frame a shot that shows what the scene is about — composing so the essential content sits in the middle third, inside the central square — and capture a UI-less PNG with the bundled script:
