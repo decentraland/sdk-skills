@@ -280,14 +280,16 @@ triggerEmote({ predefinedEmote: 'clap' })
 import { triggerSceneEmote } from '~system/RestrictedActions'
 
 // File MUST end with _emote.glb — rename it on disk if it doesn't
+// src is the path from the PROJECT ROOT, exactly as on disk (usually under assets/)
 triggerSceneEmote({
-	src: 'animations/Snowball_Throw_emote.glb',
+	src: 'assets/animations/Snowball_Throw_emote.glb',
 	loop: false,
 })
 ```
 
 **Notes:**
 
+- **`src` is the path relative to the project root, exactly as the file sits on disk** — an exact content lookup (`SceneContent.TryGetHash(src)`), with no search by file name or `_emote` suffix. A wrong path makes `triggerSceneEmote` resolve `false` with no error logged, and nothing plays. A file at `assets/animations/sit_emote.glb` needs `'assets/animations/sit_emote.glb'`; a bare `'animations/...'` only works if that folder really is at the project root. Same rule for `AvatarShape.expressionTriggerId` — see **npcs**.
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
@@ -356,6 +358,8 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 ## NPC Avatars
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
+
+**A copy of the player (lookalike, mirror twin, a queue of "you") is always an `AvatarShape` fed from `getPlayer()` — never a baked model**, so it matches whatever the player is wearing at the time. Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
 
 ## Avatar Modifier Areas
 
