@@ -32,7 +32,9 @@ AvatarShape.create(entity, {
 })
 ```
 
-`expressionTriggerId` on an AvatarShape plays either a built-in emote (`'robot'`) or a custom scene emote by `.glb` path (`'animations/Snowball_Throw_emote.glb'`, same `_emote.glb` files as `triggerSceneEmote`). Confirmed in test scenes 4,21 and 4,22.
+`expressionTriggerId` on an AvatarShape plays either a built-in emote (`'robot'`) or a custom scene emote by `.glb` path (same `_emote.glb` files as `triggerSceneEmote`). Confirmed in test scenes 4,21 and 4,22.
+
+The path is relative to the **project root, exactly as the file sits on disk** — `'assets/animations/sit_emote.glb'`, not `'animations/sit_emote.glb'`. A wrong path is ignored silently (no log, no error). Test scene 4,22 uses `'animations/Snowball_Throw_emote.glb'` only because that folder is at its project root. See **npcs** → "Playing expressions on an AvatarShape NPC".
 
 ### Body Shape URNs
 

@@ -55,8 +55,10 @@ Play a custom emote from a `.glb` file (imported in SKILL.md but not detailed th
 
 ```typescript
 import { triggerSceneEmote } from '~system/RestrictedActions'
-triggerSceneEmote({ src: 'animations/custom_emote.glb', loop: false })
+triggerSceneEmote({ src: 'assets/animations/custom_emote.glb', loop: false })
 ```
+
+`src` is the path from the **project root, exactly as the file sits on disk** (an exact content lookup — no search by name or suffix). A wrong path resolves `false` with no error logged and nothing plays. See **player-avatar** → "Custom Scene Emotes".
 
 > ⚠️ **The file MUST end with `_emote.glb`** (case-insensitive). This is a hard runtime requirement — files without this suffix often work in `npm run start` preview but **silently fail in production** once the scene is deployed. Rename the file on disk, not just the string passed to `src`.
 
