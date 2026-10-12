@@ -292,7 +292,9 @@ Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, iso
 
 Stream live server-side `console.log()` output from the deployed server to diagnose issues without redeploying.
 
-Configure it with `logsPermissions` — a **root-level array of wallet addresses** in `scene.json` authorized to read production server logs. **Without it, server logs are hidden in production even from the scene owner.**
+To search past logs (kept for 7 days, across restarts and redeploys) or read the server's CPU and memory metrics, use `scene-insights` instead: see `{baseDir}/references/scene-insights.md`.
+
+Configure it with `logsPermissions` — a **root-level array of wallet addresses** in `scene.json` authorized to read production server logs. **Without it, server logs of a Genesis City scene are hidden even from its owner**; for a World, its owner and deployers can always read them.
 
 ```bash
 # Genesis City LAND
