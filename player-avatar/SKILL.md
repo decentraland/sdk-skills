@@ -418,11 +418,11 @@ engine.addSystem(() => {
 })
 ```
 
-`isSpeaking` covers **nearby voice chat only** (never private or community calls), and a player's state reaches only the scene they stand in. `engine.getEntitiesWith(PlayerIdentityData)` includes the local player.
+`isSpeaking` covers **nearby voice chat only** (never private or community calls), and a player's state reaches only the scene they stand in. `engine.getEntitiesWith(PlayerIdentityData)` includes the local player. It reflects voice actually sent to nearby chat, so it is never `true` with the mic off, muted or idle on push-to-talk. It updates within about a second and can flicker between words: hold it `true` for a short time after it drops if the scene needs a steady signal.
 
 ### Shape voices in a region (`VoiceChatModifierArea`)
 
-The effect follows the **speaker**: players speaking inside the region are heard with the modifier by every listener.
+The effect follows the **speaker**: players speaking inside the region are heard with the modifier by every listener. Only players standing on the scene's own parcels count as inside; the part of an area past the scene edge does nothing, so an area never affects a neighboring scene.
 
 ```typescript
 import { engine, Transform, VoiceChatModifierArea } from '@dcl/sdk/ecs'
@@ -440,16 +440,17 @@ VoiceChatModifierArea.create(stage, {
 | Field | Effect | Default |
 | --- | --- | --- |
 | `area` | Region size (`Vector3`). `Transform.scale` is ignored; rotation applies. | required |
-| `maxDistance` | Meters at which the voice fades out; `3` whispers. Min `0.1`; values beyond the client's nearby range do nothing. | client range |
-| `volumeScale` | Voice volume `0`–`1` (cannot amplify). | `1` |
+| `maxDistance` | Meters at which the voice fades out; `3` whispers. Values below `0.1` are raised to `0.1`; values beyond the client's nearby range do nothing. | client range |
+| `volumeScale` | Voice volume `0`–`1`; clamped, so it cannot amplify. | `1` |
 | `mute` | Voice not heard at all. | `false` |
-| `isolate` | Only listeners inside the same area hear speakers inside it, and they only hear speakers inside it (private booth). | `false` |
-| `excludeIds` | Wallet addresses treated as outside the area (also for isolation). | `[]` |
+| `isolate` | Only listeners inside the same area hear speakers inside it, and they hear nobody outside it, not even speakers in another non-isolating area (private booth). Separate booths are separate rooms. | `false` |
+| `excludeIds` | Wallet addresses treated as outside the area (also for isolation); compared case-insensitively. | `[]` |
 
 - Overlapping areas: the **most restrictive** value per field wins (lowest `volumeScale`, shortest `maxDistance`, any `mute`).
-- Only listeners standing in the same scene are affected; enforcement is client-side, so it is not a security boundary.
+- A field set to `NaN` or `Infinity` is ignored, as if unset.
+- Enforcement is client-side (each listener's client applies the areas), so it is not a privacy or security boundary.
 - A muted speaker still reports `isSpeaking: true`.
-- Do not put a `VoiceChatModifierArea` on the same entity as `AvatarModifierArea`, `CameraModeArea`, or `TriggerArea` — they share one trigger region; use separate entities.
+- Do not put a `VoiceChatModifierArea` on the same entity as `AvatarModifierArea`, `CameraModeArea`, or `TriggerArea`: they share one trigger region and only one of them takes effect. Use separate entities.
 
 ## Avatar Locomotion Settings
 
