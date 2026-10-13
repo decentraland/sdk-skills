@@ -44,6 +44,10 @@ Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
+**Spatial falloff is very wide — `global: false` is not "only in this room".** `PBAudioSource` has no distance fields at all, and the Explorer sets only `spatialize`/`spatialBlend`/`dopplerLevel` on the pooled Unity `AudioSource`, leaving its distance curve at Unity's defaults (logarithmic, `minDistance` 1 m, `maxDistance` 500 m) — verified in unity-explorer `AudioSourceExtensions.FromPBAudioSourceWithClip` + `AudioSourcesPlugin` and in `audio_source.gen.d.ts` (7.30.1). Several quiet room ambiences therefore all bleed into every room and read as "the sounds play everywhere" (owner-reported symptom, 2026-10-10).
+
+For a bed that must stay inside one room, gate it yourself in a system on distance from the player: set `playing: false` and `volume: 0` beyond a radius and ramp the volume up inside it (7–9 m worked for single rooms). Throttle the system and write only on change. *Fix verified in code only — not re-listened in-world. Verify: the actual audible radius of a given clip at a given `volume`.*
+
 **Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
 
 ```typescript
@@ -137,6 +141,16 @@ The audio catalog is the first place to look — see the **Audio Sourcing** sect
 Read `{baseDir}/references/audio-catalog.md` before recommending audio so suggestions are concrete, then check with the user whether they want those clips downloaded or prefer placeholders.
 
 > **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/Audio/` first.
+
+### Environmental recordings the catalog does not have
+
+The catalog has **no environmental machinery** — drips, motors, fans, fridge hum, escalators. Do **not** synthesize a stand-in with `ffmpeg`/python: a creator asked for ambience hears a tone generator immediately and rejects it (observed 2026-10-10). **Wikimedia Commons** is a workable source of real recordings:
+
+- Search: `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=<terms>+filetype:audio&format=json`, then `action=query&prop=imageinfo&iiprop=url|extmetadata` on the hits to read `LicenseShortName` and `Artist`.
+- Prefer **CC0 / Public domain**; **CC BY** and **CC BY-SA** need a credit line wherever the scene is published. Record title, author, licence and source URL in the scene's `design/` notes as you download.
+- Send a descriptive `User-Agent` and pace the calls — the API returned **HTTP 429** after ~8 rapid requests.
+- Files named `LL-Q1860 …` are **Lingua Libre word pronunciations**, not sound effects — skip them.
+- Cut the loop with `ffmpeg` (`afade` in/out + `loudnorm`) before dropping it in `assets/Audio/`.
 
 ### Asset folder conventions
 

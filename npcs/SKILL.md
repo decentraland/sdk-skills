@@ -134,6 +134,12 @@ AvatarShape.getMutable(npc).expressionTriggerTimestamp = 1
 
 Note: replaying the **same** `expressionTriggerId` value back-to-back requires bumping `expressionTriggerTimestamp`; setting a **different** id each time replays without touching the timestamp.
 
+**Moving the NPC cancels the emote.** Writing the `AvatarShape`'s `Transform.position`, or running a `Tween` on it, while an emote plays drops the emote and the avatar falls back to its walk cycle — the Explorer re-derives the locomotion blend from the per-frame Transform delta on every frame (`SDKAvatarShapesMotionSystem.UpdateAnimations`, verified against unity-explorer `Explorer/Assets/DCL/Character/CharacterMotion/Systems/SDKAvatarShapesMotionSystem.cs`; symptom owner-reported, behaviour observed in-world, Unity Explorer v0.186.0-alpha, SDK 7.30.1, 2026-10-10). To move an NPC **during** an emote — sink through the floor while screaming, slump sideways — bake the translation into the clip as root/hips motion inside the `_emote.glb`; the Explorer plays that back on an `AvatarShape` (in-world observation, same build/date).
+
+**No masked emotes on NPCs.** `mask?: AvatarMask` (upper-body only) exists only on `TriggerSceneEmoteRequest`, i.e. the player's own `triggerSceneEmote`; `PBAvatarShape` has no mask field, so `expressionTriggerId` is always full-body. Verified against `@dcl/protocol` `decentraland/kernel/apis/restricted_actions.gen.d.ts` and `@dcl/ecs` `decentraland/sdk/components/avatar_shape.gen.d.ts` (7.30.1).
+
+Owner-reported in the same session, **not verified** — confirm before designing around it: the **first** `expressionTriggerId` pointing at a scene `_emote.glb` shows a visible delay on an NPC (clip load); playing it once on an off-screen `AvatarShape` at scene start to warm the cache was tried as a workaround, with unconfirmed effect.
+
 ### Copies of the player
 
 A copy / double / mirror twin of the player is always an `AvatarShape` fed from live `getPlayer()` data, never a baked GLB — see **player-avatar** for the field mapping and the clone bullet above.
