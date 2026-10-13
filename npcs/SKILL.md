@@ -130,7 +130,29 @@ AvatarShape.getMutable(npc).expressionTriggerTimestamp = 1
 
 `expressionTriggerId` accepts either a **built-in emote name** (`'robot'`, `'wave'`, ...) OR a **scene-emote `.glb` path** (e.g. `'animations/Snowball_Throw_emote.glb'`) — the same `_emote.glb`-suffixed files used with `triggerSceneEmote`. This is how you play a custom emote on an NPC (there is no `triggerSceneEmote` equivalent for AvatarShape entities). To cycle through the player's own emotes, set `expressionTriggerId = userData.emotes[i]`.
 
+**Before authoring a custom clip for an NPC pose (sit, idle variant), check the embedded emotes first.** The Explorer ships 21 emotes that `expressionTriggerId` accepts by name, and the four sitting ones **loop**: `sittingChair1`, `sittingChair2`, `sittingGround1`, `sittingGround2` hold the pose with no re-trigger (verified in-world on an `AvatarShape`, SDK 7.30.1, 2026-10-12). The other 17 play once and the NPC returns to idle. Full list with loop flags: `{baseDir}/../avatar-animations/references/embedded-emotes.md`. A built-in sit often reads more naturally than a hand-authored one — only author a custom clip (**avatar-animations**) when nothing embedded fits.
+
 Note: replaying the **same** `expressionTriggerId` value back-to-back requires bumping `expressionTriggerTimestamp`; setting a **different** id each time replays without touching the timestamp.
+
+### Copies of the player
+
+A copy / double / mirror twin of the player is always an `AvatarShape` fed from live `getPlayer()` data, never a baked GLB — see **player-avatar** for the field mapping and the clone bullet above.
+
+**What a copy can visibly differ in** is decided by wearable *categories*, which you can read from the catalyst:
+
+```
+https://peer.decentraland.org/lambdas/collections/wearables?wearableId=<urn>&wearableId=<urn>
+```
+
+Each entry returns `data.category`, `data.hides`, `data.replaces` and `data.representations[].overrideHides` / `.overrideReplaces` (verified with curl 2026-10-12: `urn:decentraland:off-chain:base-avatars:red_bandana` → `category: "tiara"`, `replaces: ["mask","hat","helmet"]`). Use it to pick swaps that will actually show.
+
+Owner-reported in the same session, **not source-verified** — treat as leads, confirm in-world before designing around them:
+
+- A worn **skin** replaces the whole body, so added wearables, hair, skin colour and eye colour do not show on the copy.
+- A **helmet** hides hair, headwear, earrings, eyewear and beard.
+- `AvatarShape` cannot force a hidden wearable to render.
+
+**Fallback that always shows:** vary the copy's `Transform` scale — e.g. taller `1.07`, shorter `0.93`, broader `1.10`. It is independent of wearables and reads instantly in a line-up.
 
 ### Mannequin mode (show wearables without a body)
 

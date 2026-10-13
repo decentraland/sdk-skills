@@ -7,22 +7,24 @@ description: Author custom avatar animations (scene emotes) for the player in Bl
 
 This skill covers **making the animation file**: posing the official Decentraland avatar rig in Blender, exporting a clip as a `*_emote.glb`, verifying it, and handing it to the scene. The scene-side API that plays it — `triggerSceneEmote`, `stopEmote`, `AvatarEmoteCommand`, the `AvatarMask` enum, the permission — lives in **player-avatar**; this skill links there rather than repeating it.
 
+**Check the embedded emotes before authoring anything.** The Explorer ships 21 emotes playable by name from a scene (`triggerEmote`) or on an `AvatarShape` — including four **looping** sitting poses (`sittingChair1`/`2`, `sittingGround1`/`2`). Full list with loop flags: `{baseDir}/references/embedded-emotes.md`.
+
 **Scope check before you start:**
 
-| The user wants | Skill |
-| --- | --- |
-| A new animation *of the player's avatar* that doesn't exist yet | **this skill** |
-| To play a built-in emote, or a `_emote.glb` that already exists | **player-avatar** |
-| To play an animation clip baked into a `.glb` model/prop | **animations-tweens** |
-| To animate an NPC | **npcs** |
-| To move/rotate an entity procedurally | **animations-tweens** (`Tween`) |
+| The user wants                                                  | Skill                           |
+| --------------------------------------------------------------- | ------------------------------- |
+| A new animation _of the player's avatar_ that doesn't exist yet | **this skill**                  |
+| To play a built-in emote, or a `_emote.glb` that already exists | **player-avatar**               |
+| To play an animation clip baked into a `.glb` model/prop        | **animations-tweens**           |
+| To animate an NPC                                               | **npcs**                        |
+| To move/rotate an entity procedurally                           | **animations-tweens** (`Tween`) |
 
 ## Workflow
 
 1. **Get the rig** — `Avatar_File.blend`, never a hand-built armature. Download + bone/control/property reference: `{baseDir}/references/avatar-rig.md`.
 2. **Set up** — set the scene to **30 fps** (the shipped file is 24), capture the `Starting_Pose` values, create one new action per clip.
 3. **Author** — pose `CTRL_` bones only, in Pose mode, keyframing every bone you touch at every keyframe.
-4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet.
+4. **Verify while authoring** — print world positions (clipping, floor, animation area) _and_ render four angles per keyframe into a contact sheet.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
 6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`.
 7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, add the permission, play it (see **player-avatar**).
@@ -52,11 +54,11 @@ Before authoring anything, `scene.frame_set(0)` to evaluate `Starting_Pose` and 
 pb.keyframe_insert('["FK > IK Leg L"]', frame=f)
 ```
 
-On the **first and last frame**, also key location/rotation/scale on **every deform bone**. Channels left without boundary keys stay "open" and keep whatever a previously playing emote left there — the official docs call these *emote overrides*, and they show up as an avatar whose legs are still doing the last emote.
+On the **first and last frame**, also key location/rotation/scale on **every deform bone**. Channels left without boundary keys stay "open" and keep whatever a previously playing emote left there — the official docs call these _emote overrides_, and they show up as an avatar whose legs are still doing the last emote.
 
 ## RULE: Upper arms — world axes for direction, local Y for twist
 
-The upper-arm bone's local X is tilted. Rotating about it sweeps the arm across the chest, and a pose that should have both arms forward ends up with the arms **crossed** — this happens in practice and is not obvious in a front render. So set the arm's *direction* with world axes, converting the world axis into the bone's current frame first:
+The upper-arm bone's local X is tilted. Rotating about it sweeps the arm across the chest, and a pose that should have both arms forward ends up with the arms **crossed** — this happens in practice and is not obvious in a front render. So set the arm's _direction_ with world axes, converting the world axis into the bone's current frame first:
 
 ```python
 M = (arm.matrix_world @ pb.matrix).to_3x3().normalized()
@@ -94,11 +96,11 @@ Legs default to **IK**, arms to **FK** (`FK > IK *` properties on `CTRL_Avatar_U
 
 **Seated poses.** Lower the body with `CTRL_Avatar_UpperBody` — it is the centre of gravity and moves the **whole** body. `CTRL_Avatar_Hips` moves only pelvis + legs and stretches the torso — wrong tool for sitting. Then decide per leg:
 
-| Feet | Legs |
-| --- | --- |
-| Both feet on the ground (chair, bench) | Stay **IK**: move `CTRL_IK_Foot.*` to where the feet will rest, then drop the COG — the knees bend on their own, feet stay planted (verified: toes stay at Z = 0 through a 0.4 m drop). Aim the knees with `CTRL_Avatar_Knee.*`. |
-| One leg crossed over the other | Only the lifted leg to **FK**; the grounded one stays IK. |
-| Feet off the ground (pond edge, theatre seat, high stool) | Both legs **FK**. |
+| Feet                                                      | Legs                                                                                                                                                                                                                             |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Both feet on the ground (chair, bench)                    | Stay **IK**: move `CTRL_IK_Foot.*` to where the feet will rest, then drop the COG — the knees bend on their own, feet stay planted (verified: toes stay at Z = 0 through a 0.4 m drop). Aim the knees with `CTRL_Avatar_Knee.*`. |
+| One leg crossed over the other                            | Only the lifted leg to **FK**; the grounded one stays IK.                                                                                                                                                                        |
+| Feet off the ground (pond edge, theatre seat, high stool) | Both legs **FK**.                                                                                                                                                                                                                |
 
 ```python
 setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)   # only for a leg that leaves the ground
@@ -122,18 +124,18 @@ Render four angles per keyframe (front three-quarter, straight front, side, top)
 
 Measured on the reference objects in `Avatar_File.blend` (world metres, Blender Z-up):
 
-| Reference object | Extent | Meaning |
-| --- | --- | --- |
-| `Animation_Area_Reference` | 4 × 4 × 4 m box — X, Y ∈ [−2, 2], Z ∈ [0, 4] | **Everything** stays inside for the whole clip: every body part, prop and particle. Nothing moves more than 4 m in any direction. |
-| `Root_Animation_Area` | 2 m diameter cylinder on the origin | The avatar **root / centre of gravity** (`CTRL_Avatar_UpperBody`, i.e. `Avatar_Hips`) travels at most **1 m** forward, back, left or right — 2 m across. Vertically it may rise as far as the box allows (the docs say 4 m; the cylinder mesh in the file is 3 m tall). |
-| `Ground_Reference` | plane at Z = 0 | Nothing below it. |
+| Reference object           | Extent                                       | Meaning                                                                                                                                                                                                                                                                 |
+| -------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Animation_Area_Reference` | 4 × 4 × 4 m box — X, Y ∈ [−2, 2], Z ∈ [0, 4] | **Everything** stays inside for the whole clip: every body part, prop and particle. Nothing moves more than 4 m in any direction.                                                                                                                                       |
+| `Root_Animation_Area`      | 2 m diameter cylinder on the origin          | The avatar **root / centre of gravity** (`CTRL_Avatar_UpperBody`, i.e. `Avatar_Hips`) travels at most **1 m** forward, back, left or right — 2 m across. Vertically it may rise as far as the box allows (the docs say 4 m; the cylinder mesh in the file is 3 m tall). |
+| `Ground_Reference`         | plane at Z = 0                               | Nothing below it.                                                                                                                                                                                                                                                       |
 
-Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel does — as long as they stay inside the box. Add the checks to the per-keyframe report: `|hips.x| ≤ 1`, `|hips.y| ≤ 1`, every deform bone head and tail inside the box, every toe Z ≥ 0 (`in_area()` in `{baseDir}/references/blender-emote-patterns.md`). The Decentraland Tools add-on's **Validate Emote** only *warns* when `CTRL_Avatar_UpperBody` moves more than 1 m horizontally or vertically from its first frame; it does not check the box, so the `in_area()` check is yours to run.
+Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel does — as long as they stay inside the box. Add the checks to the per-keyframe report: `|hips.x| ≤ 1`, `|hips.y| ≤ 1`, every deform bone head and tail inside the box, every toe Z ≥ 0 (`in_area()` in `{baseDir}/references/blender-emote-patterns.md`). The Decentraland Tools add-on's **Validate Emote** only _warns_ when `CTRL_Avatar_UpperBody` moves more than 1 m horizontally or vertically from its first frame; it does not check the box, so the `in_area()` check is yours to run.
 
 ## RULE: Loops must close; one-shots must land where the scene resumes
 
 - **Looping** clip: make the first and last keyframes **identical** (e.g. frame 1 and frame 121 for a 4 s loop) or the loop pops.
-- **One-shot** clip: start *and* end in the resting pose the scene returns to — for a seated game, the seated holding pose; otherwise `Starting_Pose`.
+- **One-shot** clip: start _and_ end in the resting pose the scene returns to — for a seated game, the seated holding pose; otherwise `Starting_Pose`.
 
 ## RULE: Export one clip per file, armature only
 
@@ -149,7 +151,7 @@ Typical size for a 1–4 s clip at `export_frame_step=1` is **70–110 KB** — 
 
 ## Upper-body (masked) animations
 
-A masked emote is not a different file format — the **same** `.glb` is played with `mask: AvatarMask.AM_UPPER_BODY` at trigger time (API and enum details: **player-avatar** → "Emote masks"). What changes is what you should *author*.
+A masked emote is not a different file format — the **same** `.glb` is played with `mask: AvatarMask.AM_UPPER_BODY` at trigger time (API and enum details: **player-avatar** → "Emote masks"). What changes is what you should _author_.
 
 **Which bones the mask keeps** — verified against the Explorer's `UpperBodyAvatarMask.mask` asset:
 
@@ -160,6 +162,7 @@ Mechanically the renderer samples your clip each `LateUpdate`, then **restores t
 
 - **Hip/root motion in a masked clip has no effect.** `Avatar_Hips` is outside the mask, so the drop you authored with `CTRL_Avatar_UpperBody` to sit the avatar down is discarded; the legs show the locomotion state (idle, walk, run).
 - **A masked clip does NOT layer over another emote.** Verified in the Explorer's `SceneMaskedEmoteSystem`: starting a masked emote on the local player stops any full-body emote that is playing, and starting a full-body emote cancels the masked one. So a masked clip cannot run on top of a chair's sitting emote — the avatar stands up. It layers only over locomotion, which is what the mask is for: carrying, holding or cheering while the player walks, runs or idles.
+- **For a seated player, check `sittingChair1`/`sittingGround1` first** — they loop and hold the pose for free (see the embedded-emote note at the top of this skill). If you do author one, **have the owner look at the arms and hands before it ships**: observed 2026-10-12, the IK-feet + lowered-`UpperBody` recipe below produced a correct seat with awkward arms, which only a human eye caught.
 - **For a seated player, play the clip full body.** Author a seated lower body into every clip (hips lowered, FK legs bent), trigger it unmasked, and have the scene replay the sitting emote (`triggerEmote({ predefinedEmote: 'sittingChair1' })` or the chair's own) when the clip ends and no looping seated clip takes over. A one-shot that returns to the same seated pose as your looping idle clip chains into it without a pop; the only visible pop is the height difference against the built-in sitting emote, which you tune with the hip drop.
 - **Author the full body anyway, even for masked use.** A plausible lower body makes the same file usable unmasked. The mask is a trigger-time decision, not a property of the file.
 - **Masked emotes on the local player emit no `AvatarEmoteCommand` lifecycle events** (documented in **player-avatar**). The scene must therefore time them itself — store each clip's duration alongside its path in scene config, since you know it exactly from the frame count.
@@ -170,22 +173,22 @@ Design notes for a seated holding pose that reads well: hips ≈ 0.6 m, hands at
 
 ## File requirements
 
-| Requirement | Value | Source |
-| --- | --- | --- |
-| Frame rate | **30 fps** (Blender defaults to 24) | docs |
-| Max length | **10 s / 300 frames** | docs |
-| Format | `.glb` | docs |
-| Max file size | **3 MB** | docs |
-| Sampling rate | `1` by default; `2` or `3` to shrink | docs |
-| Animation clips per file | **exactly 1** (Emotes 2.0 may add 1 prop clip; sequences unsupported) | docs |
-| File contents | deforming skeleton + animation **only** — no mesh, no control bones, no cameras/lights | docs |
-| Start / end pose | both from the idle (`Starting_Pose`) | docs |
-| Deform-bone keys | location + rotation + scale on the **first and last** frame, every bone | docs |
-| Animation area | root ≤ **1 m** in each horizontal direction (2 m across); **every mesh part and prop** inside the **4 × 4 × 4 m** `Animation_Area_Reference` box (see RULE above) | docs + measured |
-| **Filename** | must end **`_emote.glb`** (case-insensitive) | **player-avatar** |
-| Scene permission | `ALLOW_TO_TRIGGER_AVATAR_EMOTE` in `scene.json` `requiredPermissions` | **player-avatar** |
+| Requirement              | Value                                                                                                                                                             | Source            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Frame rate               | **30 fps** (Blender defaults to 24)                                                                                                                               | docs              |
+| Max length               | **10 s / 300 frames**                                                                                                                                             | docs              |
+| Format                   | `.glb`                                                                                                                                                            | docs              |
+| Max file size            | **3 MB**                                                                                                                                                          | docs              |
+| Sampling rate            | `1` by default; `2` or `3` to shrink                                                                                                                              | docs              |
+| Animation clips per file | **exactly 1** (Emotes 2.0 may add 1 prop clip; sequences unsupported)                                                                                             | docs              |
+| File contents            | deforming skeleton + animation **only** — no mesh, no control bones, no cameras/lights                                                                            | docs              |
+| Start / end pose         | both from the idle (`Starting_Pose`)                                                                                                                              | docs              |
+| Deform-bone keys         | location + rotation + scale on the **first and last** frame, every bone                                                                                           | docs              |
+| Animation area           | root ≤ **1 m** in each horizontal direction (2 m across); **every mesh part and prop** inside the **4 × 4 × 4 m** `Animation_Area_Reference` box (see RULE above) | docs + measured   |
+| **Filename**             | must end **`_emote.glb`** (case-insensitive)                                                                                                                      | **player-avatar** |
+| Scene permission         | `ALLOW_TO_TRIGGER_AVATAR_EMOTE` in `scene.json` `requiredPermissions`                                                                                             | **player-avatar** |
 
-Conventional location in the scene: `assets/animations/`. The glTF animation's *name* is irrelevant to the runtime — the file path is the identifier.
+Conventional location in the scene: `assets/animations/`. The glTF animation's _name_ is irrelevant to the runtime — the file path is the identifier.
 
 Blender's glTF exporter UI equivalents, if the user is exporting by hand: **Include > Limit to > Visible Objects**, **Data > Armature > Export Deformation Bones Only**, **Animation > Sampling Animations**.
 

@@ -116,29 +116,21 @@ AvatarAnchorPointType.AAPT_NAME_TAG
 
 ## Built-in Emote Names
 
-For `triggerEmote({ predefinedEmote: '...' })`:
+For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**).
 
-**Interactions:**
-- `buttonDown` — press button downward
-- `buttonFront` — press button forward
-- `getHit` — react to being hit
-- `knockOut` — fall knocked out
-- `lever` — pull a lever
-- `openChest` — open a chest
-- `openDoor` — open a door
-- `punch` — punch
-- `push` — push something
-- `swingWeaponOneHand` — one-handed weapon swing
-- `swingWeaponTwoHands` — two-handed weapon swing
-- `throw` — throw an object
+### Embedded emotes — shipped inside the Explorer
 
-**Sitting:**
-- `sittingChair1` — sit in chair (variant 1)
-- `sittingChair2` — sit in chair (variant 2)
-- `sittingGround1` — sit on ground (variant 1)
-- `sittingGround2` — sit on ground (variant 2)
+These 21 ship in the client binary, so they need no catalyst fetch. Ids are **case-sensitive exactly as written**. "Loop" is each entry's own `loop` flag (`Emote.IsLooping()` → `metadata.emoteDataADR74.loop`): a looping emote **holds its pose indefinitely with no re-trigger**; a non-looping one plays through once and the avatar returns to idle.
 
-**Social:**
+- **Sitting — all four loop:** `sittingChair1`, `sittingChair2`, `sittingGround1`, `sittingGround2`. Set once and the avatar stays seated (`sittingChair1` on an `AvatarShape` verified in-world, SDK 7.30.1, 2026-10-12 — no replay timer needed).
+- **Interactions — all play once:** `buttonDown`, `buttonFront`, `getHit`, `knockOut`, `lever`, `openChest`, `openDoor`, `punch`, `push`, `swingWeaponOneHand`, `swingWeaponTwoHands`, `throw`
+- **Other — all play once:** `crafting`, `handsintheair`, `Victory`, `Waving`, `fistpump_short` — note the capitals and the suffix; these are not `victory`, `waving` or `fistpump`.
+
+Source: `Explorer/Assets/DCL/AvatarRendering/Emotes/EmbeddedEmotes/EmbeddedEmotes.asset` (unity-explorer `main`, read 2026-10-12).
+
+**Check this list before authoring a custom emote for a pose** (sitting, an idle variant): a built-in clip usually reads more naturally than a hand-authored one, and the looping ones need no replay logic at all. See **avatar-animations**.
+
+**Social** — not in the embedded asset; resolved as emote urns like any other:
 - `wave` — wave hello
 - `fistpump` — fist pump
 - `robot` — robot dance
