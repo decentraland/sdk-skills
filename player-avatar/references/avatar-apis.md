@@ -116,29 +116,13 @@ AvatarAnchorPointType.AAPT_NAME_TAG
 
 ## Built-in Emote Names
 
-For `triggerEmote({ predefinedEmote: '...' })`:
+For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**).
 
-**Interactions:**
-- `buttonDown` — press button downward
-- `buttonFront` — press button forward
-- `getHit` — react to being hit
-- `knockOut` — fall knocked out
-- `lever` — pull a lever
-- `openChest` — open a chest
-- `openDoor` — open a door
-- `punch` — punch
-- `push` — push something
-- `swingWeaponOneHand` — one-handed weapon swing
-- `swingWeaponTwoHands` — two-handed weapon swing
-- `throw` — throw an object
+### Embedded emotes — shipped inside the Explorer
 
-**Sitting:**
-- `sittingChair1` — sit in chair (variant 1)
-- `sittingChair2` — sit in chair (variant 2)
-- `sittingGround1` — sit on ground (variant 1)
-- `sittingGround2` — sit on ground (variant 2)
+The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact case-sensitive ids and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
 
-**Social:**
+**Social** — not in the embedded asset; resolved as emote urns like any other:
 - `wave` — wave hello
 - `fistpump` — fist pump
 - `robot` — robot dance

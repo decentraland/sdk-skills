@@ -51,7 +51,9 @@ BillboardMode.BM_NONE   // No billboard rotation
 
 - Prefer `BM_Y` over `BM_ALL` for most use cases — it looks more natural and is cheaper to render.
 - `BM_ALL` is useful for particles or effects that should always directly face the camera.
-- **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
+- **The entity's local `−Z` faces the camera.** The Explorer aims local **+Z away** from the viewer — `Quaternion.LookRotation(billboardPos − cameraPosition)` — so on a billboarded parent a child at local `+Z` sits **behind** it and a child at local `−Z` renders **in front**, from every viewpoint. Verified against unity-explorer `Explorer/Assets/DCL/SDKComponents/Billboard/System/BillboardSystem.cs`; a reference scene whose comment claims `+Z` faces the camera is wrong on Explorer `v0.186.0-alpha`.
+- **By default a billboard faces the CAMERA, not the avatar** — the active virtual camera's world position, same file. In third person the camera and the player stand in different places and see different facings, so verify a hide-behind/peek-out trick from the player's own camera, never from a free-cam sweep. To face something else — the player's avatar (`targetEntity: engine.PlayerEntity`) or any other entity — set `targetEntity` (see **Face another entity — `targetEntity`** below).
+- **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` and `targetEntity` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
 - **Porting note**: SDK6 → SDK7 ports occasionally show a billboarded model facing **away** from the camera that was correct under SDK6. The two SDKs appear to disagree on which face the billboard points at the camera. Same fix — rotate the displayed model 180° on Y. See [[migrate-sdk6-to-sdk7]] (Common Pitfalls) for context.
 
 ### Face another entity — `targetEntity`
@@ -99,6 +101,8 @@ TextShape.create(label, {
 - Keep `fontSize` readable — 16-32 for in-world text.
 - Do not use `TextShape` (or a textured plane) as a rulebook: long paragraphs in-world are too small and too long to read, and players will not stop to squint. One idea per sign, ≤ 10 words, large type; move the rest into visuals and gameplay (see **game-design** → "Rules: show, don't tell").
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
+- **A TextShape faces its local -Z.** It reads correctly for a viewer standing on the entity's **-Z side**, so to label the **+Z face** of a model, parent the label to it at a small `+Z` offset and rotate it **180° about Y**. Observed in-world twice (SDK 7.30.1, 2026-10-12); get it wrong and the sign is mirrored or invisible from the side players approach.
+- **Spaces do not align columns — not even with `Font.F_MONOSPACE`.** Padding a row with spaces to build a table renders with collapsed gaps (observed in-world on a 3-column board, SDK 7.30.1, 2026-10-12). Use **one TextShape per column**, each positioned at its own x and aligned with `TAM_MIDDLE_LEFT` / `TAM_MIDDLE_RIGHT`, and keep the rows as `\n`-separated lines inside each column.
 
 ### Text Alignment Options
 

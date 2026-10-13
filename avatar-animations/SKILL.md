@@ -7,6 +7,8 @@ description: Author custom avatar animations (scene emotes) for the player in Bl
 
 This skill covers **making the animation file**: posing the official Decentraland avatar rig in Blender, exporting a clip as a `*_emote.glb`, verifying it, and handing it to the scene. The scene-side API that plays it — `triggerSceneEmote`, `stopEmote`, `AvatarEmoteCommand`, the `AvatarMask` enum, the permission — lives in **player-avatar**; this skill links there rather than repeating it.
 
+**Check the embedded emotes before authoring anything.** The Explorer ships 21 emotes playable by name from a scene (`triggerEmote`) or on an `AvatarShape` — including looping sitting poses. Full list with loop flags (single source of truth): `{baseDir}/references/embedded-emotes.md`.
+
 **Scope check before you start:**
 
 | The user wants | Skill |
@@ -128,6 +130,8 @@ Measured on the reference objects in `Avatar_File.blend` (world metres, Blender 
 | `Root_Animation_Area` | 2 m diameter cylinder on the origin | The avatar **root / centre of gravity** (`CTRL_Avatar_UpperBody`, i.e. `Avatar_Hips`) travels at most **1 m** forward, back, left or right — 2 m across. Vertically it may rise as far as the box allows (the docs say 4 m; the cylinder mesh in the file is 3 m tall). |
 | `Ground_Reference` | plane at Z = 0 | Nothing below it. |
 
+Within that budget a clip **may carry root translation** — the whole body walking forward, slumping sideways or sinking through the floor — and the Explorer plays that translation back on an `AvatarShape` NPC as well as on the player (in-world observation, Unity Explorer v0.186.0-alpha, SDK 7.30.1, 2026-10-10). It is the only way to move an NPC while a full-body emote plays, since a `Transform`/`Tween` move cancels the emote (**npcs**).
+
 Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel does — as long as they stay inside the box. Add the checks to the per-keyframe report: `|hips.x| ≤ 1`, `|hips.y| ≤ 1`, every deform bone head and tail inside the box, every toe Z ≥ 0 (`in_area()` in `{baseDir}/references/blender-emote-patterns.md`). The Decentraland Tools add-on's **Validate Emote** only *warns* when `CTRL_Avatar_UpperBody` moves more than 1 m horizontally or vertically from its first frame; it does not check the box, so the `in_area()` check is yours to run.
 
 ## RULE: Loops must close; one-shots must land where the scene resumes
@@ -160,6 +164,7 @@ Mechanically the renderer samples your clip each `LateUpdate`, then **restores t
 
 - **Hip/root motion in a masked clip has no effect.** `Avatar_Hips` is outside the mask, so the drop you authored with `CTRL_Avatar_UpperBody` to sit the avatar down is discarded; the legs show the locomotion state (idle, walk, run).
 - **A masked clip does NOT layer over another emote.** Verified in the Explorer's `SceneMaskedEmoteSystem`: starting a masked emote on the local player stops any full-body emote that is playing, and starting a full-body emote cancels the masked one. So a masked clip cannot run on top of a chair's sitting emote — the avatar stands up. It layers only over locomotion, which is what the mask is for: carrying, holding or cheering while the player walks, runs or idles.
+- **For a seated player, check `sittingChair1`/`sittingGround1` first** — they loop and hold the pose for free (see the embedded-emote note at the top of this skill). If you do author one, **have the owner look at the arms and hands before it ships**: observed 2026-10-12, the IK-feet + lowered-`UpperBody` recipe below produced a correct seat with awkward arms, which only a human eye caught.
 - **For a seated player, play the clip full body.** Author a seated lower body into every clip (hips lowered, FK legs bent), trigger it unmasked, and have the scene replay the sitting emote (`triggerEmote({ predefinedEmote: 'sittingChair1' })` or the chair's own) when the clip ends and no looping seated clip takes over. A one-shot that returns to the same seated pose as your looping idle clip chains into it without a pop; the only visible pop is the height difference against the built-in sitting emote, which you tune with the hip drop.
 - **Author the full body anyway, even for masked use.** A plausible lower body makes the same file usable unmasked. The mask is a trigger-time decision, not a property of the file.
 - **Masked emotes on the local player emit no `AvatarEmoteCommand` lifecycle events** (documented in **player-avatar**). The scene must therefore time them itself — store each clip's duration alongside its path in scene config, since you know it exactly from the frame count.

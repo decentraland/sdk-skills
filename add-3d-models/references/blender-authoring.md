@@ -119,6 +119,7 @@ Equivalently, in glTF terms: **glTF (x, y, z) → DCL (-x, y, z)** — Decentral
 
 - A piece's Blender **-Y** face points to **DCL +Z** at rotation 0.
 - A piece's Blender **+X** side ends up at **DCL -X**.
+- **Tipping a part:** a rotation of **+θ about Blender X** tips a slab standing along Blender +Z toward Blender **-Y** — that is, toward **DCL +Z**, the entity's forward. Useful when angling a screen, lid or ramp in Blender and predicting which way it leans in-world.
 - Because of the mirror, **a DCL yaw of +θ is a Blender rotation of −θ about Z** (e.g. DCL `+90°` = Blender `-90°`). The helper below applies that.
 - The bounding-box script in [`model-patterns.md`](model-patterns.md) prints **glTF** axes. Negate its X before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`. (Y and Z carry over.)
 

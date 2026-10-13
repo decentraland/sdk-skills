@@ -50,6 +50,33 @@ engine.addSystem(trackPlayer)
 
 Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame.
 
+### Player speed — average over a window, never per frame
+
+**The player `Transform` does not advance every scene tick.** A per-frame speed computed as `Vector3.distance(pos, lastPos) / dt` therefore alternates between `0` on ticks with no update and roughly `2x` the real speed on the next one, and any "speed above X held for N seconds" test never passes. Observed in-world (SDK 7.30.1, 2026-10-12): a ~9 m/s sprint never satisfied a per-frame `speed > 7.5` held 0.5 s; the same threshold over 0.5 s windows triggered on the first try.
+
+Accumulate instead, and reset the window when it closes:
+
+```typescript
+let winDist = 0, winTime = 0
+let last = Vector3.Zero()
+
+function speedSystem(dt: number) {
+	if (!Transform.has(engine.PlayerEntity)) return
+	const pos = Transform.get(engine.PlayerEntity).position
+	const step = Vector3.distance(pos, last)
+	last = pos
+	if (step > 3) return          // teleport / respawn — discard, don't accumulate
+	winDist += step
+	winTime += dt
+	if (winTime < 0.5) return     // window must be >= ~0.5 s to be stable
+	const speed = winDist / winTime
+	winDist = 0; winTime = 0
+	// ... compare `speed` against your threshold here
+}
+```
+
+Skip any single delta over ~3 m: that is a teleport or a respawn, not movement, and it spikes the average.
+
 ### Distance-Based Logic
 
 ```typescript
