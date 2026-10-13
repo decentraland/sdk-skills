@@ -201,7 +201,8 @@ The scene preview hot-reloads the file on write. If the model's bounding box or 
 For a non-armature model whose motion lives on several objects (a figure built from parented empties + meshes), `ACTIVE_ACTIONS` exports **one clip per object** — `Animator` then sees a dozen clips and plays none of them as a whole. Push every object's action into an NLA track sharing **one name**, clear the active action, and export in `NLA_TRACKS` mode to get a single clip. Verified by parsing the exported GLB (one `walk` animation, 11 channels) and playing it with `Animator` in-world, 2026-10-10.
 
 ```python
-for ob in objs:                                  # each object carrying an action
+objs = [o for o in objs if o.animation_data and o.animation_data.action]  # skip objects with no action
+for ob in objs:
     ad = ob.animation_data
     track = ad.nla_tracks.new(); track.name = 'walk'
     track.strips.new('walk', 1, ad.action)       # same strip name on every object

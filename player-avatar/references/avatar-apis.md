@@ -120,15 +120,7 @@ For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTr
 
 ### Embedded emotes — shipped inside the Explorer
 
-These 21 ship in the client binary, so they need no catalyst fetch. Ids are **case-sensitive exactly as written**. "Loop" is each entry's own `loop` flag (`Emote.IsLooping()` → `metadata.emoteDataADR74.loop`): a looping emote **holds its pose indefinitely with no re-trigger**; a non-looping one plays through once and the avatar returns to idle.
-
-- **Sitting — all four loop:** `sittingChair1`, `sittingChair2`, `sittingGround1`, `sittingGround2`. Set once and the avatar stays seated (`sittingChair1` on an `AvatarShape` verified in-world, SDK 7.30.1, 2026-10-12 — no replay timer needed).
-- **Interactions — all play once:** `buttonDown`, `buttonFront`, `getHit`, `knockOut`, `lever`, `openChest`, `openDoor`, `punch`, `push`, `swingWeaponOneHand`, `swingWeaponTwoHands`, `throw`
-- **Other — all play once:** `crafting`, `handsintheair`, `Victory`, `Waving`, `fistpump_short` — note the capitals and the suffix; these are not `victory`, `waving` or `fistpump`.
-
-Source: `Explorer/Assets/DCL/AvatarRendering/Emotes/EmbeddedEmotes/EmbeddedEmotes.asset` (unity-explorer `main`, read 2026-10-12).
-
-**Check this list before authoring a custom emote for a pose** (sitting, an idle variant): a built-in clip usually reads more naturally than a hand-authored one, and the looping ones need no replay logic at all. See **avatar-animations**.
+The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact case-sensitive ids and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
 
 **Social** — not in the embedded asset; resolved as emote urns like any other:
 - `wave` — wave hello
