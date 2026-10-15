@@ -337,7 +337,11 @@ The official quickstart teaches a **Script-component-first** workflow: attach a 
 
 - Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publishing to a World? A World has its **own** name/description/thumbnail separate from `scene.json` — in a single-scene World every publish overwrites the World's with the scene's; see **deploy-worlds** > "World metadata vs scene metadata". Publish at least **one hour** before a live event — asset bundle conversion itself usually takes seconds, but the margin covers anything unexpected
 - Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Compress Assets** (Play Options > Desktop Client) or `--asset-bundles` to preview with production-quality asset bundles before publishing
-- Targeting mobile? Mobile enforces a **second, flat set of scene limits** that does not scale with parcel count (including 8 light sources, 8 VFX emitters, 25,000 live particles) and it **cannot load Draco-compressed GLBs** — see **optimize-scene** > *Mobile Scene Limits* and **advanced-input** > *Mobile considerations*. Check them from Creator Hub via Preview > Show QR Code for Mobile, no device build needed
+- Targeting mobile? These constraints shape the scene's architecture before you write code, not after:
+  - A **second, flat set of scene limits** that does not scale with parcel count (8 light sources, 8 VFX emitters, 25,000 live particles) — **optimize-scene** > *Mobile Scene Limits*. Check them from Creator Hub via Preview > Show QR Code for Mobile, no device build needed
+  - **`TweenSequence` does not animate on mobile at all** — so no moving platforms or patrol paths built on one; drive multi-leg motion from a system (**animations-tweens**)
+  - **Draco-compressed GLBs fail to load silently** on mobile unless the scene has optimized assets, which a preview does not — export without Draco (**add-3d-models**)
+  - Movement, collision and emote gaps on top of those: **advanced-input** > *Mobile considerations*, **player-physics** (give every collider ≥ 1 cm of thickness; invisible blockers may not block at all)
 - Planning a game? See the **game-design** skill for design patterns and performance budgets
 - Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
 

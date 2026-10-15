@@ -117,6 +117,8 @@ function main() {
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
 
+**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile — same frame as the local player's — only since mobile app **v1.15.0** (docs commit `5f212e3`, Oct 2026). On an older mobile build those values are in a different frame, so proximity checks and leaderboards keyed on another player's position mis-fire there. Anything safety-critical should be derived from the local player's own position on each client rather than from a remote one.
+
 ## Profile Data for Off-Scene Users (Catalyst)
 
 `getPlayer(userId)` only returns data for users **currently connected to this scene**. For any other address (parcel owner, NFT holder, leaderboard entry, off-scene claimant), fetch from the catalyst:
@@ -337,6 +339,8 @@ stopEmote({}).then(({ success }) => {
 
 If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
+**Mobile:** `stopEmote` is supported from mobile app **v1.15.0** (docs commit `5f212e3`). The same release also made scene-started **upper-body** emotes pause when the player leaves the scene, resume on return, and stop on scene unload — and made them read as upper-body to *other* mobile players. On older mobile builds a looping scene emote could not be stopped from the scene, so do not design a mechanic whose only exit is `stopEmote`; give the player an action that also restores the pose some other way.
+
 ### Detecting when an emote finishes
 
 Every emote lifecycle event is appended to the `AvatarEmoteCommand` grow-only set on the player entity, with a `state` field (`EmoteState` enum). Works for scene-triggered emotes (`triggerEmote`/`triggerSceneEmote`), emotes the player plays via the emote wheel, AND other players' emotes (pass their entity instead of `engine.PlayerEntity`).
@@ -378,7 +382,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
-- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Verified against docs commit `b4d4c88`.
+- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap — and since **v1.15.0** a masked emote is also seen as upper-body by *other* mobile players rather than as full-body. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Still open: emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile at all. Verified against docs commit `5f212e3` (Oct 2026, mobile v1.15.0).
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 

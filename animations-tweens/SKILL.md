@@ -208,13 +208,20 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 
 **PITFALL — a CONSTANTLY changing target needs `setMoveContinuous`, not repeated `setMove`**: re-creating a Move tween every frame to chase a moving target (following the player, homing at a runaway entity) makes the entity visibly **stutter**. `Transform.get(entity).position` is what the renderer last wrote back over CRDT, so it trails the entity's real position by ~1-3 frames; the renderer applies the new `start` the instant it arrives, snapping the entity backwards on every re-aim. One correction is invisible, ~30/second is jitter — and raising the re-aim threshold only makes the stutter coarser, since the replacement *frequency* is the problem. Use `Tween.setMoveContinuous(entity, direction, speed)` instead: continuous modes take their start from the renderer's own live transform, so replacing them mid-motion cannot snap. Caveats: it has no destination (stop it yourself with `Tween.deleteFrom` on a distance check, or pass the optional stop-after `duration`), and you should only re-aim when the direction has changed materially, or you send a CRDT update per frame. Discrete retargeting (clicks, waypoints) is still fine with `setMove` (verified in `79,-4-tween-following-cube`, which switches between both modes live).
 
-`Tween.Mode.MoveRotateScale({...})` and `setMoveRotateScale` accept a **partial** transform — supply only the axes you want (`position` / `rotation` / `scale`); at least one is required. Omitted axes are left unchanged (verified against SDK source + `78,-4-tweens`).
+`Tween.Mode.MoveRotateScale({...})` and `setMoveRotateScale` accept a **partial** transform — supply only the axes you want (`position` / `rotation` / `scale`); at least one is required. Omitted axes are left unchanged (verified against SDK source + `78,-4-tweens`). **Supported on mobile since mobile app v1.15.0** (docs commit `5f212e3`); on older mobile builds it did not animate.
 
 **Texture movement type** (`setTextureMove` / `setTextureMoveContinuous`, and `Tween.Mode.TextureMove`): the `movementType` param is `TextureMovementType.TMT_OFFSET` (default, `=0` — scrolls the UV offset) or `TextureMovementType.TMT_TILING` (`=1` — animates the tiling). Import `TextureMovementType` from `@dcl/sdk/ecs`. The texture must use `wrapMode: TextureWrapMode.TWM_REPEAT` for continuous scrolling to tile seamlessly (verified in `0,3-texture-movement`, `78,-4-tweens`).
 
 ## Tween Sequences (Chained Animations)
 
 Chain with `TweenSequence.create(entity, { sequence: [...tweenConfigs], loop })`. Loop modes: `TweenLoop.TL_RESTART` (`=0`, loop from start), `TweenLoop.TL_YOYO` (`=1`, reverse at each end).
+
+> ⚠️ **`TweenSequence` is NOT implemented on the mobile client — sequenced tweens do not animate.** Not a timing or easing difference: nothing moves. Plain `Tween` works on mobile (including `MoveRotateScale` since mobile app **v1.15.0**); it is the sequence wrapper that is absent, with no ETA (docs commit `5f212e3`, reviewed Oct 2026 / v1.15.0). This kills the two most common uses on a phone: **looping platforms** and **patrol paths**. If the scene targets mobile:
+> - **Do not build traversal geometry on a `TweenSequence`.** A moving platform that is the only way across a gap becomes an impassable scene on mobile.
+> - Drive repeat and multi-leg motion from a system instead: run one plain `Tween` at a time and start the next leg on `tweenSystem.tweenCompleted(entity)`. That is mobile-safe and costs a few lines.
+> - Decorative sequences (a drifting cloud, an idle bob) degrade to a static prop — acceptable, but check the scene still reads with them frozen.
+>
+> This includes the empty-`sequence` looping idiom below, which exists only as a `TweenSequence` [inferred from "not implemented"; the docs do not call the empty-sequence case out separately — verify on a device if a scene depends on it].
 
 ### PATTERN: empty sequence loops the base Tween
 
