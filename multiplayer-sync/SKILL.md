@@ -360,7 +360,7 @@ The local player's `Transform` is scene-local; **another player's entity reports
 
 Some components that *look* multiplayer are **client-local**: writing them on a remote player's entity changes only what the writing client sees. They are never relayed, and `syncEntity` does not help — player entities are engine-owned, not scene-created.
 
-- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself. On **mobile** it ships in **v1.14.0 (Sep 2026)**; older mobile clients show no plate at all, so never make the plate the only carrier of information a player needs (docs commit `b4d4c88`).
+- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself. **It is still not implemented on mobile** — it was previously listed as shipping in v1.14.0, but the Oct 2026 refresh (docs commit `5f212e3`, mobile app v1.15.0) moved it back to *missing, no ETA*. Mobile players see no plate at all, so **never make the plate the only carrier of information a player needs**: mirror rank/role in a `TextShape`, a HUD list or a color the avatar already wears.
 
 Two ways to make a client-local visual agree across clients:
 

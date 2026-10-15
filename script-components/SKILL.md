@@ -347,6 +347,10 @@ Most catalog Smart Items were migrated from the Actions/Triggers no-code graph t
 
 **`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
 
+**[FIXED in `@dcl/sdk` 7.30.1] Adding the FIRST smart item during a live preview no longer needs a restart.** On 7.30.0 and earlier, `isEditorScene()` ran once, before the esbuild context was created, and its verdict was baked into the static entrypoint. Adding the first smart item (or the first `asset-packs::Script`) to a scene while `npm run start` / the Creator Hub preview was **already running** rebuilt a bundle that executed the item's `Script` without the asset-packs bootstrap, so `getComponents` threw **`Component asset-packs::Actions not found`** — and the preview stayed broken until it was restarted. js-sdk-toolchain `52fa56cf` (PR #1644, tag `7.30.1`) re-evaluates `isEditorScene()` on every watch rebuild.
+
+If you are carrying the old "restart the preview" workaround, drop it on 7.30.1+: the watch rebuild recovers on its own. On an older pin the restart is still the fix, and the error text is the tell — it is a bundling defect, not a missing component in the composite, so do not go looking for `asset-packs::Actions` in the entity tree. The public `~sdk/script-utils` surface (`ActionCallback`, `getScriptInstance`, `getAllScriptInstances`, `callScriptMethod`) is unchanged by the fix.
+
 **`trigger_area` is now a Script item too.** The old Actions/Triggers `trigger_area` asset was deleted in creator-hub `e43441b5`; the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`) is the only one left — the interim "Trigger Area (Script)" label is gone. Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
 
 ## `@event` — declaring hooks for reaction scripts

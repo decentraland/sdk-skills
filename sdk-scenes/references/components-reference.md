@@ -45,7 +45,7 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **Animator** | `states: Array<{ clip, playing, loop, speed, weight }>` | Play animations embedded in GLTF models. |
 | **Tween** | `mode`, `duration`, `easingFunction`, `currentTime`, `playing?` | Animate entity properties over time. `mode` is a discriminated union: `move`, `rotate`, `scale`, `textureMove`, `moveRotateScale`, plus the endless variants `moveContinuous`, `rotateContinuous`, `textureMoveContinuous` (these loop forever — take a speed rather than a `duration`). While a tween plays, the engine updates the entity's `Transform` in real time — `Transform.get(entity)` returns the live mid-tween value. |
-| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. |
+| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. ⚠️ **Not implemented on mobile — sequenced tweens do not animate at all.** Plain `Tween` works there; the sequence wrapper does not. |
 | **TweenState** | Read-only | Current state of a tween. |
 
 ## Audio & Video
