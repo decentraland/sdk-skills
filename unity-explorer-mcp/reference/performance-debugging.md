@@ -1,6 +1,6 @@
 # Performance & content-budget debugging reference
 
-Three read-only tools close a measurement loop: **what the scene contains** (`get_scene_content_stats`), **which assets that content comes from** (`get_scene_content_breakdown`), and **the frame rate a viewpoint actually produces** (`get_performance_stats`). None touches shared profiler state.
+Three read-only tools close a measurement loop: **what the scene contains** (`get_scene_content_stats`), **which assets that content comes from** (`get_scene_content_breakdown`), and **the frame rate a viewpoint actually produces** (`get_performance_stats`). A fourth, `get_crdt_traffic`, covers the **script side**: component writes the scene sends every tick and what they cost the Explorer. None touches shared profiler state.
 
 Collection is **on demand**: each tool sets its own request flag and the scene world runs (or piggybacks) a counting pass, then the call waits for it to land. With every stats UI closed the scene does nothing until you ask, so the first call after a while pays for a pass — a counting cooldown is ~60 frames, which is up to a second and stretches to several at low FPS (10 s timeout). Nothing is cached across scenes; walking into a new scene resets the numbers.
 
@@ -19,6 +19,30 @@ Groups rendered content by **source model**, ranked by `sortBy` (default `triang
 ## `get_performance_stats` — the frame rate a viewpoint produces
 
 **The call blocks for the whole `sampleSeconds` window** while it measures real frame times, so keep it short unless chasing intermittent hiccups. `hiccupFrames` counts frames over 50 ms; `minFps` is the worst single frame — the number a user feels as a stutter; `sceneTick` is `null` when no scene is loaded or it hasn't ticked. Render FPS is the client's; `sceneTick` is the scene's JS update rate against its target — a healthy render FPS with a `sceneTick` far under target points at scene script cost, not rendering.
+
+## `get_crdt_traffic` — component writes the scene wastes
+
+Newer Explorer builds only: if `get_crdt_traffic` is absent from the tool catalog, or `list_scene_entities` returns bare ids, the client predates them — say so instead of working around it.
+
+Every `getMutable` / `getOrCreateMutable` / `createOrReplace` / `MeshRenderer.setPlane`-style call marks a component dirty, and the SDK sends it to the Explorer that tick even when the values did not change. `get_crdt_traffic` (`sampleSeconds` up to 10, `limit` writers per direction) **blocks for the window** while it captures every message in both directions and classifies each one: applied, or wasted (`redundantIdenticalData` = rewrote identical values, plus stale / duplicate / deleted-entity / leaked Creator Hub components). It reports totals, `perTick` against `sceneTicks`, and the top writers per entity + component with a verdict.
+
+- **`fromScene` is the scene's own code; that is where the fixes are.** A writer with the verdict *"wasted: rewrites identical values every tick"* is a system writing a component it did not change — grep `src/` for that component. `toScene` lists what the Explorer writes back (player/camera transforms, pointer info, tween positions): a hot writer there is client behaviour, not a scene bug.
+- **Each writer names its entity**: `entity` is the CRDT id, `engineEntityId` feeds `get_entity_details`, and `entityLabel` says what it is (`gltf assets/x.glb, hidden, parent 545`, `mesh Plane`, `scene root`). Search for siblings with `list_scene_entities` `filter`.
+- **Patterns it finds** (Genesis Plaza, observed 2026-10-14 — ~15–20% of the scene's messages were identical rewrites):
+  - `PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity)` used only to *read* the pointer → a write every tick. Read with `getOrNull`.
+  - A sprite animator calling `MeshRenderer.setPlane(entity, uvs)` every tick, including ticks where the frame did not advance (and a 1-frame "animation" looping forever) → write UVs only when the frame changes.
+  - A pooled set of markers handed out round-robin, so every pooled entity moves to a different spot every tick → assign pool slot *i* to the *i*-th target and write only on change.
+- **`bridgeTime`** is how long the Explorer spent per scene tick on the scene's messages: `incomingUsPerTick` (decode + merge the scene's writes), `applyUsPerTick` (write them into the client's world, under a lock), `outgoingUsPerTick` (send changes back). It is **wall time** on the scene thread, so it varies between captures. For a fix to scene writes, compare `incomingUsPerTick`: that is the stage that scales with what the scene sends. `apply` dominates the total and does not track message count.
+
+### Proving a fix — and why FPS usually won't show it
+
+Wasted writes cost the scene runtime and the Explorer's scene thread, not the render frame. On Genesis Plaza (observed 2026-10-15) the fix cut scene → renderer messages ~80% and halved `incomingUsPerTick` (≈115 → 50 µs, no overlap across 12 captures), while render FPS showed **no attributable change** — run-to-run noise (other players, network-fetched content) was larger than the effect. Report the traffic and `bridgeTime` numbers; do not promise an FPS gain unless a heavier scene measurably delivers one. To measure without fooling yourself:
+
+1. **Fix the pose**: `set_camera_pose` at one spot for every run, player standing still. (For *absolute* frame rate the retail-camera rule below still applies; for a before/after the identical pose matters more.)
+2. **Alternate unpatched → patched → unpatched → patched**, swapping the code with git (stash, or check out the old file versions). A single before/after across a hot reload is not evidence: FPS drifted up across reloads regardless of the code. After each swap, wait out the warm-up — the first capture after a reload shows thousands of `distinctWriters` (initial entity creation); sample once it settles and the tick rate is back near target. Confirm with `get_crdt_traffic` that the waste actually disappears and reappears with each swap.
+3. **Three captures per run** for `get_crdt_traffic` and for `get_performance_stats`, one at a time — concurrent `get_performance_stats` calls share one measurement window, and a second `get_crdt_traffic` is refused while one runs.
+4. **On a desktop build, lift the frame cap first** (Settings → Graphics: VSync off, FPS limit unlimited). A capped build reports the cap (e.g. exactly 120 on every sample) and can show nothing either way.
+5. **Look for stable scene state across runs**: content built from network fetches, and other players joining, can change between reloads and swamp the effect — if a run's traffic shape differs (a writer missing), it is not comparable.
 
 ## Interpreting the counts (say this to the user, don't just dump numbers)
 

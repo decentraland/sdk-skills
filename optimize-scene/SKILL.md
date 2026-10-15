@@ -251,6 +251,37 @@ engine.addSystem(() => {
 })
 ```
 
+### Don't Write Components That Didn't Change
+
+Every `getMutable`, `getOrCreateMutable`, `createOrReplace` or helper like `MeshRenderer.setPlane` marks the component dirty, and the SDK sends it to the renderer that tick — even when the values are identical. In a system that runs every frame, that is a message per entity per frame for nothing.
+
+```typescript
+// BAD: reading through a mutable getter sends PrimaryPointerInfo back every frame
+engine.addSystem(() => {
+	const x = PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity).screenCoordinates?.x
+})
+
+// GOOD: read with get / getOrNull
+engine.addSystem(() => {
+	const x = PrimaryPointerInfo.getOrNull(engine.RootEntity)?.screenCoordinates?.x
+})
+
+// BAD: re-sends the same UVs every frame while the sprite frame hasn't advanced
+engine.addSystem(() => {
+	MeshRenderer.setPlane(sprite, uvsFor(frame))
+})
+
+// GOOD: write only when the value changes
+let lastFrame = -1
+engine.addSystem(() => {
+	if (frame === lastFrame) return
+	lastFrame = frame
+	MeshRenderer.setPlane(sprite, uvsFor(frame))
+})
+```
+
+The same goes for pooled entities: hand pool slot *i* to the *i*-th target every frame instead of rotating the pool, so an entity only moves when its target does. To find these writes in a running scene, `get_crdt_traffic` in the **unity-explorer-mcp** skill lists every entity + component the scene rewrites without a change. The saving is real but usually shows in the Explorer's scene-thread time, not in render FPS.
+
 ### Throttle Expensive Operations
 
 ```typescript
@@ -368,6 +399,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
+| `getMutable` / `setPlane` / `createOrReplace` every frame without a change | Constant CRDT traffic to the renderer | Read with `get`/`getOrNull`; write only when the value changes |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |
 | Large uncompressed textures          | Slow loading, file size exceeded | Use WebP, reduce resolution, use atlases                 |
 | Working files uploaded on deploy     | "Scene too large" deploy error   | Add Blender/FBX sources, concept art, docs to `.dclignore` (see **deploy-scene**) |
