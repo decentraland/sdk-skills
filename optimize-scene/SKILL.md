@@ -251,6 +251,30 @@ engine.addSystem(() => {
 })
 ```
 
+### Don't Write Components That Didn't Change
+
+`createOrReplace` and the helpers built on it (`MeshRenderer.setBox`/`setPlane`/…, `Material.setPbrMaterial`/…) **always** send the component to the renderer, even when the value is identical — in a system that runs every frame, that is a message per entity per frame for nothing. Re-set a component only when its value changes.
+
+```typescript
+// BAD: re-sends the same UVs every frame while the sprite frame hasn't advanced
+engine.addSystem(() => {
+	MeshRenderer.setPlane(sprite, uvsFor(frame))
+})
+
+// GOOD: write only when the value changes
+let lastUvs: number[] | undefined
+engine.addSystem(() => {
+	const uvs = uvsFor(frame)
+	if (lastUvs && uvs.every((v, i) => v === lastUvs![i])) return
+	lastUvs = uvs
+	MeshRenderer.setPlane(sprite, uvs)
+})
+```
+
+`getMutable` / `getOrCreateMutable` without a change are cheap: since SDK 7.22.3 the SDK compares the serialized bytes and sends nothing when they match. Still read with `get` / `getOrNull` when you don't write — it skips that per-frame serialize-and-compare, and on SDK builds from the authoritative-server branch a mutable read of a component the renderer just updated (e.g. `PrimaryPointerInfo`) is sent back every frame.
+
+The same goes for pooled entities: hand pool slot *i* to the *i*-th target every frame instead of rotating the pool, so an entity only moves when its target does. To find these writes in a running scene, `get_crdt_traffic` in the **unity-explorer-mcp** skill lists every entity + component the scene rewrites without a change. The saving is real but usually shows in the Explorer's scene-thread time, not in render FPS.
+
 ### Throttle Expensive Operations
 
 ```typescript
@@ -368,6 +392,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 | Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
+| `createOrReplace` / `set*` helpers every frame with the same value | Constant CRDT traffic to the renderer | Re-set only when the value changes; read with `get`/`getOrNull` |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |
 | Large uncompressed textures          | Slow loading, file size exceeded | Use WebP, reduce resolution, use atlases                 |
 | Working files uploaded on deploy     | "Scene too large" deploy error   | Add Blender/FBX sources, concept art, docs to `.dclignore` (see **deploy-scene**) |
