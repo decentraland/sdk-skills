@@ -262,11 +262,12 @@ engine.addSystem(() => {
 })
 
 // GOOD: write only when the value changes
-let lastFrame = -1
+let lastUvs: number[] | undefined
 engine.addSystem(() => {
-	if (frame === lastFrame) return
-	lastFrame = frame
-	MeshRenderer.setPlane(sprite, uvsFor(frame))
+	const uvs = uvsFor(frame)
+	if (lastUvs && uvs.every((v, i) => v === lastUvs![i])) return
+	lastUvs = uvs
+	MeshRenderer.setPlane(sprite, uvs)
 })
 ```
 
