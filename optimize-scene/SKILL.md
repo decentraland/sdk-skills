@@ -321,7 +321,7 @@ Reproduce the server-side asset bundle conversion locally before publishing. Thi
 - **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` is too old for the flag.
 - **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
 
-The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
+The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Custom fonts (`fontSrc` `.ttf` files) are converted too and render **only** from asset bundles, so without this toggle the preview shows the fallback `font` (**build-ui** > `references/custom-fonts.md`). Only available with the Desktop Client (not Bevy Web).
 
 This is the local equivalent of the server-side conversion that runs after every publish (see the **deploy-scene** skill). Use it routinely before publishing, especially before live events.
 
