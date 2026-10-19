@@ -16,7 +16,7 @@ Those three built-in faces are the only ones. There is no font name list beyond 
 
 ## RULE: Check the SDK version before writing `fontSrc`
 
-`fontSrc` needs the first `@dcl/sdk` release after **7.30.1** (decentraland/js-sdk-toolchain#1656). On 7.30.1 and earlier the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
+`fontSrc` needs the **first `@dcl/sdk` release after 7.30.1** (decentraland/js-sdk-toolchain#1656). On 7.30.1 and earlier the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
 
 Read the installed version from `node_modules/@dcl/sdk/package.json` (or `package.json`) before writing it. If the scene is older, either upgrade `@dcl/sdk` or stay with a built-in `font`. Never patch the SDK's generated serializers in `node_modules`. The QA scene did that as a temporary bridge, and it breaks on the next install.
 
