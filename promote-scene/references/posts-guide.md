@@ -34,7 +34,7 @@ Post: `{id, kind, title, text, image, ig_image?, footage?, cta?, platform?}`
 The Foundation's marketing package asks for exactly two descriptions (see `{baseDir}/references/marketing-package.md`). `build_kit.py` puts them at the top of `copy.md` and in a "Listing copy" block on the page, with Copy buttons and a length counter on the short one. It warns when `short` is missing or over 160 characters.
 - **`short`**: ~140 characters, 1–3 sentences. Verb first: what you *do*, then who with or why come back. It doubles as the proposed `display.description`. Eeireport: "Walk an empty airport, search abandoned bags and satisfy a protocol-obsessed officer to reach gate 13 before the final boarding call." (133 characters; the scene's own description, "A strangely empty airport. Find gate 13 before the final boarding call.", only sets a mood.)
 - **`long`**: at most two short paragraphs. Lead with the activity and the people, then recurring moments and why come back. A one-time story says so honestly. Do not invent replay hooks.
-- Same sourcing rules as the posts: every claim traces to the docs, the code or the scene.
+- Same sourcing rules as the posts: every claim traces to `design/`, the repo or the creator's answer.
 
 ## The five kinds (default counts)
 
@@ -48,7 +48,7 @@ The Foundation's marketing package asks for exactly two descriptions (see `{base
 
 - Sound like the game, not like an ad. Use the game's own voice: an intercom, a sign, a character. No "immersive experience", "epic adventure", "don't miss out".
 - Short lines, white space, one idea per post. Keep X posts under 280 characters with the link counted as 23 (the page shows the count).
-- Use real lines verbatim from `src/` and the design docs. Voiced lines (announcer or intercom audio) often exist only as `.ogg` files, with their wording written in the design notes. Look there too, and never transcribe audio you have not seen written down. Every factual claim must trace to a source. Use `[CHECK: …]` when unsure.
+- Use real lines verbatim from `src/` and the design docs. Voiced lines (announcer or intercom audio) often exist only as `.ogg` files, with their wording written in the design notes. Look there too, and never transcribe audio you have not seen written down. Every factual claim must trace to `design/` (GDD or `promo-brief.md`), the repo, or the creator's answer in this session. Use `[CHECK: …]` when unsure.
 - Name the game consistently (Eeireport used ALL CAPS in copy, matching the wordmark).
 - No spoilers: not the ending, not the solution, not the final card.
 - Inspirations and comparisons only if the owner opted in.

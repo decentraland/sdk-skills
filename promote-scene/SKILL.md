@@ -23,7 +23,11 @@ The kit follows the Decentraland Foundation's marketing package checklist. Walk 
 
 ## Workflow
 
-1. **Gather context. Every claim must trace to a source.** Read `design/` (GDD, decisions, ideas, references), `README`, `scene.json` (`display.title`, `display.description`, `tags`), and skim `src/` for quotable strings: dialogue, intercom/announcer lines, item descriptions, signs. These make the best copy. Voiced lines may exist only as audio files, with their wording in the design notes. Note the promise, the pillars, 4–6 signature moments (these become the renders and footage shots), and **the twist or ending to keep secret**.
+1. **Gather context. Every claim must trace to a source.** Always read `README`, `scene.json` (`display.title`, `display.description`, `tags`) and skim `src/` for quotable strings: dialogue, intercom/announcer lines, item descriptions, signs. These make the best copy. Voiced lines may exist only as audio files, with their wording in the design notes. Then branch on `design/`:
+   - **`design/gdd.md` or design notes exist** (or `design/promo-brief.md` from an earlier run): read them.
+   - **No design docs**: do not write posts from guesses. Harvest what the repo proves, then get the rest from the creator. If a `dcl-gdd` skill is available, recommend it on its Harvest route with a promotion-only frame (about five minutes; the result is `design/gdd.md`, reusable later). Otherwise run the built-in brief: about six questions, one or two at a time, each with the repo's suggested answer, saved to `design/promo-brief.md`. Questions, handoff frame and template: `{baseDir}/references/promo-brief.md`.
+
+   Note the promise, the pillars, 4–6 signature moments (these become the renders and footage shots), and **the twist or ending to keep secret**.
 2. **Derive the link** from `scene.json`:
    - `worldConfiguration.name` set → `https://decentraland.org/jump/?realm=<name>` (World).
    - otherwise Genesis City → `https://decentraland.org/jump/?position=<x>,<y>` from `scene.base`.
@@ -36,7 +40,7 @@ The kit follows the Decentraland Foundation's marketing package checklist. Walk 
    - **Thumbnail**: file exists, 16:9, under 1 MB, gameplay screenshot with a distinctive logo, text inside the central 1080×1080.
    - **Deployed vs local**: compare with the link-card check above. If they differ, tell the user to redeploy.
    **Propose; don't overwrite.** Ask before changing the live title or description. When the scene is open in the Creator Hub, apply approved changes through its scene settings or the MCP `set_scene_settings` (see **creator-hub-mcp**). Otherwise edit `scene.json`.
-4. **Ask once, briefly** (or state assumptions and go): social handles on every platform they use; published or coming soon (and date if known); what must stay secret; whether inspirations or comparisons (other games, films, memes) may be named. **Default: keep inspirations out of the copy.** If they confirm nothing, use `@yourhandle` and spoiler-free copy.
+4. **Ask once, briefly** (skip anything the brief or GDD interview already answered; or state assumptions and go): social handles on every platform they use; published or coming soon (and date if known); what must stay secret; whether inspirations or comparisons (other games, films, memes) may be named. **Default: keep inspirations out of the copy.** If they confirm nothing, use `@yourhandle` and spoiler-free copy.
 5. **Set up the folder.** Create `promote/` and `promote/tools/`, and add `promote/` to `.dclignore` (next to `design/`) so it is never deployed. Copy the scripts in, so the creator can regenerate without this skill:
    - `{baseDir}/scripts/render_shots.py`, `make_logo.py`, `compose_social.py`, `build_kit.py` → `promote/tools/`
    - `{baseDir}/scripts/kit-template.html` → `promote/index.html` (no edits needed; it reads `kit-data.js`)
@@ -47,11 +51,11 @@ The kit follows the Decentraland Foundation's marketing package checklist. Walk 
 9. **Build the page.** `python3 promote/tools/build_kit.py`, which writes `kit-data.js`, `copy.md` (listing copy first) and `footage-shotlist.md` (which always opens with the Foundation's screenshot and trailer asks) and warns about missing images, bad keys, or a missing or overlong `listing.short`. Screenshot it and look at it:
    `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1400,2200 --virtual-time-budget=3000 --screenshot=<scratch>/kit.png "file://<scene>/promote/index.html"`
 10. **README + cleanup.** Write `promote/README.md`: what each file/folder is, the link, the regenerate commands (in run order), and notes (what could not be rendered, inspirations kept out, asset credits, which marketing-package items are done / in the kit / shot list / missing, and event banners if generated). Delete `promote/images/preview/`.
-11. **Report**: what was generated (counts), the metadata findings and proposed rewrites, what is a placeholder (footage posts, the in-world screenshot, the stills and the trailer all need capture), what could not be rendered and why, the path to `promote/index.html`, then offer the expanded kit.
+11. **Report**: whether a brief or GDD was created this run (point at the file), what was generated (counts), the metadata findings and proposed rewrites, what is a placeholder (footage posts, the in-world screenshot, the stills and the trailer all need capture), what could not be rendered and why, the path to `promote/index.html`, then offer the expanded kit.
 
 ## RULE: No invented facts, no spoilers
 
-- Every post claim (length, mechanics, how many endings, "free", "in your browser") must come from the design docs, the code or the scene. Mark anything uncertain with `[CHECK: …]` in the post text and list it in the report.
+- Every post claim (length, mechanics, how many endings, "free", "in your browser") must come from `design/` (including the promo brief), the repo (code, scene, assets) or the creator's answer in this session. `[agent-decided]` lines in a GDD are not confirmed. Mark anything uncertain with `[CHECK: …]` in the post text and list it in the report.
 - In-game lines are quoted verbatim. Do not polish them.
 - Footage notes and quote cards never show the ending, the correct solution or the final card. Say in the shot-list tips what to keep out of public clips.
 - Inspirations stay separate from the copy unless the owner opts in (the Eeireport kit kept "the Backrooms" out on purpose).
@@ -77,6 +81,7 @@ Anything that is an `AvatarShape` in the scene (NPCs, copies of the player, the 
 
 ## References
 
+- `{baseDir}/references/promo-brief.md`: no design docs → repo harvest, `dcl-gdd` handoff frame, the six-question brief, `design/promo-brief.md` template.
 - `{baseDir}/references/marketing-package.md`: the Decentraland Foundation's marketing package checklist (basics, descriptions, images, extras, trailer) and where each item comes from.
 - `{baseDir}/references/posts-guide.md`: `posts.json` schema, the five kinds, writing rules, footage-note recipe, Eeireport examples.
 - `{baseDir}/references/renders-and-images.md`: Blender render framework, room building, lighting recipes, key art, logo and composition, verification.
