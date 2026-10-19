@@ -26,7 +26,7 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` (or `packag
 
 ## RULE: A custom font is a `.ttf` file in the scene
 
-`fontSrc` is a file path, not a font name. A font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. Get the file first: use the one the user provides, or ask before downloading one (the **sdk-scenes** rule for adding any asset file applies).
+`fontSrc` is a file path, not a font name. Custom fonts are available, but a font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. When the user wants a custom font and the scene has no `.ttf` for it yet, tell them custom fonts are supported and ask them to provide the `.ttf` file (and its licence). Do not fetch one yourself.
 
 The Unity explorer supports nothing else. Every other value silently falls back to `font` there:
 
