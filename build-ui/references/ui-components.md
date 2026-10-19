@@ -79,7 +79,8 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` â€
     fontSize: 18,
     color: Color4.White(),
     textAlign: 'middle-center',
-    font: 'sans-serif'           // 'sans-serif' | 'serif' | 'monospace'
+    font: 'sans-serif',          // 'sans-serif' | 'serif' | 'monospace'; fallback for fontSrc
+    fontSrc: 'assets/fonts/Lobster-Regular.ttf'  // optional scene .ttf, see custom-fonts.md
   }}
 
   uiInputBinding={{ actions: [InputAction.IA_JUMP] }}  // see uiInputBinding below
@@ -103,6 +104,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
   color={Color4.White()}
   textAlign="middle-center"
   font="serif"
+  fontSrc="assets/fonts/Lobster-Regular.ttf"   // optional custom .ttf; `font` is the fallback
   textWrap="wrap"
   uiTransform={{ width: 200, height: 30 }}
 />
@@ -111,6 +113,8 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 **textAlign values:** `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
+
+**fontSrc:** path to a TrueType `.ttf` in the scene (relative to the scene root). Same prop on `Button`, `Input`, `Dropdown`. Ignored on mobile (renders `font`). It shows only after asset bundle conversion, so a plain local preview shows `font`. Not modeled by the UI editor. Full rules: `custom-fonts.md`.
 
 `value` supports simple markup like `<b>`.
 
@@ -166,6 +170,7 @@ Alternatively, a plain `UiEntity` with a `Label` child (or `uiText` in coded UI)
   color={Color4.Black()}
   fontSize={16}
   font="sans-serif"
+  fontSrc="assets/fonts/Lobster-Regular.ttf"          // optional, see custom-fonts.md
   textAlign="middle-left"
   disabled={false}
   uiTransform={{ width: 250, height: 40 }}           // also accepts borderWidth/borderColor/borderRadius
@@ -190,6 +195,7 @@ Alternatively, a plain `UiEntity` with a `Label` child (or `uiText` in coded UI)
   fontSize={14}
   color={Color4.Black()}
   font="sans-serif"
+  fontSrc="assets/fonts/Lobster-Regular.ttf"          // optional, see custom-fonts.md
   textAlign="middle-left"
   uiTransform={{ width: 200, height: 40 }}            // also accepts borderWidth/borderColor/borderRadius
   uiBackground={{ color: Color4.Teal() }}
