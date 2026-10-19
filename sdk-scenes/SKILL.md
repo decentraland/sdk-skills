@@ -188,6 +188,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
+### Promotion & Marketing Kit
+
+**Skill: `promote-scene`** — Social-media marketing kit for a finished or upcoming scene: X/Instagram posts written from the design docs and in-game lines, logo/wordmark/icon, Blender hero renders of the scene's own GLBs, key art, quote cards, footage shot list, and an offline HTML kit page to copy/download everything. Not for deploying or for the scene thumbnail alone.
+
 ### Reporting SDK Issues
 
 **Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.
