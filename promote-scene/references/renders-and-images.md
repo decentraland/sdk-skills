@@ -4,21 +4,25 @@ All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacO
 
 ## Render framework (`promote/tools/render_shots.py`)
 
-| Command | Output | Settings |
-|---|---|---|
-| `$B -b -P promote/tools/render_shots.py -- preview [shot …]` | `images/preview/<shot>.png` | 480 px, 12 samples (seconds per shot) |
-| `$B -b -P promote/tools/render_shots.py -- final [shot …]` | `images/renders/<shot>.png` | 1600 px square, 128 samples |
-| `$B -b -P promote/tools/render_shots.py -- keyart preview` | `images/preview/<KEYART_SHOT>_<w>x<h>.png` | ¼ size, 12 samples |
-| `$B -b -P promote/tools/render_shots.py -- keyart` | `images/keyart/<KEYART_SHOT>_<w>x<h>.png` | `KEYART_SIZES`, 160 samples |
+| Command                                                      | Output                                     | Settings                              |
+| ------------------------------------------------------------ | ------------------------------------------ | ------------------------------------- |
+| `$B -b -P promote/tools/render_shots.py -- preview [shot …]` | `images/preview/<shot>.png`                | 480 px, 12 samples (seconds per shot) |
+| `$B -b -P promote/tools/render_shots.py -- final [shot …]`   | `images/renders/<shot>.png`                | 1600 px square, 128 samples           |
+| `$B -b -P promote/tools/render_shots.py -- keyart preview`   | `images/preview/<KEYART_SHOT>_<w>x<h>.png` | ¼ size, 12 samples                    |
+| `$B -b -P promote/tools/render_shots.py -- keyart`           | `images/keyart/<KEYART_SHOT>_<w>x<h>.png`  | `KEYART_SIZES`, 160 samples           |
 
-Measured on Apple Silicon (Metal + CPU): 2 previews in 8 s; 2 finals + 2 key-art sizes in about 4 min.
+Measured on Apple Silicon (Metal + CPU)
+
+The whole-interior case is the common one for Creator Hub scenes (one big GLB, the scene's own lamp rig reproduced). Plan on 2–3 minutes per final and split the pass into one or two shots per command, or background it. Two Blender processes (finals and key art) ran side by side without trouble. Each `RENDERED` line reports its seconds, so time the first final before launching the rest.
 
 Helpers (edit only the per-scene settings and the `SHOTS` section):
+
 - `reset(aspect=1.0, exposure=-0.7)`: factory-empty scene, Cycles with denoising, AgX "High Contrast", near-black world. Tries `prefs.compute_device_type = 'METAL'`, enables every device and silently falls back to CPU.
 - `haze(density)`: world volume scatter for visible light shafts. Use 0.02 for subtle, 0.05–0.07 for thick.
 - `load(path, at, rot=0, scale=1, align_long_x=False, anchor='bottom')`: imports a GLB under an empty and **normalises it by its world bounding box**, so its footprint centre sits at `at` on the floor whatever the GLB's origin is. `align_long_x` first turns long pieces (walls, benches, counters) so they run along X. Relative paths resolve under `MODELS` (`assets/Models`). Absolute paths work for asset-pack items elsewhere in `assets/`.
 - `room(floor, wall, ceiling, tile=8, back_y, centre_wall, ceiling_z=6)`: 3×3 floor tiles at −tile/0/+tile, a three-piece back wall, an optional ceiling row.
 - `light_area`, `light_point`, `camera(target, az, el, dist, lens, fstop)`, `text(...)` (emissive 3D text for boards and signs the scene fills at runtime), `render(name)`.
+- Blender 5.1 prints a `DeprecationWarning` for `Material.use_nodes` from `text()`. It is harmless until Blender 6.
 - Blender coordinates: X right, Y away from the camera at `az=0`, Z up. These are not DCL axes, which does not matter here because nothing goes back to the scene.
 
 ## Building a shot
@@ -34,7 +38,7 @@ Helpers (edit only the per-scene settings and the `SHOTS` section):
 
 - **Fluorescent overhead**: `light_area((0,0,5.9), energy=300–750, size=(7,0.6))`, warm white.
 - **One coloured accent**: a red or green `light_point` (energy 120–900) off to one side, or at a doorway. One accent per shot.
-- **Silhouette**: a strong `light_area` *behind* a doorway, facing the camera (`rot=(radians(90),0,0)`, energy ~2000–4000, size 6×5), plus haze. A low-poly creature reads as a clean, scary shape. Lit from the front it looks like a low-poly model.
+- **Silhouette**: a strong `light_area` _behind_ a doorway, facing the camera (`rot=(radians(90),0,0)`, energy ~2000–4000, size 6×5), plus haze. A low-poly creature reads as a clean, scary shape. Lit from the front it looks like a low-poly model.
 - **Cold transit**: blue points (0.35, 0.55, 1.0) down a corridor, a bright warm area light at the far end.
 - **Darker look**: lower `exposure` in `reset()`. Prefer this to removing lights.
 

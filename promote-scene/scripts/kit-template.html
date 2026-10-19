@@ -51,7 +51,7 @@
   .actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px 14px; }
   .note { margin: 0 14px 12px; padding: 10px 12px; border-left: 3px solid #6cc3ff; background: #0f1a22; border-radius: 6px; font-size: 13px; color: #cfe6f5; }
   .note b { color: #6cc3ff; }
-  .meta { font-size: 12px; color: var(--muted); padding: 0 14px 10px; }
+  .meta { font-size: 12px; color: var(--muted); padding: 0 14px 10px; line-height: 1.6; }
   mark { background: #4a3a00; color: var(--amber); padding: 0 3px; border-radius: 3px; }
 
   /* ---- X mockup */
@@ -231,6 +231,14 @@ function mockup(p, text) {
     <div class="cap"><b>${esc(igUser())}</b>${decorate(text)}</div></div>`;
 }
 
+function metaHtml(img, t) {
+  const n = xlen(t);
+  const chars = `${n} characters${n > 280 ? ' <span class="missing">(over the 280 limit on X)</span>' : ''}`;
+  const file = !img ? '—'
+    : img.missing ? `<code>${esc(img.file)}</code> <span class="missing">(file not generated yet)</span>`
+    : `<a href="${esc(img.file)}" target="_blank" rel="noopener">${esc(img.file)}</a>`;
+  return `<div>${chars}</div><div>${file}</div>`;
+}
 function renderFilters() {
   const f = document.getElementById('filters');
   f.innerHTML = Object.entries(KINDS).map(([k, label]) => {
@@ -259,14 +267,13 @@ function renderPosts() {
       <div class="head"><span class="kind ${p.kind}">${KINDS[p.kind]}</span><b>${esc(p.title)}</b>${p.platform ? `<span class="meta" style="padding:0;margin-left:auto">best on ${p.platform === 'ig' ? 'Instagram' : 'X'}</span>` : ''}</div>
       <div class="preview">${mockup(p, text)}</div>
       ${p.footage ? `<div class="note"><b>What to show:</b> ${esc(p.footage)}</div>` : ''}
-      <div class="editor"><label>Post text (editable; hashtags and the link are added on copy according to the toggles above)</label>
+      <div class="editor"><label>Edit text</label>
         <textarea class="text" spellcheck="false">${esc(raw)}</textarea></div>
-      <div class="meta">Image: <code>${img ? esc(img.file) : '—'}</code>${img && img.missing ? ' <span class="missing">(file not generated yet)</span>' : ''} · ${xlen(text)} characters for X${xlen(text) > 280 ? ' <span class="missing">(over 280)</span>' : ''}</div>
+      <div class="meta">${metaHtml(img, text)}</div>
       <div class="actions">
         <button class="btn primary" data-a="copy">Copy text</button>
         <button class="btn" data-a="copyimg">Copy image</button>
         <button class="btn" data-a="download">Download image</button>
-        <button class="btn" data-a="alt">Copy alt text</button>
         <button class="btn" data-a="reset" title="Restore the original wording">Reset</button>
       </div>`;
     const ta = card.querySelector('textarea');
@@ -274,12 +281,12 @@ function renderPosts() {
       edits[p.id] = ta.value;
       const t = fullText(p, ta.value);
       card.querySelector('.preview').innerHTML = mockup(p, t);
-      card.querySelector('.meta').innerHTML = `Image: <code>${img ? esc(img.file) : '—'}</code> · ${xlen(t)} characters for X${xlen(t) > 280 ? ' <span class="missing">(over 280)</span>' : ''}`;
+      card.querySelector('.meta').innerHTML = metaHtml(img, t);
     });
+    // Copies the text as currently shown in the preview: the textarea's live value plus link/hashtags per the toggles.
     card.querySelector('[data-a=copy]').onclick = () => copyText(fullText(p, ta.value), 'Post text copied');
     card.querySelector('[data-a=copyimg]').onclick = () => copyImage(key);
     card.querySelector('[data-a=download]').onclick = () => download(key);
-    card.querySelector('[data-a=alt]').onclick = () => copyText(img && img.alt || '', 'Alt text copied');
     card.querySelector('[data-a=reset]').onclick = () => { delete edits[p.id]; ta.value = p.text; ta.dispatchEvent(new Event('input')); };
     root.appendChild(card);
   }

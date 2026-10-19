@@ -18,7 +18,7 @@
 | `keyart_logo_y` | number 0.25–0.75 | compose | Vertical centre of the wordmark on key art (default 0.42). |
 | `x_header_logo` | `"left"` \| `"right"` | compose | Side of the X header the wordmark goes on (default left). |
 | `quote_cards` | `[{id, render, line}]` | compose | `line` uses `\n` for breaks (~28 characters per line at 1080 px). `id` becomes `images/social/<id>.png`. |
-| `images` | `{key: {file, alt}}` | page, copy.md | Every image a post can reference. `file` is relative to `promote/`. `alt` is required (Copy alt text). |
+| `images` | `{key: {file, alt}}` | page, copy.md | Every image a post can reference. `file` is relative to `promote/`. `alt` is the accessibility text on the mockup image. |
 | `shotlist_tips` | string[] | page, shot list | 4–7 practical recording tips specific to this scene. |
 | `posts` | Post[] | page, copy.md | See below. |
 

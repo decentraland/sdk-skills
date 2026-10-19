@@ -8,7 +8,9 @@
 #   $B -b -P promote/tools/render_shots.py -- keyart               # KEYART_SHOT at KEYART_SIZES -> promote/images/keyart/
 #
 # Always run the preview modes first and look at every PNG before the final pass.
-import bpy, math, sys, os
+# Finals take 1-3 min each (whole-interior scenes are at the slow end): render them one or two shots
+# per command, or in the background, so a shell timeout does not kill the batch half-way.
+import bpy, math, sys, os, time
 from mathutils import Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # scene root
@@ -180,12 +182,14 @@ def render(name):
         for w, h in KEYART_SIZES:
             scn.render.resolution_x, scn.render.resolution_y = (w // 4, h // 4) if DRAFT else (w, h)
             scn.render.filepath = OUT + '%s_%dx%d.png' % (name, w, h)
+            t0 = time.time()
             bpy.ops.render.render(write_still=True)
-            print('RENDERED', scn.render.filepath)
+            print('RENDERED %s (%.0f s)' % (scn.render.filepath, time.time() - t0))
         return
     scn.render.filepath = OUT + name + '.png'
+    t0 = time.time()
     bpy.ops.render.render(write_still=True)
-    print('RENDERED', scn.render.filepath)
+    print('RENDERED %s (%.0f s)' % (scn.render.filepath, time.time() - t0))
 
 
 # ------------------------------------------------------------------ SHOTS (rewrite per scene)
