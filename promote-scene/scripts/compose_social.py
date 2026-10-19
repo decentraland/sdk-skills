@@ -6,7 +6,8 @@
 #       so a single good image (e.g. the scene's own thumbnail, if it has no text) is enough.
 #   "quote_cards": [{"id": "quote_forever", "render": "images/renders/hero.png", "line": "Line one.\nLine two."}]
 #   "brand": {"text", "accent", "font_small", "quote_tag"}   (see make_logo.py)
-#   "keyart_logo_y": 0.42      vertical centre of the wordmark as a fraction of the height (0.25-0.75).
+#   "keyart_logo_y": 0.42      vertical centre of the wordmark as a fraction of the height (0.12-0.9; past 0.25-0.75 only when
+#                              the subject fills the middle, e.g. a wordmark on the ground band under a tall subject).
 #                              Move it off the subject: a logo across the creature/hero ruins the shot.
 #   "x_header_logo": "left"    side of the X header the wordmark goes on; pick the side without the subject.
 #   "event_banners": false     true (or run with --events) also writes the Foundation's optional event-page
@@ -76,7 +77,7 @@ first = next(iter(sources.values()), None)
 LOGO_Y = KIT.get('keyart_logo_y', 0.42)
 LAYOUT = {'1920x1080': 0.58, '1080x1080': 0.80, '1080x1350': 0.80, '1080x1920': 0.84}   # logo width fraction
 for size, frac in LAYOUT.items():
-    ypos = min(max(LOGO_Y, 0.25), 0.75)
+    ypos = min(max(LOGO_Y, 0.12), 0.9)
     src = sources.get(size) or (first if size in ('1920x1080', '1080x1080') else None)
     if not src:
         continue
@@ -114,7 +115,7 @@ if EVENT_BANNERS:
     for w, h, src, frac in ((1340, 670, land, 0.58), (716, 1814, square, 0.84)):
         if not src or not os.path.exists(os.path.join(P, src)):
             print('missing key-art source for event banner %dx%d' % (w, h)); continue
-        ypos = min(max(KIT.get('keyart_logo_y', 0.42), 0.25), 0.75)
+        ypos = min(max(KIT.get('keyart_logo_y', 0.42), 0.12), 0.9)
         save_capped(with_logo(cover(Image.open(os.path.join(P, src)).convert('RGBA'), w, h), frac, ypos),
                     'event_%dx%d.jpg' % (w, h))
 

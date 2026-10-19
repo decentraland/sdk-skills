@@ -10,6 +10,8 @@ All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacO
 | `$B -b -P promote/tools/render_shots.py -- final [shot …]`   | `images/renders/<shot>.png`                | 1600 px square, 128 samples           |
 | `$B -b -P promote/tools/render_shots.py -- keyart preview`   | `images/preview/<KEYART_SHOT>_<w>x<h>.png` | ¼ size, 12 samples                    |
 | `$B -b -P promote/tools/render_shots.py -- keyart`           | `images/keyart/<KEYART_SHOT>_<w>x<h>.png`  | `KEYART_SIZES`, 160 samples           |
+| `$B -b -P promote/tools/render_shots.py -- clip preview <shot>` | `images/preview/<shot>_clip.mp4`      | 640×360, EEVEE, `CLIP_SECONDS` (6 s) at 30 fps |
+| `$B -b -P promote/tools/render_shots.py -- clip <shot …>`    | `clips/<shot>.mp4`                         | 1920×1080, EEVEE 48 samples, same length; opt-in, for post videos only (`{baseDir}/references/video-posts.md`) |
 
 Measured on Apple Silicon (Metal + CPU)
 
@@ -22,11 +24,13 @@ Helpers (edit only the per-scene settings and the `SHOTS` section):
 - `load(path, at, rot=0, scale=1, align_long_x=False, anchor='bottom')`: imports a GLB under an empty and **normalises it by its world bounding box**, so its footprint centre sits at `at` on the floor whatever the GLB's origin is. `align_long_x` first turns long pieces (walls, benches, counters) so they run along X. Relative paths resolve under `MODELS` (`assets/Models`). Absolute paths work for asset-pack items elsewhere in `assets/`.
 - `room(floor, wall, ceiling, tile=8, back_y, centre_wall, ceiling_z=6)`: 3×3 floor tiles at −tile/0/+tile, a three-piece back wall, an optional ceiling row.
 - `light_area`, `light_point`, `camera(target, az, el, dist, lens, fstop)`, `text(...)` (emissive 3D text for boards and signs the scene fills at runtime), `render(name)`.
+- **Clip mode** reuses the same shot function unchanged: `reset()` switches to EEVEE and a 16:9 frame, `camera()` remembers its pose, and `render()` keyframes that camera from the pose to pose + `CLIP_MOVE` (`dolly` as a fraction of `dist`, `orbit` and `rise` in degrees; per-shot overrides in `CLIP_MOVES`) and writes H.264 through Blender's own encoder (`media_type = 'VIDEO'` on Blender 5). Cycles-only tricks still work (EEVEE reads the same materials and lights, world volume haze included), but a mix-shader glass rebuilt for Cycles may look different: preview first.
 - Blender 5.1 prints a `DeprecationWarning` for `Material.use_nodes` from `text()`. It is harmless until Blender 6.
 - Blender coordinates: X right, Y away from the camera at `az=0`, Z up. These are not DCL axes, which does not matter here because nothing goes back to the scene.
 
 ## Building a shot
 
+0. **Reuse the scene's own render tooling first.** Some projects ship a Blender kit with a preview or hero renderer (The Horseman's Night: `tools/blender/kit/render_preview.py` with ready-made vignettes, island layouts, rigged characters, lights per model and a night sky; `render_hero.py` builds its thumbnail). Import those modules from `promote/tools/render_shots.py` (`sys.path.insert(0, <kit dir>)`), keep this script's modes, `camera()` pose, `render()` and the clip animation, and compose shots from the kit's vignettes. That run went from an empty folder to eight previewed shots in about 15 minutes, with the game's exact look. Watch for moved sources: that kit loaded `.gltf` from a folder that no longer existed, and its tinted models only had textures in the packed `.glb`, so the promote script loads `assets/models/<name>.glb` instead (magenta models in a preview mean a missing texture).
 1. **One shot per signature moment** from the design (the creature, the key checkpoint, the shop, the big set piece, one intimate detail). 4–6 by default.
 2. **Build a small room from the scene's own kit pieces** (floor tiles, walls, a lit ceiling) so the render looks like the game. Props on a void look like an asset store.
 3. **Centre a floor tile on the origin** (the 3×3 grid at −8/0/+8 for 8 m tiles). An even grid puts a tile seam through the middle of every shot.

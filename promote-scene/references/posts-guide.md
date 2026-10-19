@@ -15,7 +15,7 @@
 | `hashtags` | `{core: string[], extra: string[]}` | page, copy.md | core ≈ 3 tags, extra ≈ 4–6. |
 | `brand` | object | logo, compose, page | `text`, `ink`, `accent` (hex); `font`, `font_small` (absolute .ttf paths); optional `wordmark` (override text), `icon_text` (1–3 chars, default the initial), `icon_top`, `icon_bottom`, `quote_tag` (small accent label on quote cards). |
 | `keyart` | `{"<w>x<h>": path}` | compose | Text-free plates relative to `promote/`. Missing sizes are centre-cropped from the first entry. |
-| `keyart_logo_y` | number 0.25–0.75 | compose | Vertical centre of the wordmark on key art (default 0.42). |
+| `keyart_logo_y` | number 0.12–0.9 | compose | Vertical centre of the wordmark on key art (default 0.42). Stay within 0.25–0.75 unless the subject fills the middle; a band near 0.9 (the ground) or 0.15 (the sky) is the fallback for a tall centred subject. |
 | `x_header_logo` | `"left"` \| `"right"` | compose | Side of the X header the wordmark goes on (default left). |
 | `quote_cards` | `[{id, render, line}]` | compose | `line` uses `\n` for breaks (~28 characters per line at 1080 px). `id` becomes `images/social/<id>.png`. |
 | `images` | `{key: {file, alt}}` | page, copy.md | Every image a post can reference. `file` is relative to `promote/`. `alt` is the accessibility text on the mockup image. |
@@ -28,6 +28,7 @@ Post: `{id, kind, title, text, image, ig_image?, footage?, cta?, platform?}`
 - `footage`: **required on `footage` posts**. It is a concrete "what to show" note (see recipe).
 - `platform`: `"ig"` or `"x"` marks a post written for one platform (e.g. a long Instagram caption).
 - Placeholders in `text`: `{LINK}` (filled from `link`), `{N}`, `{DATE}` (the creator fills these), `[FOOTAGE]` (where the clip goes).
+- `video` (optional): `"videos/<file>.mp4"` relative to `promote/`. Normally unnecessary: `build_kit.py` finds `videos/<id>.mp4` and `videos/<id>-9x16.mp4` by the post id. Videos exist only when the creator asked for that post's video (`{baseDir}/references/video-posts.md`); the first run writes none. A `videos/<id>.rendering` marker (written while that video is being made) shows a spinner on the card.
 
 ## Profile / listing copy (`listing`)
 
@@ -40,7 +41,7 @@ The Foundation's marketing package asks for exactly two descriptions (see `{base
 
 - **launch (4)**: needs `{LINK}`. One post each for the promise, a signature character or mechanic, what the game is (length, how you play, "free, in your browser"), and one with a different angle (bring a friend, a single-line joke).
 - **soon (4)**: no link. A teaser line from the game, a mood post, one `{N}` / `{DATE}` countdown template on the logo lockup, and one aimed at the genre audience.
-- **footage (4–5)**: a short caption plus `[FOOTAGE]`. The `image` is the closest render, shown behind the "insert footage" slot. One footage post can be a ~30-second trailer cut with a timed shot order.
+- **footage (4–5)**: a short caption plus `[FOOTAGE]`. The `image` is the closest render, shown behind the "insert footage" slot. One footage post can be a ~30-second trailer cut with a timed shot order. Write the `footage` note so that a video could be cut from it later: a length in seconds ("6 to 8 seconds"), and "vertical reel" when a 9:16 cut makes sense, because the page's **Copy video prompt** reads both from the note.
 - **quote (3)**: one verbatim in-game line per post, each with a matching quote card in `quote_cards`.
 - **bts (2)**: how it was made: the jam or origin, one technical or design detail that is genuinely interesting. Hashtags like `#gamedev` may sit inline here.
 

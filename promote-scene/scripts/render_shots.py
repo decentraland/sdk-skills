@@ -6,8 +6,13 @@
 #   $B -b -P promote/tools/render_shots.py -- final   [shot ...]   # 1600 px, 128 samples -> promote/images/renders/
 #   $B -b -P promote/tools/render_shots.py -- keyart preview       # same at 1/4 size, 12 samples -> promote/images/preview/
 #   $B -b -P promote/tools/render_shots.py -- keyart               # KEYART_SHOT at KEYART_SIZES -> promote/images/keyart/
+#   $B -b -P promote/tools/render_shots.py -- clip preview shot    # 640x360 EEVEE camera move -> promote/images/preview/<shot>_clip.mp4
+#   $B -b -P promote/tools/render_shots.py -- clip shot [shot ...] # 1920x1080 EEVEE, CLIP_SECONDS long -> promote/clips/<shot>.mp4
 #
 # Always run the preview modes first and look at every PNG before the final pass.
+# Clips are only made on request, for a post video (see the skill's references/video-posts.md): the same
+# shot, 16:9, with a slow camera move (CLIP_MOVE / CLIP_MOVES) rendered in EEVEE at CLIP_FPS. Nothing in
+# the scene animates: no avatars, no runtime effects. A 6 s 1080p clip took about 2 minutes on Apple Silicon.
 # Finals take 1-3 min each (whole-interior scenes are at the slow end): render them one or two shots
 # per command, or in the background, so a shell timeout does not kill the batch half-way.
 import bpy, math, sys, os, time
@@ -21,36 +26,54 @@ MODELS = os.path.join(ROOT, 'assets', 'Models')   # relative GLB paths in load()
 KEYART_SHOT = 'hero'                              # the shot re-rendered for key art (no text in it)
 KEYART_SIZES = [(1920, 1080), (1080, 1080)]       # expanded kit: add (1080, 1350), (1080, 1920)
 MONO = '/System/Library/Fonts/Supplemental/Courier New Bold.ttf'   # for in-scene 3D text (signs, boards)
+CLIP_SECONDS = 6                                  # length of every -- clip
+CLIP_FPS = 30                                     # matches the Remotion project in promote/video/
+CLIP_SAMPLES = 16                                 # EEVEE TAA samples per frame; 48 looked no better and cost 3x
+CLIP_MOVE = dict(dolly=-0.10, orbit=4.0, rise=0.0)   # default move: push in 10 % of dist, orbit 4 deg, no rise
+CLIP_MOVES = {}                                   # per-shot overrides, e.g. {'hero': dict(orbit=12, dolly=0)}
 
 # ------------------------------------------------------------------ mode
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 MODE = argv[0] if argv else 'preview'
-DRAFT = MODE == 'preview' or (MODE == 'keyart' and 'preview' in argv[1:])
-ONLY = [KEYART_SHOT] if MODE == 'keyart' else argv[1:]
-OUT = os.path.join(P, 'images', 'preview' if DRAFT else {'final': 'renders', 'keyart': 'keyart'}[MODE]) + '/'
+DRAFT = MODE == 'preview' or (MODE in ('keyart', 'clip') and 'preview' in argv[1:])
+ONLY = [KEYART_SHOT] if MODE == 'keyart' else [a for a in argv[1:] if a != 'preview']
+OUT = os.path.join(P, 'images', 'preview') + '/' if DRAFT else (
+    os.path.join(P, 'clips') + '/' if MODE == 'clip' else os.path.join(P, 'images', {'final': 'renders', 'keyart': 'keyart'}[MODE]) + '/')
 os.makedirs(OUT, exist_ok=True)
-RES = 480 if DRAFT else 1600
+RES = (360 if DRAFT else 1080) if MODE == 'clip' else (480 if DRAFT else 1600)
 SAMPLES = 12 if DRAFT else (160 if MODE == 'keyart' else 128)
+CAM = {}   # the last camera() call, so clip mode can animate it
 
 
 # ------------------------------------------------------------------ helpers
 def reset(aspect=1.0, exposure=-0.7):
-    """Empty Cycles scene, AgX High Contrast, near-black world. aspect = width / height."""
+    """Empty Cycles scene, AgX High Contrast, near-black world. aspect = width / height.
+    In clip mode the engine is EEVEE and the frame is always 16:9 (the aspect argument is ignored)."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scn = bpy.context.scene
-    scn.render.engine = 'CYCLES'
-    scn.cycles.samples = SAMPLES
-    scn.cycles.use_denoising = True
-    try:  # Apple Silicon GPU; falls back to CPU silently
-        prefs = bpy.context.preferences.addons['cycles'].preferences
-        prefs.compute_device_type = 'METAL'
-        prefs.get_devices()
-        for d in prefs.devices:
-            d.use = True
-        scn.cycles.device = 'GPU'
-    except Exception as ex:
-        print('GPU setup failed, using CPU:', ex)
-    scn.render.resolution_x = int(RES * aspect)
+    if MODE == 'clip':
+        aspect = 16 / 9
+        scn.render.engine = 'BLENDER_EEVEE'
+        scn.eevee.taa_render_samples = 8 if DRAFT else CLIP_SAMPLES
+        scn.eevee.use_raytracing = True
+        scn.eevee.use_shadows = True
+        scn.eevee.shadow_pool_size = '1024'   # a whole interior with many point lights overflows the 512 MB default
+        scn.render.fps = CLIP_FPS
+        scn.frame_start, scn.frame_end = 1, int(CLIP_SECONDS * CLIP_FPS)
+    else:
+        scn.render.engine = 'CYCLES'
+        scn.cycles.samples = SAMPLES
+        scn.cycles.use_denoising = True
+        try:  # Apple Silicon GPU; falls back to CPU silently
+            prefs = bpy.context.preferences.addons['cycles'].preferences
+            prefs.compute_device_type = 'METAL'
+            prefs.get_devices()
+            for d in prefs.devices:
+                d.use = True
+            scn.cycles.device = 'GPU'
+        except Exception as ex:
+            print('GPU setup failed, using CPU:', ex)
+    scn.render.resolution_x = int(round(RES * aspect))
     scn.render.resolution_y = RES
     scn.view_settings.view_transform = 'AgX'
     scn.view_settings.look = 'AgX - High Contrast'
@@ -144,20 +167,27 @@ def light_point(loc, energy=600, color=(1, 0.1, 0.06), radius=0.8):
     return bpy.context.active_object
 
 
-def camera(target, az=0, el=12, dist=6.0, lens=40, fstop=4.0, focus=None):
-    """Camera looking at `target`. az=0 looks along +Y from the -Y side; positive az orbits
-    counter-clockwise seen from above. el in degrees above the target. DOF focused on the target."""
+def _pose(target, az, el, dist):
     az_r, el_r = math.radians(az), math.radians(el)
     d = Vector((math.cos(el_r) * math.sin(az_r), -math.cos(el_r) * math.cos(az_r), math.sin(el_r)))
     pos = Vector(target) + d * dist
+    return pos, (Vector(target) - pos).to_track_quat('-Z', 'Y').to_euler()
+
+
+def camera(target, az=0, el=12, dist=6.0, lens=40, fstop=4.0, focus=None):
+    """Camera looking at `target`. az=0 looks along +Y from the -Y side; positive az orbits
+    counter-clockwise seen from above. el in degrees above the target. DOF focused on the target.
+    Clip mode animates this camera along CLIP_MOVE from the pose given here."""
+    pos, rot = _pose(target, az, el, dist)
     bpy.ops.object.camera_add(location=pos)
     cam = bpy.context.active_object
-    cam.rotation_euler = (Vector(target) - pos).to_track_quat('-Z', 'Y').to_euler()
+    cam.rotation_euler = rot
     cam.data.lens = lens
     cam.data.dof.use_dof = True
     cam.data.dof.focus_distance = focus or dist
     cam.data.dof.aperture_fstop = fstop
     bpy.context.scene.camera = cam
+    CAM.update(obj=cam, target=Vector(target), az=az, el=el, dist=dist, focus=focus)
     return cam
 
 
@@ -176,8 +206,45 @@ def text(body, at, size=0.5, color=(1, 0.6, 0.1), emit=6.0, font=MONO, rot=(90, 
     return t
 
 
+def render_clip(name):
+    """Keyframe the shot's camera from its pose to pose + CLIP_MOVE and render CLIP_SECONDS of H.264."""
+    scn = bpy.context.scene
+    cam, mv = CAM['obj'], {**CLIP_MOVE, **CLIP_MOVES.get(name, {})}
+    n = scn.frame_end
+    for frame, k in ((1, 0.0), (n, 1.0)):
+        dist = CAM['dist'] * (1 + mv['dolly'] * k)
+        pos, rot = _pose(CAM['target'], CAM['az'] + mv['orbit'] * k, CAM['el'] + mv['rise'] * k, dist)
+        cam.location, cam.rotation_euler = pos, rot
+        cam.data.dof.focus_distance = (CAM['focus'] or CAM['dist']) * dist / CAM['dist']
+        cam.keyframe_insert('location', frame=frame)
+        cam.keyframe_insert('rotation_euler', frame=frame)
+        cam.data.dof.keyframe_insert('focus_distance', frame=frame)
+    scn.frame_set(1)
+    if hasattr(scn.render.image_settings, 'media_type'):   # Blender 5+
+        scn.render.image_settings.media_type = 'VIDEO'
+    scn.render.image_settings.file_format = 'FFMPEG'
+    scn.render.ffmpeg.format = 'MPEG4'
+    scn.render.ffmpeg.codec = 'H264'
+    scn.render.ffmpeg.constant_rate_factor = 'HIGH'
+    scn.render.ffmpeg.gopsize = CLIP_FPS
+    scn.render.use_file_extension = True
+    suffix = '_clip' if DRAFT else ''
+    scn.render.filepath = OUT + name + suffix + '.mp4'
+    t0 = time.time()
+    bpy.ops.render.render(animation=True)
+    # Blender may append the frame range to a movie file name; normalise to <name>.mp4.
+    made = [f for f in os.listdir(OUT) if f.startswith(name + suffix) and f.endswith('.mp4')]
+    for f in made:
+        if f != name + suffix + '.mp4':
+            os.replace(OUT + f, OUT + name + suffix + '.mp4')
+    print('RENDERED %s (%.0f s, %d frames at %dx%d)' % (OUT + name + suffix + '.mp4', time.time() - t0, n,
+                                                       scn.render.resolution_x, scn.render.resolution_y))
+
+
 def render(name):
     scn = bpy.context.scene
+    if MODE == 'clip':
+        return render_clip(name)
     if MODE == 'keyart':
         for w, h in KEYART_SIZES:
             scn.render.resolution_x, scn.render.resolution_y = (w // 4, h // 4) if DRAFT else (w, h)

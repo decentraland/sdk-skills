@@ -34,8 +34,8 @@ All PNG or JPG. The key visual must stay readable when shrunk to a phone-sized c
 
 ## Trailer (optional, under 30 s)
 
-- [ ] Horizontal 16:9, 1920×1080, under 30 s, with in-experience footage of **people in motion in the first three seconds** → **shot list**.
-- [ ] Vertical cut, 9:16, 1080×1920, under 30 s → **shot list**.
-- [ ] On-screen text or captions, so it works with the sound off → **shot list**.
+- [ ] Horizontal 16:9, 1920×1080, under 30 s, with in-experience footage of **people in motion in the first three seconds** → **shot list** (or, on request, the kit's trailer-cut video from the creator's recordings: `{baseDir}/references/video-posts.md`; only a real recording can satisfy the first-three-seconds rule).
+- [ ] Vertical cut, 9:16, 1080×1920, under 30 s → **shot list** (or `videos/<post id>-9x16.mp4` from the same request).
+- [ ] On-screen text or captions, so it works with the sound off → **shot list** (kit videos always carry captions).
 
 The screenshot and trailer items are default `shotlist_tips` in `build_kit.py`, so they always land in `footage-shotlist.md` and on the kit page.
