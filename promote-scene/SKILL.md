@@ -36,7 +36,7 @@ The kit follows the Decentraland Foundation's marketing package checklist. Walk 
 3. **Check the scene metadata against the Foundation's recommendations.** Read `scene.json` `display.title`, `display.description`, `tags` and `display.navmapThumbnail`. Field rules, the valid tag list and the thumbnail spec are in **deploy-scene** (pre-deploy checklist and "Thumbnail image"). Do not re-derive them here. Check:
    - **Description**: ~140 characters / 1–3 sentences saying what the player *does*. If it is missing, too long, or only sets a mood, propose a rewrite. That rewrite is usually `listing.short`.
    - **Tags**: 1–3 valid tags, including `"game"` when it is a game.
-   - **Title**: present. Flag possible IP problems (a known franchise, an existing game's name). Never claim a trademark or name check passed.
+   - **Title**: present. Flag possible IP problems (a known franchise, an existing game's name, a brand). Never claim a trademark or name check passed. Rights and brand rules: `{baseDir}/references/brand-and-ip.md`.
    - **Thumbnail**: file exists, 16:9, under 1 MB, gameplay screenshot with a distinctive logo, text inside the central 1080×1080.
    - **Deployed vs local**: compare with the link-card check above. If they differ, tell the user to redeploy.
    **Propose; don't overwrite.** Ask before changing the live title or description. When the scene is open in the Creator Hub, apply approved changes through its scene settings or the MCP `set_scene_settings` (see **creator-hub-mcp**). Otherwise edit `scene.json`.
@@ -51,7 +51,7 @@ The kit follows the Decentraland Foundation's marketing package checklist. Walk 
 8. **Logo + composition.** `python3 promote/tools/make_logo.py` (quick and independent of the renders, so it can run before them), then `python3 promote/tools/compose_social.py` once the renders and key art exist. Read the outputs. The logo must not cover the subject (`keyart_logo_y`, `x_header_logo`), and quote lines must fit. If the creator mentioned events, set `"event_banners": true` (or pass `--events`) for the Foundation's event-page banners.
 9. **Build the page.** `python3 promote/tools/build_kit.py`, which writes `kit-data.js`, `copy.md` (listing copy first) and `footage-shotlist.md` (which always opens with the Foundation's screenshot and trailer asks) and warns about missing images, bad keys, or a missing or overlong `listing.short`. Screenshot it and look at it:
    `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars --window-size=1400,2200 --virtual-time-budget=3000 --screenshot=<scratch>/kit.png "file://<scene>/promote/index.html"`
-10. **README + cleanup.** Write `promote/README.md` **last, and only after the files it describes exist**: run `find promote -type f | sort` and check it against `images/renders/`, `images/keyart/`, `images/social/`, `logo/`, `kit-data.js`, `copy.md` and `footage-shotlist.md` before describing them, and make sure `build_kit.py` ran without missing-image warnings. A README that lists stills the render pass never produced reads as a finished kit to the creator. Contents: what each file/folder is, the link, the regenerate commands (in run order), and notes (what could not be rendered, inspirations kept out, asset credits, which marketing-package items are done / in the kit / shot list / missing, and event banners if generated). Delete `promote/images/preview/`.
+10. **README + cleanup.** Write `promote/README.md` **last, and only after the files it describes exist**: run `find promote -type f | sort` and check it against `images/renders/`, `images/keyart/`, `images/social/`, `logo/`, `kit-data.js`, `copy.md` and `footage-shotlist.md` before describing them, and make sure `build_kit.py` ran without missing-image warnings. A README that lists stills the render pass never produced reads as a finished kit to the creator. Contents: what each file/folder is, the link, the regenerate commands (in run order), and notes (what could not be rendered, inspirations kept out, asset credits, a Rights note per `{baseDir}/references/brand-and-ip.md`, which marketing-package items are done / in the kit / shot list / missing, and event banners if generated). Delete `promote/images/preview/`.
 11. **Report**: whether a brief or GDD was created this run (point at the file), what was generated (counts), the metadata findings and proposed rewrites, what is a placeholder (footage posts, the in-world screenshot, the stills and the trailer all need capture), what could not be rendered and why, the path to `promote/index.html`, then offer the expanded kit.
 
 ## Resuming an interrupted run
@@ -69,6 +69,14 @@ If `promote/` already exists when the skill starts (a previous session stopped m
 - In-game lines are quoted verbatim. Do not polish them.
 - Footage notes and quote cards never show the ending, the correct solution or the final card. Say in the shot-list tips what to keep out of public clips.
 - Inspirations stay separate from the copy unless the owner opts in (the Eeireport kit kept "the Backrooms" out on purpose).
+
+## RULE: Brand and rights
+
+Details and sources: `{baseDir}/references/brand-and-ip.md` (Decentraland brand guidelines, logo files, Content Policy).
+
+- The kit is the creator's brand. Mentioning Decentraland or showing its logo is **optional**. When it is mentioned: "Decentraland" in full ("DCL" only for insiders), capitalised Wearables / Emotes / LAND / NAMEs / Worlds / MANA, times in UTC, and nothing that reads as an official endorsement or as Decentraland speaking ("we").
+- The Decentraland logo, when used, comes from the official PNGs, unaltered, with clear space and minimum size respected, never in grayscale, never the outline icon next to text, never the hero of the image. The scripts do not place it.
+- Everything in the kit must be the creator's or licensed to them (Content Policy sections 2.2, 6, 8). Flag title conflicts, third-party models, fonts, music and inspirations; never clear them. Restricted (18+) content keeps its warning in promo material. Put a "Rights" note in the README.
 
 ## RULE: Avatars cannot be rendered outside the Explorer
 
@@ -95,4 +103,5 @@ Anything that is an `AvatarShape` in the scene (NPCs, copies of the player, the 
 - `{baseDir}/references/marketing-package.md`: the Decentraland Foundation's marketing package checklist (basics, descriptions, images, extras, trailer) and where each item comes from.
 - `{baseDir}/references/posts-guide.md`: `posts.json` schema, the five kinds, writing rules, footage-note recipe, Eeireport examples.
 - `{baseDir}/references/renders-and-images.md`: Blender render framework, room building, lighting recipes, key art, logo and composition, verification.
+- `{baseDir}/references/brand-and-ip.md`: Decentraland name and logo rules (brand guidelines and media kit links), Content Policy IP points, what to flag and where the Rights note goes.
 - `{baseDir}/scripts/`: `render_shots.py`, `make_logo.py`, `compose_social.py`, `build_kit.py`, `kit-template.html`, `posts.example.json`.

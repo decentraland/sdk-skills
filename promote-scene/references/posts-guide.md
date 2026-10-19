@@ -52,6 +52,7 @@ The Foundation's marketing package asks for exactly two descriptions (see `{base
 - Name the game consistently (Eeireport used ALL CAPS in copy, matching the wordmark).
 - No spoilers: not the ending, not the solution, not the final card.
 - Inspirations and comparisons only if the owner opted in.
+- Decentraland is optional in the copy. When named: "Decentraland" in full (not "DCL" outside insider channels), "Decentraland World" / "Genesis City", capitalised Wearables / Emotes / LAND / NAMEs / MANA, and never phrased as an official or partnered release. See `{baseDir}/references/brand-and-ip.md`.
 - Emoji: at most one per post, and only where it adds to the line. Many posts need none.
 
 ## Footage note recipe
