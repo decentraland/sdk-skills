@@ -24,23 +24,25 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` (or `packag
 
 `font` is the fallback whenever the custom font cannot be used, and on the Unity explorer that includes local preview (see Testing). Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
 
-## RULE: Only `.ttf` files inside the scene
+## RULE: A custom font is a `.ttf` file in the scene
 
-The Unity explorer supports exactly one kind of `fontSrc`: a `.ttf` file that is part of the scene's deployed content. Everything else silently falls back to `font` there:
+`fontSrc` is a file path, not a font name. A font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. Get the file first: use the one the user provides, or ask before downloading one (the **sdk-scenes** rule for adding any asset file applies).
+
+The Unity explorer supports nothing else. Every other value silently falls back to `font` there:
 
 | `fontSrc` value | Unity explorer | Bevy explorer |
 |---|---|---|
 | `.ttf` in the scene content | Yes, from the asset bundle the converter builds after deploy | Yes |
 | `.otf` file | Falls back | Not documented — do not rely on it |
 | URL to a `.ttf` | Falls back | Yes |
-| Google Fonts family name (`'Playfair Display'`) | Falls back | Yes, through Fontsource |
+| Font family name (`'Playfair Display'`) | Falls back | Yes |
 | Missing file, invalid file, empty string | Falls back | Falls back |
 
-The protocol's doc comment, which shows up in editor tooltips, says a Google Fonts family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Do not write a family name or a URL, even if the user asks for "Google Font X". Download the font's `.ttf` (Google Fonts are OFL-licensed) and ship it in the scene instead.
+The protocol's doc comment, which shows up in editor tooltips, says a font family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Never write a family name or a URL in `fontSrc`.
 
 ## Adding a font to a scene
 
-1. Put the file under `assets/fonts/`, for example `assets/fonts/BungeeShade-Regular.ttf`. Use a static `.ttf`. If a family ships only as a variable font, use its static instances.
+1. Put the `.ttf` under `assets/fonts/`, for example `assets/fonts/BungeeShade-Regular.ttf`. Use a static `.ttf`. If a family ships only as a variable font, use its static instances.
 2. Put the font's licence next to it (`assets/fonts/BungeeShade-OFL.txt`). Deploying publishes the file on public content servers, so the licence must allow redistribution and embedding. OFL and Apache fonts allow it. Most commercial desktop licences do not.
 3. Reference it by its path from the scene root, the same way as a texture `src`: `fontSrc: 'assets/fonts/BungeeShade-Regular.ttf'`.
 
