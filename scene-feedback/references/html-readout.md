@@ -1,6 +1,6 @@
 # Adaptive HTML feedback readout
 
-Use after reading the module's CSV reference and interpretation guide through SKILL.md.
+Use after the CSV reference and interpretation guide linked from [Analysis](analysis.md).
 Follow the creator's goal and requested output. Choose the presentation after inspecting
 the data; a report may need mostly grouped answers rather than charts. Keep the analysis
 logic in the agent's work, without requiring a fixed generator or dashboard template.
