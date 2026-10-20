@@ -1,22 +1,27 @@
 ---
 name: scene-feedback
-description: Plan and integrate player feedback questions in a Decentraland SDK7 scene, help creators choose a playtest focus, or analyze existing Scene Feedback CSV responses. Use for in-game surveys, opt-in playtest questions, player-opened feedback forms, and interpreting playtest ratings and comments. For audiovisual reactions to gameplay actions, use game-design or build-ui.
+description: Help creators plan playtest questions and timing, integrate or debug Scene Feedback surveys in Decentraland SDK7, or analyze collected CSV ratings and comments. For audiovisual reactions to gameplay actions, use game-design or build-ui.
 ---
 
 # Scene Feedback
 
-Help creators learn what players find confusing, frustrating, or enjoyable while playing.
-Integrate the copyable Scene Feedback module into the existing scene and make its responses
-available in World scene Storage.
+Help creators learn how players experience their scene using the copyable Scene Feedback
+module and its CSV responses in World scene Storage.
 
-For existing responses, go directly to **Analyze collected responses**. Installation and
-question planning are needed only when the creator requests them.
+Start at the route matching the request:
+
+- **Plan or install:** follow steps 1–4, reusing choices already approved.
+- **Check or debug an existing integration:** go to step 4; inspect its configuration and
+  event wiring first. Revisit the plan only when the requested fix changes it.
+- **Analyze collected responses:** go directly to Analyze collected responses.
+
+Read the linked documentation sections when their branch applies; they are the source of
+truth for module configuration, API behavior, examples, and CSV semantics.
 
 ## 1. Help the creator choose what to learn
 
-Inspect the scene's client/server startup, UI, and game events. Read an available design
-brief for the intended experience; use the code to establish what players can currently do.
-Keep planned mechanics and missing event hooks distinct from implemented ones.
+Inspect the scene's startup, UI, and game events. Read an available design brief for intent;
+use the code to distinguish implemented gameplay from planned mechanics or missing hooks.
 
 ### Establish the focus
 
@@ -25,155 +30,116 @@ Use a goal already supplied. Otherwise begin with one easy question, for example
 > Are you looking for an overall impression, or is there a particular part of the game
 > you want feedback on?
 
-Offer a few relevant choices from this scene, such as finding the start, buying an upgrade,
-or playing another round. Treat them as suggestions, not a questionnaire to complete.
-Ask a short follow-up only when it changes the proposal: what the creator is unsure about,
-which players and devices will test, or which part is ready to try. Infer what the scene and brief
-already establish. If the creator is unsure, suggest a lightweight first-visit overview
-and explain what it could reveal. General feedback is a valid goal; do not force a feature focus.
+Offer a few choices grounded in this scene. Ask a follow-up only when it changes the proposal,
+such as the intended players, devices, or what is ready to try. If the creator is unsure,
+suggest a lightweight first-visit overview and explain what it could reveal. General feedback
+is a valid goal; the interview should help the creator choose, not become a questionnaire.
 
-### Propose questions and timing
+### Propose questions, formats, and timing
 
-Read the [question guide](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md)
-before selecting questions and triggers. For candidate wording and starting sets, consult
-the [question bank](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md).
+Before drafting, read the [question guide's focus, timing, and wording sections][guide].
+Use the [question bank][bank] for candidate questions and starting sets. Adapt a suitable
+candidate to the scene; create a new question when the candidates do not serve the goal.
+For uncertain exposure, propose an observable event or answerable wording rather than
+assuming the player experienced or completed an activity.
 
-- **Focused test:** select questions that inform the creator's decision about that feature.
-  Include failed or abandoned attempts where the player can still answer.
-- **Overall impression:** suggest a small set about the visit or core activity, with a
-  neutral opportunity to explain what worked or caused difficulty. Avoid a survey of every system.
-- Start from a suitable bank question and adapt its wording and comment prompt to the
-  scene. Create a new question when existing candidates do not answer the playtest goal.
-  Use one topic per question and ask about experienced events.
-- Ask after the relevant attempt at a natural pause, once competing UI has cleared.
-  Establish exposure from the event; when it is unknown, use wording the player can answer
-  without assuming that experience. Avoid surveying only successful players.
+Recommend the answer format according to the decision it informs:
 
-### Choose how players answer
+- **Rating only:** a quick assessment when the score serves the goal.
+- **Rating plus optional comment:** an explanation would help decide what to inspect or change.
+- **Text only:** an open problem report or unexpected experience where a score adds little.
 
-- **Rating only:** for a quick assessment when the rating itself serves the goal.
-- **Rating plus optional comment:** when an explanation would help decide what to inspect
-  or change. Use a neutral prompt that welcomes positive and negative experiences.
-- **Text only:** for open problem reports or unexpected experiences, where a numeric score
-  would add little. Prompt for what happened and what the player was trying to do.
+Read [Configure][configure] for built-in and custom scales and [answer formats][formats]
+for their configuration. Choose a suitable scale or create one following the documented
+example. Show exact labels and comment prompts for review. On mobile, weigh typing effort
+against the information needed for the playtest.
 
-Choose a built-in scale matching the question, or create five ordered labels following the
-README's custom-scale example when no existing scale fits. Show the exact labels for review;
-keep their meaning aligned with the wording and avoid treating every high score as desirable.
-Recommend a format and explain its purpose; let the creator adjust it rather than defaulting
-all questions to the same format. On mobile, consider typing effort when choosing comments,
-without removing a text answer that the playtest needs.
-
-Choose consent followed by questions during play, a player-opened form, or both according
-to the goal. Separate the invitation to participate from evaluation: arriving in the scene
-alone does not establish experience of its gameplay. Offer timing choices instead of imposing
-an entry-time questionnaire or a fixed delay.
-
-Explain what the proposed answers can inform. Reported impressions help identify what to
-investigate; observed behavior or gameplay data may be needed to explain the cause. Interest
-in returning is not measured retention. Keep the proposal proportionate to the creator's goal.
+Use the README's [participation routes][api] to propose consent followed by gameplay
+questions, a player-opened form, or both. Let the goal and existing game events determine
+the invitation and question timing; present those choices to the creator.
 
 ## 2. Review the plan with the creator
 
-Read the current [README installation and API](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md)
-for setup requirements and supported behavior before proposing changes.
+Read the [installation requirements][install] before proposing scene changes. Present:
 
-Before changing the receiving scene, present:
+- The playtest goal and how it relates to the scene or brief.
+- A short table: exact question, format (scale labels and comment prompt where used),
+  proposed event, and why the answer would help the creator's decision.
+- Participation route, Intro wording/timing, target devices, and required setup changes.
 
-- The playtest goal and how it relates to the scene or design brief.
-- A short table: adapted question text, answer format (including scale labels and comment
-  prompt where used), proposed moment/event, and why that moment fits.
-- The participation route and proposed Intro wording/timing, plus any server, dependency,
-  or permission changes needed for installation. Include the target devices and any
-  mobile-specific wording or verification needed.
-
-Wait for the creator to review, revise, and approve this concrete plan before installation
-or event wiring. A request to install the module alone does not approve agent-chosen
-questions and timing. If the creator has already approved the concrete plan, apply it
-without asking again. Keep unresolved choices visible rather than silently deciding them.
+Wait for review and approval before installing or wiring agent-chosen questions and events.
+A general installation request does not approve those content and timing choices. Apply an
+already approved concrete plan without asking again; keep unresolved choices visible.
 
 ## 3. Integrate the module
 
-Follow the approved plan and the README's current setup instructions. Retrieve the module
-and its assets from that scene; keep unrelated demo game code out of the receiving project.
+Follow [Install][install] and the matching [integration recipe][examples] for the approved
+plan. Retrieve the module and assets, keeping unrelated demo game code out of the scene.
+Read the relevant [API sections][api] before wiring participation and events; use
+[queue/results and group behavior][details] when handling completion, repeats, or closing.
 
-Read the matching [integration recipe](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/EXAMPLES.md)
-for separate consent, immediate consent plus question, player-opened forms, selected testers,
-or mixed rating/text groups. Follow it within the receiving scene's startup and event flow.
+Use Scene Feedback's public API and configuration first. Extend its `lib/` when the intended
+behavior needs a missing capability, explaining why. Preserve the scene's startup and UI
+flow, including when other panels have cleared.
 
-Use Scene Feedback's public API and configuration first. Change its `lib/` when the intended
-behavior requires an extension, explaining the missing capability.
+## 4. Verify or debug the integration
 
-Preserve these integration conditions:
+Run relevant project checks. Prefer the available TypeScript compiler with `--noEmit` for
+type checking; use SDK build when build validation is needed, accounting for dependency
+installation and generated scene artifacts. Exercise configured triggers, acceptance and
+refusal, blank answers, and group navigation where used; check existing startup and gameplay.
+If Explorer is available, use `unity-explorer-mcp` for runtime checks. Report untested
+interactions explicitly.
 
-- The feedback import runs on both client and server; player-facing handlers run on the client.
-- With participation required, `ask()` needs enrollment or a pending `intro()`; it does not
-  create an Intro. `leaveFeedback()` is the player-opened route, including after declining
-  game-triggered questions.
-- Use a text-only question for an open answer without a rating. Use a rating question with
-  or without an optional comment when that fits the goal.
-- Keep existing UI and game behavior. The scene decides when other panels have cleared;
-  avoid substituting an arbitrary startup delay for an available event.
+When triggers are hard to reproduce, offer an optional debug panel. Read [Debug][debug]
+and reuse the existing UI first; adapt only needed actions, such as Intro, single/group
+questions, call results, or participation state. Gate added controls to local development
+and follow the documented access and release rules. Label test responses `debug`. Check
+real gameplay triggers separately from manually opening forms.
 
-## 4. Verify the integration
+For mobile targets, use the existing layout and the [mobile preview instructions][debug].
+Check actual question/label wrapping, touch controls, text input with the keyboard open,
+and HUD overlap. Adjust wording or configuration first; extend UI for a demonstrated need.
+Distinguish layout preview from a real-device test and identify devices actually checked.
 
-Run the receiving scene's relevant checks. Prefer the available TypeScript compiler with
-`--noEmit` for a type check; SDK build can install dependencies and update scene artifacts,
-so use it when build validation is needed. Exercise the chosen triggers, acceptance and
-refusal, blank answers, and group navigation where used. Check that existing startup UI and
-game flow still work. If an Explorer is available, use `unity-explorer-mcp` for the runtime
-check; otherwise state exactly which interactions remain untested.
+For end-to-end Storage verification, follow [Review][review] and [Stored CSV][csv]: submit
+a known answer and find its question and trigger in the downloaded CSV after the documented
+write delay. A call result or server acknowledgement does not establish persistence.
+Deploy when authorized; otherwise explain the remaining World verification.
 
-When gameplay triggers are hard to reproduce, offer an optional debug panel. Read the
-README's Debug section and reuse the module's existing debug UI before adding controls.
-Adapt only the actions needed for this scene: Intro, a single question, a group, and visible
-call results or participation state. Gate extra controls to local development; follow the
-module's access rules for its built-in panel and disable `DEBUG` before release. Label test
-responses with `trigger = debug` so they can be filtered from playtest data. Use the panel
-to check forms, then exercise the real gameplay triggers and verify Storage separately.
-
-When mobile is a target, start with the module's existing mobile layout. Follow the README's
-Debug and phone-preview instructions; check actual question/scale-label wrapping, touch
-controls, text input with the keyboard open, and coexistence with the scene's HUD. Use
-`PREVIEW_MOBILE` for a local layout preview, and distinguish it from a real-device test.
-Adjust wording or configuration first; extend the UI only for a demonstrated unmet need.
-
-For a deployed World check, follow the README's Review and Stored CSV sections: submit a
-known answer, allow the documented write delay, download the CSV, and find that question
-and trigger. A resolved call or server acknowledgement is not proof of a Storage write.
-Deploy when authorized; otherwise give the creator the remaining verification steps.
-
-Report the configured questions and trigger handlers, checks actually run, and whether a
-matching CSV row was verified locally or in a deployed World.
-
-After integration, explain where to download the CSV and what to inspect for the agreed
-playtest goal. Link to the question guide's Reading the CSV section and offer to analyze
-collected responses when available.
+Report checks run, configured handlers or fixes, and whether a matching CSV row was verified
+locally or in a deployed World. After integration, explain where to download responses and
+what to inspect for the agreed goal; link [Reading the CSV][reading] and offer to analyze
+the responses when collected.
 
 ## Analyze collected responses
 
-Use this route when the creator brings CSV exports or asks what a completed playtest shows.
-Read the README's CSV fields and response statuses and the question guide's Reading the CSV
-section. Use the supplied goal; clarify it only when needed to interpret the data. Without a
-specific goal, begin with an overview of recurring experiences and questions to investigate.
+Read [CSV fields and response statuses][csv] and the guide's [Reading the CSV][reading]
+before interpreting exports. Apply their rules for test data, participation, skips, text
+answers, scale meaning, comparability, and limits of conclusions.
 
-- **Prepare the data:** obtain relevant CSV parts, note their coverage, parse as CSV, and
-  deduplicate repeated exports by response `id`. Separate debug/preview data, participation
-  rows, skipped questions, and substantive answers. Preserve text-only answers and distinguish
-  an unoffered comment field from one left blank.
-- **Keep comparisons meaningful:** group by question wording, scale, and trigger. Account
-  for scene version and platform when relevant; compare playtests only where wording,
-  timing, and recruitment are comparable. Report response counts and distinct respondents;
-  multiple answers from one player are not independent players. Blank ratings are not zero,
-  and absent rows do not establish that a player saw or skipped a question.
-- **Interpret:** follow the guide's distribution and scale rules. Summarize comment themes
-  alongside counts and representative excerpts, retaining conflicting experiences. Treat
-  explanations as hypotheses to investigate; separate observed data from inference and
-  acknowledge small or self-selected samples. The CSV alone cannot establish visitor-wide
-  response rates or retention.
-- **Return an actionable readout:** state coverage and exclusions, findings tied to the
-  goal, limits, and what to inspect or change next. Suggest a comparable follow-up playtest.
-  Keep player addresses out of the readout; use them only as needed to count respondents.
+Use the supplied goal; clarify only context that changes interpretation. Without a specific
+goal, begin with an overview of recurring experiences and questions to investigate.
 
-If exports are missing, explain how to retrieve them from World Scene Storage. Analyze
-available data with its limits; request missing context only when it changes a conclusion.
+- Obtain relevant CSV parts, note coverage, and deduplicate repeated exports by response `id`.
+  If exports are missing, use [Review][review] to explain retrieval.
+- Report response counts and distinct respondents; repeated answers are not independent
+  players. Keep addresses out of the readout. Absent rows do not prove a question was shown.
+- Compare versions or platforms where relevant, checking wording, timing, and recruitment
+  before treating playtests as comparable. Summarize comment themes with representative
+  excerpts and preserve conflicting experiences.
+- Return coverage/exclusions, findings tied to the goal, uncertainty, and what to inspect
+  or change next. Suggest a comparable follow-up test; distinguish evidence from hypotheses.
+
+[guide]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md
+[bank]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md
+[configure]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#2-configure
+[formats]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#comments-and-text-only-questions
+[api]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#api-reference
+[install]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#1-install
+[examples]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/EXAMPLES.md
+[details]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#details
+[debug]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#debug
+[review]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#4-review
+[csv]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#stored-csv
+[reading]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md#reading-the-csv
