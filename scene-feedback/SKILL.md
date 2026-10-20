@@ -25,7 +25,7 @@ Use a goal already supplied. Otherwise begin with one easy question, for example
 Offer a few relevant choices from this scene, such as finding the start, buying an upgrade,
 or playing another round. Treat them as suggestions, not a questionnaire to complete.
 Ask a short follow-up only when it changes the proposal: what the creator is unsure about,
-which players will test, or which part is ready to try. Infer what the scene and brief
+which players and devices will test, or which part is ready to try. Infer what the scene and brief
 already establish. If the creator is unsure, suggest a lightweight first-visit overview
 and explain what it could reveal. General feedback is a valid goal; do not force a feature focus.
 
@@ -39,11 +39,27 @@ the [question bank](https://github.com/decentraland/sdk7-test-scenes/blob/main/s
   Include failed or abandoned attempts where the player can still answer.
 - **Overall impression:** suggest a small set about the visit or core activity, with a
   neutral opportunity to explain what worked or caused difficulty. Avoid a survey of every system.
-- Adapt wording, scales and comment prompts to the actual scene. Use one topic per question
-  and ask about experienced events. A neutral prompt should welcome criticism and praise.
+- Start from a suitable bank question and adapt its wording and comment prompt to the
+  scene. Create a new question when existing candidates do not answer the playtest goal.
+  Use one topic per question and ask about experienced events.
 - Ask after the relevant attempt at a natural pause, once competing UI has cleared.
   Establish exposure from the event; when it is unknown, use wording the player can answer
   without assuming that experience. Avoid surveying only successful players.
+
+### Choose how players answer
+
+- **Rating only:** for a quick assessment when the rating itself serves the goal.
+- **Rating plus optional comment:** when an explanation would help decide what to inspect
+  or change. Use a neutral prompt that welcomes positive and negative experiences.
+- **Text only:** for open problem reports or unexpected experiences, where a numeric score
+  would add little. Prompt for what happened and what the player was trying to do.
+
+Choose a built-in scale matching the question, or create five ordered labels following the
+README's custom-scale example when no existing scale fits. Show the exact labels for review;
+keep their meaning aligned with the wording and avoid treating every high score as desirable.
+Recommend a format and explain its purpose; let the creator adjust it rather than defaulting
+all questions to the same format. On mobile, consider typing effort when choosing comments,
+without removing a text answer that the playtest needs.
 
 Choose consent followed by questions during play, a player-opened form, or both according
 to the goal. Separate the invitation to participate from evaluation: arriving in the scene
@@ -65,7 +81,8 @@ Before changing the receiving scene, present:
 - A short table: adapted question text, answer format (including scale labels and comment
   prompt where used), proposed moment/event, and why that moment fits.
 - The participation route and proposed Intro wording/timing, plus any server, dependency,
-  or permission changes needed for installation.
+  or permission changes needed for installation. Include the target devices and any
+  mobile-specific wording or verification needed.
 
 Wait for the creator to review, revise, and approve this concrete plan before installation
 or event wiring. A request to install the module alone does not approve agent-chosen
@@ -103,6 +120,12 @@ so use it when build validation is needed. Exercise the chosen triggers, accepta
 refusal, blank answers, and group navigation where used. Check that existing startup UI and
 game flow still work. If an Explorer is available, use `unity-explorer-mcp` for the runtime
 check; otherwise state exactly which interactions remain untested.
+
+When mobile is a target, start with the module's existing mobile layout. Follow the README's
+Debug and phone-preview instructions; check actual question/scale-label wrapping, touch
+controls, text input with the keyboard open, and coexistence with the scene's HUD. Use
+`PREVIEW_MOBILE` for a local layout preview, and distinguish it from a real-device test.
+Adjust wording or configuration first; extend the UI only for a demonstrated unmet need.
 
 For a deployed World check, follow the README's Review and Stored CSV sections: submit a
 known answer, allow the documented write delay, download the CSV, and find that question
