@@ -22,7 +22,17 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` (or `packag
 
 ## RULE: Always set `font` next to `fontSrc`
 
-`font` is the fallback whenever the custom font cannot be used, and on the Unity explorer that includes local preview (see Testing). Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
+`font` is the fallback whenever the custom font cannot be used: on mobile always, on desktop until the font's asset bundle is ready (see Testing). Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
+
+## RULE: The mobile app ignores `fontSrc`
+
+The Decentraland mobile app does not support custom fonts: it always renders the `font` fallback (decentraland/godot-explorer#3092, no ETA). Every scene that uses `fontSrc` must still look right and fit with its fallback:
+
+- Choose the fallback deliberately (previous rule), not as an afterthought.
+- Never rely on the custom font's width to make text fit a fixed box. Size the box so the fallback fits too.
+- Never put meaning only in the custom font's look (an icon font, a symbol font, a "handwritten" clue). On mobile it becomes plain text.
+
+When the user adds a custom font, tell them it won't show on mobile.
 
 ## RULE: A custom font is a `.ttf` file in the scene
 
@@ -32,13 +42,16 @@ The Unity explorer supports nothing else. Every other value silently falls back 
 
 | `fontSrc` value | Unity explorer | Bevy explorer |
 |---|---|---|
-| `.ttf` in the scene content | Yes, from the asset bundle the converter builds after deploy | Yes |
-| `.otf` file | Falls back | Not documented — do not rely on it |
+| `.ttf` in the scene content | Yes, once its asset bundle exists (deployed, or preview with optimized assets) | Yes |
+| OpenType with CFF outlines (usually `.otf`), collections (`.ttc`), web fonts (`.woff`, `.woff2`) | Falls back | Not documented — do not rely on it |
+| `.ttf` over 16 MB, or with extremely complex glyph outlines | Falls back (refused by the converter) | Not documented |
 | URL to a `.ttf` | Falls back | Yes |
 | Font family name (`'Playfair Display'`) | Falls back | Yes |
 | Missing file, invalid file, empty string | Falls back | Falls back |
 
 The protocol's doc comment, which shows up in editor tooltips, says a font family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Never write a family name or a URL in `fontSrc`.
+
+When the desktop client rejects a font it logs an `SDK_FONTS` warning in the console saying why. Check the console before anything else when a font falls back.
 
 ## Adding a font to a scene
 
@@ -46,7 +59,9 @@ The protocol's doc comment, which shows up in editor tooltips, says a font famil
 2. Put the font's licence next to it (`assets/fonts/BungeeShade-OFL.txt`). Deploying publishes the file on public content servers, so the licence must allow redistribution and embedding. OFL and Apache fonts allow it. Most commercial desktop licences do not.
 3. Reference it by its path from the scene root, the same way as a texture `src`: `fontSrc: 'assets/fonts/BungeeShade-Regular.ttf'`.
 
-One file is one face. For a bold title and regular body text, ship both weights and point each text at its own file. Keep a scene to one or two font files: each is another asset to download and convert.
+One file is one face. For a bold title and regular body text, ship both weights and point each text at its own file.
+
+Cost: every text entity using the same `fontSrc` shares one loaded copy, so reusing a font across the scene costs no more than using it once. Each distinct font file becomes its own asset bundle of about 700 KB (two texture atlases), plus its own textures in memory. Keep a scene to one or two font files.
 
 ## 3D text (`TextShape`)
 
@@ -95,14 +110,20 @@ Editable UI (**build-ui**): a literal `fontSrc` string fits the editable contrac
 
 ## Testing a custom font
 
-- **Unity explorer: the custom font never shows in local preview.** Unity loads scene fonts only from the asset bundles the converter builds for a deployment, and has no raw-`.ttf` fallback, so preview always shows the `font` fallback. That is expected, not a bug. To see the font, deploy (a World is the quickest, see **deploy-worlds**) and wait for asset-bundle conversion. Until conversion finishes, the fallback still shows.
-- **Bevy explorer** loads the `.ttf` directly, so preview there shows the font.
+The desktop client (Unity explorer) loads scene fonts only from asset bundles, never from the raw `.ttf`. So the custom font shows only where bundles exist:
+
+- **Local preview with optimized assets:** in the Creator Hub, **Play Options → Desktop Client → Compress Assets**; from the CLI, `npm run start -- --asset-bundles`. The Desktop Explorer converts the scene's assets, fonts included, itself. This needs a Desktop Explorer release newer than v0.189.0: older releases convert with a version that builds no font bundles, so preview shows the fallback even with Compress Assets on.
+- **Plain local preview** (no optimized assets): always the `font` fallback. That is expected, not a bug.
+- **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
+- **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.
+- **Mobile app:** always the fallback (see the mobile rule).
 - Tell the user which of these applies before they report "my font isn't working".
 - The reference scene for expected behaviour is `scenes/84,-6-font-src` in decentraland/sdk7-test-scenes (realm `sdk7testscenes.dcl.eth` on zone). It covers each fallback case, fonts shared between components, recreating components and the scene boundary.
 
 ## Glyphs and legibility
 
-- A custom font only draws the characters it contains. For accented letters, Cyrillic, CJK and so on, pick a font that includes those scripts. Missing characters are not guaranteed to fall back to a built-in face.
+- A custom font only draws the characters it contains. Characters it lacks are drawn with the built-in sans-serif, mid-word, which looks broken. For accented letters, Cyrillic, CJK and so on, pick a font that includes those scripts.
+- The font's bundle comes with ASCII, smart punctuation (quotes, dashes, ellipsis, bullet), € and the common Latin-1 letters already rendered. Any other character the font includes (Cyrillic, Greek, CJK…) is rendered the first time it appears, which causes a brief hitch. For text in those scripts, show it early (a loading or intro screen) rather than at a critical moment.
 - No emoji in any text value, whatever the font. The Unity explorer has no emoji glyphs (see **build-ui**).
 - Keep decorative and display faces for short titles and signs. Body text and anything read while moving needs a plain face at the sizes in **build-ui** (UI) and **advanced-rendering** (3D).
 - A monospace face, built-in or custom, does not make spaces line up columns in a `TextShape`. Use one `TextShape` per column (see **advanced-rendering**).
@@ -112,4 +133,5 @@ Editable UI (**build-ui**): a literal `fontSrc` string fits the editable contrac
 - **build-ui**: Label, Button, Input and Dropdown props, sizing and the no-emoji rule.
 - **advanced-rendering**: `TextShape` placement, orientation, outline and alignment.
 - **migrate-sdk6-to-sdk7**: SDK6 `font` names map to the built-in `Font` enum, and custom SDK6 fonts map to `fontSrc`.
-- **deploy-worlds** / **deploy-scene**: deploying so Unity converts the font.
+- **deploy-worlds** / **deploy-scene**: deploying so the server converts the font.
+- **optimize-scene**: asset-bundle conversion and why it matters for load time.

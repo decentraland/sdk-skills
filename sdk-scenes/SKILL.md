@@ -135,7 +135,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Fonts
 
-**Skill: `fonts`** — Built-in faces (`font`) and custom `.ttf` fonts shipped with the scene (`fontSrc`) on `TextShape` and all UI text. Explorer support matrix, licensing, and why Unity only shows custom fonts after deploy.
+**Skill: `fonts`** — Built-in faces (`font`) and custom `.ttf` fonts shipped with the scene (`fontSrc`) on `TextShape` and all UI text. Explorer support matrix, no support on mobile, limits, licensing, and why the desktop client shows custom fonts only from asset bundles.
 
 ### Screen-Space UI
 

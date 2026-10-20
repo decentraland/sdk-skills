@@ -431,7 +431,7 @@ Run over **every** `.tsx` under `src/ui/` you write or adapt. Each item is a sil
 
 ## Cross-references
 
-- **Custom fonts**: `fontSrc` (a `.ttf` shipped with the scene) on `Label`, `Button`, `Input`, `Dropdown` and `uiText`, always with `font` as the fallback. Needs the first SDK release after 7.30.1, and on Unity shows only after deploy. See **fonts**.
+- **Custom fonts**: `fontSrc` (a `.ttf` shipped with the scene) on `Label`, `Button`, `Input`, `Dropdown` and `uiText`, always with `font` as the fallback. Needs the first SDK release after 7.30.1, never shows on mobile, and on desktop shows only from asset bundles (deployed, or preview with Compress Assets). See **fonts**.
 - **Platform detection**: `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` (wrapped by `usePlatform()` in editable UI). See **advanced-input**.
 - **Localized UI text**: `getPlayerLanguage()` (same module) returns the player's client language as a BCP-47 tag, with `onPlayerLanguageChanged` for mid-session switches. It returns `'en'` until the explorer answers, so read it in a system (the driver), not at module scope. See **advanced-input** > "Player language". SDK **7.30.0+**.
 - **Sending the player to a client panel**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it. Requires a user gesture. See **scene-runtime** > "openExplorerUi -- Open Explorer Panels".

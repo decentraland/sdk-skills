@@ -101,7 +101,7 @@ TextShape.create(label, {
 - Keep `fontSize` readable — 16-32 for in-world text.
 - Do not use `TextShape` (or a textured plane) as a rulebook: long paragraphs in-world are too small and too long to read, and players will not stop to squint. One idea per sign, ≤ 10 words, large type; move the rest into visuals and gameplay (see **game-design** → "Rules: show, don't tell").
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
-- For a custom typeface, set `fontSrc` to a `.ttf` in the scene, with `font` as the fallback. See **fonts** for the SDK version, explorer support and why it doesn't show in Unity preview.
+- For a custom typeface, set `fontSrc` to a `.ttf` in the scene, with `font` as the fallback. See **fonts** for the SDK version, explorer and mobile support, and previewing it.
 - **A TextShape faces its local -Z.** It reads correctly for a viewer standing on the entity's **-Z side**, so to label the **+Z face** of a model, parent the label to it at a small `+Z` offset and rotate it **180° about Y**. Observed in-world twice (SDK 7.30.1, 2026-10-12); get it wrong and the sign is mirrored or invisible from the side players approach.
 - **Spaces do not align columns — not even with `Font.F_MONOSPACE`.** Padding a row with spaces to build a table renders with collapsed gaps (observed in-world on a 3-column board, SDK 7.30.1, 2026-10-12). Use **one TextShape per column**, each positioned at its own x and aligned with `TAM_MIDDLE_LEFT` / `TAM_MIDDLE_RIGHT`, and keep the rows as `\n`-separated lines inside each column.
 
