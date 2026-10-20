@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
+description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, Skybox (custom sky texture, sky colors, clouds, stars), Sun (sun color, intensity, direction, hiding it), EnvironmentFog (fog color and density), realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, a custom sky image, sky/sun/fog colors, a fixed or dimmed sun, hiding the sun, complete darkness, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
 ---
 
 # Lighting and Environment in Decentraland
@@ -198,6 +198,94 @@ function dayNightCycle(dt: number) {
 engine.addSystem(dayNightCycle)
 ```
 
+## Skybox, Sun and EnvironmentFog (custom sky, sky colors, sun, fog)
+
+Three components override the environment. All are **root entity only** (`engine.RootEntity`), active only while the player is inside the scene, and any one of them puts the scene in control of the environment. Every field is optional; an unset field keeps its time-of-day default.
+
+- `Skybox` — sky texture, or procedural sky colors, clouds and stars.
+- `Sun` — directional light (sun and moon): color, visibility, intensity, fixed direction.
+- `EnvironmentFog` — fog color and density.
+
+```typescript
+import { engine, Skybox, Sun, EnvironmentFog, ColorGradient } from '@dcl/sdk/ecs'
+import { Color4, Vector3 } from '@dcl/sdk/math'
+
+// Sky texture: path (string) to an equirectangular 2:1 lat-long image in the scene's assets. Centre faces +Z (north), top row = zenith.
+Skybox.create(engine.RootEntity, {
+  skyboxTexture: 'images/sky.png'
+})
+
+// Colors are ColorGradients over the normalized time of day: 0 = 00:00, 0.5 = 12:00, 1 = 24:00
+// (the SkyboxTime clock / 86400). One key = constant color.
+const constant = (color: Color4): ColorGradient => ({ keys: [{ time: 0, color }] })
+
+// Procedural sky (while skyboxTexture is set, only skyColors still applies: as ambient light)
+Skybox.createOrReplace(engine.RootEntity, {
+  skyColors: {
+    zenith: constant(Color4.create(0.55, 0.25, 0.12, 1)),
+    horizon: constant(Color4.create(0.95, 0.55, 0.3, 1)),
+    nadir: constant(Color4.create(0.35, 0.15, 0.08, 1)),  // sky below the horizon, where no terrain covers it
+    rim: constant(Color4.create(1.5, 0.6, 0.2, 1))        // horizon-line glow; unset => follows `horizon`
+  },
+  clouds: { opacity: 0.3, speed: 0.01, color: constant(Color4.create(0.9, 0.6, 0.4, 1)) },
+  stars: { brightness: 4.62 }
+})
+
+Sun.create(engine.RootEntity, {
+  color: constant(Color4.create(1, 0.65, 0.4, 1)),  // tints the light and the sun disc
+  visible: true,                                    // false hides sun/moon discs + lens flare; light keeps shining
+  intensity: 0.5,                                   // multiplier on the time-of-day intensity
+  direction: Vector3.create(-1, -1, 0)              // direction the light travels => sun in the east, 45° up, fixed all day
+})
+
+EnvironmentFog.create(engine.RootEntity, {
+  color: constant(Color4.create(0.85, 0.5, 0.3, 1)),
+  density: 0.01  // fog = 1 - e^(-density * distance); 1/density ≈ 63% fog distance
+})
+
+// Multi-key gradient: interpolated between keys, clamped at both ends (no midnight wrap:
+// repeat the color at time 0 and 1 to loop seamlessly). Values > 1 are HDR; alpha is ignored.
+Skybox.createOrReplace(engine.RootEntity, {
+  skyColors: {
+    horizon: {
+      keys: [
+        { time: 0, color: Color4.create(0.05, 0.05, 0.2, 1) },
+        { time: 0.25, color: Color4.create(0.95, 0.5, 0.4, 1) },
+        { time: 0.5, color: Color4.create(0.7, 0.9, 1, 1) },
+        { time: 0.75, color: Color4.create(0.95, 0.4, 0.2, 1) },
+        { time: 1, color: Color4.create(0.05, 0.05, 0.2, 1) }
+      ]
+    }
+  }
+})
+
+// Complete darkness: the scene's own LightSources become the only illumination.
+const black = constant(Color4.Black())
+Skybox.createOrReplace(engine.RootEntity, {
+  skyColors: { zenith: black, horizon: black, nadir: black },
+  clouds: { opacity: 0 },
+  stars: { brightness: 0 }
+})
+Sun.createOrReplace(engine.RootEntity, { intensity: 0, visible: false })
+EnvironmentFog.createOrReplace(engine.RootEntity, { color: black })
+
+// Back to the default sky and lighting
+Skybox.deleteFrom(engine.RootEntity)
+Sun.deleteFrom(engine.RootEntity)
+EnvironmentFog.deleteFrom(engine.RootEntity)
+```
+
+Defaults (from the protocol): `clouds.opacity` 1 (0 hides clouds), `clouds.speed` 0.01 rad/s around the sky axis (0 = static, negative reverses), `stars.brightness` 4.62 (multiplier on the star texture, 0 hides them; stars only render at night), `Sun.visible` true, `Sun.intensity` 1 (negative clamps to 0), `EnvironmentFog.density` 0.0005 (≈ 2 km; negative clamps to 0); every gradient unset = time-of-day default. Keep gradients to 8 keys or fewer: the Explorer resamples longer ones to 8 evenly spaced keys.
+
+- `skyboxTexture` is a plain `string` image path (same rules as a texture `src`), not a `TextureUnion`. Sampled with horizontal wrap (Repeat) and bilinear filtering. Cube cross / 3x2 / six-face layouts are not supported. A failed load keeps the default sky. It does not change the lighting; in the Unity Explorer, reflections follow it.
+- While `skyboxTexture` is set, `clouds` and `stars` are ignored and `skyColors` no longer color the sky, but `skyColors` still drive the ambient light — set them to match the image. `Sun` and `EnvironmentFog` still apply.
+- `skyColors` also drive the ambient light: zenith -> sky ambient, horizon -> equator ambient, nadir -> ground ambient. There is no separate ambient field, so black sky colors give black ambient.
+- `skyColors.rim` unset => follows the `horizon` override when set, else the default. `clouds.color` unset => default time-of-day cloud tint even on a recolored sky.
+- `Sun.direction` is the direction the light travels in scene space (`(0,-1,0)` = overhead, normalized by the renderer). Set => the sun stays fixed at every time of day, but color and intensity still follow the time of day. Unset or zero => normal path.
+- Fog on/off is a player quality setting; a scene cannot force it. There is no linear start/end range, only `density`.
+- Scope: leaving the scene, `deleteFrom`, or unsetting a field restores the defaults instantly (no fade); re-entering re-applies. While active the overrides are global render state — neighbouring parcels seen from inside the scene render with this sky, sun and fog.
+- Pair with `SkyboxTime` to pin a gradient at one time of day.
+
 ## Realm Info
 
 Detect which realm (server) the player is connected to:
@@ -308,6 +396,10 @@ Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
 - `shadow` only affects spot lights; setting it on a point light has no effect.
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
 - `SkyboxTime` on `RootEntity` overrides any scene.json `fixedTime`; `deleteFrom` reverts to it.
+- `Skybox`, `Sun` and `EnvironmentFog` are root-entity only and per-scene: they never affect other scenes, but the overrides tint neighbouring parcels while the player stands in the owning scene. On any other entity they do nothing.
+- Recoloring only the fog or the sun leaves the ambient light unchanged — set all three `skyColors` for a coherent look, or black for total darkness.
+- `Sun.visible: false` is the only way to remove the lens flare over a custom `skyboxTexture`; the flare is screen-space and is otherwise drawn on top of the texture.
+- `skyboxTexture` is a path string (`'images/sky.png'`), not a texture object. It must be an equirectangular 2:1 image; a cubemap cross or six-face set renders distorted.
 - **Baked light geometry is inert.** GLB models with lamp/bulb meshes do not emit light -- add a `LightSource` component for real illumination. See the rule above.
 - **Smart Item `Placeholder` needs a resolved file path**, not a template variable. Setting `{assetPath}/spotlight.glb` as the `src` in an `asset-packs::Placeholder` results in an invisible/broken gizmo. `place_smart_item` resolves this automatically to e.g. `assets/asset-packs/spotlight/spotlight.glb`. If you must set `Placeholder` manually via `set_component`, use the real on-disk path.
 
@@ -319,3 +411,4 @@ Engine-team test scenes (real API, exercised against the engine):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-skybox-control — `Skybox`, `Sun` and `EnvironmentFog`: sky textures (invalid src fallback), environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), hiding the sun, fog density, `SkyboxTime` row, one point `LightSource` to see in the dark.
