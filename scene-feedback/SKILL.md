@@ -1,6 +1,6 @@
 ---
 name: scene-feedback
-description: Add player feedback questions to a Decentraland SDK7 scene, adapt questions to a playtest goal, or retrieve the responses as CSV. Use for in-game surveys, opt-in playtest questions, and player-opened feedback forms. For audiovisual reactions to gameplay actions, use game-design or build-ui.
+description: Plan and integrate player feedback questions in a Decentraland SDK7 scene, help creators choose a playtest focus, or retrieve responses as CSV. Use for in-game surveys, opt-in playtest questions, and player-opened feedback forms. For audiovisual reactions to gameplay actions, use game-design or build-ui.
 ---
 
 # Scene Feedback
@@ -9,28 +9,50 @@ Help creators learn what players find confusing, frustrating, or enjoyable while
 Integrate the copyable Scene Feedback module into the existing scene and make its responses
 available in World scene Storage.
 
-## 1. Choose the questions and moments
+## 1. Help the creator choose what to learn
 
-Inspect the scene's client/server startup, existing UI, and game events. Read an available
-design document or playtest brief for the intended experience; use the code to establish
-what is implemented. Identify planned mechanics or missing event hooks rather than treating
-them as available. Establish the
-creator's playtest goal, questions, and preferred moments; ask only for choices the request
-and scene do not settle. Adapt bank wording and comment prompts to the scene's actions and
-objects. Keep the set small enough for the goal. Choose events that establish the player
-has encountered the subject, including unsuccessful attempts; if exposure is unknown, use
-a question they can answer without assuming that experience.
+Inspect the scene's client/server startup, UI, and game events. Read an available design
+brief for the intended experience; use the code to establish what players can currently do.
+Keep planned mechanics and missing event hooks distinct from implemented ones.
+
+### Establish the focus
+
+Use a goal already supplied. Otherwise begin with one easy question, for example:
+
+> Are you looking for an overall impression, or is there a particular part of the game
+> you want feedback on?
+
+Offer a few relevant choices from this scene, such as finding the start, buying an upgrade,
+or playing another round. Treat them as suggestions, not a questionnaire to complete.
+Ask a short follow-up only when it changes the proposal: what the creator is unsure about,
+which players will test, or which part is ready to try. Infer what the scene and brief
+already establish. If the creator is unsure, suggest a lightweight first-visit overview
+and explain what it could reveal. General feedback is a valid goal; do not force a feature focus.
+
+### Propose questions and timing
 
 Read the [question guide](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md)
-when choosing or adapting questions. For candidate questions and sets by goal, use the
-[question bank](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md).
+before selecting questions and triggers. For candidate wording and starting sets, consult
+the [question bank](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md).
 
-Choose an integration route:
+- **Focused test:** select questions that inform the creator's decision about that feature.
+  Include failed or abandoned attempts where the player can still answer.
+- **Overall impression:** suggest a small set about the visit or core activity, with a
+  neutral opportunity to explain what worked or caused difficulty. Avoid a survey of every system.
+- Adapt wording, scales and comment prompts to the actual scene. Use one topic per question
+  and ask about experienced events. A neutral prompt should welcome criticism and praise.
+- Ask after the relevant attempt at a natural pause, once competing UI has cleared.
+  Establish exposure from the event; when it is unknown, use wording the player can answer
+  without assuming that experience. Avoid surveying only successful players.
 
-- **Questions during play:** enroll through consent or a known tester list, then ask after
-  the relevant experience. Tie calls to actual scene events and a pause in other UI.
-- **Player-opened form:** offer a button, kiosk, or area where the player chooses to answer.
-- **Both:** choose the questions and entry points for each route separately.
+Choose consent followed by questions during play, a player-opened form, or both according
+to the goal. Separate the invitation to participate from evaluation: arriving in the scene
+alone does not establish experience of its gameplay. Offer timing choices instead of imposing
+an entry-time questionnaire or a fixed delay.
+
+Explain what the proposed answers can inform. Reported impressions help identify what to
+investigate; observed behavior or gameplay data may be needed to explain the cause. Interest
+in returning is not measured retention. Keep the proposal proportionate to the creator's goal.
 
 ## 2. Review the plan with the creator
 

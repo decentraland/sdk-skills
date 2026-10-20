@@ -68,7 +68,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `player-avatar` | Player position, profile, avatar customization, attachments. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
-| `scene-feedback` | Collect player feedback during play or through player-opened forms; adapt playtest questions and review CSV responses. |
+| `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms and verify CSV responses. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
