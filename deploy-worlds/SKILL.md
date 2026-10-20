@@ -31,6 +31,8 @@ The budget can be distributed across multiple Worlds however the user likes. Che
 
 If the budget is exceeded (e.g. after selling/transferring assets), there is a **48-hour grace period** to free space before Worlds become inaccessible. Regain access by acquiring more MANA/NAMEs/LAND or undeploying scenes.
 
+**Size the upload before publishing**, not after: run the size pass in the **deploy-scene** pre-deployment checklist (heavy GLBs with embedded 2048 px texture maps are the usual surprise, and the project's `bin/index.js` is a dev build several MB larger than the minified bundle `deploy` uploads).
+
 ## 1. Configure scene.json
 
 Add a `worldConfiguration` section to `scene.json`:

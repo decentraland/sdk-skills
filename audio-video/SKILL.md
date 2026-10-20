@@ -40,7 +40,7 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time. A 16-bit `.wav` is several times the size of the same clip as MP3/OGG — convert before dropping it in (`ffmpeg -i in.wav -b:a 128k out.mp3`).
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
@@ -56,6 +56,10 @@ AudioSource.stopSound(entity)                            // stops, resets cursor
 ```
 
 Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
+
+**One `AudioSource` plays one clip at a time.** `playSound` on an entity that is already playing replaces that clip (the retrigger test scene's URL-swap case), so cues that can overlap — a click, a verdict sting, a death sound — each need their own entity, and positional repeats that can stack (several tiles clicked in a row) need a small pool of entities used round-robin. Also check each clip's length against the moment it plays in (`ffprobe -v quiet -show_entries format=duration -of csv=p=0 file.mp3`): a 10 s sting over a 2 s gameplay beat is either cut off by the next cue or spills past it (owner-reported, 2026-10).
+
+**There is no fade or crossfade API.** `PBAudioSource` has `volume` and nothing else for levels, so ducking is a system that eases `AudioSource.getMutable(entity).volume` toward a target per frame (write only while the value is changing). To duck music and bring it back mid-track, keep it `playing: true` at volume 0 — or pause with `stopSound(entity, false)` and resume with `playSound(entity, url, false)`, since the default `resetCursor` would restart the track.
 
 **Detecting when a sound finishes:** when a non-looping clip ends on its own, the engine flips `AudioSource.playing` back to `false`. Poll it with the READ-ONLY getter and edge-detect the `true → false` transition — never poll with `getMutable` (dirties the component every frame):
 
