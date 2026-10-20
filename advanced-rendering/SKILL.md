@@ -316,6 +316,21 @@ Material.setPbrMaterial(entity, {
 Filter modes: `TFM_POINT` (pixelated), `TFM_BILINEAR` (smooth), `TFM_TRILINEAR` (smoothest).
 Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirror tile).
 
+### Default UVs on box and plane primitives
+
+`MeshRenderer.setBox` / `setPlane` without `uvs` use the desktop Explorer's built-in layout (unity-explorer `Utility/Primitives/BoxFactory.cs` and `PlaneFactory.cs`, read Oct 2026), and on a **box it differs per face**. With the box unrotated, and "upright" meaning the texture's top row is at the top as a viewer facing that face sees it:
+
+| Face | How the texture reads |
+| --- | --- |
+| −z | upright |
+| +z | rotated 180° |
+| −x and +x | rotated 90° (the texture's u axis runs vertically) |
+| top (+y) and bottom (−y) | rotated 90° (u runs along z, v along x; for a viewer facing +z) |
+
+So any texture with an orientation — lettering, brick courses, wood grain, a floor pattern — comes out turned on two of the four walls and on floors and ceilings (observed in-world 2026-10: "walls and the ceiling came out rotated"). Yawing the box 90° only moves the problem to the other pair of walls. Fixes, best first: pass explicit `uvs` — 48 floats, 6 faces × 4 corners × (u, v), see *Set UVs* on the docs' Materials page for the helper; or build the surface from `setPlane` entities, one per face; or ship a GLB.
+
+A **plane** is two-sided: u runs along local +x and v along local +y, so the texture reads upright and unmirrored from the −z side and mirrored left-to-right from the +z side. [DERIVED, not checked in-world: laid flat with `Quaternion.fromEulerDegrees(90, 0, 0)`, the unmirrored side faces up and the texture's top points to world +z.]
+
 ## Texture Tweens
 
 For animated texture patterns (`Tween.setTextureMoveContinuous` scrolling, `Tween.setTextureMove` slide-once, `TMT_OFFSET` vs `TMT_TILING` movement types, and looping via `TweenSequence`) — all requiring a texture with `wrapMode: TWM_REPEAT` — see the **Texture Tweens** section in `{baseDir}/references/rendering-patterns.md`.

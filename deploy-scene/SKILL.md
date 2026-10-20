@@ -53,6 +53,15 @@ Before deploying, verify:
 
 6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures) and the flat 330 m height limit. Keep scene load time under 15 seconds by optimizing assets.
 
+   Then do a **size pass on what will actually upload**, before the deploy rather than after a rejection:
+
+   ```bash
+   find assets -type f -size +1M -exec ls -lh {} +        # the heavy files
+   npx @gltf-transform/cli inspect assets/Models/big.glb   # Textures table: each embedded map's resolution and bytes
+   ```
+
+   Embedded 2048 px texture maps are the usual surprise — two generated GLBs carried 17 MB of them in a 34 MB scene, noticed only after publishing (agent-reported, 2026-10). Resize them to 1024 or less (`npx @gltf-transform/cli resize in.glb out.glb --width 1024 --height 1024`, or in Blender — see **optimize-scene**): the converter downscales to 1024 anyway, and the raw file still counts in full. Do not estimate from `bin/index.js` in the project: the preview's dev build carries an inline source map and no minification, while `deploy` rebuilds with `--production` (minified, no map — `commands/deploy/index.ts` in `@dcl/sdk-commands`), typically a fraction of the size.
+
 7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
 ## Deployment Process

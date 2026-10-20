@@ -2,7 +2,7 @@
 
 For sessions that are **not** the Creator Hub's own AI assistant (that one is pre-wired). Any MCP client that speaks Streamable HTTP with a custom header can connect.
 
-Connecting the MCP gives the agent the **tools**, not the **skills**. The Creator Hub links `decentraland/sdk-skills` into a scene only for its own embedded assistant (and those links are only present in the scene folder while the app has it open). From an external client, install the skills yourself with `npx skills add decentraland/sdk-skills --all` unless your session already runs inside a scene folder the Creator Hub has open — details in the main skill under *Where the skills come from*.
+Connecting the MCP gives the agent the **tools**, not the **skills**. The Creator Hub links `decentraland/sdk-skills` into a scene only for its own embedded assistant (and those links are only present in the scene folder while the app has it open). From an external client, install the skills yourself with `npx skills add decentraland/sdk-skills --all` (no Node on the machine? the Hub bundles one — see Gotchas in the main skill) unless your session already runs inside a scene folder the Creator Hub has open — details in the main skill under *Where the skills come from*.
 
 ## Where the connection details come from
 
@@ -107,5 +107,6 @@ curl -s -m 2 http://127.0.0.1:<PORT>/mcp -X POST \
 | `401 Unauthorized` | Token is stale (Creator Hub restarted) or mistyped — re-copy the snippet. |
 | connection refused | Creator Hub not running, restarted on a new port, or the server was never started (tick the setting). |
 | Tools bind but mutations return `No editor window is open.` | The user is on the scene list — ask them to open the scene. |
+| Tools bind, the scene is open, but `scene_state` / `get_project_info` / `entity_detail` / `launch_preview` return `No scene is open.` | Expected from an external client: those four are bound to the project only by the embedded assistant. Probe with `get_selection`, read the composite from disk, mutate through the tools, preview via the Play button's **Enable MCP Server** — see Gotchas in the main skill. |
 
 The probe is only for diagnosing a connection. Drive the scene through the bound MCP tools, not over curl.
