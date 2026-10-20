@@ -44,6 +44,10 @@ Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
 
+**Spatial falloff is very wide — `global: false` is not "only in this room".** `PBAudioSource` has no distance fields at all, and the Explorer sets only `spatialize`/`spatialBlend`/`dopplerLevel` on the pooled Unity `AudioSource`, leaving its distance curve at Unity's defaults (logarithmic, `minDistance` 1 m, `maxDistance` 500 m) — verified in unity-explorer `AudioSourceExtensions.FromPBAudioSourceWithClip` + `AudioSourcesPlugin` and in `audio_source.gen.d.ts` (7.30.1). Several quiet room ambiences therefore all bleed into every room and read as "the sounds play everywhere" (owner-reported symptom, 2026-10-10).
+
+For a bed that must stay inside one room, gate it yourself in a system on distance from the player: set `playing: false` and `volume: 0` beyond a radius and ramp the volume up inside it. The right radius depends on the room size, the clip and its `volume` — tune it in-world. Throttle the system and write only on change. *Fix verified in code only — not re-listened in-world.*
+
 **Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
 
 ```typescript
@@ -64,7 +68,7 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback. On **mobile**, `AudioEvent` (`PBAudioEvent`) ships in **v1.14.0 (Sep 2026)** together with the audio parity pass that aligns volume curves and spatial attenuation with Unity (docs commit `b4d4c88`) — before that, mobile mixes differ audibly from desktop and emits no audio events, which is the same "no finish signal" case the timeout fallback already covers.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
@@ -138,6 +142,16 @@ Read `{baseDir}/references/audio-catalog.md` before recommending audio so sugges
 
 > **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/Audio/` first.
 
+### Environmental recordings the catalog does not have
+
+The catalog has **no environmental machinery** — drips, motors, fans, fridge hum, escalators. Do **not** synthesize a stand-in with `ffmpeg`/python: a creator asked for ambience hears a tone generator immediately and rejects it (observed 2026-10-10). **Wikimedia Commons** is a workable source of real recordings:
+
+- Search: `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=<terms>+filetype:audio&format=json`, then `action=query&prop=imageinfo&iiprop=url|extmetadata` on the hits to read `LicenseShortName` and `Artist`.
+- Prefer **CC0 / Public domain**; **CC BY** and **CC BY-SA** need a credit line wherever the scene is published. Record title, author, licence and source URL in the scene's `design/` notes as you download.
+- Send a descriptive `User-Agent` and pace the calls — the API returned **HTTP 429** after ~8 rapid requests.
+- Files named `LL-Q1860 …` are **Lingua Libre word pronunciations**, not sound effects — skip them.
+- Cut the loop with `ffmpeg` (`afade` in/out + `loudnorm`) before dropping it in `assets/Audio/`.
+
 ### Asset folder conventions
 
 - **Default** for audio you download yourself: `assets/Audio/`.
@@ -145,6 +159,14 @@ Read `{baseDir}/references/audio-catalog.md` before recommending audio so sugges
 - **Creator Hub assets**: audio imported directly through the Creator Hub UI lands in `assets/Audio/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
 
 Always check the scene's existing folders before deciding where to put a new file.
+
+### Fastest path when the scene is open in the Creator Hub
+
+Dragging a media file from the **Local Assets** tab onto the viewport spawns the matching catalog Smart Item already pointed at that file (creator-hub `062ed0a2`) — `.mp3` / `.ogg` / `.wav` spawn **Ambient Sound - Forest Birds** with `AudioSource.audioClipUrl` repointed, `.mp4` spawns **Video Screen** with both `VideoPlayer.src` and `asset-packs::VideoScreen.defaultURL` repointed. That is one gesture instead of create-entity-plus-components, and the entity arrives with the full component set and basic-view config of a hand-placed item. Prefer it over building the entity by hand when the user is at the keyboard; see **creator-hub-mcp** for the asset ids and the equivalent tool calls.
+
+⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
+
+⚠️ **The Creator Hub viewport has a mute toggle, but only under the Bevy renderer** (speaker icon in the toolbar: *Mute scene audio* / *Unmute scene audio*). It forwards every `AudioSource` / `AudioStream` at volume 0 and the state survives a reload. Under Babylon the editor does not play scene audio at all. Silence in the editor is therefore not a diagnosis — verify audio in a real preview before changing `volume` or `playing`.
 
 ## Audio-reactive scenes (visualizers, beat sync)
 

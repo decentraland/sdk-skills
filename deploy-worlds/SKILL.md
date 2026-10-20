@@ -5,6 +5,9 @@ description: Deploy a Decentraland scene to a World (personal 3D space using a D
 
 # Deploying to Decentraland Worlds
 
+> **Not installed inside the Creator Hub agent.** The Creator Hub's skill installer denylists this skill, and because the directory holds nothing but `SKILL.md` it is skipped entirely — it never reaches the app's embedded AI assistant. The Creator Hub owns publishing through its own UI. If you are the Creator Hub assistant and a user asks to publish, point them at the app's Publish flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
+
+
 Worlds are personal 3D spaces not tied to LAND. They have no parcel limitations and are automatically listed on the Places page.
 
 ## Requirements
@@ -64,7 +67,7 @@ Worlds are listed on Places unless opted out, so the same metadata that drives d
 - `display.title` — the World's name
 - `display.description` — one or two sentences on what it is
 - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
-- `display.navmapThumbnail` — `.png`, 228x160 px recommended, 196x143 minimum. For the full spec and a capture procedure, see the **deploy-scene** skill ("Thumbnail image")
+- `display.navmapThumbnail` — `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; keep essential content inside the central 1080x1080 square, which is what square crops of the thumbnail show. Verify the file exists and check its size with `sips -g pixelWidth -g pixelHeight <path>` (macOS) or `magick identify -format "%wx%h\n" <path>`. Capture it yourself with the unity-explorer MCP rather than asking the user — full spec and procedure in the **deploy-scene** skill ("Thumbnail image")
 
 ## 2. Deploy
 
@@ -181,7 +184,26 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 
 ## Post-Publish Conversion
 
-Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. Plan for 30-60 minutes until the new version is reliably playable. For timing details, conversion status endpoints, and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Optimize Assets** (or `--local-ab`) in preview to catch conversion issues before publishing.
+Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. **Conversion usually takes seconds** (longer for very large scenes or busy servers); the **Jump In** button appears as soon as the scene is playable. A conversion still running after a couple of minutes is a failure signal, not normal queuing. For conversion status endpoints and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Compress Assets** (Creator Hub Play Options > Desktop Client) or `--asset-bundles` in preview to catch conversion issues before publishing.
+
+**Anyone who already loaded the World this session keeps seeing the cached version** until they fully close and re-enter Decentraland — a scene reload is not enough.
+
+## World metadata vs scene metadata
+
+A World and each scene published to it carry **two separate sets** of name, description, and thumbnail. Getting this wrong is the usual cause of "I changed the description and Places still shows the old one".
+
+| | Scene metadata | World metadata |
+|---|---|---|
+| Stored in | the scene project's `scene.json` | the World itself |
+| Edited via | scene settings in the Scene Editor | the World's **Settings**, under the Creator Hub's **Manage** tab |
+| Uploaded | with the scene, on every publish | only when you edit it there (or as described below) |
+| Shown in | the scene | Decentraland Places and the in-world World information |
+
+How they interact depends on how many scenes the World holds:
+
+- **Empty World** — publishing the first scene **fills the World's metadata from the scene's**.
+- **Single-scene World** — **every publish overwrites the World's metadata with the scene's.** So edits made in the Manage tab are silently reverted on the next publish; edit the scene's settings instead. In practice you can ignore World metadata entirely here.
+- **Multi-scene World** — the two are **fully independent**. Publishing a scene never changes World metadata, and the Manage tab is the only place to edit it.
 
 ## Troubleshooting
 

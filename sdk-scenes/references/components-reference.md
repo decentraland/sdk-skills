@@ -45,7 +45,7 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **Animator** | `states: Array<{ clip, playing, loop, speed, weight }>` | Play animations embedded in GLTF models. |
 | **Tween** | `mode`, `duration`, `easingFunction`, `currentTime`, `playing?` | Animate entity properties over time. `mode` is a discriminated union: `move`, `rotate`, `scale`, `textureMove`, `moveRotateScale`, plus the endless variants `moveContinuous`, `rotateContinuous`, `textureMoveContinuous` (these loop forever — take a speed rather than a `duration`). While a tween plays, the engine updates the entity's `Transform` in real time — `Transform.get(entity)` returns the live mid-tween value. |
-| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. |
+| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. ⚠️ **Not implemented on mobile — sequenced tweens do not animate at all.** Plain `Tween` works there; the sequence wrapper does not. |
 | **TweenState** | Read-only | Current state of a tween. |
 
 ## Audio & Video
@@ -68,10 +68,10 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
-| **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
+| **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. Not implemented on mobile. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Read-only. Written by the Explorer to report avatar emote playback to the scene. Appended to every player entity (local and remote). Do NOT use to trigger emotes -- use `triggerEmote`/`triggerSceneEmote` from `~system/RestrictedActions` instead. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
-| **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. `[UNVERIFIED: default values]` — the protocol documents no defaults; see `player-avatar/references/avatar-apis.md`. |
+| **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. Defaults: `walkSpeed` 1.5, `jogSpeed` 8, `runSpeed` 10, `jumpHeight` 1, `runJumpHeight` 1.5, `doubleJumpHeight` 2, `glidingSpeed` 6, `glidingFallingSpeed` 1, `hardLandingCooldown` 0.75 — the `.proto` carries none, but the docs page `creator/sdk7/interactivity/avatars/locomotion.md`, the Creator Hub "Locomotion Settings" smart item, and unity-explorer's `CharacterControllerSettings.asset` all agree on these. Negative values clamp to 0. See `player-avatar/references/avatar-apis.md`. |
 
 ## Camera
 

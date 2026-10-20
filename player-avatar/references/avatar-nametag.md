@@ -61,6 +61,11 @@ opacity field.
 | An entity with `AvatarShape` (NPC)       | plate rendered              |
 | Anything else                            | **write silently ignored**  |
 
+## Platform support
+
+- Desktop Explorer: `@dcl/sdk` 7.28.0+.
+- **Mobile: not implemented, no ETA** (it was listed as shipping in v1.14.0, then moved back to missing in the Oct 2026 parity refresh, mobile app v1.15.0). Mobile players see no plate at all. Never make the plate the only carrier of information — mirror it in a `TextShape`, a HUD list, or a color the avatar already wears.
+
 ## Multiplayer roster pattern
 
 Assign labels deterministically from data every client shares (here: sorted wallet addresses), so

@@ -24,7 +24,7 @@
 
 - Mouse wheel is **not available** as an input
 - Always design for both desktop and mobile — mobile has no keyboard, rely on pointer and on-screen buttons
-- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene
+- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene (measured from the **avatar**, default 10)
 - Use `hoverText` to communicate what an interaction does before the player commits
 
 ## All Pointer Event Types
@@ -77,7 +77,7 @@ pointerEventsSystem.onProximityDown(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: "Press E",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   function () {
@@ -91,7 +91,7 @@ pointerEventsSystem.onProximityUp(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: "Release E",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   function () {
@@ -113,7 +113,7 @@ pointerEventsSystem.onProximityEnter(
     opts: {
       button: InputAction.IA_POINTER,
       hoverText: "Nearby",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   function () {
@@ -127,7 +127,7 @@ pointerEventsSystem.onProximityLeave(
     opts: {
       button: InputAction.IA_POINTER,
       hoverText: "Nearby",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
     },
   },
   function () {
@@ -141,8 +141,9 @@ pointerEventsSystem.onProximityLeave(
 | Option              | Description                                                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `button`            | Which button to listen for (`InputAction.IA_PRIMARY`, `IA_SECONDARY`, `IA_POINTER`, etc.)                                |
-| `maxPlayerDistance` | Max distance from the player's **avatar** to the entity (meters). This is the most relevant option for proximity events. |
-| `maxDistance`       | Max distance from the player's **camera** to the entity (meters).                                                        |
+| `maxDistance`       | Max distance from the player's **avatar** to the entity (meters). Default `10`. This is the range option for both cursor and proximity events. |
+| `maxPlayerDistance` | `[DEPRECATED]` alias of `maxDistance` (same meaning). If both are set, the **larger** wins.                              |
+| `maxCameraDistance` | Max distance from the **active camera** origin (meters). Default: unset. Combines with `maxDistance` as an **OR**. **Ignored on the proximity path.** Requires `@dcl/sdk` 7.28.0+. |
 | `hoverText`         | Text shown in the UI when the player is in range.                                                                        |
 | `showHighlight`     | Show an edge highlight on the entity when player is in range. Default: `true`.                                           |
 | `showFeedback`      | Show hover feedback around the center of the entity. Default: `true`.                                                    |
@@ -162,7 +163,7 @@ pointerEventsSystem.onProximityDown(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: "Open door",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
       priority: 2,
     },
   },
@@ -177,7 +178,7 @@ pointerEventsSystem.onProximityDown(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: "Step here",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
       priority: 1,
     },
   },
@@ -200,7 +201,9 @@ pointerEventsSystem.removeOnProximityLeave(myEntity);
 
 For the system-based approach, use `PET_PROXIMITY_ENTER` and `PET_PROXIMITY_LEAVE` in the `PointerEvents` component, and `InteractionType.PROXIMITY` for proximity button presses:
 
-> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`. For proximity range use `maxPlayerDistance` (measured from the avatar); `maxDistance` is the cursor ray range and does nothing for proximity events.
+> **Warning:** `interactionType` is a field of the pointer event entry — a sibling of `eventType` and `eventInfo`, NOT a field inside `eventInfo`. Placing it inside `eventInfo` is silently ignored and the event defaults to `InteractionType.CURSOR`.
+>
+> For range use `maxDistance` — it is **avatar distance** (default `10`) on both the cursor and the proximity path, not a camera/ray range. `maxPlayerDistance` is a `[DEPRECATED]` alias of it. `maxCameraDistance` is camera-origin distance and is ignored on the proximity path.
 
 ```typescript
 import { PointerEvents, PointerEventType, InteractionType, InputAction } from "@dcl/sdk/ecs";
@@ -213,7 +216,7 @@ PointerEvents.create(myEntity, {
       eventInfo: {
         button: InputAction.IA_PRIMARY,
         hoverText: "Approach",
-        maxPlayerDistance: 5,
+        maxDistance: 5,
       },
     },
     {
@@ -221,7 +224,7 @@ PointerEvents.create(myEntity, {
       interactionType: InteractionType.PROXIMITY,
       eventInfo: {
         button: InputAction.IA_PRIMARY,
-        maxPlayerDistance: 5,
+        maxDistance: 5,
       },
     },
   ],
@@ -259,7 +262,7 @@ pointerEventsSystem.onProximityDown(
     opts: {
       button: InputAction.IA_PRIMARY,
       hoverText: "Open / Close",
-      maxPlayerDistance: 5,
+      maxDistance: 5,
       priority: 1,
     },
   },

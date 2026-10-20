@@ -28,6 +28,8 @@ console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFix
 "
 ```
 
+**The `World min`/`max` this prints are glTF axes, not DCL axes.** Decentraland mirrors the glTF X axis (verified in both renderers — see [`blender-authoring.md`](blender-authoring.md)), so convert before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over unchanged. This only bites for models whose placement is baked into the mesh — see the axis section in [`blender-authoring.md`](blender-authoring.md).
+
 Safe placement zone calculation:
 ```
 safeMinX = -bbox.minX + edgeMargin (>=1 m)

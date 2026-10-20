@@ -50,6 +50,33 @@ engine.addSystem(trackPlayer)
 
 Always check `Transform.has(engine.PlayerEntity)` before reading player data — it may not be ready on the first frame.
 
+### Player speed — average over a window, never per frame
+
+**The player `Transform` does not advance every scene tick.** A per-frame speed computed as `Vector3.distance(pos, lastPos) / dt` therefore alternates between `0` on ticks with no update and roughly `2x` the real speed on the next one, and any "speed above X held for N seconds" test never passes. Observed in-world (SDK 7.30.1, 2026-10-12): a ~9 m/s sprint never satisfied a per-frame `speed > 7.5` held 0.5 s; the same threshold over 0.5 s windows triggered on the first try.
+
+Accumulate instead, and reset the window when it closes:
+
+```typescript
+let winDist = 0, winTime = 0
+let last = Vector3.Zero()
+
+function speedSystem(dt: number) {
+	if (!Transform.has(engine.PlayerEntity)) return
+	const pos = Transform.get(engine.PlayerEntity).position
+	const step = Vector3.distance(pos, last)
+	last = pos
+	if (step > 3) return          // teleport / respawn — discard, don't accumulate
+	winDist += step
+	winTime += dt
+	if (winTime < 0.5) return     // window must be >= ~0.5 s to be stable
+	const speed = winDist / winTime
+	winDist = 0; winTime = 0
+	// ... compare `speed` against your threshold here
+}
+```
+
+Skip any single delta over ~3 m: that is a teleport or a respawn, not movement, and it spikes the average.
+
 ### Distance-Based Logic
 
 ```typescript
@@ -107,6 +134,8 @@ function main() {
 - `isGuest` — `true` if the player hasn't connected a wallet
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
+
+**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile — same frame as the local player's — only since mobile app **v1.15.0** (docs commit `5f212e3`, Oct 2026). On an older mobile build those values are in a different frame, so proximity checks and leaderboards keyed on another player's position mis-fire there. Anything safety-critical should be derived from the local player's own position on each client rather than from a remote one.
 
 ## Profile Data for Off-Scene Users (Catalyst)
 
@@ -298,18 +327,21 @@ triggerEmote({ predefinedEmote: 'clap' })
 import { triggerSceneEmote } from '~system/RestrictedActions'
 
 // File MUST end with _emote.glb — rename it on disk if it doesn't
+// src is the path from the PROJECT ROOT, exactly as on disk (usually under assets/)
 triggerSceneEmote({
-	src: 'animations/Snowball_Throw_emote.glb',
+	src: 'assets/animations/Snowball_Throw_emote.glb',
 	loop: false,
 })
 ```
 
 **Notes:**
 
+- **`src` is the path relative to the project root, exactly as the file sits on disk** — an exact content lookup (`SceneContent.TryGetHash(src)`), with no search by file name or `_emote` suffix. A wrong path makes `triggerSceneEmote` resolve `false` with no error logged, and nothing plays. A file at `assets/animations/sit_emote.glb` needs `'assets/animations/sit_emote.glb'`; a bare `'animations/...'` only works if that folder really is at the project root. Same rule for `AvatarShape.expressionTriggerId` — see **npcs**.
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
 - Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
+- To **create** the `.glb` (pose the official avatar rig in Blender, export, verify), see the **avatar-animations** skill.
 
 ### Stopping an emote
 
@@ -317,8 +349,15 @@ triggerSceneEmote({
 
 ```typescript
 import { stopEmote } from '~system/RestrictedActions'
-stopEmote({})
+
+stopEmote({}).then(({ success }) => {
+	// `success` is a plain boolean (the RPC returns `SuccessResponse`).
+})
 ```
+
+If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
+
+**Mobile:** `stopEmote` is supported from mobile app **v1.15.0** (docs commit `5f212e3`). The same release also made scene-started **upper-body** emotes pause when the player leaves the scene, resume on return, and stop on scene unload — and made them read as upper-body to *other* mobile players. On older mobile builds a looping scene emote could not be stopped from the scene, so do not design a mechanic whose only exit is `stopEmote`; give the player an action that also restores the pose some other way.
 
 ### Detecting when an emote finishes
 
@@ -361,12 +400,15 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
-- **Mobile support:** Avatar Masks (upper-body-only emotes) ship on mobile in **v1.13.0 (September 2026)**. Until then the mobile renderer plays masked emotes as full-body. Verified against docs commit `09c5818`.
+- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap — and since **v1.15.0** a masked emote is also seen as upper-body by *other* mobile players rather than as full-body. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Still open: emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile at all. Verified against docs commit `5f212e3` (Oct 2026, mobile v1.15.0).
+- **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
+
+**A copy of the player (lookalike, mirror twin, a queue of "you") is always an `AvatarShape` fed from `getPlayer()` — never a baked model**, so it matches whatever the player is wearing at the time. Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
 
 ## Custom Nametag Plates (`AvatarNametag`)
 
@@ -408,12 +450,12 @@ for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
 ### Gotchas
 
 - **No avatar-readiness dance.** Writing to a still-loading avatar is fine — the renderer retries internally and applies the plate when the avatar is ready. Do NOT poll, delay, or try to detect avatar readiness before writing.
-- **The plate is client-local and is never relayed.** Each client computes its own plates. For everyone to see the same tags, derive them deterministically from shared data (e.g. wallet addresses sorted the same way on every client — the roster pattern in the reference) or sync the assignment explicitly (see the **multiplayer-sync** skill).
-- **Player entity ids are recycled across disconnects.** A write to a cached entity can land on whoever holds that id next. Resolve the entity from the user id / query on *every* write; never cache a player `Entity`. Both idioms above do this naturally.
+- **The plate is client-local and is never relayed**, and player entity ids are recycled across disconnects — resolve the entity from the user id on *every* write (both idioms above do). For everyone to see the same tags, derive them from shared data (the roster pattern in the reference) or sync the assignment: **multiplayer-sync** → "Per-player visuals are NOT automatically shared".
 - **Never call `createOrReplace` while iterating `engine.getEntitiesWith(...)`.** Replacing a component can move the entity to a different archetype and invalidate the live iterator. Collect entities into an array first, then write.
 - **Don't rewrite the component every tick.** Compare against `AvatarNametag.getOrNull(entity)` before writing, or the scene emits a CRDT message per player per frame.
 - **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. For a bare colored plate with no text, use a spaces-only label (`label: '    '`; more spaces = wider plate). Setting `labelColor` equal to `backgroundColor` does **not** hide the text — the rendered text color is not an exact match to the plate, so the word stays faintly visible.
 - **Colors have no alpha.** `Color3` only; there is no opacity field.
+- **Not implemented on mobile** (no ETA as of the Oct 2026 parity refresh). Mobile players see no plate at all, so never make it the only carrier of information — mirror rank/role in a `TextShape`, a HUD list, or a color the avatar already wears.
 - Plates are hidden along with the native nametag inside an `AvatarModifierArea` using `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` (see below). There is no way to keep the plate while hiding the native tag.
 
 ## Avatar Modifier Areas
@@ -476,6 +518,13 @@ Fields (all `float`, optional) with client defaults — verified against unity-e
 
 `glidingFallingSpeed` is a **max descent cap** — it limits how fast the player falls while gliding, but does not limit upward motion. While gliding, continuous scene forces are 1.5× stronger and can lift the player; see the `player-physics` skill ("Forces while gliding").
 
+- **No negative values.** Every field is clamped to `>= 0`; a negative value becomes `0`. Setting a field to `0` has the same effect as blocking the matching key with `InputModifier` (e.g. `runSpeed: 0` ≈ `disableRun: true`).
+- **Scene beats smart wearable.** If a scene and a smart wearable both set a field, the **scene's** value wins.
+- **Scene bounds only.** The component affects the player solely while they are inside the scene's bounds, and only the local player — to change another avatar's locomotion, the code must run on *their* client.
+- **Enforcing the defaults is a real use case:** a parkour or racing scene can write the default values explicitly so a smart wearable can't give its owner an advantage.
+
+**Creator Hub / Inspector support:** a **"Locomotion Settings"** smart item (`utils` category, id `f0fdd9ac-5451-4d84-9964-ea437b11b211`) ships in the Smart Items pack. It is a `asset-packs::Script` item (`locomotion-settings.ts`, class `LocomotionSettings`) whose nine params are `Slider` fields seeded with the SDK defaults above, so a no-code user gets the same component without writing TypeScript. `start()` calls `AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {...})`; it exposes two `@action`s — **Apply** (re-write the configured values) and **Restore Defaults** (`AvatarLocomotionSettings.deleteFrom(engine.PlayerEntity)`), so other smart items can trigger a speed boost and undo it. Its placeholder is an editor-only cube (`asset-packs::Placeholder`), invisible in-world. Prefer it over hand-built entities when the scene is open in the Creator Hub (see **creator-hub-mcp** `place_smart_item`). Verified against creator-hub commit `cb097fff`.
+
 ## Restrict Locomotion (InputModifier)
 
 Use `InputModifier` on `engine.PlayerEntity` to freeze or selectively restrict the player's movement — useful for cutscenes, locked interactions, or controlled game mechanics.
@@ -494,7 +543,7 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 **Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, restrictions lift automatically when the player leaves scene bounds.
 
-**Standard-mode flags** (all boolean, on `InputModifier.Mode.Standard({...})`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`. Protocol also defines `disableDoubleJump` and `disableGliding`. Note `disableJog` is separate from `disableWalk`/`disableRun` — jog is the default movement speed, so disabling only walk+run still lets the player jog.
+**Standard-mode flags** (all optional booleans, on `InputModifier.Mode.Standard({...})`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding` — all eight are in the SDK type (`input_modifier.gen.d.ts`) and documented, not protocol-only. Note `disableJog` is separate from `disableWalk`/`disableRun` — jog is the default movement speed, so disabling only walk+run still lets the player jog.
 
 The `mode` can be built two equivalent ways — the `InputModifier.Mode.Standard({...})` helper, or the raw discriminated union `{ $case: 'standard', standard: {...} }`.
 

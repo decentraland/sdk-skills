@@ -50,13 +50,13 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
 | `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
-| `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs. |
+| `avatar-animations` | Author custom avatar animations (scene emotes) in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
+| `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs, toasts, sliders. Editable in the Creator Hub's UI Designer by default; free-form coded UI for data-driven corner cases. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
-| `editable-ui` | Write React-ECS UI that stays fully editable in the Creator Hub's 2D UI editor (UI Designer). |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
@@ -67,6 +67,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
+| `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
@@ -78,6 +79,8 @@ Skills are markdown files that give AI coding assistants the context they need t
 ## Contributing
 
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
+
+The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
 
 ## License
 

@@ -134,6 +134,7 @@ AvatarNametag.create(npcEntity, { label: 'Shopkeeper' })
 - `name: ''` on the `AvatarShape` shows **only** the plate, with no empty native name box under it — label an NPC with a title alone.
 - `label` is required but may be whitespace-only. `label: '    '` draws a bare colored plate with no text (more spaces = wider plate) — e.g. a team-color badge with no title.
 - `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag colors.
+- Not implemented on mobile — mobile players see the NPC without a plate, so keep the title visible some other way (e.g. a `TextShape`) if it matters.
 
 Field table, edge cases, and gotchas: **player-avatar** skill ("Custom Nametag Plates") and `{baseDir}/../player-avatar/references/avatar-nametag.md`.
 
@@ -146,7 +147,35 @@ AvatarShape.getMutable(npc).expressionTriggerTimestamp = 1
 
 `expressionTriggerId` accepts either a **built-in emote name** (`'robot'`, `'wave'`, ...) OR a **scene-emote `.glb` path** (e.g. `'animations/Snowball_Throw_emote.glb'`) — the same `_emote.glb`-suffixed files used with `triggerSceneEmote`. This is how you play a custom emote on an NPC (there is no `triggerSceneEmote` equivalent for AvatarShape entities). To cycle through the player's own emotes, set `expressionTriggerId = userData.emotes[i]`.
 
+**Before authoring a custom clip for an NPC pose (sit, idle variant), check the embedded emotes first.** The Explorer ships 21 emotes that `expressionTriggerId` accepts by name; the sitting ones **loop** and hold the pose with no re-trigger (verified in-world on an `AvatarShape`, SDK 7.30.1, 2026-10-12). Full list with ids and loop flags (single source of truth): `{baseDir}/../avatar-animations/references/embedded-emotes.md`. A built-in sit often reads more naturally than a hand-authored one — only author a custom clip (**avatar-animations**) when nothing embedded fits.
+
 Note: replaying the **same** `expressionTriggerId` value back-to-back requires bumping `expressionTriggerTimestamp`; setting a **different** id each time replays without touching the timestamp.
+
+**Moving the NPC cancels the emote.** Writing the `AvatarShape`'s `Transform.position`, or running a `Tween` on it, while an emote plays drops the emote and the avatar falls back to its walk cycle — the Explorer re-derives the locomotion blend from the per-frame Transform delta on every frame (`SDKAvatarShapesMotionSystem.UpdateAnimations`, verified against unity-explorer `Explorer/Assets/DCL/Character/CharacterMotion/Systems/SDKAvatarShapesMotionSystem.cs`; symptom owner-reported, behaviour observed in-world, Unity Explorer v0.186.0-alpha, SDK 7.30.1, 2026-10-10). To move an NPC **during** an emote — sink through the floor while screaming, slump sideways — bake the translation into the clip as root/hips motion inside the `_emote.glb`; the Explorer plays that back on an `AvatarShape` (in-world observation, same build/date).
+
+**No masked emotes on NPCs.** `mask?: AvatarMask` (upper-body only) exists only on `TriggerSceneEmoteRequest`, i.e. the player's own `triggerSceneEmote`; `PBAvatarShape` has no mask field, so `expressionTriggerId` is always full-body. Verified against `@dcl/protocol` `decentraland/kernel/apis/restricted_actions.gen.d.ts` and `@dcl/ecs` `decentraland/sdk/components/avatar_shape.gen.d.ts` (7.30.1).
+
+Owner-reported in the same session, **not verified** — confirm before designing around it: the **first** `expressionTriggerId` pointing at a scene `_emote.glb` shows a visible delay on an NPC (clip load); playing it once on an off-screen `AvatarShape` at scene start to warm the cache was tried as a workaround, with unconfirmed effect.
+
+### Copies of the player
+
+A copy / double / mirror twin of the player is always an `AvatarShape` fed from live `getPlayer()` data, never a baked GLB — see **player-avatar** for the field mapping and the clone bullet above.
+
+**What a copy can visibly differ in** is decided by wearable *categories*, which you can read from the catalyst:
+
+```
+https://peer.decentraland.org/lambdas/collections/wearables?wearableId=<urn>&wearableId=<urn>
+```
+
+Each entry returns `data.category`, `data.hides`, `data.replaces` and `data.representations[].overrideHides` / `.overrideReplaces` (verified with curl 2026-10-12: `urn:decentraland:off-chain:base-avatars:red_bandana` → `category: "tiara"`, `replaces: ["mask","hat","helmet"]`). Use it to pick swaps that will actually show.
+
+Owner-reported in the same session, **not source-verified** — treat as leads, confirm in-world before designing around them:
+
+- A worn **skin** replaces the whole body, so added wearables, hair, skin colour and eye colour do not show on the copy.
+- A **helmet** hides hair, headwear, earrings, eyewear and beard.
+- `AvatarShape` cannot force a hidden wearable to render.
+
+**Fallback that always shows:** vary the copy's `Transform` scale — e.g. taller `1.07`, shorter `0.93`, broader `1.10`. It is independent of wearables and reads instantly in a line-up.
 
 ### Mannequin mode (show wearables without a body)
 

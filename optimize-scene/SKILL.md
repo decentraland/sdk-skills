@@ -7,7 +7,7 @@ description: Optimize Decentraland scene performance. Scene limit formulas, obje
 
 ## Scene Limits (Per Parcel Count)
 
-All limits scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials, textures, and height scale logarithmically.
+All limits below scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials and textures scale logarithmically. The height limit does **not** scale — it is a flat 330 m for every scene (see below).
 
 | Resource           | Formula         | 1 parcel | 2 parcels | 3 parcels | 4 parcels | 6 parcels | 9 parcels | 16 parcels | 20 parcels |
 | ------------------ | --------------- | -------- | --------- | --------- | --------- | --------- | --------- | ---------- | ---------- |
@@ -16,7 +16,8 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 | **Physics bodies** | n x 300         | 300      | 600       | 900       | 1,200     | 1,800     | 2,700     | 4,800      | 6,000      |
 | **Materials**      | log2(n+1) x 20  | 20       | 31        | 40        | 46        | 56        | 66        | 81         | 87         |
 | **Textures**       | log2(n+1) x 10  | 10       | 15        | 20        | 23        | 28        | 33        | 40         | 43         |
-| **Height limit**   | log2(n+1) x 20m | 20m      | 31m       | 40m       | 46m       | 56m       | 66m       | 81m        | 87m        |
+
+**Height limit: 330 m for every scene, regardless of parcel count.** Entities whose world position exceeds it are hidden. ⚠️ Anything above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant and networked content below that height.
 
 **Read the Materials row with care.** The client instantiates a material per rendered object, so this number tracks how many objects a scene renders rather than how many distinct materials it authors — a scene that correctly reuses one model many times will pass this cap while doing the right thing. Treat it as a memory signal, and judge frame-time risk by `shaderVariants` instead (see *Repeated Models* below).
 
@@ -25,6 +26,36 @@ All limits scale with parcel count `n`. Triangles, entities, and bodies scale li
 File limits count only what is actually uploaded on deploy. Make sure `.dclignore` (at the project root) excludes all working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown docs — since these are often the bulk of a project's size and are never needed at runtime. See the `.dclignore` section in the **deploy-scene** skill.
 
 Important: Except for the MB size limits, all other limits can be exceeded. It's generally not recommended to go over them because of performance impact, but if a user tests their scene and determines that it's good enough, it should be ok to publish.
+
+## Mobile Scene Limits
+
+A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading. Verified against docs commit `8139a7f` (Oct 2026).
+
+| Metric | Soft | Hard |
+| --- | --- | --- |
+| Triangles | 1,000,000 | 1,200,000 |
+| Entities | 4,800 | 6,000 |
+| Meshes (bodies) | 2,400 | 3,000 |
+| Geometries | 1,000 | 2,000 |
+| Materials | 400 | 500 |
+| Textures | 400 | 500 |
+| Colliders | 1,200 | 1,500 |
+| **VFX emitters** | **8** | **10** |
+| **Live particles** | **25,000** | **50,000** |
+| **Light sources** | **8** | **16** |
+| **Shadow lights** | **2** | **4** |
+| Content size | 120 MB | 150 MB |
+| External content | 40 MB | 50 MB |
+| Memory (process RSS) | 1,638 MB | 2,048 MB |
+| Draw calls | 1,000 | 2,000 |
+| Performance (higher is better) | 90% | 85% |
+
+**Lights and particles count what is *authored*, not what the engine runs.**
+
+- Each mobile **graphics profile** activates only a budget of the **nearest** light sources — **0 on Very Low up to 8 on High** — and may disable shadows entirely. A scene that authors 20 lights still pays the full scene cost even though at most 8 ever emit. Author to the 8/16 limit; do not rely on the runtime budget to make an over-lit scene cheap. See **lighting-environment**.
+- Particles are additionally **clamped at runtime**: **5,000 per emitter, 50,000 per scene**. Anything authored above those caps is silently reduced, so exceeding them only wastes scene budget with no visual gain. See **particle-system**.
+
+Measure without a device: Creator Hub > Preview > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device.
 
 ## Entity Count Optimization
 
@@ -287,8 +318,8 @@ Caveats:
 
 Reproduce the server-side asset bundle conversion locally before publishing. This catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models.
 
-- **Creator Hub:** check **Optimize Assets** in the dropdown next to the **Preview** button.
-- **CLI:** `npm run start -- --local-ab`
+- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` is too old for the flag.
+- **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
 
 The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
 
@@ -382,6 +413,10 @@ When running the scene locally with `npm run start`:
 # Optimize a GLB with Draco compression
 npx @gltf-transform/cli optimize input.glb output.glb --compress draco
 ```
+
+⚠️ **Draco does not decode on mobile, and the failure is silent and preview-only-visible.** The mobile app ships **no runtime Draco decoder**. A Draco-compressed `.gltf`/`.glb` loads on a phone **only from the scene's optimized assets**, where the asset server has already decompressed it. When a scene has no optimized assets — **local preview, Creator Hub mobile preview, QR preview** — the model **fails to load with no error at all**: no console message, no placeholder, just an absent mesh (docs commit `5f212e3`, Oct 2026; an error dialog is tracked in godot-explorer #2432).
+
+The trap is the asymmetry: a published scene can look fine on a phone while the same model is invisible in every mobile preview — and a creator debugging that preview has nothing to go on. **Export without Draco** if the scene targets mobile; run `optimize` with `--compress false` for a cross-platform build, and cut triangles/textures instead. [UNVERIFIED: whether the other `gltf-transform` compression modes (`meshopt`, `quantize`) load on mobile — the docs only call out Draco.]
 
 ## Example scenes
 

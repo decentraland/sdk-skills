@@ -1,22 +1,53 @@
-# Drag sliders in editable UI
+# Drag sliders in React-ECS UI
 
-Read this for any slider, scrub bar or drag handle in a UI that must stay editable in the Creator Hub. It is the worked port of build-ui's `screenDelta` drag pattern (`build-ui/references/ui-sliders.md`) onto this contract — **built and verified in-world** in an SDK 7.27.0 scene, zero opaque nodes, zero frozen nodes.
+Read this when the user asks for a slider, a drag handle, a scrub bar, or any UI driven by dragging.
 
-The mechanic survives the port intact. Only two things change shape: the drag *start* becomes an ordinary action body, and the release catcher stops being conditionally rendered.
+**Short answer: drag sliders ARE supported.** Build them with `PrimaryPointerInfo.screenDelta`, not with the UI event handlers alone. Confirmed working in-world in both the Unity and the Bevy explorers, and — in the editable form below — **built and verified in-world** in an SDK 7.27.0 scene with zero opaque nodes and zero frozen nodes.
 
-## How the pattern maps onto the contract
+## Why you need `screenDelta`
 
-| Piece of the coded pattern | Under this contract |
+`Listeners` in `@dcl/react-ecs` is exactly four optional callbacks, and `Callback` takes **zero parameters**:
+
+```ts
+export type Callback = () => void
+
+export type Listeners = {
+  onMouseDown?: Callback
+  onMouseUp?: Callback
+  onMouseEnter?: Callback
+  onMouseLeave?: Callback
+}
+```
+
+- No `onMouseDrag` / `onMouseMove` listener exists.
+- **No arguments are passed to a handler** — no event object, no pointer position. The reconciler wires each listener through `pointerEventsSystem` and then calls `callback()` with the `PBPointerEventsResult` discarded, so "where on this element did they click" never reaches scene code.
+- All four are hardcoded to `InputAction.IA_POINTER`; you cannot bind a UI element to right-click or a key.
+
+So you cannot compute a value from *where* the click landed. You **can** track how far the mouse has *moved* since the drag started — which is what a slider actually needs.
+
+`PrimaryPointerInfo.screenDelta` (on `engine.RootEntity`) is a `Vector2` of pixels moved since the last frame, updated every frame regardless of what the cursor is over. The official docs endorse exactly this for drag gestures: *"slide an entity along a rail using `delta.x` as an offset."*
+
+## The pattern
+
+1. `onMouseDown` on the track starts the drag and records the value at that moment.
+2. A system accumulates `screenDelta.x` into the value each frame while the drag is active.
+3. A full-screen, pointer-blocking overlay present **only while dragging** catches the release, so letting go outside the narrow track still ends the drag.
+
+Step 3 is one of the two sanctioned exceptions to the rule that a `100%`×`100%` wrapper must never be pointer-blocking (`SKILL.md` → **Pointer blocking**, self-check item 11). It is safe *only* because it is gated: the blocking rect exists for the duration of a drag and is gone the rest of the time. Never hoist that `pointerFilter: 'block'` / `onMouseUp` onto a permanent full-screen wrapper to "simplify" — that blocks every click in the scene forever.
+
+## How the pattern maps onto the editable contract
+
+| Piece of the pattern | In editable UI |
 |---|---|
-| drag machinery: `screenDelta` accumulation, UI scale-factor correction, `PET_UP` safety net, clamping, interpolation | unchanged, in the **driver** outside `src/ui/` — the editor never reads it |
+| drag machinery: `screenDelta` accumulation, UI scale-factor correction, `PET_UP` safety net, clamping, interpolation | in the **driver** outside `src/ui/` — the editor never reads it |
 | `beginDrag({...})` in `onMouseDown` | a plain `/** @ui-action */` body that sets the value **and** `state.dragTarget` — action bodies are free-form |
 | `{isDragging() && <catcher/>}` release overlay | **not expressible** (`{cond && <X/>}` is opaque). Becomes an always-present overlay with an `active` `display: 'none'` layer gated on `state.dragTarget === ''` |
 | `width: `${pct}%`` fill | a driver-derived px number bound as `width: props.fillPx` |
 | continuous dragged value → readout text | driver interpolates over a designed step table and writes the finished string |
 
-The editor still only ever sees bound variables with literal rest values. It has no representation of the drag itself — which is exactly the driver-pattern split.
+The editor only ever sees bound variables with literal rest values; it has no representation of the drag itself — exactly the driver-pattern split.
 
-## 1. The slider component (`src/ui/KitSlider.tsx`)
+## 1. The editable slider component (`src/ui/KitSlider.tsx`)
 
 Hybrid by design: 10 unrolled 40-px click zones give **tap-to-step**, and each press also **begins the drag** through the same `onChange` callback. Tap-to-step is not a nicety — it is the complete mobile interface, because `screenDelta` is always 0 on mobile.
 
@@ -120,8 +151,8 @@ Why it is shaped this way:
 - **Root declares `width: 400, height: 70` explicitly** (26-px label row + 44-px track row). The column would auto-size correctly at runtime and read **height 0** on the editor canvas — the standard editable-UI collapse. See `SKILL.md` → **Sizing and mobile**.
 - **10 unrolled zones, 40 px each = the 400-px track.** No `.map()` exists here; the repetition is the price of editability, and it is what carries the step value: `value: 0…9` is passed straight into the action and out through `props.onChange`.
 - **The zone layer is a `100%`×`100%` sibling rendered after the groove**, so it sits on top and takes the clicks. The groove is `positionType: 'absolute'`, so it consumes no flow space and the zones fill the row. Net effect: a **44-px tall hit area** over a 12-px visible groove — comfortably tappable on mobile.
-- **These handlers belong exactly here.** The zones are the smallest elements that need them (40×44 px each), which is the Lesson-1 rule applied correctly: never the wrapper, always the smallest element.
-- **Both header labels declare an explicit `200`/`180` × `26` box** and align inside it (`middle-left` / `middle-right`) rather than relying on `justifyContent: 'space-between'` alone. Text intrinsic sizing is engine-dependent — an unset text dimension contributes ~0 to layout on the Unity explorer — so a label without a box is a cross-engine layout bug. See `SKILL.md` → **Sizing and mobile**.
+- **These handlers belong exactly here.** The zones are the smallest elements that need them (40×44 px each): never the wrapper, always the smallest element.
+- **Both header labels declare an explicit `200` / `180` × `26` box** and align inside it (`middle-left` / `middle-right`) rather than relying on `justifyContent: 'space-between'` alone. Text intrinsic sizing is engine-dependent — an unset text dimension contributes ~0 to layout on the Unity explorer — so a label without a box is a cross-engine layout bug.
 - `props.fillPx` is a bare-reference binding; the driver derives it. `` value={`${props.valueText}`} `` is a mixed-text binding, so the formatting also lives in the driver.
 
 ## 2. The screen: state, actions, and the drag catcher
@@ -228,7 +259,7 @@ Note the root wrapper is a plain `UiEntity` with **no** spread and no handler �
 
 ### This is a sanctioned deliberate-blocking exception
 
-A permanently-blocking full-screen element is the top-severity mistake in scene UI: it locks the player out of every other UI element and the whole 3D world (`SKILL.md` → **Interaction layers**, self-check item 11). The catcher is legitimate because the blocking is **gated**: `pointerFilter: 'block'` is real, but the element is `display: 'none'` except during a drag, which lasts exactly as long as a mouse button is held. The other sanctioned exception is a modal backdrop that is *supposed* to swallow clicks while open. In both cases the blocking is an explicit, gated decision — never a side effect of where a `useInteraction` spread landed.
+A permanently-blocking full-screen element is the top-severity mistake in scene UI: it locks the player out of every other UI element and the whole 3D world. The catcher is legitimate because the blocking is **gated**: `pointerFilter: 'block'` is real, but the element is `display: 'none'` except during a drag, which lasts exactly as long as a mouse button is held. The other sanctioned exception is a modal backdrop that is *supposed* to swallow clicks while open. In both cases the blocking is an explicit, gated decision — never a side effect of where a `useInteraction` spread landed.
 
 ## 3. The driver's drag section (`src/ui-behaviors.ts`)
 
@@ -318,13 +349,116 @@ Two things this driver does that a stepped-only slider would not need:
 - **Values are continuous, not integer.** `hueStep` becomes fractional the moment the player drags, so the readouts cannot index the step tables directly — `lerpTable` interpolates between the designed anchor points. Discrete labels (`HUE_NAMES`) round instead. Design the tables at whole steps; let the driver fill in between.
 - **`stepToPx` is the only place the track geometry appears twice.** `TRACK_PX` must equal `KitSlider`'s track width (400) or the drag will not track the cursor and the fill will not reach the ends.
 
+## 4. Coded variant (non-editable UI)
+
+Same mechanic with conditional rendering — for a slider inside a coded panel (`coded-ui.md`).
+
+### Drag state + system
+
+```ts
+import { engine, PrimaryPointerInfo, UiCanvasInformation, InputAction, PointerEventType, inputSystem } from '@dcl/sdk/ecs'
+
+const VIRTUAL_WIDTH = 1920
+const VIRTUAL_HEIGHT = 1080
+
+type DragArgs = {
+  unitsPerVirtualPx: number // (max - min) / trackWidthInVirtualPx
+  min: number
+  max: number
+  start: number             // value when the drag began
+  set: (v: number) => void
+}
+
+// The accumulator owns `current`. Do NOT read the value back through a closure
+// over JSX props — see the stale-closure gotcha below.
+let drag: (DragArgs & { current: number }) | null = null
+
+export const isDragging = () => drag !== null
+export const endDrag = () => { drag = null }
+export const beginDrag = (a: DragArgs) => { drag = { ...a, current: a.start } }
+
+function uiScaleFactor(): number {
+  const c = UiCanvasInformation.getOrNull(engine.RootEntity)
+  if (!c?.width || !c?.height) return 1
+  const s = Math.min(c.width / VIRTUAL_WIDTH, c.height / VIRTUAL_HEIGHT)
+  return Number.isFinite(s) && s > 0 ? s : 1
+}
+
+export function dragSliderSystem() {
+  if (!drag) return
+  // safety net if the overlay's onMouseUp does not fire
+  if (inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_UP)) { drag = null; return }
+
+  const delta = PrimaryPointerInfo.getOrNull(engine.RootEntity)?.screenDelta
+  if (!delta || delta.x === 0) return
+
+  drag.current = Math.min(drag.max, Math.max(drag.min, drag.current + (delta.x / uiScaleFactor()) * drag.unitsPerVirtualPx))
+  drag.set(drag.current)
+}
+```
+
+Register it once: `engine.addSystem(dragSliderSystem)`.
+
+### The UI
+
+```tsx
+const TRACK_WIDTH_PX = 208 // track width in VIRTUAL px — must match the layout below
+
+function Slider(props: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+  const { value, min, max, onChange } = props
+  const pct = Math.max(0, Math.min(1, (value - min) / (max - min))) * 100
+
+  return (
+    <UiEntity uiTransform={{ width: '100%', height: '100%', positionType: 'absolute' }}>
+      {/* release catcher — only while dragging */}
+      {isDragging() && (
+        <UiEntity
+          uiTransform={{
+            positionType: 'absolute', position: { top: 0, left: 0 },
+            width: '100%', height: '100%', pointerFilter: 'block'
+          }}
+          onMouseUp={endDrag}
+        />
+      )}
+      {/* track */}
+      <UiEntity
+        uiTransform={{ width: TRACK_WIDTH_PX, height: 10 }}
+        uiBackground={{ color: Color4.create(0.15, 0.15, 0.18, 0.9) }}
+        onMouseDown={() =>
+          beginDrag({ unitsPerVirtualPx: (max - min) / TRACK_WIDTH_PX, min, max, start: value, set: onChange })
+        }
+      >
+        <UiEntity uiTransform={{ width: `${pct}%`, height: '100%' }} uiBackground={{ color: Color4.create(1, 0.6, 0.2, 1) }} />
+      </UiEntity>
+    </UiEntity>
+  )
+}
+```
+
+If the track is sized with `flexGrow: 1`, compute `TRACK_WIDTH_PX` from the parent: e.g. a 300-wide panel with `padding: 14` and two 26px buttons with 6px margins gives `300 - 28 - 26 - 26 - 12 = 208`. Pair the track with `-` / `+` stepper `Button`s — fine adjustment on desktop and the whole interface on mobile. Branch with `isMobile()` from `@dcl/sdk/platform` to hide the track entirely if wanted.
+
 ## Gotchas
 
-- **`TRACK_PX` must match the component's track width exactly** (here 400, also the sum of the ten 40-px zones). A mismatch makes drag speed diverge from the cursor and the fill overshoot or fall short of the end.
-- **Drag is desktop-only.** `screenDelta` always reports 0 on mobile, so on a phone the slider is *only* the tap-to-step zones. That is why the zones are a full interface on their own (10 steps, 40×44 px targets) rather than a coarse fallback — do not build an editable slider whose zones are too few or too small to be usable alone.
+- **Do not read the current value back through a JSX closure.** `get: () => props.value` captures the props object from the render frame where the drag began, so it returns a stale constant — the slider jitters around its start value instead of accumulating. The drag state (or the editable `state` object) must own its own accumulator. (Hit and fixed during in-engine testing.)
+- **The track width constant must match the rendered track width in virtual px** (`TRACK_PX` 400 = the ten 40-px zones; `TRACK_WIDTH_PX` 208 in the coded example), or drag speed won't match the cursor and the fill overshoots or falls short of the end.
+- **Always divide by the UI scale factor**, computed with the same formula the scene's `@dcl/react-ecs` uses. Skipping it makes the drag over- or under-shoot on any screen whose resolution differs from the virtual size.
+- **The formula is SDK-version dependent — check `@dcl/sdk` in the scene's `package.json`.** `uiScaleFactor()` above is the **7.26.0+** form. On a scene pinned **below 7.26.0**, react-ecs also divides its layout by `devicePixelRatio`, so the helper must match it or the drag under-shoots on every high-density screen:
+
+  ```ts
+  // Below SDK 7.26.0 ONLY — react-ecs divides its own layout by devicePixelRatio there.
+  // Do NOT use this form on 7.26.0+; it reintroduces the very mismatch it corrects.
+  const s = Math.min(c.width / VIRTUAL_WIDTH, c.height / VIRTUAL_HEIGHT) / (c.devicePixelRatio || 1)
+  ```
+
+  If you inherit slider code carrying the `devicePixelRatio` divisor and the scene is on 7.26.0+, remove the divisor. See the version gate in `coded-ui.md`. (The editable path requires 7.26.0+, so it always uses the form above.)
+- **`VIRTUAL_WIDTH` / `VIRTUAL_HEIGHT` must match what the renderer actually resolved to**, not just what you think you passed. The editor's generated `index.tsx` passes **no** options, so the scene gets the platform defaults — desktop `1920x1080`, mobile `1600x720`; the desktop pair is all the drag path needs. In coded UI, passing the size explicitly to `setUiRenderer` keeps these constants honest (a 16:9 size passed on mobile is still overridden to `1600x720`).
+- **Desktop only.** `screenDelta` always reports 0 on mobile (no free-moving cursor), and `pointerType` only has `POT_NONE` / `POT_MOUSE`. On a phone the slider is *only* the tap-to-step zones (or the stepper buttons) — make them a full interface on their own (10 steps, 40×44 px targets), not a coarse fallback.
 - **The `PET_UP` check in the driver is a safety net, not the primary path.** The overlay's `onMouseUp` normally ends the drag; `PET_UP` catches releases the overlay misses (pointer leaving the window, focus loss). Keep both — a stuck `dragTarget` means the slider follows the cursor forever.
 - **The catcher must be the last child of the root** (or otherwise on top). A catcher rendered before the panel sits underneath it, and releases over the panel never reach it — leaving the drag running.
 - **`state.dragTarget` is a `string`, not a boolean**, so one overlay and one system serve every slider on the screen. Gate the overlay on `state.dragTarget === ''` and select in the driver with `if/else`. A boolean per slider would need one overlay each.
-- **Do not read the dragged value back through a JSX closure.** The driver owns the accumulator and mutates `state` directly; a closure over a render-frame prop returns a stale constant and the slider jitters around its start value (see `build-ui/references/ui-sliders.md`).
-- **The scale-factor formula is SDK-version dependent.** The form above is 7.26.0+. Below that, `@dcl/react-ecs` also divides its layout by `devicePixelRatio` and the helper must match. Check `@dcl/sdk` in the scene's `package.json`; details in `build-ui/SKILL.md` → SDK version gate.
-- `VIRTUAL_WIDTH`/`VIRTUAL_HEIGHT` must match the canvas the renderer actually resolved to. The editor's generated `index.tsx` passes **no** options, so the scene gets the platform defaults — desktop `1920x1080`, mobile `1600x720`. The constants above are the desktop pair, which is all the drag path needs.
+- **Read `screenDelta` inside a system.** It only holds one frame of movement, and touching `engine.RootEntity` during initial scene load can error.
+- **Vertical sliders**: the screen origin is top-left, so positive `delta.y` means the mouse moved down — that already matches a track whose value grows downwards. Invert it for a bottom-up track (a volume fader that fills upwards). Horizontal drags need no adjustment.
+
+## Why not `screenCoordinates`
+
+`PrimaryPointerInfo.screenCoordinates` gives an absolute cursor position, which looks like a way to jump the value to the clicked position. Avoid it for sliders: it forces you to hardcode the track's screen rect as canvas fractions, breaks the moment the track sits inside a flex layout or an `InteractableArea` / `ScreenInsetArea` wrapper, and freezes at the screen center whenever the cursor is locked. Delta accumulation has none of those failure modes.

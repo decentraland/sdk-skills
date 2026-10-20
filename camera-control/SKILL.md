@@ -149,7 +149,37 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 
 `VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
 
-`VirtualCamera` accepts an optional `fov?: number` field (field of view in degrees). When set, the virtual camera overrides the Explorer's default FOV for as long as it is the active `MainCamera.virtualCameraEntity`. Omitting it uses the Explorer's default. Verified against js-sdk-toolchain `PBVirtualCamera` commit `26cb9251`.
+`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Defaults to `60` when omitted.** When set, the virtual camera overrides the default FOV for as long as it is the active `MainCamera.virtualCameraEntity`. Verified against js-sdk-toolchain `PBVirtualCamera` commit `26cb9251` and docs commit `717227a`.
+
+Choosing a value:
+
+- **Wider (higher, e.g. 90)** — shows more of the scene at once and creates a sense of speed. Good for racing and vehicle cameras.
+- **Narrower (lower, e.g. 35-45)** — zooms in and flattens perspective. Good for aiming down sights and cinematic shots.
+- Very wide values distort at the frame edges; keep a fixed framing camera near the default unless the distortion is the point.
+
+> **Teardown order matters — clear the binding first, delete the entity later.** Removing a `VirtualCamera` entity in the same frame you stop using it makes the view **jump**, and removing it *before* clearing `MainCamera.virtualCameraEntity` leaves the engine bound to a dead entity, which drops the view to the player's feet.
+>
+> The safe sequence (verified in `33,20-spectate-mode`):
+>
+> 1. Set `MainCamera.virtualCameraEntity = undefined`.
+> 2. Leave the `VirtualCamera` entity (and its rig parents) **alive for ~1 second** so the renderer can blend back to the player camera.
+> 3. Then `engine.removeEntity(...)` the rig.
+>
+> ```typescript
+> let rigDestroyTimer = 0
+> function rigDestroySystem(dt: number) {
+>   rigDestroyTimer += dt
+>   if (rigDestroyTimer < 1) return
+>   engine.removeSystem(rigDestroySystem)
+>   if (rigCamera) engine.removeEntity(rigCamera)
+>   if (rigRoot) engine.removeEntity(rigRoot)
+> }
+> // in disableSpectate(): clear MainCamera, restore input, then
+> rigDestroyTimer = 0
+> engine.addSystem(rigDestroySystem)
+> ```
+>
+> If the camera is reused rather than one-shot, simply keep the entity around and skip the delete.
 
 **Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
 
@@ -209,7 +239,7 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 
 - **Camera-Triggered Events** — use camera position/proximity to trigger actions when the player looks at an area.
 - **Following an NPC (camera-follows-NPC)** — track an NPC by driving a VirtualCamera's Transform each frame (guardrail on why this works lives in the VirtualCamera section above).
-- **Mouselook Camera (FPS-style)** — drive a VirtualCamera with `PrimaryPointerInfo.screenDelta` (pixel delta per frame, keeps working while cursor is locked). Accumulate into yaw/pitch, clamp pitch [-85,+85], combine with PointerLock + InputModifier `disableAll`. Desktop only (screenDelta always 0 on mobile). See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
+- **Mouselook Camera (FPS-style)** — drive a VirtualCamera with `PrimaryPointerInfo.screenDelta` (pixel delta per frame, keeps working while cursor is locked). Accumulate into yaw/pitch, clamp pitch [-85,+85], combine with PointerLock + InputModifier `disableAll`. `screenDelta` is **top-left origin, `y` grows downward**, so pitch **adds** `delta.y` (`pitch + delta.y * SENS`) — subtracting it inverts the vertical axis. Desktop only (screenDelta always 0 on mobile). See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
 - **Spectate Mode (observer / director / replay camera)** — toggle the player from avatar movement into a free-roaming or player-following camera: two-entity yaw/pitch rig, WASD/E/F/1/2 controls, `onEnterScene`/`onLeaveScene` player roster, InputModifier freeze, and parcel-bounds clamping (the engine disables VirtualCameras outside parcel bounds). See `{baseDir}/references/camera-patterns.md` → "Spectate Mode".
 
 > **Freezing player during cutscenes?** Combine VirtualCamera with `InputModifier` from the **advanced-input** skill to prevent player movement during cinematic sequences.
@@ -219,5 +249,5 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — multiple VirtualCameras: static, `Speed`/`Time` transitions, `lookAtEntity: engine.PlayerEntity`, a Tween-driven moving camera, a WASD-controllable camera (driving the VirtualCamera Transform each frame), plus `CameraModeArea` and `AvatarModifierArea`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — mouselook camera: `PrimaryPointerInfo.screenDelta` driving VirtualCamera yaw/pitch while pointer is locked, with `InputModifier` disableAll and PointerLock control. Reference implementation for the mouselook pattern.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate mode: free-roaming / player-following camera in one self-contained module (`src/spectate.ts`): two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping. Reference implementation for the spectate pattern.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate mode: free-roaming / player-following camera in one self-contained module (`src/spectate.ts`): two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping, the delayed-teardown sequence above, and full `TouchScreenControls` mobile parity (its README documents only the desktop bindings — the mobile handling is in the source). Reference implementation for the spectate pattern.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas — `CameraModeArea` forcing `CameraType.CT_FIRST_PERSON` inside a rotated 4x4x4 volume, rendered as a translucent box so the trigger volume is visible. A click handler moves the area's `Transform` to show the area follows the entity; a commented-out branch shows mutating `mode` in place via `CameraModeArea.getMutable()`. Sits alongside an `AvatarModifierArea` in the same scene.

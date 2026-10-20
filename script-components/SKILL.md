@@ -64,12 +64,35 @@ The Creator Hub Script component has a `priority` field (separate from construct
 
 Parameters declared in the constructor are exposed in the Creator Hub UI and can be configured per-entity. Allowed types:
 
-- `string`
-- `number`
-- `boolean`
-- `Entity` (lets the user pick another entity from the scene)
+| Type | Editor UI |
+|---|---|
+| `string` | text field |
+| `number` | number field |
+| `boolean` | checkbox |
+| `Entity` | entity picker (lets the user pick another entity from the scene) |
+| `ActionCallback` | action picker — see "ActionCallback parameters" |
+| `Slider<Min, Max, Step>` | **slider plus a number box** — see below |
 
 Both `public` and `private` parameters are exposed to Creator Hub. Use `this.<paramName>` to access values in your code.
+
+### `Slider<Min, Max, Step>` — a number edited with a slider
+
+```ts
+public speed: Slider<0, 10, 0.5> = 1
+```
+
+- **The runtime value is a plain `number`** — the type is a pure alias (`type Slider<Min, Max, Step = 1> = number`), so nothing changes in your code or in serialization. It only tells the editor to render a slider.
+- **`Step` defaults to `1`** — `Slider<0, 100>` steps by 1.
+- **An invalid declaration degrades to a plain number field** (no error): missing bounds, `min >= max`, or `step <= 0`. Negative bounds and negative defaults are fine.
+- A default outside the range is **clamped**; if you later widen or narrow the bounds, the stored value is re-clamped into the new range on script reload.
+- **Exported from `@dcl/asset-packs`**, next to `ActionCallback`. Scenes cannot import it yet, so the Creator Hub's script template declares a local alias — copy this line into your script file:
+
+  ```ts
+  // A number edited with a slider in the Creator Hub UI: Slider<min, max, step>
+  type Slider<Min extends number, Max extends number, Step extends number = 1> = number
+  ```
+
+  (`~sdk/script-utils` is its eventual home; until then the local alias is the supported form.)
 
 ### Default values
 
@@ -124,6 +147,8 @@ The `asset-packs::Script` component value has the shape `{ value: [{ path: strin
 ```json
 {"params":{"paramName":{"type":"string|number|boolean|action","value":<value>}}}
 ```
+
+`layout` also carries `actions` (from `@action` methods) and `events` (from `@event` tags, see below), plus an `error` string when parsing failed. Only `params` feeds the constructor — but **preserve the other keys whenever you rewrite the layout**, or the editor features they drive disappear.
 
 At runtime, `@dcl/sdk-commands/dist/logic/runtime-script.js` resolves params like this:
 
@@ -266,6 +291,26 @@ export class Padlock {
 }
 ```
 
+### Unwired `ActionCallback` params are `undefined` (sdk-commands fix `8da580d5`)
+
+An **optional** `ActionCallback` the user never assigns in the editor now resolves to **`undefined`**, so the obvious guard works:
+
+```ts
+constructor(
+  public src: string,
+  public entity: Entity,
+  public onUnlock?: ActionCallback,   // ActionCallback | undefined
+) {}
+
+solve() {
+  if (this.onUnlock) this.onUnlock()   // safe: no-op when unwired
+}
+```
+
+**Previously** an unassigned param resolved to a truthy placeholder (`{ entity: 0, action: '' }` wrapped into a callable), so `if (this.onUnlock)` always passed and calling it logged a `console.error`. If you wrote a workaround around that — checking `entity !== 0`, or swallowing the error — remove it. On an older `@dcl/sdk-commands` the old behavior is still live, so a truthiness guard alone is not a safety net there.
+
+Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one.
+
 ## Calling other scripts from code
 
 Use the runtime utilities in `~sdk/script-utils` to call methods on other Script component instances:
@@ -284,3 +329,48 @@ const instance = getScriptInstance(entity, 'assets/scripts/Padlock.ts')
 const allOnEntity = getAllScriptInstances(entity)
 const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
+
+
+## Smart Items are now Script-based (creator-hub `658f4daf`, PR #1354)
+
+Most catalog Smart Items were migrated from the Actions/Triggers no-code graph to **`asset-packs::Script` code with `@action`-tagged methods** — the same mechanism this skill documents. What that means when you inspect or extend one:
+
+- **A migrated item carries no `asset-packs::Triggers`.** Do not look for a trigger graph; the behavior is in the `.ts` file the `Script` component points at (`Door.ts`, `Seat.ts`, `Button.ts`, `Lever.ts`, `Bell.ts`, `Teleport.ts`, `Sign.ts`, …).
+- **The `Actions` that remain are `call_script_method` pointers** that preserve the old public action names, so existing scenes that referenced "Open" / "Close" / "Open or Close" / "Sit Here" keep working. Their `jsonPayload` is `{"scriptPath": "{assetPath}/Door.ts", "methodName": "open", "params": {}}`.
+- **The Script's params ARE the configuration UI** — the `inspector::Config` panel was removed from the migrated items. It survives on the items that were *not* migrated: the lights, the screen/media family, `camera`, `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family. (Do not state that Config was removed everywhere — it was not.)
+- **"When X happens" hooks are optional `ActionCallback` params.** Real names in the shipped items: `onClick`, `onActivate` / `onDeactivate`, `onReachStart` / `onReachEnd` (the two most common, on the moving-platform family), `onRing` (bell), and `onOpen` / `onClose` (the open/closed sign — not the doors). Wire them the way this skill's ActionCallback section describes.
+- **State lives in a synced `asset-packs::States` component** listed in `core-schema::Sync-Components` (`{"componentIds": ["asset-packs::States"]}`). E.g. a door creates `States` with `value: ['Open','Closed'], defaultValue: 'Closed'` in `start()`; a chair carries `['Free','Taken']` per sit spot. Read and write state through `States`, not through script instance fields, or it will not replicate.
+
+**Not migrated** (still Actions/Triggers): `click_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers). `video_player` is **`[DEPRECATED]`** (moved to the `deprecated` category) — use one of the video screen items instead.
+
+**New items are written as Scripts from the start.** `locomotion_settings` ("Locomotion Settings", `utils`, creator-hub `cb097fff`) is the current reference example and worth reading before writing your own: nine `Slider<Min,Max,Step>` params seeded with the SDK defaults and a `@param` tooltip each, a `start()` that writes a component onto `engine.PlayerEntity` (a **global** effect, not a per-entity one — the item has no in-world presence at all), two `@action` methods (`apply` re-writes the values, `restoreDefaults` calls `deleteFrom`), and an editor-only `asset-packs::Placeholder` cube so the thing can be selected in the viewport while being invisible in-world. It carries no `Actions`, no `Triggers`, no `Config`, and no `States`. See the **player-avatar** skill for what it configures.
+
+**`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
+
+**[FIXED in `@dcl/sdk` 7.30.1] Adding the FIRST smart item during a live preview no longer needs a restart.** On 7.30.0 and earlier, `isEditorScene()` ran once, before the esbuild context was created, and its verdict was baked into the static entrypoint. Adding the first smart item (or the first `asset-packs::Script`) to a scene while `npm run start` / the Creator Hub preview was **already running** rebuilt a bundle that executed the item's `Script` without the asset-packs bootstrap, so `getComponents` threw **`Component asset-packs::Actions not found`** — and the preview stayed broken until it was restarted. js-sdk-toolchain `52fa56cf` (PR #1644, tag `7.30.1`) re-evaluates `isEditorScene()` on every watch rebuild.
+
+If you are carrying the old "restart the preview" workaround, drop it on 7.30.1+: the watch rebuild recovers on its own. On an older pin the restart is still the fix, and the error text is the tell — it is a bundling defect, not a missing component in the composite, so do not go looking for `asset-packs::Actions` in the entity tree. The public `~sdk/script-utils` surface (`ActionCallback`, `getScriptInstance`, `getAllScriptInstances`, `callScriptMethod`) is unchanged by the fix.
+
+**`trigger_area` is now a Script item too.** The old Actions/Triggers `trigger_area` asset was deleted in creator-hub `e43441b5`; the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`) is the only one left — the interim "Trigger Area (Script)" label is gone. Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
+
+## `@event` — declaring hooks for reaction scripts
+
+A class (or `start()` function) JSDoc may carry `@event <name>` tags alongside `@param` and `@action`:
+
+```typescript
+/**
+ * @event enter
+ * @event exit
+ */
+export class TriggerAreaDetector { /* … */ }
+```
+
+- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded ("When a player enters, …"). Declare `@event` and the no-code reaction UI appears for free.
+- Tags are accepted on the **export statement, the class declaration, or the constructor** JSDoc — any of the three.
+- Names match `[A-Za-z0-9_-]+`; duplicates are collapsed.
+
+**The detector/reaction split this enables.** The SDK keeps only **one** callback per `(entity, event)` pair, so a second script calling `triggerAreaEventsSystem.onTriggerEnter` on the same entity silently replaces the first. The shipped pattern avoids that: one script owns the SDK callbacks and exposes `onEvent(name, fn)`; reaction scripts on the **same entity** find it with `getAllScriptInstances(entity)` from `~sdk/script-utils` and subscribe. A reaction must never touch `triggerAreaEventsSystem` itself. In `TriggerArea.tsx` the detector also replays `enter` to a late subscriber for anything already inside, and exposes `isInside()` for "while inside" logic.
+
+⚠️ **When writing the `layout` JSON by hand, carry `events` through on every edit.** Rebuilding the layout from `params` alone drops it and the Reactions section is wiped for good — exactly the bug fixed in creator-hub `e43441b5` (editing the Trigger Area's `shape` used to destroy its prompt fields). Spread the existing layout and overwrite only the one param you are changing.
+
+**Behavior changes worth knowing:** a seat frees itself when the sitter walks more than **1.5 m** away; `sit()` picks the **nearest free** spot; with no spot free the item shows its `takenMessage` (default **"Seat is taken"**). The avatar is moved *before* the sitting emote plays — reversing that order cancels the emote.

@@ -9,7 +9,7 @@ description: Build, extend, and deploy Decentraland SDK7 scenes. This is the ent
 
 ## Agent Behavioral Guidelines
 
-Before taking any significant action, check whether it falls into one of the four categories below and **confirm with the user first**.
+Before taking any significant action, check whether it falls into one of the categories below and **confirm with the user first**.
 
 **How to ask:** Phrase the question in plain, non-technical language that describes _what will happen to the scene_, not the underlying command.
 
@@ -46,6 +46,10 @@ If `mcp__blender__*` tools exist in the session but aren't connected (Blender is
 
 The MCP is what makes model work collaborative; a silent fallback removes that choice. If the MCP isn't installed at all, don't ask the user to install it — go headless and just mention the MCP as an option in your report. Full rule in **add-3d-models**.
 
+### 5. Reporting an SDK bug before working around it
+
+When the SDK, the Explorer, or the Creator Hub doesn't behave as documented, or lacks something the scene needs, and you're about to work around it, report it first with the **report-sdk-issue** skill. The first time this happens in a scene, ask the user whether SDK issue reports may be sent. After that, report without asking, or never, depending on their answer. Tell the user in one line when a report goes out. Reporting never blocks the work.
+
 ### General principle
 
 These aren't things the agent should refuse to do — they're things it should communicate about before doing them. If the user confirms, proceed confidently. The goal is transparency, not gatekeeping.
@@ -64,7 +68,7 @@ TypeScript (`src/index.ts`) is ONLY for:
 
 ## CRITICAL RULE — Editing an existing composite
 
-**If the Creator Hub MCP is available, use it — never hand-edit the file.** The Creator Hub ships an MCP server (skill: **creator-hub-mcp**) whose tools (`scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, …) edit the open scene live, with autosave, undo, and the editor bookkeeping handled for you. It is pre-wired inside the Creator Hub's own AI assistant, and any other MCP-capable tool (Claude Code, Cursor, Codex, Claude Desktop) can connect to it via Settings > Experimental > *Expose AI assistant MCP server*. Use it for `scene.json` changes too (`set_scene_settings`). Editing the file while the scene is open in the Creator Hub loses your work silently: the inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk.
+**If the Creator Hub MCP is available, use it — never hand-edit the file.** The Creator Hub ships an MCP server (skill: **creator-hub-mcp**) whose tools (`scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, …) edit the open scene live, with autosave, undo, and the editor bookkeeping handled for you. It is pre-wired inside the Creator Hub's own AI assistant, and any other MCP-capable tool (Claude Code, Cursor, Codex, Claude Desktop) can connect to it via Settings > AI > *Expose AI assistant MCP server*. Use it for `scene.json` changes too (`set_scene_settings`). Editing the file while the scene is open in the Creator Hub loses your work silently: the inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk.
 
 Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
 
@@ -113,6 +117,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `player-avatar`** — Player position/profile, emotes, wearables, `AvatarAttach`, `AvatarNametag`, `AvatarModifierArea`.
 
+### Avatar Animations (Custom Emotes)
+
+**Skill: `avatar-animations`** — Authoring custom avatar animations in Blender on the official Decentraland rig: rig controls, posing rules, export to `*_emote.glb`, GLB verification, and upper-body (masked) clips.
+
 ### NPCs
 
 **Skill: `npcs`** — `AvatarShape` NPCs and the NPC Toolkit library for GLB-based NPCs with dialogue and state machines.
@@ -127,9 +135,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Screen-Space UI
 
-**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs.
-
-**Skill: `editable-ui`** — Write that UI so the Creator Hub's 2D UI editor (UI Designer) can read and edit it: the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach. Use whenever the user wants UI editable in the Creator Hub, or wants an existing coded UI adapted for it.
+**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs, sliders. By default writes UI the Creator Hub's 2D UI editor (UI Designer) can read and edit — the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach — and falls back to free-form coded React-ECS only for data-driven UI the editor cannot represent. Also covers adapting an existing coded UI for the editor.
 
 ### Audio & Video
 
@@ -175,16 +181,35 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
 
+**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up at all — either just means the Explorer is not running yet.
+
 ### Deployment
 
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
+
+### Reporting SDK Issues
+
+**Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.
 
 ### SDK6 → SDK7 Migration
 
 **Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
 
 ---
+
+## Terminology — deprecated tool names
+
+Older names still circulate in tutorials, forum posts, and model-generated answers. Do not offer these to users, and translate them when a user says one:
+
+| Deprecated name | What it was | Say / use instead |
+|---|---|---|
+| **Web Editor** | browser-based scene editor | the **Creator Hub** |
+| **Decentraland Editor** | a Visual Studio Code extension | the **Creator Hub** |
+| **SDK6** | the previous SDK; its code does not run on current Decentraland | **SDK7** (to port an old scene, see the `migrate-sdk6-to-sdk7` skill) |
+| **`dclcontext` folder** | downloaded AI context files inside scene projects | **SDK Skills** (these skills) |
+
+Current names: Creator Hub, Scene Editor, SDK7, SDK Skills. Verified against docs glossary commit `4b6733c`.
 
 ## Shared References
 
