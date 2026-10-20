@@ -364,7 +364,7 @@ Some components that *look* multiplayer are **client-local**: writing them on a 
 
 Two ways to make a client-local visual agree across clients:
 
-1. **Derive it** from data every client already has. E.g. sort all `PlayerIdentityData` addresses and index a fixed roster — same address list, same result on every client, independent of join order. No messages, no drift. This is the pattern in `scenes/4,24-avatar-nametag`.
+1. **Derive it** from data every client already has. E.g. sort all `PlayerIdentityData` addresses and index a fixed roster — same address list, same result on every client, independent of join order. No messages, no drift. This is the pattern in `scenes/4,24-avatar-nametag`; the full roster code (diff check, throttled re-scan) is in **player-avatar** `references/avatar-nametag.md`.
 2. **Replicate the *input*, not the visual.** Sync the assignment (a synced component or a `MessageBus` message), then have every client apply it locally to the player entity it resolves for that user id.
 
 In both cases: resolve the target `Entity` from the user id on **every** write. Player entity ids are recycled across disconnects, so a cached `Entity` can land the write on a different player.

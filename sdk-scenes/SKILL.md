@@ -115,7 +115,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Player & Avatar
 
-**Skill: `player-avatar`** — Player position/profile, emotes, wearables, `AvatarAttach`, `AvatarModifierArea`.
+**Skill: `player-avatar`** — Player position/profile, emotes, wearables, `AvatarAttach`, `AvatarNametag`, `AvatarModifierArea`.
 
 ### Avatar Animations (Custom Emotes)
 
