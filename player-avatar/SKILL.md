@@ -316,6 +316,8 @@ triggerEmote({ predefinedEmote: 'clap' })
 
 ### Custom Scene Emotes
 
+**Need a clip?** Before authoring one, check `{baseDir}/../avatar-animations/references/animation-catalog.md`: animated previews of every built-in emote, and 45 ready-made `_emote.glb` files from the Creator Hub's Avatar Animations pack (sitting on stools/puffs/bean bags, chess, fishing, carry, drink, dance…) with their download and the exact `src` path to play them.
+
 > ⚠️ **CRITICAL FILE NAMING REQUIREMENT:** The emote `.glb` file **MUST** end with `_emote.glb` (case-insensitive). This is **not** optional and **not** just a convention — the runtime rejects files that don't match this suffix.
 >
 > **Why this matters:** Scenes with incorrectly named emote files often **work fine in `npm run start` preview** but **silently fail in production** once deployed. Preview is more permissive; the deployed runtime is strict. Always rename the file on disk (e.g. `SnowballThrow.glb` → `SnowballThrow_emote.glb`) before deploying.

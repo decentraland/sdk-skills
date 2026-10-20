@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog and the Creator Hub asset packs (Genesis City, Halloween, Sci-fi, Fantasy, Smart Items — the latest additions are catalogued offline), plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -156,7 +156,7 @@ Always check the scene's existing folders before deciding where to put a new mod
 
 When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
 
-> "I can download the best match from the free catalog (8,800+ ready-made models), or create a custom model for you in Blender. Which do you prefer?"
+> "I can download the best match from the free catalogs (8,800+ OpenDCL models plus the Creator Hub asset packs), or create a custom model for you in Blender. Which do you prefer?"
 
 - **Catalog** → the workflow in the next section (search → review → download).
 - **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
@@ -191,15 +191,15 @@ Whenever a task creates or edits a model in Blender and the MCP could possibly b
 
 Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
 
-## Free 3D Models — OpenDCL Catalog (8,800+ models)
+## Free 3D Models — two catalogs
 
-Always check the scene's local asset folder first. Before fetching any model, confirm with the user.
+Always check the scene's local asset folder first. Before fetching any model, confirm with the user. Search **both** catalogs with one grep — `grep -i "keyword" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md` — and try synonyms if nothing matches. Browse categories with `grep "^##"` on either file. Every row has a `preview:` image URL; fetch it to check the look before importing.
 
-The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i "keyword"`. Try synonyms if no results. Browse categories with `grep "^##"`.
+**OpenDCL catalog (8,800+ models)** — `{baseDir}/references/model-catalog.md`. Single-file GLBs. Workflow: search → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add `Animator` if the model has animations.
 
-**Workflow**: Search catalog → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add Animator if model has animations.
+**Creator Hub asset packs** — `{baseDir}/references/asset-pack-catalog.md`: the 420 models + 7 Smart Items most recently added (Genesis Plaza and template-scene imports: buildings, street furniture, office/café furniture, nature, Halloween, a sci-fi lab kit, a chess set, and scripted buttons, doors, a piston platform and water). Each item is a GLB **plus external textures**, so download with the `dl-asset.mjs` helper in `{baseDir}/references/model-patterns.md` (not a bare curl) into `assets/asset-packs/<folder>/`; rows give the final `glb:` path, the `col:` flag for the collider mask, and the `id:` that `place_smart_item` takes when the scene is open in the Creator Hub (then prefer the MCP route). The packs' older items are not catalogued offline: search them live with `search_catalog` (**creator-hub-mcp**).
 
-> **Important**: `GltfContainer` only works with **local files**. Always download into `assets/Models/` first. Never `cd` into the models directory — run curl from the project root.
+> **Important**: `GltfContainer` only works with **local files**. Always download first (`assets/Models/` for OpenDCL, `assets/asset-packs/<folder>/` for pack items). Never `cd` into the models directory — run curl / the helper from the project root.
 
 ## Troubleshooting
 
@@ -230,7 +230,7 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
 - ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local or Creator Hub mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed and reduce triangles/texture size instead. (Docs commit `5f212e3`, Oct 2026; error dialog tracked in godot-explorer #2432. Note the `54,-55-Testing-3d-models` engine scene below includes a Draco variant — it is a desktop capability test, not a cross-platform recommendation.)
 
-For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.
+For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalogs, see `{baseDir}/references/model-catalog.md` (8,800+ OpenDCL models) and `{baseDir}/references/asset-pack-catalog.md` (Creator Hub asset packs, latest additions).
 
 ## Example scenes
 
