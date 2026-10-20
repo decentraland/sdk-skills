@@ -11,7 +11,10 @@ available in World scene Storage.
 
 ## 1. Choose the questions and moments
 
-Inspect the scene's client/server startup, existing UI, and game events. Establish the
+Inspect the scene's client/server startup, existing UI, and game events. Read an available
+design document or playtest brief for the intended experience; use the code to establish
+what is implemented. Identify planned mechanics or missing event hooks rather than treating
+them as available. Establish the
 creator's playtest goal, questions, and preferred moments; ask only for choices the request
 and scene do not settle. Adapt bank wording and comment prompts to the scene's actions and
 objects. Keep the set small enough for the goal. Choose events that establish the player
@@ -29,16 +32,28 @@ Choose an integration route:
 - **Player-opened form:** offer a button, kiosk, or area where the player chooses to answer.
 - **Both:** choose the questions and entry points for each route separately.
 
-Before wiring events, identify which handler will show consent and which handlers will ask
-questions. Consent may happen earlier or immediately before the first question; the creator
-chooses the timing.
+## 2. Review the plan with the creator
 
-## 2. Integrate the module
+Read the current [README installation and API](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md)
+for setup requirements and supported behavior before proposing changes.
 
-Read the current [README installation and API](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md).
-It is the source of truth for the folders to copy, SDK/server setup, permissions,
-configuration, and Storage behavior. Retrieve the module and its assets from that scene;
-keep unrelated demo game code out of the receiving project.
+Before changing the receiving scene, present:
+
+- The playtest goal and how it relates to the scene or design brief.
+- A short table: adapted question text, answer format (including scale labels and comment
+  prompt where used), proposed moment/event, and why that moment fits.
+- The participation route and proposed Intro wording/timing, plus any server, dependency,
+  or permission changes needed for installation.
+
+Wait for the creator to review, revise, and approve this concrete plan before installation
+or event wiring. A request to install the module alone does not approve agent-chosen
+questions and timing. If the creator has already approved the concrete plan, apply it
+without asking again. Keep unresolved choices visible rather than silently deciding them.
+
+## 3. Integrate the module
+
+Follow the approved plan and the README's current setup instructions. Retrieve the module
+and its assets from that scene; keep unrelated demo game code out of the receiving project.
 
 Read the matching [integration recipe](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/EXAMPLES.md)
 for separate consent, immediate consent plus question, player-opened forms, selected testers,
@@ -58,7 +73,7 @@ Preserve these integration conditions:
 - Keep existing UI and game behavior. The scene decides when other panels have cleared;
   avoid substituting an arbitrary startup delay for an available event.
 
-## 3. Verify the integration
+## 4. Verify the integration
 
 Run the receiving scene's relevant checks. Prefer the available TypeScript compiler with
 `--noEmit` for a type check; SDK build can install dependencies and update scene artifacts,
