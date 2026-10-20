@@ -1,6 +1,6 @@
 ---
 name: scene-feedback
-description: Plan and integrate player feedback questions in a Decentraland SDK7 scene, help creators choose a playtest focus, or retrieve responses as CSV. Use for in-game surveys, opt-in playtest questions, and player-opened feedback forms. For audiovisual reactions to gameplay actions, use game-design or build-ui.
+description: Plan and integrate player feedback questions in a Decentraland SDK7 scene, help creators choose a playtest focus, or analyze existing Scene Feedback CSV responses. Use for in-game surveys, opt-in playtest questions, player-opened feedback forms, and interpreting playtest ratings and comments. For audiovisual reactions to gameplay actions, use game-design or build-ui.
 ---
 
 # Scene Feedback
@@ -8,6 +8,9 @@ description: Plan and integrate player feedback questions in a Decentraland SDK7
 Help creators learn what players find confusing, frustrating, or enjoyable while playing.
 Integrate the copyable Scene Feedback module into the existing scene and make its responses
 available in World scene Storage.
+
+For existing responses, go directly to **Analyze collected responses**. Installation and
+question planning are needed only when the creator requests them.
 
 ## 1. Help the creator choose what to learn
 
@@ -142,3 +145,35 @@ Deploy when authorized; otherwise give the creator the remaining verification st
 
 Report the configured questions and trigger handlers, checks actually run, and whether a
 matching CSV row was verified locally or in a deployed World.
+
+After integration, explain where to download the CSV and what to inspect for the agreed
+playtest goal. Link to the question guide's Reading the CSV section and offer to analyze
+collected responses when available.
+
+## Analyze collected responses
+
+Use this route when the creator brings CSV exports or asks what a completed playtest shows.
+Read the README's CSV fields and response statuses and the question guide's Reading the CSV
+section. Use the supplied goal; clarify it only when needed to interpret the data. Without a
+specific goal, begin with an overview of recurring experiences and questions to investigate.
+
+- **Prepare the data:** obtain relevant CSV parts, note their coverage, parse as CSV, and
+  deduplicate repeated exports by response `id`. Separate debug/preview data, participation
+  rows, skipped questions, and substantive answers. Preserve text-only answers and distinguish
+  an unoffered comment field from one left blank.
+- **Keep comparisons meaningful:** group by question wording, scale, and trigger. Account
+  for scene version and platform when relevant; compare playtests only where wording,
+  timing, and recruitment are comparable. Report response counts and distinct respondents;
+  multiple answers from one player are not independent players. Blank ratings are not zero,
+  and absent rows do not establish that a player saw or skipped a question.
+- **Interpret:** follow the guide's distribution and scale rules. Summarize comment themes
+  alongside counts and representative excerpts, retaining conflicting experiences. Treat
+  explanations as hypotheses to investigate; separate observed data from inference and
+  acknowledge small or self-selected samples. The CSV alone cannot establish visitor-wide
+  response rates or retention.
+- **Return an actionable readout:** state coverage and exclusions, findings tied to the
+  goal, limits, and what to inspect or change next. Suggest a comparable follow-up playtest.
+  Keep player addresses out of the readout; use them only as needed to count respondents.
+
+If exports are missing, explain how to retrieve them from World Scene Storage. Analyze
+available data with its limits; request missing context only when it changes a conclusion.

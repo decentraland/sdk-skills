@@ -139,7 +139,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-feedback`** — Help the creator choose a playtest focus, review adapted questions and timing, then integrate gameplay questions or a player-opened form and retrieve CSV responses from World scene Storage.
+**Skill: `scene-feedback`** — Help the creator choose a playtest focus, review adapted questions and timing, then integrate gameplay questions or a player-opened form. Also use to retrieve and analyze existing Scene Feedback CSV responses from World scene Storage.
 
 ### Audio & Video
 
