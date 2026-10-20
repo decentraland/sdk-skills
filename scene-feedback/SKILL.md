@@ -131,6 +131,9 @@ goal, begin with an overview of recurring experiences and questions to investiga
 - Return coverage/exclusions, findings tied to the goal, uncertainty, and what to inspect
   or change next. Suggest a comparable follow-up test; distinguish evidence from hypotheses.
 
+When interpreting themes, conflicting answers, or cohort differences, consult
+[investigative patterns](references/analysis-patterns.md) for useful lines of inquiry.
+
 For a requested HTML report, or when a large answer collection would benefit from a
 compact browsable readout, read [Adaptive HTML feedback readout](references/html-readout.md).
 Choose views from the data and goal rather than imposing a dashboard.
