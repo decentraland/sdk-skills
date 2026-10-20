@@ -87,7 +87,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### 3D Models
 
-**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ models). Also authoring and editing custom models by driving Blender (headless CLI or Blender MCP).
+**Skill: `add-3d-models`** — Loading `.glb`/`.gltf` with `GltfContainer`, positioning, colliders, and browsing the free asset catalogs (8,800+ OpenDCL models plus the Creator Hub asset packs). Also authoring and editing custom models by driving Blender (headless CLI or Blender MCP).
 
 ### Animations & Tweens
 
@@ -228,6 +228,8 @@ Rules for validating entity component combinations — which components require 
 ### Free Asset Catalogs
 
 - **3D Models (8,800+ models):** `{baseDir}/../add-3d-models/references/model-catalog.md` — optimized 3D models with descriptions, dimensions, animations, and download URLs
+- **Creator Hub asset packs (420 models + 7 Smart Items, latest additions):** `{baseDir}/../add-3d-models/references/asset-pack-catalog.md` — Genesis City buildings/street/furniture/nature, Halloween, sci-fi lab kit, scripted buttons/doors/platform/water; multi-file download helper in `model-patterns.md`
+- **Avatar animations (32 built-in emotes + 45 downloadable clips):** `{baseDir}/../avatar-animations/references/animation-catalog.md` — check before authoring any emote
 - **Audio (50 sounds):** `{baseDir}/../audio-video/references/audio-catalog.md` — Music, Ambient, SFX, Game Mechanics, UI sounds
 
 ### Composites

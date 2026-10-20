@@ -116,7 +116,7 @@ AvatarAnchorPointType.AAPT_NAME_TAG
 
 ## Built-in Emote Names
 
-For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**).
+For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**). Animated previews of all 32 names, and 45 downloadable `_emote.glb` clips beyond them: `{baseDir}/../avatar-animations/references/animation-catalog.md`.
 
 ### Embedded emotes — shipped inside the Explorer
 

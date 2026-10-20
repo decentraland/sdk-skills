@@ -228,6 +228,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 
 - Slug rule: `asset.name.trim().replaceAll(' ', '_').toLowerCase()`
 - Example: "Tree Forest Pink 01" → `assets/asset-packs/tree_forest_pink_01/Tree_Forest_Pink_01.glb`
+- The `<filename>` part is the key exactly as the asset's `contents` lists it in `catalog.json`, which for the newer items (the Genesis Plaza and template-scene imports) includes a subfolder: "Photo Building" → `assets/asset-packs/photo_building/photo_building/photo_building.glb`. The `glb:` field of each row in **add-3d-models** → `references/asset-pack-catalog.md` is that final path.
 
 **Default collision masks:** If not provided, set `visibleMeshesCollisionMask: 0` and `invisibleMeshesCollisionMask: 3` (CL_POINTER + CL_PHYSICS).
 
