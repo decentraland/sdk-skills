@@ -1,0 +1,76 @@
+---
+name: scene-feedback
+description: Add player feedback questions to a Decentraland SDK7 scene, adapt questions to a playtest goal, or retrieve the responses as CSV. Use for in-game surveys, opt-in playtest questions, and player-opened feedback forms. For audiovisual reactions to gameplay actions, use game-design or build-ui.
+---
+
+# Scene Feedback
+
+Help creators learn what players find confusing, frustrating, or enjoyable while playing.
+Integrate the copyable Scene Feedback module into the existing scene and make its responses
+available in World scene Storage.
+
+## 1. Choose the questions and moments
+
+Inspect the scene's client/server startup, existing UI, and game events. Establish the
+creator's playtest goal, questions, and preferred moments; ask only for choices the request
+and scene do not settle. Adapt bank wording and comment prompts to the scene's actions and
+objects. Keep the set small enough for the goal. Choose events that establish the player
+has encountered the subject, including unsuccessful attempts; if exposure is unknown, use
+a question they can answer without assuming that experience.
+
+Read the [question guide](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md)
+when choosing or adapting questions. For candidate questions and sets by goal, use the
+[question bank](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md).
+
+Choose an integration route:
+
+- **Questions during play:** enroll through consent or a known tester list, then ask after
+  the relevant experience. Tie calls to actual scene events and a pause in other UI.
+- **Player-opened form:** offer a button, kiosk, or area where the player chooses to answer.
+- **Both:** choose the questions and entry points for each route separately.
+
+Before wiring events, identify which handler will show consent and which handlers will ask
+questions. Consent may happen earlier or immediately before the first question; the creator
+chooses the timing.
+
+## 2. Integrate the module
+
+Read the current [README installation and API](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md).
+It is the source of truth for the folders to copy, SDK/server setup, permissions,
+configuration, and Storage behavior. Retrieve the module and its assets from that scene;
+keep unrelated demo game code out of the receiving project.
+
+Read the matching [integration recipe](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/EXAMPLES.md)
+for separate consent, immediate consent plus question, player-opened forms, selected testers,
+or mixed rating/text groups. Follow it within the receiving scene's startup and event flow.
+
+Use Scene Feedback's public API and configuration first. Change its `lib/` when the intended
+behavior requires an extension, explaining the missing capability.
+
+Preserve these integration conditions:
+
+- The feedback import runs on both client and server; player-facing handlers run on the client.
+- With participation required, `ask()` needs enrollment or a pending `intro()`; it does not
+  create an Intro. `leaveFeedback()` is the player-opened route, including after declining
+  game-triggered questions.
+- Use a text-only question for an open answer without a rating. Use a rating question with
+  or without an optional comment when that fits the goal.
+- Keep existing UI and game behavior. The scene decides when other panels have cleared;
+  avoid substituting an arbitrary startup delay for an available event.
+
+## 3. Verify the integration
+
+Run the receiving scene's relevant checks. Prefer the available TypeScript compiler with
+`--noEmit` for a type check; SDK build can install dependencies and update scene artifacts,
+so use it when build validation is needed. Exercise the chosen triggers, acceptance and
+refusal, blank answers, and group navigation where used. Check that existing startup UI and
+game flow still work. If an Explorer is available, use `unity-explorer-mcp` for the runtime
+check; otherwise state exactly which interactions remain untested.
+
+For a deployed World check, follow the README's Review and Stored CSV sections: submit a
+known answer, allow the documented write delay, download the CSV, and find that question
+and trigger. A resolved call or server acknowledgement is not proof of a Storage write.
+Deploy when authorized; otherwise give the creator the remaining verification steps.
+
+Report the configured questions and trigger handlers, checks actually run, and whether a
+matching CSV row was verified locally or in a deployed World.
