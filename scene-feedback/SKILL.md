@@ -121,6 +121,14 @@ refusal, blank answers, and group navigation where used. Check that existing sta
 game flow still work. If an Explorer is available, use `unity-explorer-mcp` for the runtime
 check; otherwise state exactly which interactions remain untested.
 
+When gameplay triggers are hard to reproduce, offer an optional debug panel. Read the
+README's Debug section and reuse the module's existing debug UI before adding controls.
+Adapt only the actions needed for this scene: Intro, a single question, a group, and visible
+call results or participation state. Gate extra controls to local development; follow the
+module's access rules for its built-in panel and disable `DEBUG` before release. Label test
+responses with `trigger = debug` so they can be filtered from playtest data. Use the panel
+to check forms, then exercise the real gameplay triggers and verify Storage separately.
+
 When mobile is a target, start with the module's existing mobile layout. Follow the README's
 Debug and phone-preview instructions; check actual question/scale-label wrapping, touch
 controls, text input with the keyboard open, and coexistence with the scene's HUD. Use
