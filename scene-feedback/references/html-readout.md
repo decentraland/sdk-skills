@@ -34,9 +34,8 @@ Show scope, exclusions, and limits near the conclusions. Adapt the rest to the d
   preserve access to evidence while keeping the main page short. Clearly distinguish a
   quote from a paraphrase; retain the original language or label translations.
 
-Choose only the views that help this dataset. The creator need not specify every chart.
-Honor an explicitly requested format; otherwise offer HTML when it improves reading or
-sharing a long analysis. A short result may remain text.
+Choose only the views that help this dataset. The creator need not specify every chart;
+their goal and the evidence guide the presentation.
 
 ## Deliver and verify
 

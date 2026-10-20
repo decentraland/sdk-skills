@@ -134,9 +134,11 @@ goal, begin with an overview of recurring experiences and questions to investiga
 When interpreting themes, conflicting answers, or cohort differences, consult
 [investigative patterns](references/analysis-patterns.md) for useful lines of inquiry.
 
-For a requested HTML report, or when a large answer collection would benefit from a
-compact browsable readout, read [Adaptive HTML feedback readout](references/html-readout.md).
-Choose views from the data and goal rather than imposing a dashboard.
+When analyzing CSV, explicitly offer an optional, self-contained HTML readout with grouped
+answers and supporting evidence, unless the creator has already chosen an output format.
+Continue the analysis while they decide; create HTML when they choose it. For HTML, read
+[Adaptive HTML feedback readout](references/html-readout.md) and choose views from the data
+and goal rather than imposing a dashboard.
 
 [guide]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md
 [bank]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md
