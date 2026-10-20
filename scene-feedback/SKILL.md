@@ -131,6 +131,10 @@ goal, begin with an overview of recurring experiences and questions to investiga
 - Return coverage/exclusions, findings tied to the goal, uncertainty, and what to inspect
   or change next. Suggest a comparable follow-up test; distinguish evidence from hypotheses.
 
+For a requested HTML report, or when a large answer collection would benefit from a
+compact browsable readout, read [Adaptive HTML feedback readout](references/html-readout.md).
+Choose views from the data and goal rather than imposing a dashboard.
+
 [guide]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md
 [bank]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md
 [configure]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#2-configure
