@@ -24,7 +24,7 @@ npx skills add decentraland/sdk-skills --all       # scene-local (run inside the
 npx skills add decentraland/sdk-skills --all -g    # global (user-level, ~/.claude/skills)
 ```
 
-A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the install buys nothing.
+A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the `Skill` tool cannot load the new skills by name. A restart is needed for automatic discovery and native MCP binding only: an agent with filesystem access can read an installed `SKILL.md` from disk and follow it in the same session.
 
 Declining either gate is fine — the scene can still be implemented, just less efficiently. Until the skills actually load, the **stale memory** rule under the iteration loop governs every SDK7 API you write.
 
@@ -75,7 +75,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    - **Reconnect the `explorer` server** — fastest, and keeps this conversation. How, depends on the harness: the **terminal CLI** opens an interactive server menu on `/mcp`, with a reconnect entry to pick. The **VS Code extension** (and any embedded chat panel, e.g. the Creator Hub's) has no such menu — a bare `/mcp` there only prints a status line plus usage, so the command to give the user is `/mcp reconnect explorer` (or `/mcp reconnect all`), typed into the chat.
    - **Start a fresh session / new conversation tab**, leaving the Explorer running — the tools bind automatically at the new session's startup. In the VS Code extension and embedded panels this is just a new conversation tab, *not* restarting the app or the Explorer — say so, because users assume the expensive reading and decline. Make it the recommended path there whenever `/mcp reconnect` answers *"MCP controls aren't available right now — the terminal is still starting up or is showing another view."* — a failure mode in that harness with no in-chat fix, and the new tab is the path that works.
-   - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and no screenshot images you can inspect.
+   - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and screenshots that arrive as base64 you must decode to a file before viewing (`scripts/screenshot.sh` does it — see [`reference/curl-fallback.md`](reference/curl-fallback.md)). Slower, but every check above is still possible on this path; do not report screenshots as unavailable.
 
    Use `AskUserQuestion` if your client has it, one option each; label the second *"Restart session / new tab (Explorer stays up)"* so it can't be misread as closing the Explorer. Otherwise put the same three in plain text and close with *"Which do you prefer?"*.
 
@@ -110,7 +110,7 @@ Repeat until **every requirement has proof**: a screenshot or state read demonst
 
 **Cross-examine** every conclusion: confirm each visual claim with a state read (ECS values via `get_entity_details`, logs, `get_player_state` position), and each state claim with pixels. One channel lies routinely — colliders exist that pixels don't show, entities render invisible while their state looks healthy, animations silently don't play. **In-world text is a state read, not a picture:** a `TextShape` sign is unreadable in a downscaled capture past a few metres, and `get_entity_details` on its entity returns the exact `PBTextShape` string for a fraction of a screenshot's tokens. The reference files call out where cross-examination is mandatory.
 
-**MANDATORY — camera cleanup before finishing.** Whenever you stop working (end of task, handing back to the user, or pausing for their input), `set_camera_mode third_person` is your last camera action — the camera is never left in `free` mode — and confirm via `get_player_state` → `camera.mode` if anything in between could have failed.
+**MANDATORY — camera cleanup before finishing.** Whenever you stop working (end of task, handing back to the user, or pausing for their input), restore the scene's intended retail mode as your last camera action — `set_camera_mode third_person` by default, `first_person` when the scene deliberately forces first person (a `CameraModeArea` or camera lock covers the play space); the camera is never left in `free` mode — and confirm via `get_player_state` → `camera.mode` if anything in between could have failed.
 
 ## Screenshot frequency & cost
 

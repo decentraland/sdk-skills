@@ -50,6 +50,8 @@ The MCP is what makes model work collaborative; a silent fallback removes that c
 
 When the SDK, the Explorer, or the Creator Hub doesn't behave as documented, or lacks something the scene needs, and you're about to work around it, report it first with the **report-sdk-issue** skill. The first time this happens in a scene, ask the user whether SDK issue reports may be sent. After that, report without asking, or never, depending on their answer. Tell the user in one line when a report goes out. Reporting never blocks the work.
 
+Before calling anything a platform limitation, check in this order: the owning topic skill, the installed typings under `node_modules/@dcl/ecs`, a minimal reproduction, the running client and SDK versions, and known fixes in the Explorer and SDK changelogs **matched to the running version** — an older source checkout proves nothing about the client in front of you (a session ruled out audio volume fades from an August checkout after the fix had already shipped). Distinguish scene error, engine defect and unsupported capability before designing an architectural workaround. Failing to recall an API is not evidence it is missing (`GltfNodeModifiers` in **advanced-rendering** changes GLB materials at runtime; number-key actions are `IA_ACTION_3`–`IA_ACTION_6` in **advanced-input** — read the enum, never infer members).
+
 ### General principle
 
 These aren't things the agent should refuse to do — they're things it should communicate about before doing them. If the user confirms, proceed confidently. The goal is transparency, not gatekeeping.

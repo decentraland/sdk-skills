@@ -246,7 +246,8 @@ Configure where and how players enter the scene:
 
 - Position ranges (e.g., `[1, 5]`) spawn players randomly within the range
 - `cameraTarget` orients the player's camera on spawn — point it at the scene's focal area
-- Fixed spawn: use single values instead of ranges (e.g., `"x": 8`)
+- Fixed spawn: use single values on **all three** axes (e.g., `"position": { "x": 8, "y": 0, "z": 8 }`)
+- `position` is a whole-object union (`@dcl/schemas` `SinglePosition | MultiPosition`): all three axes are numbers, or all three are `[min, max]` arrays. A mix such as `"x": [1, 5], "y": 0` fails validation at build time, and the error does not say why.
 
 ### Multi-Parcel Layouts
 

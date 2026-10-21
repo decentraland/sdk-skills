@@ -123,7 +123,8 @@ lightData.active = !lightData.active
 ## Light Limits
 
 - A scene may **create** many lights (the engine test scene spawns ~9 across 2 parcels); the renderer decides how many render.
-- Depending on the player's quality settings, between ~4 and ~10 lights render at once. If the scene has more than that, only the closest lights to the player are rendered.
+- The desktop quality preset caps scene lights: **Low = 0 (scene lights disabled entirely), Medium = 6, High = 10** (`QualityPresetLow/Medium/High.asset`, unity-explorer main 2026-10; the Settings slider can lower a preset's cap further). If the scene has more than the cap, only the closest lights to the player render.
+- **Troubleshoot "my light doesn't show" by checking the player's active preset first** — on Low a correctly authored `LightSource` renders nothing, and no amount of intensity, range, material or attachment-offset tuning changes that. State the supported minimum (Medium) rather than demanding High. A visible emissive flame is not proof the candle lights the room: keep the glowing mesh and the light cast onto surroundings as separate checks.
 - Up to ~3 shadow-casting lights render at once.
 - The renderer auto-culls lights based on quality settings and proximity.
 - Intensity is in **candela** (lumens/m² at 1m, i.e. lumens/4π). Default `16000`.
