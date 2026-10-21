@@ -169,3 +169,5 @@ The build must pass with zero errors. If it fails, the composite is invalid. Com
 
 - `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts
+- An error naming a file you never meant to ship (`Composite 'art/.../before.composite' can't be read`, or a schema error from a backup) → the build globs **every** `*.composite` under the project (`sdk-commands` `logic/composite.ts`), including recovery copies. Store backups with another extension (`before-composite.json`) or outside the project, and check the `.composite:` list in the build's debug output; a deploy ignore rule does not hide a file from the build.
+- A schema error on an `inspector::*` component you added → never invent an inspector component (`inspector::TransformConfig` is not one); only write inspector components whose entry already exists in the file, copying its exact shape.

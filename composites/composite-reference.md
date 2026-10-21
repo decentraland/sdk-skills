@@ -242,7 +242,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 	"data": {
 		"512": {
 			"json": {
-				"mesh": { "$case": "box", "box": {} }
+				"mesh": { "$case": "box", "box": { "uvs": [] } }
 			}
 		}
 	}
@@ -250,6 +250,8 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 ```
 
 Mesh types: `box`, `sphere`, `cylinder`, `plane`.
+
+**Raw JSON gets none of the TypeScript helpers' defaults.** A bare `"box": {}` fails the build with `TypeError: message.uvs is not iterable` because the protobuf serializer iterates `uvs`. Always write `"uvs": []` for `MeshRenderer` `box` and `plane` (`sphere` and `cylinder` have no `uvs`; `MeshCollider` meshes have none either, so `"box": {}` is correct there).
 
 Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiusBottom": 0.5 } }`
 

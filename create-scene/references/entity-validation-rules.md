@@ -26,6 +26,12 @@ Practical variant: if an entity has `VisibilityComponent(visible: false)` + `Glt
 
 This catches broken invisible walls, cylinders, domes, ramps, and spheres that appear correct in the editor but provide no collision in-world.
 
+### Rule 2b: `audio-source-requires-transform`
+
+**If** an entity has `AudioSource` (spatial **or** `global: true`), **then** it must also have a `Transform`.
+
+The Unity Explorer only instantiates audio for entities with a `TransformComponent`; an `AudioSource` without one is accepted by the SDK and the headless engine, builds cleanly, and never plays. Composite-authored entities normally have a `Transform` already; runtime-created "global music" entities are where this is missed.
+
 ### Rule 3: `trigger-action-references-must-resolve`
 
 **If** a trigger references an action by name (e.g. `name: "Sit Here"`), **then**:
