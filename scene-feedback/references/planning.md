@@ -5,16 +5,23 @@ use the code to distinguish implemented gameplay from planned mechanics or missi
 
 ## Offer a starting plan
 
-Use a supplied goal and constraints directly. For an unsure creator, inspect enough scene
-and brief context to offer a short first-visit starter plan: a few adapted questions and
-when to show them. Ask whether to use it, adjust it, or focus on a particular part of the
-experience. Offer deeper discovery of goals, players, or devices when the creator wants it
-or a missing detail materially changes the proposal. Keep the first proposal compact;
-expand the selected plan's wording and setup details as needed.
+Use a supplied goal and constraints directly. For an unsure creator, the first starter
+proposal is complete with:
 
-## Propose questions, formats, and timing
+- A brief purpose grounded in the scene or brief.
+- A short list of adapted questions, each with a plain answer format and moment to show it.
+- An invitation to use this plan, adjust it, or focus on a particular experience.
 
-Before drafting, read the [question guide's focus, timing, and wording sections][guide].
+Deliver that proposal as the starter reply, ending with the invitation. Fold requested
+device or recruitment concerns into a brief relevant adaptation or link. Use the sections below as on-demand planning
+branches when the creator wants refinement or the next implementation action needs detail.
+An accepted concrete starter approves its choices; resolve only material choices left open
+before applying it.
+
+## Refine questions, formats, and timing
+
+For question selection and wording, read the [question guide's focus, timing, and wording
+sections][guide].
 Use the [question bank][bank] for candidate questions and starting sets. Adapt a suitable
 candidate to the scene; create a new question when the candidates do not serve the goal.
 For uncertain exposure, propose an observable event or answerable wording rather than
@@ -32,12 +39,13 @@ Describe the answer format plainly in a starter plan; show full scale labels and
 prompts when those details need review or implementation. On mobile, weigh typing effort
 against the information needed for the playtest.
 
-Use the README's [participation routes][api] to propose consent followed by gameplay
-questions, a player-opened form, or both. Let the goal and existing game events determine
+When choosing a participation flow, use the README's [participation routes][api] to propose
+consent followed by gameplay questions, a player-opened form, or both. Let the goal and existing game events determine
 the invitation and question timing; present those choices to the creator.
 
 ## Invite participation
 
+Use this branch when planning invitation wording, recruitment, or incentives.
 If the creator needs help finding playtesters or organizing a session, suggest
 [Decentraland's Playtests guide][playtests]. Read its relevant sections when helping
 plan recruitment, observation, or test rounds.
@@ -69,24 +77,20 @@ playtest notes for later comparison; these are context notes, not new CSV fields
 For a concrete reward proposal, read [Decentraland reward recipes](participation-rewards.md).
 Choose a recipe that fits the scene and verify its prerequisites before promising delivery.
 
-## Review the proposed changes
+## Prepare the chosen plan for implementation
 
 When the conversation turns to planning runtime, device, or Storage checks, read
 [Verification](verification.md) before proposing those checks.
 
-Keep the proposal concrete and proportional: a short list of adapted questions, answer
-formats, and proposed moments, with a brief reason for the plan. Use a table when it helps.
-Expand full labels, comment prompts, participation route, Intro wording, target devices, or
-setup details when needed for approval or implementation, or when the creator wants depth.
-Retain existing choices outside the requested scope.
+Review outstanding content, timing, or Intro choices that materially change the chosen
+plan before applying them. Retain existing choices outside the requested scope.
 
 When preparing an integration or setup change, read the relevant [installation requirements][install].
 For an existing installation, inspect what is configured and propose only needed changes.
 For a planning-only request, stop at the proposal.
 
-Wait for review and approval before applying agent-chosen questions and events.
-A general installation request does not approve those content and timing choices. Apply an
-already approved concrete plan without asking again; keep unresolved choices visible.
+A general installation request does not settle agent-chosen content and timing choices.
+Apply an already approved concrete plan without asking again; keep unresolved choices visible.
 
 [guide]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md
 [bank]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_BANK.md
