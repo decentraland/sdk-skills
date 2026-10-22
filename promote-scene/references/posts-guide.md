@@ -10,7 +10,7 @@
 | `tagline` | string | logo, page | One line, from the GDD's promise. Upper-cased on the lockup. |
 | `link` | string | page, copy.md | Jump link (see SKILL.md step 2), or `""` when unpublished. |
 | `handle` | string | page mockups | `@yourhandle` until the creator gives one. |
-| `listing` | `{short, long, handles, events?}` | page, copy.md | Profile / listing copy, see below. `handles`: `{"x": "@…", "instagram": "@…", …}`. `events`: optional recurring schedule, day and time in UTC. |
+| `listing` | `{short, long, events?}` | copy.md, README | The scene-description rewrites for the Places card and the Foundation package, see below. **Not shown on the page.** `events`: optional recurring schedule, day and time in UTC. |
 | `event_banners` | bool | compose | Foundation event-page banners (1340×670, 716×1814, JPEG ≤ 500 KB). Default `false`; set `true` when the creator mentions events. |
 | `hashtags` | `{core: string[], extra: string[]}` | page, copy.md | core ≈ 3 tags, extra ≈ 4–6. |
 | `brand` | object | logo, compose, page | `text`, `ink`, `accent` (hex); `font`, `font_small` (absolute .ttf paths); optional `wordmark` (override text), `icon_text` (1–3 chars, default the initial), `icon_top`, `icon_bottom`, `quote_tag` (small accent label on quote cards). |
@@ -20,19 +20,60 @@
 | `quote_cards` | `[{id, render, line}]` | compose | `line` uses `\n` for breaks (~28 characters per line at 1080 px). `id` becomes `images/social/<id>.png`. |
 | `images` | `{key: {file, alt}}` | page, copy.md | Every image a post can reference. `file` is relative to `promote/`. `alt` is the accessibility text on the mockup image. |
 | `shotlist_tips` | string[] | page, shot list | 4–7 practical recording tips specific to this scene. |
+| `audience` | object | page, copy.md | Who the kit is for and where they are, every row with its source. Written **before** the posts. Schema below; method in `{baseDir}/references/audience-and-venues.md`. |
+| `plan` | object | page, copy.md | The first experiment, the 20 by hand, the five checks, the stop rule, the seven days. Schema below. |
 | `posts` | Post[] | page, copy.md | See below. |
 
+### `audience`
+
+```json
+"audience": {
+  "who":     {"text": "People who …", "source": "gdd"},
+  "not_for": {"text": "…", "source": "gdd"},
+  "insight": {"text": "…", "source": "creator"},
+  "likes":   [{"text": "…, in their words", "source": "research", "url": "https://…"}],
+  "trusts":  [{"text": "u/… runs the weekly showcase thread", "source": "research", "url": "https://…"}],
+  "outside": [{"text": "…", "source": "assumed"}],
+  "venues":  [{"name": "r/LiminalSpace", "kind": "subreddit", "url": "https://www.reddit.com/r/LiminalSpace/",
+               "size": "~700k members", "why": "…", "rules": "no self-promotion; …", "walk_in": "…",
+               "post": "reddit-01", "source": "research", "verified": "2026-10-22"}],
+  "assumptions": ["…"]
+}
+```
+
+- `source` is one of `gdd` (confirmed §8 lines), `brief` (`design/promo-brief.md`), `repo`, `creator` (said this session), `research` (found this session; `url` required), `assumed` (your guess; the page highlights it for correction). `[agent-decided]` and `TBD` GDD lines are `assumed`.
+- `venues[].kind`: `subreddit` · `discord` · `forum` · `community` (a Decentraland Community, a newsletter, a Steam group) · `meetup` · `creator` (a small streamer or channel). `post` is the id of the post written for it, or `null` when its rules allow comments only. `rules` is what the sidebar or pinned post says, read this session.
+- `assumptions`: plain sentences printed at the top of the Audience panel ("We assumed the first players come from the jam showcase, not from a horror community. Correct this before posting.").
+
+### `plan`
+
+```json
+"plan": {
+  "experiment": "…the one small cheap thing to run first, venue named…",
+  "first_20":   "…how to find and message 20 of the 100 by hand…",
+  "got_it":     "…what 'got it' means in this game (finished the first room)…",
+  "stop_rule":  "…written before the test…",
+  "days":       ["optional: seven entries overriding the default assignment"]
+}
+```
+
+`build_kit.py` adds the five checks (joined · got it · enjoyed it · returned within 7 days · brought anyone) and the default seven-day assignment when `days` is absent.
+
 Post: `{id, kind, title, text, image, ig_image?, footage?, cta?, platform?}`
-- `kind`: `launch` · `soon` · `footage` · `quote` · `bts` (`build_kit.py` warns on anything else).
+- `kind`: `launch` · `soon` · `footage` · `quote` · `bts` · `reddit` · `short` (`build_kit.py` warns on anything else).
 - `image` / `ig_image`: keys into `images`. `ig_image` is the square or portrait alternative shown in Instagram mode.
 - `footage`: **required on `footage` posts**. It is a concrete "what to show" note (see recipe).
 - `platform`: `"ig"` or `"x"` marks a post written for one platform (e.g. a long Instagram caption).
 - Placeholders in `text`: `{LINK}` (filled from `link`), `{N}`, `{DATE}` (the creator fills these), `[FOOTAGE]` (where the clip goes).
 - `video` (optional): `"videos/<file>.mp4"` relative to `promote/`. Normally unnecessary: `build_kit.py` finds `videos/<id>.mp4` and `videos/<id>-9x16.mp4` by the post id. Videos exist only when the creator asked for that post's video (`{baseDir}/references/video-posts.md`); the first run writes none. A `videos/<id>.rendering` marker (written while that video is being made) shows a spinner on the card.
 
-## Profile / listing copy (`listing`)
+Reddit post (`kind: "reddit"`), extra keys: `subreddit` ("r/…", must match a `venues[].name`), `post_title` (≤ 300 characters, the thing Reddit judges), `text` (the body), `flair?`, `link_in` (`"body"` · `"comment"` · `"none"`, per the venue's rules), `why_here` (one line), `rules_note` (frequency, flair, link rule, from the venue), `modelled_on` (`[{title, url, note?}]`, 2–3 posts that worked in that sub, found this session). `image` is the attached image; a `footage` note makes it a video post (the Short's or a footage post's file can be reused).
 
-The Foundation's marketing package asks for exactly two descriptions (see `{baseDir}/references/marketing-package.md`). `build_kit.py` puts them at the top of `copy.md` and in a "Listing copy" block on the page, with Copy buttons and a length counter on the short one. It warns when `short` is missing or over 160 characters.
+Short (`kind: "short"`), extra keys: `hook` (on-screen text for seconds 0–2), `beats` (3–6 caption lines in order), `yt_title` (≤ 100 characters), `text` (the description, with `{LINK}`), `footage` (**required**: the shot note with seconds and "vertical"), `modelled_on` (2–3 Shorts in a format this audience watches, with URLs). The video, when asked for, is `videos/<id>.mp4` at 1080×1920 (the page's phone mockup plays it).
+
+## Scene description (`listing`)
+
+The Foundation's marketing package asks for exactly two descriptions of the scene (see `{baseDir}/references/marketing-package.md`); the short one is the proposed `display.description` from SKILL.md step 3. `build_kit.py` puts them at the top of `copy.md` (and the README quotes the short one) and warns when `short` is missing or over 160 characters. They are not posts and do not appear on the page: the creator applies them in `scene.json` or the Creator Hub scene settings. Social handles are not collected here; the only handle the kit uses is the top-level `handle` shown on the mockups.
 - **`short`**: ~140 characters, 1–3 sentences. Verb first: what you *do*, then who with or why come back. It doubles as the proposed `display.description`. Eeireport: "Walk an empty airport, search abandoned bags and satisfy a protocol-obsessed officer to reach gate 13 before the final boarding call." (133 characters; the scene's own description, "A strangely empty airport. Find gate 13 before the final boarding call.", only sets a mood.)
 - **`long`**: at most two short paragraphs. Lead with the activity and the people, then recurring moments and why come back. A one-time story says so honestly. Do not invent replay hooks.
 - Same sourcing rules as the posts: every claim traces to `design/`, the repo or the creator's answer.
@@ -44,6 +85,8 @@ The Foundation's marketing package asks for exactly two descriptions (see `{base
 - **footage (4–5)**: a short caption plus `[FOOTAGE]`. The `image` is the closest render, shown behind the "insert footage" slot. One footage post can be a ~30-second trailer cut with a timed shot order. Write the `footage` note so that a video could be cut from it later: a length in seconds ("6 to 8 seconds"), and "vertical reel" when a 9:16 cut makes sense, because the page's **Copy video prompt** reads both from the note.
 - **quote (3)**: one verbatim in-game line per post, each with a matching quote card in `quote_cards`.
 - **bts (2)**: how it was made: the jam or origin, one technical or design detail that is genuinely interesting. Hashtags like `#gamedev` may sit inline here.
+- **reddit (2–4)**: one per venue whose rules allow a post, in that community's own lane (a showcase with a question, a making-of, an on-topic image with the game in the last line). Title modelled on posts that worked there. Rules, research and the no-astroturfing rule: `{baseDir}/references/audience-and-venues.md`.
+- **short (2–3)**: proposals for vertical videos: hook, beats, title, description, shot note. Never rendered on the first run.
 
 ## Writing rules
 

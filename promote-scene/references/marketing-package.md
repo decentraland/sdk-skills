@@ -11,7 +11,7 @@ Walk this list with the creator. Mark each item **done** (with the file or field
 - [ ] **Game name**: IP the creator can own, not trademarked or used by another game, explanatory but unique. You can only flag concerns. Never say a trademark or name check passed. That is the creator's job. Rules and the Content Policy points: `{baseDir}/references/brand-and-ip.md`.
 - [ ] **Category and tags**: `scene.json` `tags` (valid list in **deploy-scene**).
 - [ ] **Jump-in link** to the live experience (SKILL.md step 2).
-- [ ] **Handles on every social** for tagging and credit → `listing.handles` in `posts.json`.
+- [ ] **Handles on every social** for tagging and credit → the creator gives these to the Foundation directly; the kit does not collect them (only `handle`, the one shown on the mockups).
 
 ## Game description
 
