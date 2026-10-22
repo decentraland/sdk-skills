@@ -21,6 +21,8 @@ description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PB
 3. Need glowing/transparent materials? → `Material.setPbrMaterial` with emissive/transparency
 4. Need to override material on a model node? → `GltfNodeModifiers` with `modifiers` array
 
+**Not available in SDK7: reflections, mirrors, render-to-texture.** There is no reflection probe, mirror or camera-to-texture component (`@dcl/ecs` component list, 7.30; `Material.reflectivityColor` is a specular tint, not a reflection). A mirror is faked by **duplicating the reflected geometry behind a tinted, slightly transparent glass plane** and driving a double of anything that moves (the player double is in **npcs** → "Copies of the player"). Budget the space: the reflection needs as much depth behind the glass as the room in front of it, and content outside the parcels is clipped (**add-3d-models**), so a mirror on a parcel edge means adding a parcel. Trim the reflected side walls, floor and ceiling where they meet the real ones — overlapping copies z-fight at the seam (observed 2026-10-12).
+
 ## Billboard (Face the Camera)
 
 Make entities always rotate to face the player's camera:
@@ -90,7 +92,7 @@ Transform.create(label, { position: Vector3.create(8, 3, 8) })
 
 TextShape.create(label, {
   text: 'Hello World!',
-  fontSize: 24,
+  fontSize: 5,  // world units: 10 ≈ 1 m tall, so this is about 0.5 m
   textColor: Color4.White(),
   outlineColor: Color4.Black(),
   outlineWidth: 0.1,
@@ -98,7 +100,7 @@ TextShape.create(label, {
 })
 ```
 
-- Keep `fontSize` readable — 16-32 for in-world text.
+- **`fontSize` is in world units, not pixels: `10` makes the text about 1 m tall** (SDK docs; the Explorer passes it straight to a world-space TextMeshPro, `TMPProSdkExtensions.cs`), and the parent `Transform.scale` multiplies it. `16–32` is big signage read from across a parcel; a monitor, plaque or label needs about `1–4`, or a small size under a scaled parent. Text spilling out of a monitor model (2026-10-08) was this unit mismatch, not a layout bug.
 - Do not use `TextShape` (or a textured plane) as a rulebook: long paragraphs in-world are too small and too long to read, and players will not stop to squint. One idea per sign, ≤ 10 words, large type; move the rest into visuals and gameplay (see **game-design** → "Rules: show, don't tell").
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
 - **A TextShape faces its local -Z.** It reads correctly for a viewer standing on the entity's **-Z side**, so to label the **+Z face** of a model, parent the label to it at a small `+Z` offset and rotate it **180° about Y**. Observed in-world twice (SDK 7.30.1, 2026-10-12); get it wrong and the sign is mirrored or invisible from the side players approach.
@@ -119,6 +121,10 @@ TextAlignMode.TAM_BOTTOM_RIGHT
 ```
 
 For the floating-label pattern (Billboard + TextShape combined into a camera-facing label), see the **Floating Label (Billboard + TextShape)** section in `{baseDir}/references/rendering-patterns.md`.
+
+### Fitting a screen or text onto a model's display
+
+A plane or `TextShape` dropped at a monitor model's origin sits in front of, behind or across the bezel (2026-10: a screen plane 6 cm proud of the bezel, then text twice the width of the display). Read the geometry first: dump the GLB's vertices with the bounding-box script in **add-3d-models** (filter to the faces whose normal points at the viewer) and take the rectangle of the recessed display and its depth — the monitor in that session had a 0.654 × 0.497 m display 1.6 cm behind the bezel face. Size the plane to that rectangle, put it 2–5 mm in front of the display surface (still behind the bezel face), and for text set `fontSize`, `width`/`height` and `textWrapping` to the same rectangle instead of guessing and asking the owner to look.
 
 ## Advanced PBR Materials
 
