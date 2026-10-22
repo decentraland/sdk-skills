@@ -41,7 +41,7 @@ proposed wording with the creator when Intro changes are part of the plan.
 
 Give the Intro a neutral, concrete purpose tied to the creator's decision and an honest
 account of the effort and timing: a form now, questions during play, or both. Use exact counts
-only when bounded by the configuration, and time estimates only when checked in that flow.
+only when bounded by the configuration.
 Make declining and skipping voluntary without losing normal progress. Match data-use wording
 to what is actually stored; the current CSV includes player addresses, so avoid promising
 anonymity. See [AAPOR's introduction guidance][invitation]. Acknowledge participation without

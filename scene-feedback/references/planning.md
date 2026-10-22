@@ -17,8 +17,9 @@ For an unsure creator, deliver one compact starter proposal:
 Match questions to actual exposure at a safe pause; failed or abandoned attempts can
 qualify. For uncertain exposure, use an observable event or answerable wording. Keep
 participation and skipping voluntary with ordinary progress intact. Fold requested device
-considerations into low-effort answer formats. For finding testers or organizing a session,
-offer the [Playtests guide][playtests] as a brief relevant link.
+considerations into low-effort answer formats. Describe effort from known question/comment
+choices; give time estimates only when checked in that flow. For finding testers or organizing
+a session, offer the [Playtests guide][playtests] as a brief relevant link.
 
 The concrete starter is ready for the creator's decision. Acceptance approves the choices
 shown; resolve only material choices left open before applying it.
