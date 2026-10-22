@@ -3,15 +3,14 @@
 Inspect the scene's startup, UI, and game events. Read an available design brief for intent;
 use the code to distinguish implemented gameplay from planned mechanics or missing hooks.
 
-## Establish the focus
+## Offer a starting plan
 
-Use a goal already supplied. When the goal is unknown, make the first reply one focus
-question grounded in the inspected scene, offering a few concrete choices and a brief
-recommendation. For an unsure creator, a lightweight first-visit overview is a valid option.
-End that reply there and wait for the creator to choose or accept a focus. Defer the exact
-question table, Intro copy, setup details, and bank/API/setup reads until the focus is
-established. Ask further only for context that changes the proposal, such as intended
-players, devices, or what is ready to try.
+Use a supplied goal and constraints directly. For an unsure creator, inspect enough scene
+and brief context to offer a short first-visit starter plan: a few adapted questions and
+when to show them. Ask whether to use it, adjust it, or focus on a particular part of the
+experience. Offer deeper discovery of goals, players, or devices when the creator wants it
+or a missing detail materially changes the proposal. Keep the first proposal compact;
+expand the selected plan's wording and setup details as needed.
 
 ## Propose questions, formats, and timing
 
@@ -27,9 +26,10 @@ Recommend the answer format according to the decision it informs:
 - **Rating plus optional comment:** an explanation would help decide what to inspect or change.
 - **Text only:** an open problem report or unexpected experience where a score adds little.
 
-Read [Configure][configure] for built-in and custom scales and [answer formats][formats]
-for their configuration. Choose a suitable scale or create one following the documented
-example. Show exact labels and comment prompts for review. On mobile, weigh typing effort
+Use [Configure][configure] and [answer formats][formats] when choosing scales or preparing
+configuration. Choose a suitable scale or adapt one following the documented example.
+Describe the answer format plainly in a starter plan; show full scale labels and comment
+prompts when those details need review or implementation. On mobile, weigh typing effort
 against the information needed for the playtest.
 
 Use the README's [participation routes][api] to propose consent followed by gameplay
@@ -47,8 +47,8 @@ A useful playtest can reveal why players stop. Follow the guide's exposure and t
 an engaging game is not a prerequisite for useful feedback.
 
 Use the module Intro as a starting point. Within the requested scope, adapt its greeting,
-team voice, purpose, timing, and participation terms to this scene/playtest; review the exact
-proposed wording with the creator alongside the questions.
+team voice, purpose, timing, and participation terms to this scene/playtest. Review its exact
+proposed wording with the creator when Intro changes are part of the plan.
 
 Give the Intro a neutral, concrete purpose tied to the creator's decision and an honest
 account of the effort and timing: a form now, questions during play, or both. Use exact counts
@@ -74,15 +74,15 @@ Choose a recipe that fits the scene and verify its prerequisites before promisin
 When the conversation turns to planning runtime, device, or Storage checks, read
 [Verification](verification.md) before proposing those checks.
 
-For a new integration or a setup change, read the relevant [installation requirements][install].
-For an existing installation, inspect what is already configured and propose only the needed
-changes. For a planning-only request, stop at the proposal. Present:
+Keep the proposal concrete and proportional: a short list of adapted questions, answer
+formats, and proposed moments, with a brief reason for the plan. Use a table when it helps.
+Expand full labels, comment prompts, participation route, Intro wording, target devices, or
+setup details when needed for approval or implementation, or when the creator wants depth.
+Retain existing choices outside the requested scope.
 
-- The playtest goal and how it relates to the scene or brief.
-- A short table: exact question, format (scale labels and comment prompt where used),
-  proposed event, and why the answer would help the creator's decision.
-- Participation route, Intro wording/timing, target devices, and setup changes only where
-  relevant to this proposal. Retain existing choices outside its scope.
+When preparing an integration or setup change, read the relevant [installation requirements][install].
+For an existing installation, inspect what is configured and propose only needed changes.
+For a planning-only request, stop at the proposal.
 
 Wait for review and approval before applying agent-chosen questions and events.
 A general installation request does not approve those content and timing choices. Apply an
