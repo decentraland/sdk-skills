@@ -1,7 +1,28 @@
 # Refine or prepare a playtest plan
 
-Use for requested refinement of an existing proposal or details needed to implement it.
-The [starter workflow](planning.md) remains the entry point for an unsure creator.
+Use for the chosen adaptation or focus-interview path, requested detailed refinement, or
+implementation preparation. Follow [Planning](planning.md) and reuse supplied priorities,
+constraints, and approved choices.
+
+## Adapt a starter
+
+Ask a few clarifying questions about the creator's priorities or constraints that would
+change the starter. For example, a mobile-control concern may change the relevant questions
+and exposure moments. Revise those parts and explain the change; retain choices outside
+that scope. Use priorities already supplied rather than reopening them.
+
+## Determine the focus
+
+Enter this conversation when the creator chooses it or asks for help defining what to test.
+Begin with an easy scene-grounded question about what they want to learn from players.
+Use their answer to explore the decision the feedback could inform and the relevant player
+experience or exposure. If they are unsure, offer directions grounded in this scene, such
+as finding a starting point, abandoning an activity, or wanting to return.
+
+Let each answer determine the next useful question. Reuse known context and stop when you
+can name a useful learning goal, the decision it informs, and an experience players can
+answer about. A general first-visit overview remains valid. Then propose adapted questions,
+plain answer formats, and moments for review using the guidance below.
 
 ## Refine questions, formats, and timing
 
