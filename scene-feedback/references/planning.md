@@ -38,6 +38,35 @@ Use the README's [participation routes][api] to propose consent followed by game
 questions, a player-opened form, or both. Let the goal and existing game events determine
 the invitation and question timing; present those choices to the creator.
 
+## Invite participation
+
+If the creator needs help finding playtesters or organizing a session, suggest
+[Decentraland's Playtests guide][playtests]. Read its relevant sections when helping
+plan recruitment, observation, or test rounds.
+
+Treat motivation to keep playing and willingness to give feedback as separate questions.
+A useful playtest can reveal why players stop. Follow the guide's exposure and timing rules;
+an engaging game is not a prerequisite for useful feedback.
+
+Give the Intro a neutral, concrete purpose tied to the creator's decision and an honest
+account of the effort and timing: a form now, questions during play, or both. Use exact counts
+only when bounded by the configuration, and time estimates only when checked in that flow.
+Make declining and skipping voluntary without losing normal progress. Match data-use wording
+to what is actually stored; the current CSV includes player addresses, so avoid promising
+anonymity. See [AAPOR's introduction guidance][invitation]. Acknowledge participation without
+promising changes the creator has not committed to.
+
+When recruitment needs make incentives relevant, discuss them as optional. State terms in
+advance, keep feedback rewards independent of praise or rating direction, and preserve the
+ability to skip individual questions. For organized testers, reward agreed time or effort.
+Consider who the offer attracts and whether it encourages rushed answers. [Incentive effects
+vary by context][incentives]; more responses alone establish neither representativeness nor
+freedom from bias. Retain invitation eligibility, route, and any incentive terms with the
+playtest notes for later comparison; these are context notes, not new CSV fields.
+
+For a concrete reward proposal, read [Decentraland reward recipes](participation-rewards.md).
+Choose a recipe that fits the scene and verify its prerequisites before promising delivery.
+
 ## Review the proposed changes
 
 For a new integration or a setup change, read the relevant [installation requirements][install].
@@ -60,3 +89,7 @@ already approved concrete plan without asking again; keep unresolved choices vis
 [formats]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#comments-and-text-only-questions
 [api]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#api-reference
 [install]: https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#1-install
+
+[invitation]: https://aapor.org/standards-and-ethics/institutional-review-boards/
+[incentives]: https://doi.org/10.29115/SP-2016-0003
+[playtests]: https://docs.decentraland.org/creator/scenes-sdk7/designing-the-experience/playtests

@@ -11,13 +11,17 @@ goal, begin with an overview of recurring experiences and questions to investiga
   If exports are missing, use [Review][review] to explain retrieval.
 - Report response counts and distinct respondents; repeated answers are not independent
   players. Keep addresses out of the readout. Absent rows do not prove a question was shown.
-- Compare versions or platforms where relevant, checking wording, timing, and recruitment
-  before treating playtests as comparable. Summarize comment themes with representative
+- Compare versions or platforms where relevant, checking wording, question order/context,
+  timing, and recruitment (including invitation eligibility, route, and incentive terms)
+  before treating playtests as comparable. Keep differently recruited runs identifiable;
+  survey opt-in does not establish enjoyment. Summarize comment themes with representative
   excerpts and preserve conflicting experiences.
 - Return coverage/exclusions, findings tied to the goal, uncertainty, and what to inspect
   or change next. Suggest a comparable follow-up test; distinguish evidence from hypotheses.
 
-When interpreting themes, conflicting answers, or cohort differences, consult
+For theme synthesis in any output format, including coverage, denominators, overlap, and
+traceability, read [shared synthesis](analysis-patterns.md#find-patterns-without-losing-the-answers).
+For conflicting answers or cohort differences, consult
 [investigative patterns](analysis-patterns.md) for useful lines of inquiry.
 
 When analyzing CSV, explicitly offer an optional, self-contained HTML readout with grouped

@@ -21,3 +21,17 @@ small-group observations as questions to investigate rather than established pat
 For a useful finding, connect **what was noticed → supporting answers and counts → what to
 check next**. Keep contradictory evidence and plausible alternative explanations visible.
 A suspected mechanism or proposed fix remains a hypothesis until checked.
+
+## Find patterns without losing the answers
+
+Read all relevant answers in manageable batches before making dataset-wide claims. For a
+sampled review, state how the sample was selected and restrict claims to that sample.
+Group semantically similar experiences even when their words differ. Distinguish a shared
+symptom from an inferred cause, keep ambiguous answers visible, and retain disagreement.
+A response may support several themes; disclose overlapping counts.
+
+Keep a traceable mapping from each theme to response IDs and original comments. Count
+unique respondents supporting a theme within the relevant cohort, and state the denominator.
+Use “most” or “a majority” only when that count supports it; frequency alone does not measure
+severity. Surface a rare serious issue separately when warranted. Treat proposed fixes as
+hypotheses rather than facts established by complaints.
