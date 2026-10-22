@@ -12,10 +12,15 @@ For example, one submitted answer can unlock a reward while remaining questions 
 stay optional. Keep every rating value eligible. Disclose visit/persistent scope, expiry,
 limits, and claim conditions before participation; retain these terms with the playtest notes.
 
+Check code and exposure paths before calling an attempt unboosted: existing purchases or
+unlocks may already affect it. Mark exposure unknown when it cannot be established. Separate
+this effect on the measured experience from recruitment/response bias; a small or delayed
+reward alone does not establish freedom from bias or rushed answers for this audience.
+
 | Player receives | When it fits and when to award | Implementation prerequisites |
 | --- | --- | --- |
 | Existing game currency, a material pack, or a retry token | Progression/crafting/arcade game; award once after the advertised qualifying feedback. | Reuse the game's balance/inventory and an actual use for the reward. Choose amount and persistence from that economy. Internal currency is distinct from MANA or platform credits. |
-| One next-run coin magnet, hint, or temporary multiplier | A game already supporting that mechanic; unlock after feedback about the unboosted attempt, then let the player activate it. | Existing buff/expiry rules, a cap, and authority for shared scores. Keep basic controls/accessibility help available to everyone. Separate boosted observations when comparing experiences. |
+| One next-run coin magnet, hint, or temporary multiplier | A game already supporting that mechanic; unlock after the target feedback, then let the player activate it. | Existing buff/expiry rules, a cap, and authority for shared scores. Keep basic controls/accessibility help available to everyone. Separate boosted observations when comparing experiences. |
 | A “Playtest Contributor” scene title or trophy | Social recognition or a scene without an economy; unlock once after a qualifying answer and let the player choose whether to display it. | Scene state and HUD; shared display needs synchronization, durable unlocks need persistence. A visit-only HUD title is a small starting option. Describe it as scene recognition, distinct from a platform badge/profile title. |
 | Access to a custom dance button or photo-spot emote | Social/art/event scene; a qualifying answer unlocks a player-operated action in this scene. | A compatible, licensed `*_emote.glb`, scene UI/state, the required permission, and target-client verification. Use [scene-emote docs][scene-emotes] and [player-avatar](../../player-avatar/SKILL.md); author a missing asset through [avatar-animations](../../avatar-animations/SKILL.md) only when scoped. Scene access does not grant an owned emote. |
 | An owned wearable or emote collectible | A funded event/playtest with a suitable collection; qualifying participation grants claim eligibility, followed by the Rewards claim flow. | Follow [campaign setup][campaign] and [integration options][claims]: approved mintable collection, authorized minter, stock, funding, active campaign/dispenser, and beneficiary checks. Keep privileged credentials off the client. Distinguish claim eligibility, pending delivery, and confirmed minting. |

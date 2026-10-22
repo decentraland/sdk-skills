@@ -5,15 +5,13 @@ use the code to distinguish implemented gameplay from planned mechanics or missi
 
 ## Establish the focus
 
-Use a goal already supplied. Otherwise begin with one easy question, for example:
-
-> Are you looking for an overall impression, or is there a particular part of the game
-> you want feedback on?
-
-Offer a few choices grounded in this scene. Ask a follow-up only when it changes the proposal,
-such as the intended players, devices, or what is ready to try. If the creator is unsure,
-suggest a lightweight first-visit overview and explain what it could reveal. General feedback
-is a valid goal; the interview should help the creator choose, not become a questionnaire.
+Use a goal already supplied. When the goal is unknown, make the first reply one focus
+question grounded in the inspected scene, offering a few concrete choices and a brief
+recommendation. For an unsure creator, a lightweight first-visit overview is a valid option.
+End that reply there and wait for the creator to choose or accept a focus. Defer the exact
+question table, Intro copy, setup details, and bank/API/setup reads until the focus is
+established. Ask further only for context that changes the proposal, such as intended
+players, devices, or what is ready to try.
 
 ## Propose questions, formats, and timing
 
@@ -72,6 +70,9 @@ For a concrete reward proposal, read [Decentraland reward recipes](participation
 Choose a recipe that fits the scene and verify its prerequisites before promising delivery.
 
 ## Review the proposed changes
+
+When the conversation turns to planning runtime, device, or Storage checks, read
+[Verification](verification.md) before proposing those checks.
 
 For a new integration or a setup change, read the relevant [installation requirements][install].
 For an existing installation, inspect what is already configured and propose only the needed

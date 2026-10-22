@@ -9,8 +9,14 @@ goal, begin with an overview of recurring experiences and questions to investiga
 
 - Obtain relevant CSV parts, note coverage, and deduplicate repeated exports by response `id`.
   If exports are missing, use [Review][review] to explain retrieval.
+- When execution tools are available, use a CSV parser to compute data-record counts
+  (excluding the header), unique IDs, retained cohorts, and distinct respondents. Reconcile
+  exclusions against parsed records, not text lines. Label counts that could not be computed
+  or verified as provisional when execution is unavailable.
 - Report response counts and distinct respondents; repeated answers are not independent
   players. Keep addresses out of the readout. Absent rows do not prove a question was shown.
+  For missing Intro rows, establish participation route/configuration and export coverage
+  before diagnosing consent logging.
 - Compare versions or platforms where relevant, checking wording, question order/context,
   timing, and recruitment (including invitation eligibility, route, and incentive terms)
   before treating playtests as comparable. Keep differently recruited runs identifiable;
@@ -23,6 +29,9 @@ For theme synthesis in any output format, including coverage, denominators, over
 traceability, read [shared synthesis](analysis-patterns.md#find-patterns-without-losing-the-answers).
 For conflicting answers or cohort differences, consult
 [investigative patterns](analysis-patterns.md) for useful lines of inquiry.
+
+When findings lead to runtime, device, or Storage checks, read [Verification](verification.md)
+before proposing tests or diagnosing integration behavior from the exports.
 
 When analyzing CSV, explicitly offer an optional, self-contained HTML readout with grouped
 answers and supporting evidence, unless the creator has already chosen an output format.

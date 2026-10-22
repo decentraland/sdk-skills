@@ -26,7 +26,8 @@ real gameplay triggers separately from manually opening forms.
 For mobile targets, use the existing layout and the [mobile preview instructions][debug].
 Check actual question/label wrapping, touch controls, text input with the keyboard open,
 and HUD overlap. Adjust wording or configuration first; extend UI for a demonstrated need.
-Distinguish layout preview from a real-device test and identify devices actually checked.
+Desktop mobile-layout preview checks layout; native keyboard behavior needs a real-device
+check. Identify devices actually tested and leave untested keyboard behavior explicit.
 
 ## End-to-end Storage check
 

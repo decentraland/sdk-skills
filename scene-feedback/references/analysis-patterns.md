@@ -32,6 +32,8 @@ A response may support several themes; disclose overlapping counts.
 
 Keep a traceable mapping from each theme to response IDs and original comments. Count
 unique respondents supporting a theme within the relevant cohort, and state the denominator.
+Report spontaneous praise as mentions within that cohort; it does not establish overall
+enjoyment or rule out problems in gameplay that was not assessed.
 Use “most” or “a majority” only when that count supports it; frequency alone does not measure
 severity. Surface a rare serious issue separately when warranted. Treat proposed fixes as
 hypotheses rather than facts established by complaints.
