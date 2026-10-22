@@ -1,7 +1,7 @@
 # Decentraland participation rewards
 
 Use when proposing or integrating an incentive for feedback. Retain the motivation,
-voluntary participation, and recruitment principles in [Planning](planning.md#invite-participation).
+voluntary participation, and recruitment principles in [Planning details](planning-details.md#invite-participation).
 Choose a reward with value for this scene's players and an achievable delivery path; these
 are design options, not evidence that rewards guarantee more or better feedback.
 
