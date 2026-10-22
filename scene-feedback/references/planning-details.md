@@ -11,6 +11,10 @@ change the starter. For example, a mobile-control concern may change the relevan
 and exposure moments. Revise those parts and explain the change; retain choices outside
 that scope. Use priorities already supplied rather than reopening them.
 
+When the creator proposes more questions or moments, revisit priorities and total burden
+across the journey. Offer which items to replace, combine, or defer as well as what to add;
+keep changes tied to the goal, audience, formats, and moments that matter for this test.
+
 ## Determine the focus
 
 Enter this conversation when the creator chooses it or asks for help defining what to test.
@@ -35,6 +39,10 @@ Recommend the answer format according to the decision it informs:
 - **Rating only:** a quick assessment when the score serves the goal.
 - **Rating plus optional comment:** an explanation would help decide what to inspect or change.
 - **Text only:** an open problem report or unexpected experience where a score adds little.
+
+Briefly explain a format/scale choice when it affects the decision. A clarity rating measures
+perceived clarity; an explanation or observed choice can give different evidence about actual
+understanding. Choose the evidence the goal needs, using the guide for detailed methodology.
 
 Use [Configure][configure] and [answer formats][formats] when choosing scales or preparing
 configuration. Choose a suitable scale or adapt one following the documented example.

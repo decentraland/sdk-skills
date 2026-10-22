@@ -1,9 +1,9 @@
 # Plan or adapt a playtest
 
-Inspect enough of the scene's startup, UI, game events, and available brief to ground a
-proposal in implemented gameplay. Use a supplied goal and constraints directly. When the
-creator asks to define the focus together, enter the [focus interview](planning-details.md#determine-the-focus)
-directly; otherwise offer the starter below.
+Before proposing new scene-specific questions or moments, read [Scene context](scene-context.md)
+to find relevant design intent and verify implemented flow and exposure. Use a supplied goal
+and constraints directly. When the creator asks to define the focus together, enter the
+[focus interview](planning-details.md#determine-the-focus) directly; otherwise offer the starter below.
 
 For question wording and candidate sets, read relevant sections of the [question guide][guide]
 and [question bank][bank]. Adapt candidates to the scene, creating questions when needed.
