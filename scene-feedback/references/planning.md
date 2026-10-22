@@ -48,6 +48,10 @@ Treat motivation to keep playing and willingness to give feedback as separate qu
 A useful playtest can reveal why players stop. Follow the guide's exposure and timing rules;
 an engaging game is not a prerequisite for useful feedback.
 
+Use the module Intro as a starting point. Within the requested scope, adapt its greeting,
+team voice, purpose, timing, and participation terms to this scene/playtest; review the exact
+proposed wording with the creator alongside the questions.
+
 Give the Intro a neutral, concrete purpose tied to the creator's decision and an honest
 account of the effort and timing: a form now, questions during play, or both. Use exact counts
 only when bounded by the configuration, and time estimates only when checked in that flow.
