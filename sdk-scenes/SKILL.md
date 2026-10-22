@@ -52,6 +52,10 @@ When the SDK, the Explorer, or the Creator Hub doesn't behave as documented, or 
 
 Before calling anything a platform limitation, check in this order: the owning topic skill, the installed typings under `node_modules/@dcl/ecs`, a minimal reproduction, the running client and SDK versions, and known fixes in the Explorer and SDK changelogs **matched to the running version** — an older source checkout proves nothing about the client in front of you (a session ruled out audio volume fades from an August checkout after the fix had already shipped). Distinguish scene error, engine defect and unsupported capability before designing an architectural workaround. Failing to recall an API is not evidence it is missing (`GltfNodeModifiers` in **advanced-rendering** changes GLB materials at runtime; number-key actions are `IA_ACTION_3`–`IA_ACTION_6` in **advanced-input** — read the enum, never infer members).
 
+### 6. Working without a runtime view
+
+If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone. Two sessions on one scene (2026-10) shipped every visual defect to the owner this way.
+
 ### General principle
 
 These aren't things the agent should refuse to do — they're things it should communicate about before doing them. If the user confirms, proceed confidently. The goal is transparency, not gatekeeping.
@@ -60,7 +64,7 @@ These aren't things the agent should refuse to do — they're things it should c
 
 ## CRITICAL RULE — Composite-first scene authoring
 
-All static entities (models, lights, spawn points) MUST be defined in `assets/scene/main.composite`, NOT created in TypeScript via `engine.addEntity()`.
+All static entities (models, primitive walls and floors, lights, spawn points) MUST be defined in `assets/scene/main.composite`, NOT created in TypeScript via `engine.addEntity()`. In a scene open in the Creator Hub the way to put them there is the MCP (**creator-hub-mcp**); a room built in `src/` renders in the preview but is invisible in the editor.
 
 TypeScript (`src/index.ts`) is ONLY for:
 

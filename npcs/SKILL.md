@@ -163,7 +163,9 @@ Owner-reported in the same session, **not verified** — confirm before designin
 
 ### Copies of the player
 
-A copy / double / mirror twin of the player is always an `AvatarShape` fed from live `getPlayer()` data, never a baked GLB — see **player-avatar** for the field mapping and the clone bullet above.
+A lookalike of the player — a line-up of "you", a clone posing in a shop, a twin that waves back — is an `AvatarShape` fed from live `getPlayer()` data (field mapping in **player-avatar**, clone bullet above), so it wears whatever the player wears.
+
+**An `AvatarShape` cannot be puppeted frame by frame.** Its locomotion is engine-driven (`SDKAvatarShapesMotionSystem.cs`, unity-explorer main 2026-10): each frame it walks from where it is toward the authored `Transform.position` at 4 m/s, or 10 m/s once the target is more than 1.5 m away, and it **turns to face its direction of travel** (slerp, 6.5/s); the authored rotation is only applied once it has arrived. A `Tween` on the entity's position suppresses the engine move and a `Tween` on its rotation suppresses the auto-facing, but an entity holds one `Tween`, so you cannot own both. Feeding it the player's mirrored position therefore gives a double that trails at walking pace and spins round when the player backs up — owner-reported on a mirror double, 2026-10-09 ("delay makes it feel super weird", "walking backwards makes it look the other way"), after both a per-frame `Transform` write and a continuous move tween at the mirrored velocity. For a mirror double, a shadow, a replay ghost or anything that must match the player's pose every frame, use a **rigged humanoid GLB** with an `Animator` (idle / walk clips switched from the player's speed) and write its `Transform` directly each frame. It will not wear the player's look; that is the trade. Catalog mannequins: **add-3d-models** → `references/model-catalog.md` (search `mannequin`, `character`).
 
 **What a copy can visibly differ in** is decided by wearable *categories*, which you can read from the catalyst:
 
