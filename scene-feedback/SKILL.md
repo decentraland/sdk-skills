@@ -25,6 +25,14 @@ choices; an approved exact edit or plan proceeds without a renewed interview.
 When updating project notes, distinguish creator-approved decisions, assistant proposals,
 and implemented facts; implementation itself does not establish approval.
 
+## Explain choices in creator language
+
+Use ordinary language matched to demonstrated creator familiarity. Explain technical terms
+on first use through their purpose, such as an invitation asking players whether to give
+feedback (Intro). Present question wording, rating labels/meaning, and player moments;
+pair useful bank/scale/event IDs with their meaning in creator review. Retain exact
+identifiers in code and configuration.
+
 ## Choose the route
 
 | Request | Read next | Scope |

@@ -25,6 +25,10 @@ considerations into low-effort answer formats. Describe effort from known questi
 choices; give time estimates only when checked in that flow. For finding testers or organizing
 a session, offer the [Playtests guide][playtests] as a brief relevant link.
 
+When attracting responses or the requested effort makes an in-game perk relevant, inspect
+the actual economy/mechanics and read [Participation rewards](participation-rewards.md).
+Proactively offer one fitting optional choice briefly for creator review.
+
 ## Follow the chosen path
 
 - **Use this starter:** acceptance approves the choices shown; resolve only material open
