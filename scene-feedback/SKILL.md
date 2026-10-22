@@ -8,6 +8,23 @@ description: Help creators plan playtest questions and timing, integrate or debu
 Help creators learn how players experience their scene using Scene Feedback questions and
 CSV responses. Load only the workflow needed for the current request.
 
+## REQUIRED checkpoint before changes
+
+**MUST reconcile prior assistant proposals with this skill on load, before a new integration
+or agent-chosen content/timing edits.** An assistant suggestion
+remains a proposal until the creator confirms its concrete choices. A general request to
+install/connect, or approval of a technical option, alone does not approve a creative plan.
+
+**If material choices in scope remain unreviewed, read [Planning](references/planning.md)
+and [Scene context](references/scene-context.md) before writing receiving-scene files.**
+Present a compact reviewable plan covering unresolved goal, questions/Intro, formats/scales,
+moments, and participation route, with the three planning paths. Apply those choices only
+after the creator accepts the concrete plan. Retain explicit instructions and approved
+choices; an approved exact edit or plan proceeds without a renewed interview.
+
+When updating project notes, distinguish creator-approved decisions, assistant proposals,
+and implemented facts; implementation itself does not establish approval.
+
 ## Choose the route
 
 | Request | Read next | Scope |

@@ -1,5 +1,8 @@
 # Install or change an integration
 
+**MUST complete the [required decision checkpoint](../SKILL.md#required-checkpoint-before-changes)
+before changing receiving-scene files.**
+
 Inspect the receiving scene before choosing work: existing Scene Feedback source/assets,
 questions and Intro configuration, startup imports, server/permission setup, and event hooks.
 Reuse the installed module and approved choices. Distinguish a missing installation from a
@@ -11,8 +14,7 @@ Preserve creator-owned questions and existing event wiring unless the task chang
 - **New or incomplete installation:** follow the relevant parts of [Install][install]. Copy
   only missing module/assets and apply needed setup changes; keep demo game code out.
 - **Questions, scales, or Intro only:** follow the matching [Configure][configure] or
-  [answer-format section][formats]. Read the planning reference only if new content or
-  timing choices need to be proposed; an exact approved edit can be applied directly.
+  [answer-format section][formats]. Apply only the requested configuration change.
 - **Participation or event wiring:** read the matching [API sections][api] and
   [integration recipe][examples]. Use [queue/results and group behavior][details] when
   handling completion, repeats, or closing. Follow existing scene events and UI flow.
@@ -20,8 +22,7 @@ Preserve creator-owned questions and existing event wiring unless the task chang
   customizations, and preserve the receiving scene's configuration and hooks.
 
 Use Scene Feedback's public API and configuration first. Extend its `lib/` when the intended
-behavior needs a missing capability, explaining why. Resolve agent-proposed question or
-timing choices through [planning](planning.md) before applying them.
+behavior needs a missing capability, explaining why.
 
 For changed behavior, read [verification](verification.md) and run checks relevant to the
 change. After integration, explain where to download responses via [Review][review], what
