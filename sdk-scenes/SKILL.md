@@ -143,6 +143,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs, sliders. By default writes UI the Creator Hub's 2D UI editor (UI Designer) can read and edit — the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach — and falls back to free-form coded React-ECS only for data-driven UI the editor cannot represent. Also covers adapting an existing coded UI for the editor.
 
+### Player Feedback & Playtesting
+
+**Skill: `scene-feedback`** — Help the creator choose a playtest focus, review adapted questions and timing, then integrate gameplay questions or a player-opened form. Also use to retrieve and analyze existing Scene Feedback CSV responses from World scene Storage.
+
 ### Audio & Video
 
 **Skill: `audio-video`** — `AudioSource`, `AudioStream`, `VideoPlayer`, media permissions.

@@ -184,6 +184,9 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - Invite 2-3 real players and watch them (do not explain the game — see if it is self-explanatory)
 - Measure: Do players understand what to do within 30 seconds?
 
+For feedback players can submit while you are away, offer **scene-feedback** after the
+first local tests. Add questions when the creator chooses to collect feedback.
+
 ### Iterate on Fun
 - Polish comes last. If the core loop is not fun with placeholder art, better art will not fix it
 - Cut features aggressively. A tight, small experience beats a sprawling, unfinished one
