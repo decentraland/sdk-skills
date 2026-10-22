@@ -40,9 +40,11 @@ Recommend the answer format according to the decision it informs:
 - **Rating plus optional comment:** an explanation would help decide what to inspect or change.
 - **Text only:** an open problem report or unexpected experience where a score adds little.
 
-Briefly explain a format/scale choice when it affects the decision. A clarity rating measures
-perceived clarity; an explanation or observed choice can give different evidence about actual
-understanding. Choose the evidence the goal needs, using the guide for detailed methodology.
+Explain format/scale choices briefly when decision-relevant. A clarity rating reports perceived
+clarity; a written explanation or account is self-report, including recalled actions. Observed
+behavior needs observation or event evidence. Use these sources as clues for competing hypotheses
+and the next check; an answer alone establishes neither understanding nor a cause. Use the guide
+for detailed methodology.
 
 Use [Configure][configure] and [answer formats][formats] when choosing scales or preparing
 configuration. Choose a suitable scale or adapt one following the documented example.
