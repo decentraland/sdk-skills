@@ -269,8 +269,8 @@ Shape:
 
 Limits and failure modes this pattern inherits (all of them **design** constraints, not bugs):
 
-- **A crash or redeploy loses up to a minute of acknowledged rows**, and they are never resent — the client already got an ack. Never use this for anything that must not be lost (payments, prize state); checkpoint those synchronously and check the boolean.
-- **No compare-and-set, so overlapping server instances overwrite each other's rows.** During the window where an old and a new deploy are both alive, concurrent read-modify-write cycles on the same part silently drop rows.
+- **A crash or redeploy loses up to a minute of acknowledged rows** (more if Storage writes are failing and the buffer keeps growing), and they are never resent — the client already got an ack. Never use this for anything that must not be lost (payments, prize state); checkpoint those synchronously and check the boolean.
+- **No compare-and-set, so overlapping server instances can still lose rows.** Each flush re-reads the current part and merges by id right before writing (`server.ts` `flush()`), which narrows the window but cannot close it: during the moments an old and a new deploy are both alive, two flushes landing on the same part can still silently drop a batch.
 - **Per-writer rate cap**: the module allows one address at most **100 rows / 10 min**; beyond that it drops. Add an equivalent cap to any append log you expose to clients — otherwise one client can fill a World's storage budget.
 - **Bounded buffer**: 2000 rows. Past that the server **stops acknowledging**, and the client retries every 3 s for up to 30 s before giving up.
 - **Escape on write**: flatten text to one line, and prefix a leading `= + - @` with `'` so a spreadsheet does not execute a submitted cell as a formula. Player-submitted text in a CSV is untrusted input.

@@ -26,7 +26,7 @@ For the full limits table across all parcel counts, see the **optimize-scene** s
 ## 3. Texture Requirements
 
 - **Dimensions must be power-of-two**: 256, 512, 1024, 2048
-- **Recommended sizes**: 1024x1024 for scene objects; wearables allow up to **1024x1024** (max 2 textures per wearable, square, 72 ppi)
+- **Recommended sizes**: 1024x1024 for scene objects; wearables allow up to **1024x1024** (max 2 textures per wearable, square, 72 ppi; skins are the exception with 5 textures and 5k tris)
 - **Use texture atlases** to combine multiple small textures into one, reducing draw calls and material count
 - Prefer compressed formats (WebP) over raw PNG where possible
 - Share texture references across materials — do not duplicate texture files
@@ -210,7 +210,7 @@ Rapid Iterative Testing and Evaluation: 3-5 players per round, fix the clearest 
 
 - It **requires an authoritative Multiplayer Server** (`@dcl/sdk@auth-server`, `"authoritativeMultiplayer": true`, `USE_FETCH` in `requiredPermissions`) — see [[authoritative-server]] for setup and for the CSV-in-Storage append pattern it uses.
 - Design rule: ask **one or two** questions tied to the playtest goal, at a natural pause (after a round, after a purchase) — not mid-action. Questions wait for a clear screen and are shown once per trigger per visit.
-- Use `intro()` for consent before the first `ask()`, `ask()` for game-triggered questions, and `leaveFeedback()` for a player-opened form behind a button, kiosk, or trigger area.
+- The API is a namespace (`import { feedback } from './scene-feedback'`): `feedback.intro()` for consent before the first `feedback.ask()`, `feedback.ask()` for game-triggered questions, and `feedback.leaveFeedback()` for a player-opened form behind a button, kiosk, or trigger area.
 - Repo: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,-1-scene-feedback
 
 ### Iterate on Fun
