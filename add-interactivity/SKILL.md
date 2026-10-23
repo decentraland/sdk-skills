@@ -65,6 +65,8 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range — it is measured **from the avatar**, not the camera (see "Distance rules" below) — and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
 
+**Register the handler on the entity that owns the collider.** Pointer events reach the entity whose collider the ray hits — a handler on a parent group, or on a child that has no collider of its own, never fires. When a model is an empty parent with the collider mesh on a child entity, register on the child (or give the parent its own `MeshCollider`). A headset the player could not click (2026-10-12) was a handler on the parent of the collider entity. Collider layers: **Colliders Required** below.
+
 ### Distance rules (`maxDistance` / `maxCameraDistance` / `maxPlayerDistance`)
 
 **`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments called it a camera distance; that was wrong, and Unity/Godot always measured player distance. Verified: protocol `pointer_events.proto` (`0e82dcd`), `@dcl/ecs` `EventSystemOptions` (`6a98834a`), test scene `34,20-pointer-events-distances`.

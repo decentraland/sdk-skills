@@ -21,7 +21,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **Billboard** | `billboardMode: BillboardMode`, `targetEntity?: Entity` | Makes entity face the camera (default) or, when `targetEntity` is set, that entity instead. Unset or `engine.CameraEntity` = faces camera. If the target is missing/deleted, reorientation freezes until it exists again. Multiplayer: camera-facing billboards are computed locally per player (each sees it facing them); a `targetEntity` billboard faces the same way for ALL players, since the target position is scene state. |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
 | **NftShape** | `urn: string`, `style?: NftFrameType`, `color?: Color3` | Display an NFT artwork frame. The NFT is identified by `urn`. |
-| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
+| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `fontSrc?: string`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
 | **LightSource** | `type` (`{ $case: 'point' \| 'spot' }`; `innerAngle`/`outerAngle` live inside the `spot` variant), `color?`, `intensity?` (16000), `range?` (-1 = auto), `shadow?: boolean` (false) | Add point or spot lights (no directional type). Set via `LightSource.create(e, { type: LightSource.Type.Spot({ innerAngle, outerAngle }), shadow: true })`. |
 | **ParticleSystem** | `rate`, `maxParticles`, `lifetime`, `gravity`, `shape`, `initialColor`, `colorOverTime`, `initialSize`, `texture`, `blendMode`, `loop`, `spriteSheet` | Emit particles (fire, smoke, sparks, snow). Many fields — see the `particle-system` skill for the full list, enums, and presets. Unity explorer only. |
 
@@ -89,7 +89,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
 | **UiTransform** | `width`, `height`, `positionType`, `flexDirection`, `alignItems`, `justifyContent`, `margin`, `padding`, `position` | Layout and positioning (CSS flexbox-like). |
-| **UiText** | `value: string`, `fontSize`, `color`, `textAlign`, `font` | Render text in UI. |
+| **UiText** | `value: string`, `fontSize`, `color`, `textAlign`, `font`, `fontSrc` | Render text in UI. `fontSrc` (custom `.ttf`) is covered by the **fonts** skill. |
 | **UiBackground** | `color?`, `textureMode?`, `texture?` | Background color or image for UI elements. |
 | **UiInput** | `placeholder`, `fontSize`, `color`, `onSubmit` | Text input field. |
 | **UiInputResult** | Read-only | Input field value. |

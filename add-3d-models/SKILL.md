@@ -143,6 +143,8 @@ Choose the mask based on role:
 
 Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/Models/`.
 
+**Omit `Transform` fields you do not set — never pass an explicit `undefined`.** `Transform.create(e, { position, rotation: maybeUndefined })` keeps the `undefined`: the schema's `extend` spreads your object over the defaults (`...value`, `Transform.ts` in `@dcl/ecs`), so the default rotation is replaced by nothing and the next serialization reads `value.rotation.x` and throws — inside the engine update, not at the `create` call, so the stack points nowhere useful. Build the object conditionally: `...(rot ? { rotation: rot } : {})`.
+
 ### Asset folder conventions
 
 - **Default** for models you download yourself: `assets/Models/`.
@@ -194,7 +196,7 @@ Always say which path you're on; never let the user believe the MCP did work the
 
 ## Free 3D Models — two catalogs
 
-Always check the scene's local asset folder first. Before fetching any model, confirm with the user. Search **both** catalogs with one grep — `grep -i "keyword" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md` — and try synonyms if nothing matches. Browse categories with `grep "^##"` on either file. Every row has a `preview:` image URL; fetch it to check the look before importing.
+Always check the scene's local asset folder first. Before fetching any model, confirm with the user. Search **both** catalogs with one grep — `grep -i "keyword" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md` — and try synonyms if nothing matches. Browse categories with `grep "^##"` on either file. Every row has a `preview:` image URL; fetch it to check the look before importing. The Creator Hub packs' names, tags and captions are generated and can be wrong — the `decorations` item **Human** (tags `man, person, figure…`, caption "Human figure in mid-action") is the word *HUMAN* in 3D letters — so for a pack item not in `asset-pack-catalog.md`, open its `thumbnail.png` in the pack before placing it (**creator-hub-mcp** → `search_catalog`).
 
 **OpenDCL catalog (8,800+ models)** — `{baseDir}/references/model-catalog.md`. Single-file GLBs. Workflow: search → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add `Animator` if the model has animations.
 

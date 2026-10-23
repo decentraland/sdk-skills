@@ -57,6 +57,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
+| `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
 | `game-design` | Game design patterns, scene limits, performance budgets. |
 | `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
@@ -68,6 +69,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
+| `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |

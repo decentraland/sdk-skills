@@ -213,6 +213,9 @@ Rapid Iterative Testing and Evaluation: 3-5 players per round, fix the clearest 
 - The API is a namespace (`import { feedback } from './scene-feedback'`): `feedback.intro()` for consent before the first `feedback.ask()`, `feedback.ask()` for game-triggered questions, and `feedback.leaveFeedback()` for a player-opened form behind a button, kiosk, or trigger area.
 - Repo: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,-1-scene-feedback
 
+For feedback players can submit while you are away, offer **scene-feedback** after the
+first local tests. Add questions when the creator chooses to collect feedback.
+
 ### Iterate on Fun
 - Polish comes last. If the core loop is not fun with placeholder art, better art will not fix it
 - Cut features aggressively. A tight, small experience beats a sprawling, unfinished one

@@ -409,7 +409,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
 
-**A copy of the player (lookalike, mirror twin, a queue of "you") is always an `AvatarShape` fed from `getPlayer()` — never a baked model**, so it matches whatever the player is wearing at the time. Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
+**A lookalike of the player (a queue of "you", a posed clone) is an `AvatarShape` fed from `getPlayer()` — not a baked model**, so it matches whatever the player is wearing at the time. The exception is a double that must track the player every frame (mirror, shadow, replay): `AvatarShape` locomotion is engine-driven, so it lags behind and auto-faces its direction of travel — that one is a rigged GLB with an `Animator`, see **npcs** → "Copies of the player". Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
 
 ## Custom Nametag Plates (`AvatarNametag`)
 
