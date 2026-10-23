@@ -79,7 +79,8 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` â€
     fontSize: 18,
     color: Color4.White(),
     textAlign: 'middle-center',
-    font: 'sans-serif'           // 'sans-serif' | 'serif' | 'monospace'
+    font: 'sans-serif',          // 'sans-serif' | 'serif' | 'monospace'
+    fontSrc: 'assets/fonts/MyFont-Regular.ttf'  // optional custom .ttf, `font` is the fallback; see the fonts skill
   }}
 
   uiInputBinding={{ actions: [InputAction.IA_JUMP] }}  // see uiInputBinding below
@@ -111,6 +112,8 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 **textAlign values:** `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
+
+**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. Needs the first SDK release after 7.30.1. See the **fonts** skill for the explorer support matrix and testing.
 
 `value` supports simple markup like `<b>`.
 
