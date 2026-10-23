@@ -313,6 +313,8 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 
 **Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (bitwise-OR them, e.g. `CL_PLAYER | CL_CUSTOM4`) to react to physics or custom layers.
 
+**Sizing: the Transform *is* the volume — there is no size field.** `PBTriggerArea` carries only `mesh` and `collision_mask`; size **and rotation** come entirely from the entity's `Transform`, and the volume tracks scale changes made at any time, on the entity or on a parent. This is the opposite of the sibling area components: `AvatarModifierArea` and `CameraModeArea` take an explicit `area: Vector3` that overrides `Transform.scale` permanently, so scaling those entities later changes nothing. Do not carry a habit from one to the other (see **player-avatar** and **camera-control**).
+
 **Detecting non-player entities:** a `TriggerArea` fires for any entity whose own collider is on a layer the area listens for. To make a scene entity trip an area, give it a `MeshCollider`/`GltfContainer` collider on a matching custom layer and set the area's mask to include it (verified `75,-9-trigger-areas`: a `GltfContainer` with `visibleMeshesCollisionMask: ColliderLayer.CL_CUSTOM4` trips an area created with `TriggerArea.setBox(entity, ColliderLayer.CL_PLAYER | ColliderLayer.CL_CUSTOM4)`). You can also put a `TriggerArea` on a moving/falling entity to detect when *it* enters another volume.
 
 **Callbacks:**

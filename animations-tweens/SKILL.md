@@ -175,7 +175,7 @@ engine.addSystem(() => {
 
 - **Never poll with `Animator.getClip()` or `getMutable()`** — both return a mutable ref and mark the component dirty every frame (same serialization overhead as the PITFALL above). `Animator.get()` is the only safe per-frame read.
 - The engine only flips the flag when the clip ends by itself. Looping clips never flip it, `speed: 0` states never finish, and a scene-side `stopAllAnimations()` is your own write (track it yourself if you need to tell them apart).
-- Requires a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips — keep a `timers.setTimeout` fallback only if you must support them.
+- Treat the flag as a *notification*, not a guarantee: never hard-block gameplay on it. Where a missed signal would wedge the scene, keep a `timers.setTimeout` fallback sized from the clip length.
 
 ## Tweens (Code-Based Animation)
 

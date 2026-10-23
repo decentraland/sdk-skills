@@ -254,6 +254,28 @@ async function flush() {
 
 Persist on: game over, player leaves, round end, or a periodic debounced save. Never persist on: every score change, every position update, every frame/tick.
 
+### Append-only logs: rolling CSV parts in Storage
+
+Storage holds **strings keyed by name**, with no append operation and **no compare-and-set** — so an append is read-modify-write, and a growing log must be split across keys before it hits the per-value ceiling. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, server side in `src/scene-feedback/lib/server/`) is the reference implementation of this pattern; reuse its shape for any server-side event log (playtest answers, round results, telemetry).
+
+Shape:
+
+| Piece | How it works |
+| --- | --- |
+| **Part keys** | `scene-feedback-1.csv`, `-2.csv`, … Each part is capped at **400 KB**; when the next batch would exceed it, the batch opens the next part. |
+| **Head key** | `scene-feedback-csv-head` holds the number of the part being written. Internal bookkeeping — deleting or editing it corrupts the sequence. |
+| **Buffer + flush** | Rows accumulate in memory and are flushed periodically; the server **acknowledges a response once it is buffered**, before the Storage write. |
+| **Dedup** | Every row carries a client-generated `id` so a retried submission is not counted twice. |
+
+Limits and failure modes this pattern inherits (all of them **design** constraints, not bugs):
+
+- **A crash or redeploy loses up to a minute of acknowledged rows**, and they are never resent — the client already got an ack. Never use this for anything that must not be lost (payments, prize state); checkpoint those synchronously and check the boolean.
+- **No compare-and-set, so overlapping server instances overwrite each other's rows.** During the window where an old and a new deploy are both alive, concurrent read-modify-write cycles on the same part silently drop rows.
+- **Per-writer rate cap**: the module allows one address at most **100 rows / 10 min**; beyond that it drops. Add an equivalent cap to any append log you expose to clients — otherwise one client can fill a World's storage budget.
+- **Bounded buffer**: 2000 rows. Past that the server **stops acknowledging**, and the client retries every 3 s for up to 30 s before giving up.
+- **Escape on write**: flatten text to one line, and prefix a leading `= + - @` with `'` so a spreadsheet does not execute a submitted cell as a formula. Player-submitted text in a CSV is untrusted input.
+- **Storage ceilings** (per the module's README): **512 KB per value**, **10 MB per World**, shared by every scene in that World. The 400 KB part size leaves headroom inside the per-value ceiling for one more batch.
+
 ## Server Resource Limits
 
 The headless server runs each scene in a sandboxed V8 isolate with hard resource/DoS caps. Design scenes to stay well under these — several are enforced by **silently dropping** data or by **terminating the isolate** (killing the server for everyone in the scene). Numbers below are defaults; a scene cannot raise them.

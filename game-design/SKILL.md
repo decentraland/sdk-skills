@@ -26,7 +26,7 @@ For the full limits table across all parcel counts, see the **optimize-scene** s
 ## 3. Texture Requirements
 
 - **Dimensions must be power-of-two**: 256, 512, 1024, 2048
-- **Recommended sizes**: 1024x1024 for scene objects, 512x512 for wearables
+- **Recommended sizes**: 1024x1024 for scene objects; wearables allow up to **1024x1024** (max 2 textures per wearable, square, 72 ppi)
 - **Use texture atlases** to combine multiple small textures into one, reducing draw calls and material count
 - Prefer compressed formats (WebP) over raw PNG where possible
 - Share texture references across materials — do not duplicate texture files
@@ -179,10 +179,39 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 - Use primitive shapes (boxes, spheres) as placeholders — do not wait for final art
 - Get the core loop working before adding any secondary features
 
-### Test Early
-- Deploy to a test world and walk through it yourself
-- Invite 2-3 real players and watch them (do not explain the game — see if it is self-explanatory)
-- Measure: Do players understand what to do within 30 seconds?
+### Test Early — and match the playtest to the stage
+
+- Deploy to a **test World** (never your live LAND or main World) and walk through it yourself.
+- Invite 2-3 real players and watch them. **Do not explain the game** — if you have to explain something, that is the design feedback.
+- Measure: do players understand what to do within 30 seconds?
+
+**The question to ask depends on how finished the game is.** Asking "did you have fun?" about a vertical slice tells you nothing (there is not enough game yet for the answer to mean anything); asking "did you understand what to do?" about a V2 wastes a session on something you already know.
+
+| Stage | What to learn | Who to invite |
+| --- | --- | --- |
+| **V0** vertical slice | Is the core mechanic understandable and usable? Can players form a strategy around it? | A few players who already know Decentraland, so the client does not get in the way |
+| **V1** first full loop | Can players progress unaided? Where do they get stuck or lose interest? | A mix of Decentraland players and people new to your game |
+| **V2+** | How does the game make players *feel*? Do they come back? Would they recommend it? | New players, including people from outside Decentraland |
+
+### Iterate with RITE (test → fix → test)
+
+Rapid Iterative Testing and Evaluation: 3-5 players per round, fix the clearest problem between rounds, run the next round with new players. Beats one big playtest with a long issue list. DCL-specific habits:
+
+- **Fix between rounds, never during one.** Redeploying mid-session breaks players' games and destroys the attribution — you no longer know which build a comment refers to.
+- **Keep the same questions across rounds**, or the ratings are not comparable. Add questions; do not reword the ones you track.
+- **"Clear" means**: you saw it happen, you can say what the player expected instead, and you know what to change. One player, cause unknown → carry it to the next round.
+- **Log every round**: build, who played, what you saw, what you changed.
+- **Finding testers**: the `#playtesters` channel on the Decentraland Discord; an event on [Decentraland Events](https://decentraland.org/events/) for a live session; or people from outside Decentraland when the thing under test is the first-time experience. A small thank-you (a wearable or emote you own can be gifted in-client by right-clicking the player) raises turnout — say plainly that you want criticism, not praise.
+- **Close the loop**: post a "you said / we learned / we changed" update to the same thread. Testers who see their feedback land come back for the next round.
+
+### Collect feedback in-scene with the Scene Feedback module
+
+`sdk7-test-scenes/scenes/0,-1-scene-feedback` is a drop-in questionnaire module: labelled 1-5 ratings with an optional comment, or text-only answers, asked at moments you pick during gameplay; responses land as CSV in the scene's Storage, downloadable from Creator Hub (**Manage → World ⋮ → View Storage**). It ships a 20-question bank grouped by `coreMechanic` / `coreLoop` / `social` / `motivation` / `world` / `technical`, 14 rating scales, a 113-question bank for inspiration, and an agent installation prompt in its README.
+
+- It **requires an authoritative Multiplayer Server** (`@dcl/sdk@auth-server`, `"authoritativeMultiplayer": true`, `USE_FETCH` in `requiredPermissions`) — see [[authoritative-server]] for setup and for the CSV-in-Storage append pattern it uses.
+- Design rule: ask **one or two** questions tied to the playtest goal, at a natural pause (after a round, after a purchase) — not mid-action. Questions wait for a clear screen and are shown once per trigger per visit.
+- Use `intro()` for consent before the first `ask()`, `ask()` for game-triggered questions, and `leaveFeedback()` for a player-opened form behind a button, kiosk, or trigger area.
+- Repo: https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,-1-scene-feedback
 
 ### Iterate on Fun
 - Polish comes last. If the core loop is not fun with placeholder art, better art will not fix it
@@ -323,6 +352,7 @@ Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤
 | Follow/chase a moving target (entities tracking the player) | **animations-tweens** | `Tween.setMoveContinuous` for smooth following; do NOT re-create `setMove` tweens per-frame (causes jitter). See the [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube) test scene. |
 | Interactivity, input handling, raycasting | **add-interactivity** | Implementing click handlers, triggers, input |
 | Multiplayer sync, server communication | **multiplayer-sync** | Networked game state, real-time sync |
+| Collecting playtest feedback inside the scene | **authoritative-server** | The Scene Feedback module (`0,-1-scene-feedback`) needs the Multiplayer Server; its answers append to a rolling CSV in scene `Storage`. See that skill's *Append-only logs: rolling CSV parts in Storage* pattern for the rollover, escaping and data-loss rules before reusing the technique for your own event log. |
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |
 | FPS-style / mouselook camera controls | **camera-control** | Mouselook pattern: `PrimaryPointerInfo.screenDelta` + VirtualCamera + PointerLock + InputModifier. Desktop only. |
 | Spectate / observer / director camera | **camera-control** | Spectate Mode pattern: free or player-following camera, WASD/E/F/1/2 controls, parcel-bounds clamping, player roster. Combine with an admin check (authoritative-server) to restrict who can enter spectate mode. |
