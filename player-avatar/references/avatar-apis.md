@@ -120,7 +120,7 @@ For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTr
 
 ### Embedded emotes — shipped inside the Explorer
 
-The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact case-sensitive ids and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
+The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact ids (use the casing listed; the Explorer matches ignoring case) and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
 
 **Social** — not in the embedded asset; resolved as emote urns like any other:
 - `wave` — wave hello
@@ -167,7 +167,7 @@ import {
 } from '@dcl/sdk/ecs'
 
 // Emote lifecycle: each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
-// Absent state (older clients) means STARTED — always apply the ?? default.
+// `state` is optional in the protocol; absent means STARTED — always apply the ?? default.
 // See SKILL.md "Detecting when an emote finishes".
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 	if (cmd) console.log('Emote:', cmd.emoteUrn, 'state:', cmd.state ?? EmoteState.ES_STARTED)

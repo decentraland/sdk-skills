@@ -94,11 +94,17 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 
 ## 3. Access the World
 
-After a successful deploy, the `/deploy` command outputs a visit URL automatically. The World is also accessible at:
+After a successful deploy, the `/deploy` command outputs a visit URL automatically.
+
+**The link to share with players is the web `/jump` link**, which works whether or not they have the desktop client installed:
 
 ```
-https://decentraland.zone/bevy-web?realm=NAME.dcl.eth
+https://decentraland.org/jump?realm=NAME.dcl.eth
 ```
+
+This is the canonical path. The older `https://decentraland.org/play/world/NAME.dcl.eth` form only 301-redirects to it — do not generate `/play` URLs. For a Genesis City scene the equivalent is `https://decentraland.org/jump?position=x,y`. The Creator Hub's post-publish panel shows and copies exactly this link, and its **Jump In** button opens the desktop client separately via `decentraland://?realm=NAME.dcl.eth&dclenv=<env>` (creator-hub `4305bb17c`) — prefer the web link in anything you write for players, and the deeplink only when the target is known to have the client.
+
+Also available: `https://decentraland.zone/bevy-web?realm=NAME.dcl.eth` for the browser (Bevy) client.
 
 From inside Decentraland, use the chatbox command:
 ```
