@@ -16,7 +16,7 @@ The mandatory workflow below applies to EVERY composite you author or edit: chec
 Before touching the file, pick the first row that matches:
 
 1. **Creator Hub MCP tools are available in the session** (`mcp__creator-hub__*` in Claude Code; bare `scene_state` / `create_entity` inside the Creator Hub's own AI assistant) → do NOT edit `main.composite`, `main.crdt`, or `scene.json` by hand. Use the tools for every entity, component, and settings change. The format catalog in this skill remains your reference for component shapes — `set_component` takes the same JSON the composite stores — and Step 0 (bounds) still applies.
-2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > AI > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub.
+2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > AI > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub. If the scene is (or may be) open and the MCP is not connected, this is a **stop-and-ask**: offer close-the-scene / connect-the-MCP / build-in-code and wait. Building the static entities in `src/` instead is the user's decision, never yours — not as a greybox, not because the session is non-interactive (canonical rule: **sdk-scenes** → Agent Behavioral Guidelines, item 5).
 3. **No Creator Hub in play** (CLI-only project, CI, the app is closed and the user wants it that way) → the file workflow below applies in full.
 
 ## Step 0 — Read scene.json and Compute Bounds (MANDATORY)
@@ -134,7 +134,7 @@ Before writing a fresh composite, verify:
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
 - [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop — every item below is done for you by `create_entity` / `set_component` (see the gate at the top of this skill and **creator-hub-mcp**).
-- [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards.
+- [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards. If it is open and the MCP is not available, stop and ask — do not move the static entities into `src/` instead unless the user explicitly chooses that (**sdk-scenes** → Agent Behavioral Guidelines, item 5).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 
