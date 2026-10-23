@@ -1,0 +1,143 @@
+{
+  "game": "Eeireport",
+  "tagline": "Find gate 13 before the final boarding call.",
+  "link": "https://decentraland.org/jump/?realm=yourname.dcl.eth",
+  "handle": "@yourhandle",
+  "listing": {
+    "short": "Walk an empty airport, search abandoned bags and satisfy a protocol-obsessed officer to reach gate 13 before the final boarding call.",
+    "long": "You land as the only passenger in an airport that still runs every procedure. Search the bags in the baggage hall, put your keys in the tray, show your passport and buy something at duty free while the intercom counts down your last chance to board.\n\nIt is a short, one-time horror story you play in your browser. At gate 13 eight copies of you are waiting in line: point out the one that is exactly you.",
+    "handles": {
+      "x": "@yourhandle",
+      "instagram": "@yourhandle"
+    }
+  },
+  "hashtags": {
+    "core": [
+      "#Eeireport",
+      "#Decentraland",
+      "#HorrorGame"
+    ],
+    "extra": [
+      "#LiminalSpaces",
+      "#IndieHorror",
+      "#GameJam",
+      "#IndieGame"
+    ]
+  },
+  "brand": {
+    "text": "#F2F0E8",
+    "ink": "#0C0C0E",
+    "accent": "#FF2618",
+    "font": "/System/Library/Fonts/Supplemental/Impact.ttf",
+    "font_small": "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",
+    "icon_text": "13",
+    "icon_top": "GATE",
+    "icon_bottom": "FINAL CALL",
+    "quote_tag": "INTERCOM  //  EEIREPORT"
+  },
+  "keyart": {
+    "1920x1080": "images/keyart/hero_1920x1080.png",
+    "1080x1080": "images/keyart/hero_1080x1080.png"
+  },
+  "keyart_logo_y": 0.25,
+  "x_header_logo": "left",
+  "event_banners": false,
+  "quote_cards": [
+    {
+      "id": "quote_forever",
+      "render": "images/renders/hero.png",
+      "line": "Thank you for staying with us.\nForever."
+    },
+    {
+      "id": "quote_tray",
+      "render": "images/renders/security.png",
+      "line": "The tray. Then the detector.\nThen we talk."
+    }
+  ],
+  "images": {
+    "keyart_landscape": {
+      "file": "images/social/keyart_1920x1080.png",
+      "alt": "A tall thin figure in a lit doorway at the end of a green-tinged airport room, the EEIREPORT wordmark across the middle."
+    },
+    "keyart_square": {
+      "file": "images/social/keyart_1080x1080.png",
+      "alt": "Square key art: the figure in the doorway with the EEIREPORT wordmark."
+    },
+    "x_header": {
+      "file": "images/social/x_header_1500x500.png",
+      "alt": "Banner: the backlit doorway with the EEIREPORT wordmark on the left."
+    },
+    "hero": {
+      "file": "images/renders/hero.png",
+      "alt": "A tall thin black figure stands in a lit doorway at the end of a green-tinged airport room."
+    },
+    "security": {
+      "file": "images/renders/security.png",
+      "alt": "An airport security checkpoint: metal detector arch glowing red, x-ray belt, a customs booth, rope barriers."
+    },
+    "quote_forever": {
+      "file": "images/social/quote_forever.png",
+      "alt": "The figure in the doorway with the line: Thank you for staying with us. Forever."
+    },
+    "quote_tray": {
+      "file": "images/social/quote_tray.png",
+      "alt": "The security checkpoint with the line: The tray. Then the detector. Then we talk."
+    },
+    "logo_lockup": {
+      "file": "logo/eeireport_lockup_on_black.png",
+      "alt": "EEIREPORT wordmark with the tagline Find gate 13 before the final boarding call."
+    },
+    "icon": {
+      "file": "logo/eeireport_icon_1024.png",
+      "alt": "A glowing red 13 between the words GATE and FINAL CALL."
+    }
+  },
+  "shotlist_tips": [
+    "Record in the Decentraland desktop Explorer at 1920x1080 or higher; hide the UI where you can and keep the cursor out of the frame.",
+    "Play with sound on and record system audio: the hum and the chime before every intercom line carry the clips.",
+    "Scares fire once per visit. Reload the World between takes so they happen again.",
+    "For vertical reels, frame the subject in the middle third of a 16:9 recording so a 9:16 crop keeps it.",
+    "Keep the ending (the right pick and the final card) out of public clips."
+  ],
+  "posts": [
+    {
+      "id": "launch-01",
+      "kind": "launch",
+      "title": "Launch: the promise",
+      "cta": true,
+      "text": "You are the only passenger. The airport still runs every one of its procedures.\n\nReach gate 13 before the final boarding call.\n\nEEIREPORT is open for boarding. Free, in your browser, on Decentraland:\n{LINK}",
+      "image": "keyart_landscape",
+      "ig_image": "keyart_square"
+    },
+    {
+      "id": "soon-01",
+      "kind": "soon",
+      "title": "Coming soon: countdown template",
+      "text": "{N} days until final boarding.\n\nEEIREPORT lands {DATE}. Passengers are asked not to run.",
+      "image": "logo_lockup",
+      "ig_image": "icon"
+    },
+    {
+      "id": "footage-01",
+      "kind": "footage",
+      "title": "Footage: did you see it",
+      "text": "Did you see it?\n\n[FOOTAGE]",
+      "image": "hero",
+      "footage": "From the north end of the corridor, walk toward the baggage-hall doorway. The figure crosses the lit doorway and is gone. Cut immediately after it passes. 6 to 8 seconds. Best as a vertical reel; also loops well."
+    },
+    {
+      "id": "quote-01",
+      "kind": "quote",
+      "title": "Quote: the tray",
+      "text": "\"The tray. Then the detector. Then we talk.\"\n\nThe only person left in the airport is very good at his job.",
+      "image": "quote_tray"
+    },
+    {
+      "id": "bts-01",
+      "kind": "bts",
+      "title": "Behind the scenes: bureaucracy horror",
+      "text": "The scariest thing in EEIREPORT is a queue.\n\nThree checkpoints in a zig-zag. Metal in the tray or the detector rings. Leave the hall and the line resets. The officer says nothing that is not in the manual.\n\nHorror comedy by bureaucracy.",
+      "image": "security"
+    }
+  ]
+}

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketing kit</title>
+<style>
+  :root {
+    --bg: #0e0e10; --panel: #17171a; --panel-2: #1f1f23; --line: #2a2a30; --text: #ecece6;
+    --muted: #9a9a93; --accent: #ff3a26; --amber: #ffaa28; --ok: #4cd964; --bone: #f2f0e8;
+    --x-bg: #000; --x-text: #e7e9ea; --x-muted: #71767b; --x-line: #2f3336; --x-blue: #1d9bf0;
+    --ig-bg: #000; --ig-text: #f5f5f5; --ig-muted: #a8a8a8; --ig-line: #262626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: var(--amber); }
+  header { position: sticky; top: 0; z-index: 10; background: rgba(14,14,16,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1400px; margin: 0 auto; padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+  .bar img.wm { height: 34px; }
+  .bar .tag { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+  .seg button { background: none; border: 0; color: var(--muted); padding: 7px 14px; cursor: pointer; font: inherit; font-size: 13px; }
+  .seg button.on { background: var(--bone); color: #111; font-weight: 600; }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); padding: 7px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn:hover { border-color: #444; background: #26262b; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.small { padding: 5px 9px; font-size: 12px; }
+  main { max-width: 1400px; margin: 0 auto; padding: 20px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 18px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 6px 13px; cursor: pointer; font: inherit; font-size: 13px; }
+  .chip.on { background: var(--panel-2); color: var(--text); border-color: #555; }
+  .chip .n { opacity: .6; margin-left: 4px; }
+  .linkbox { display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 8px 14px; margin: 0 0 18px; flex-wrap: wrap; }
+  .linkbox code { color: var(--amber); font-size: 13px; word-break: break-all; }
+  h2 { font-size: 18px; margin: 34px 0 12px; display: flex; align-items: center; gap: 10px; }
+  h2 small { color: var(--muted); font-weight: normal; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .card.hidden { display: none; }
+  .card .head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .card .head b { font-weight: 600; font-size: 14px; }
+  .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; background: #2a2a30; color: var(--muted); }
+  .kind.launch { background: #3a1410; color: #ff7a6a; } .kind.soon { background: #3a2a0a; color: var(--amber); }
+  .kind.footage { background: #0f2a3a; color: #6cc3ff; } .kind.quote { background: #1f1a2e; color: #c3a8ff; } .kind.bts { background: #0f2e1a; color: #6ad98a; }
+  .preview { padding: 14px; background: #0a0a0b; display: flex; justify-content: center; }
+  .editor { padding: 12px 14px; border-top: 1px solid var(--line); }
+  .editor label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .text { width: 100%; min-height: 150px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 10px; font: inherit; white-space: pre-wrap; resize: vertical; outline: none; }
+  .text:focus { border-color: #666; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px 14px; }
+  .note { margin: 0 14px 12px; padding: 10px 12px; border-left: 3px solid #6cc3ff; background: #0f1a22; border-radius: 6px; font-size: 13px; color: #cfe6f5; }
+  .note b { color: #6cc3ff; }
+  .meta { font-size: 12px; color: var(--muted); padding: 0 14px 10px; line-height: 1.6; }
+  mark { background: #4a3a00; color: var(--amber); padding: 0 3px; border-radius: 3px; }
+
+  /* ---- X mockup */
+  .x { width: 100%; max-width: 520px; background: var(--x-bg); color: var(--x-text); border: 1px solid var(--x-line); border-radius: 16px; padding: 12px 16px; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .x .row { display: flex; gap: 10px; }
+  .x .avatar { width: 40px; height: 40px; border-radius: 50%; background: #222 center/cover; flex: none; }
+  .x .name { font-weight: 700; font-size: 15px; } .x .handle { color: var(--x-muted); font-size: 15px; margin-left: 4px; }
+  .x .body { font-size: 15px; line-height: 20px; white-space: pre-wrap; margin: 2px 0 10px; word-wrap: break-word; }
+  .x .body .lnk { color: var(--x-blue); }
+  .x .img { border-radius: 16px; overflow: hidden; border: 1px solid var(--x-line); aspect-ratio: 16/9; background: #111; }
+  .x .img.sq { aspect-ratio: 1/1; } .x .img.pt { aspect-ratio: 4/5; }
+  .x .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .img.wide { aspect-ratio: auto !important; } .img.wide img { height: auto !important; object-fit: contain !important; }
+  .x .icons { display: flex; justify-content: space-between; color: var(--x-muted); font-size: 13px; margin-top: 10px; padding: 0 6px; }
+  .x .time { color: var(--x-muted); font-size: 14px; margin-top: 8px; }
+  .footage-slot { aspect-ratio: 16/9; border: 2px dashed #3b5566; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #6cc3ff; padding: 14px; font-size: 13px; background: #0b1419 center/cover; position: relative; overflow: hidden; }
+  .footage-slot::before { content: ""; position: absolute; inset: 0; background: rgba(6,12,16,.72); }
+  .footage-slot > * { position: relative; }
+  .footage-slot .play { width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,.9); color: #111; display: grid; place-items: center; font-size: 20px; margin-bottom: 8px; }
+  .footage-slot .what { color: #cfe6f5; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .footage-slot .hint { color: #8fb3c7; font-size: 11px; margin-top: 6px; }
+  .footage-slot.rendering { border-color: var(--amber); color: var(--amber); }
+  .footage-slot.rendering .hint { color: #e0c27a; }
+  .spin { width: 46px; height: 46px; border-radius: 50%; border: 4px solid rgba(255,170,40,.25); border-top-color: var(--amber); animation: spin 1s linear infinite; margin-bottom: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn[disabled] { opacity: .55; cursor: default; }
+  .img.vid { background: #000; }
+  .img.vid video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+  .img.vid.fit video { object-fit: contain; }
+  .img.vid.tall { aspect-ratio: 9/16 !important; max-width: 300px; margin: 0 auto; }
+
+  /* ---- Instagram mockup */
+  .ig { width: 100%; max-width: 420px; background: var(--ig-bg); color: var(--ig-text); border: 1px solid var(--ig-line); border-radius: 8px; overflow: hidden; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .ig .top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .ig .avatar { width: 32px; height: 32px; border-radius: 50%; background: #222 center/cover; flex: none; outline: 2px solid #e1306c; outline-offset: 2px; }
+  .ig .user { font-weight: 600; font-size: 14px; } .ig .dots { margin-left: auto; color: var(--ig-muted); }
+  .ig .img { aspect-ratio: 1/1; background: #111; }
+  .ig .img.pt { aspect-ratio: 4/5; }
+  .ig .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ig .img.wide { display: flex; align-items: center; aspect-ratio: 1/1 !important; }
+  .ig .icons { display: flex; gap: 14px; padding: 10px 12px 4px; font-size: 20px; } .ig .icons .r { margin-left: auto; }
+  .ig .likes { padding: 0 12px; font-weight: 600; font-size: 14px; }
+  .ig .cap { padding: 4px 12px 12px; font-size: 14px; line-height: 18px; white-space: pre-wrap; word-wrap: break-word; }
+  .ig .cap b { font-weight: 600; margin-right: 5px; }
+  .ig .cap .tags { color: #e0f1ff; } .ig .cap .lnk { color: #e0f1ff; }
+  .ig .footage-slot { aspect-ratio: 1/1; border-radius: 0; }
+
+  /* ---- brand + gallery */
+  .brand { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .tile .thumb { background: repeating-conic-gradient(#1a1a1e 0 25%, #121214 0 50%) 0 0/20px 20px; display: grid; place-items: center; aspect-ratio: 16/9; padding: 10px; }
+  .tile .thumb.photo { background: #000; padding: 0; }
+  .tile .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .tile .thumb.photo img { width: 100%; height: 100%; object-fit: cover; }
+  .tile .thumb.photo video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+  .tile .cap { padding: 8px 10px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .tile .cap code { color: var(--text); font-size: 11px; }
+  .tips { columns: 2; column-gap: 28px; font-size: 14px; color: #d8d8d2; }
+  .tips li { break-inside: avoid; margin-bottom: 8px; }
+  #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: var(--bone); color: #111; padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 13px; opacity: 0; transition: .2s; pointer-events: none; z-index: 50; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .missing { color: var(--accent); font-size: 12px; }
+  .listing { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 0 0 18px; display: grid; gap: 12px; }
+  .listing h3 { margin: 0; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+  .listing h3 small { color: var(--muted); font-weight: normal; font-size: 12px; }
+  .listing .row { display: flex; gap: 10px; align-items: flex-start; }
+  .listing .txt { flex: 1; white-space: pre-wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 14px; }
+  .listing .lbl { width: 130px; flex: none; color: var(--muted); font-size: 12px; padding-top: 10px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .tips { columns: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <img class="wm" id="wm" alt="">
+    <span class="tag" id="gamename">marketing kit</span>
+    <span class="spacer"></span>
+    <div class="seg" id="platform">
+      <button data-p="x" class="on">X / Twitter</button>
+      <button data-p="ig">Instagram</button>
+    </div>
+    <div class="seg" id="tags">
+      <button data-t="none">no hashtags</button>
+      <button data-t="core" class="on">core tags</button>
+      <button data-t="all">all tags</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="linkbox">
+    <span style="color:var(--muted);font-size:13px">Game link</span>
+    <code id="link"></code>
+    <span class="spacer"></span>
+    <button class="btn small" id="copylink" onclick="copyText(KIT.link,'Link copied')">Copy link</button>
+    <a class="btn small" id="openlink" target="_blank" rel="noopener">Open</a>
+    <button class="btn small" onclick="copyText(allTags('all'),'Hashtags copied')">Copy hashtags</button>
+  </div>
+
+  <div class="listing" id="listing"></div>
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="posts"></div>
+
+  <h2>Brand <small>wordmark, lockup, icon. Copy drops a PNG on the clipboard; Download saves the full-size file.</small></h2>
+  <div class="brand" id="brand"></div>
+
+  <h2>Images <small>renders of the scene's own models plus composed key art. Drag any image straight into a post composer.</small></h2>
+  <div class="brand" id="gallery"></div>
+
+  <div id="videosec" style="display:none">
+    <h2>Videos <small>rendered post videos in <code>promote/videos/</code>. Download to post; the preview plays from the file.</small></h2>
+    <div class="brand" id="videos"></div>
+  </div>
+
+  <h2>Recording footage <small>what to capture for the footage posts; each footage card above has its own shot note.</small></h2>
+  <ul class="tips" id="tips"></ul>
+  <div class="note" style="margin:14px 0 0; border-color: var(--amber); background:#221a0a; color:#f0e2c4"><b style="color:var(--amber)">Want an AI to cut a post video?</b>
+    Put any Explorer recordings in <code>promote/footage/</code> (name them after the post, e.g. <code>footage-02-take1.mp4</code>), press <b>Copy video prompt</b> on one footage card and paste it to your AI coding assistant (Claude Code, Codex, Cursor, Gemini CLI, any agent that can run commands) opened in this scene's folder. With the promote-scene skill installed it follows that workflow; without it, the prompt points it at the kit's own files.
+    One post per request: each video takes minutes and tokens. Without recordings the assistant falls back to Blender camera moves over the scene's own models and to the kit's stills. The result lands in <code>promote/videos/</code> and shows up here after <code>build_kit.py</code>.</div>
+  <p style="color:var(--muted);font-size:13px">Source of everything on this page: <code>promote/posts.json</code>. Edit it and run <code>python3 promote/tools/build_kit.py</code>. Plain-text copies: <code>copy.md</code>, <code>footage-shotlist.md</code>. Videos: <code>promote/videos/&lt;post id&gt;.mp4</code> is picked up automatically.</p>
+</main>
+<div id="toast"></div>
+
+<script src="kit-data.js"></script>
+<script>
+let K = window.KIT;
+let lastData = JSON.stringify(K);
+const state = { platform: 'x', tags: 'core', kind: 'all' };
+const KINDS = { all: 'All', launch: 'Launch + link', soon: 'Coming soon', footage: 'Footage', quote: 'Quotes', bts: 'Behind the scenes' };
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const iconLogo = K.logos.find(l => /_icon_\d+\.png$/.test(l.file));
+const avatar = (K.images.icon && K.images.icon.src) || (iconLogo && iconLogo.src) || '';
+document.title = K.game + ' marketing kit';
+document.getElementById('gamename').textContent = K.game + ' marketing kit';
+if (K.wordmark) { document.getElementById('wm').src = K.wordmark; document.getElementById('wm').alt = K.game; }
+else document.getElementById('wm').remove();
+if (K.brand && K.brand.accent) document.documentElement.style.setProperty('--accent', K.brand.accent);
+if (K.link) {
+  document.getElementById('link').textContent = K.link;
+  document.getElementById('openlink').href = K.link;
+} else {
+  document.getElementById('link').textContent = 'not published yet: {LINK} stays a placeholder until you deploy';
+  document.getElementById('copylink').remove();
+  document.getElementById('openlink').remove();
+}
+
+function allTags(mode) {
+  if (mode === 'none') return '';
+  const t = mode === 'all' ? K.hashtags.core.concat(K.hashtags.extra) : K.hashtags.core;
+  return t.join(' ');
+}
+function fullText(p, raw) {
+  let t = (raw != null ? raw : p.text);
+  if (K.link) t = t.replace(/\{LINK\}/g, K.link);
+  const tags = allTags(state.tags);
+  if (tags && !/#\w+/.test(t)) t += '\n\n' + tags;
+  return t;
+}
+function xlen(t) { return t.replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length; }
+function decorate(t) {
+  return esc(t)
+    .replace(/(https?:\/\/\S+)/g, '<span class="lnk">$1</span>')
+    .replace(/(\{N\}|\{DATE\}|\{LINK\})/g, '<mark>$1</mark>')
+    .replace(/(#\w+)/g, '<span class="tags">$1</span>')
+    .replace(/\[FOOTAGE\]/g, '<mark>[clip goes here]</mark>');
+}
+function igUser() { return (K.handle || K.game).replace(/^@/, '').toLowerCase(); }
+function imgFor(p) {
+  const key = (state.platform === 'ig' && p.ig_image) ? p.ig_image : p.image;
+  return { key, img: K.images[key] };
+}
+function ratioClass(img) {
+  if (!img || !img.w) return '';
+  const r = img.w / img.h;
+  if (r > 2) return 'wide';   // logos, banners: letterbox instead of cropping
+  if (r < 0.9) return 'pt';
+  if (r < 1.2) return 'sq';
+  return '';
+}
+function mockup(p, text) {
+  const { img } = imgFor(p);
+  const isFootage = p.kind === 'footage';
+  const v = p.video;
+  const poster = img && img.src ? ` poster="${img.src}"` : '';
+  const media = isFootage && v
+    ? (state.platform === 'ig' && v.vertical
+        ? `<div class="img vid tall"><video src="${esc(v.vertical.file)}"${poster} controls muted loop playsinline preload="metadata"></video></div>`
+        : `<div class="img vid ${state.platform === 'ig' ? 'fit' : ''}"><video src="${esc(v.file)}"${poster} controls muted loop playsinline preload="metadata"></video></div>`)
+    : isFootage && p.video_status
+    ? `<div class="footage-slot rendering" style="background-image:url('${img && img.src || ''}')"><div class="spin"></div><div><b>Video in the making</b></div><div class="hint">started ${esc(fmtTime(p.video_status.since))} · this page re-checks every 30 s and will play it here when it lands</div></div>`
+    : isFootage
+    ? `<div class="footage-slot" style="background-image:url('${img && img.src || ''}')"><div class="play">▶</div><div><b>Insert in-game footage</b></div><div class="what">${esc(p.footage || '')}</div><div class="hint">▾ full shot note below the preview · no video yet: record it, or press Copy video prompt</div></div>`
+    : img && img.src ? `<div class="img ${ratioClass(img)}"><img src="${img.src}" alt="${esc(img.alt||'')}"></div>` : `<div class="img"></div>`;
+  if (state.platform === 'x') {
+    return `<div class="x">
+      <div class="row"><div class="avatar" style="background-image:url('${avatar}')"></div>
+        <div style="flex:1;min-width:0"><span class="name">${esc(K.game)}</span><span class="handle">${esc(K.handle)} · now</span>
+        <div class="body">${decorate(text)}</div>${media}
+        <div class="time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${new Date().toLocaleDateString()} </div>
+        <div class="icons"><span>💬</span><span>🔁</span><span>♡</span><span>🔖</span><span>↗</span></div></div></div></div>`;
+  }
+  return `<div class="ig">
+    <div class="top"><div class="avatar" style="background-image:url('${avatar}')"></div><span class="user">${esc(igUser())}</span><span class="dots">•••</span></div>
+    ${isFootage ? media : `<div class="img ${ratioClass(img)}">${img && img.src ? `<img src="${img.src}" alt="">` : ''}</div>`}
+    <div class="icons"><span>♡</span><span>💬</span><span>➤</span><span class="r">🔖</span></div>
+    <div class="cap"><b>${esc(igUser())}</b>${decorate(text)}</div></div>`;
+}
+
+function metaHtml(img, t) {
+  const n = xlen(t);
+  const chars = `${n} characters${n > 280 ? ' <span class="missing">(over the 280 limit on X)</span>' : ''}`;
+  const file = !img ? '—'
+    : img.missing ? `<code>${esc(img.file)}</code> <span class="missing">(file not generated yet)</span>`
+    : `<a href="${esc(img.file)}" target="_blank" rel="noopener">${esc(img.file)}</a>`;
+  return `<div>${chars}</div><div>${file}</div>`;
+}
+function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB'; }
+function fmtTime(iso) { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + ' · ' + d.toLocaleDateString(); }
+function videoMeta(v, status) {
+  if (!v && status) return `<div>Video: <span style="color:var(--amber)">being generated since ${esc(fmtTime(status.since))}</span> (marker <code>videos/&lt;post id&gt;.rendering</code>)</div>`;
+  if (!v) return '';
+  const redo = status ? `<div><span style="color:var(--amber)">A new version is being generated since ${esc(fmtTime(status.since))}</span>; this is the previous one.</div>` : '';
+  const one = x => `<a href="${esc(x.file)}" target="_blank" rel="noopener">${esc(x.file)}</a>${x.w ? ` ${x.w}×${x.h}` : ''}${x.seconds ? ` · ${x.seconds} s` : ''} · ${fmtSize(x.bytes)}${x.seconds > 30 ? ' <span class="missing">(over the 30 s trailer limit)</span>' : ''}`;
+  return `<div>Video: ${one(v)}</div>${v.vertical ? `<div>Vertical: ${one(v.vertical)}</div>` : ''}${redo}`;
+}
+// The prompt the creator pastes to any AI coding assistant to get ONE post video.
+function videoPrompt(p, raw) {
+  const note = p.footage || '';
+  const trailer = /trailer/i.test(p.title + ' ' + note);
+  const m = note.match(/(\d+)\s*(?:to|-|–)\s*(\d+)\s*s(?:ec|econds)?\b/i) || note.match(/(\d+)\s*s(?:ec|econds)?\b/i);
+  const maxSec = trailer ? 30 : Math.min(30, m ? +(m[2] || m[1]) : 15);
+  const vertical = /vertical|reel|9:16|stor(y|ies)/i.test(note);
+  const caption = raw.replace(/\[FOOTAGE\]/g, '').replace(/\n{3,}/g, '\n\n').trim();
+  return `Generate the video for the footage post "${p.id}" (${p.title}) of this scene's marketing kit (promote/posts.json). Use the promote-scene skill if you have it; otherwise read promote/README.md and, if present, promote/video/src/edits.ts first. Only this one post; do not generate videos for the other posts.
+
+Caption (its lines are the on-screen text, verbatim):
+${caption}
+
+What to show: ${note}
+
+Rules: at most ${maxSec} seconds, 16:9 1920x1080, captions on screen so it works muted, nothing the shot-list tips say to keep out.${vertical ? ' Also render the 9:16 vertical cut.' : ''}
+Footage: use my recordings in promote/footage/ if any match this post; otherwise fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
+Before you start, write promote/videos/${p.id}.rendering (content: the current UTC time) and run python3 promote/tools/build_kit.py so the kit page shows this video as in progress.
+Output: promote/videos/${p.id}.mp4; then delete the .rendering marker and run python3 promote/tools/build_kit.py again so the video plays on the kit page.`;
+}
+function renderFilters() {
+  const f = document.getElementById('filters');
+  f.innerHTML = Object.entries(KINDS).map(([k, label]) => {
+    const n = k === 'all' ? K.posts.length : K.posts.filter(p => p.kind === k).length;
+    return `<button class="chip ${state.kind===k?'on':''}" data-k="${k}">${label}<span class="n">${n}</span></button>`;
+  }).join('');
+  f.querySelectorAll('.chip').forEach(b => b.onclick = () => { state.kind = b.dataset.k; renderFilters(); applyFilter(); });
+}
+function applyFilter() {
+  document.querySelectorAll('#posts .card').forEach(c => {
+    const show = state.kind === 'all' || c.dataset.kind === state.kind;
+    c.classList.toggle('hidden', !show);
+  });
+}
+const edits = {};
+function renderPosts() {
+  const root = document.getElementById('posts');
+  root.innerHTML = '';
+  for (const p of K.posts) {
+    const card = document.createElement('div');
+    card.className = 'card'; card.dataset.kind = p.kind; card.dataset.id = p.id;
+    const { key, img } = imgFor(p);
+    const raw = edits[p.id] != null ? edits[p.id] : p.text;
+    const text = fullText(p, raw);
+    card.innerHTML = `
+      <div class="head"><span class="kind ${p.kind}">${KINDS[p.kind]}</span><b>${esc(p.title)}</b>${p.platform ? `<span class="meta" style="padding:0;margin-left:auto">best on ${p.platform === 'ig' ? 'Instagram' : 'X'}</span>` : ''}</div>
+      <div class="preview">${mockup(p, text)}</div>
+      ${p.footage ? `<div class="note"><b>What to show:</b> ${esc(p.footage)}</div>` : ''}
+      <div class="editor"><label>Edit text</label>
+        <textarea class="text" spellcheck="false">${esc(raw)}</textarea></div>
+      <div class="meta">${metaHtml(img, text)}${videoMeta(p.video, p.video_status)}</div>
+      <div class="actions">
+        <button class="btn primary" data-a="copy">Copy text</button>
+        <button class="btn" data-a="copyimg">Copy image</button>
+        <button class="btn" data-a="download">Download image</button>
+        ${p.video ? `<a class="btn" href="${esc(p.video.file)}" download>Download video</a>` : ''}
+        ${p.kind === 'footage' ? (p.video_status ? `<button class="btn" disabled title="A video for this post is being generated; the card updates by itself when it lands">Video in progress…</button>` : `<button class="btn" data-a="prompt" title="Copies a prompt asking your AI coding assistant to generate this post's video">${p.video ? 'Copy prompt to redo video' : 'Copy video prompt'}</button>`) : ''}
+        <button class="btn" data-a="reset" title="Restore the original wording">Reset</button>
+      </div>`;
+    const ta = card.querySelector('textarea');
+    ta.addEventListener('input', () => {
+      edits[p.id] = ta.value;
+      const t = fullText(p, ta.value);
+      card.querySelector('.preview').innerHTML = mockup(p, t);
+      card.querySelector('.meta').innerHTML = metaHtml(img, t) + videoMeta(p.video, p.video_status);
+    });
+    // Copies the text as currently shown in the preview: the textarea's live value plus link/hashtags per the toggles.
+    card.querySelector('[data-a=copy]').onclick = () => copyText(fullText(p, ta.value), 'Post text copied');
+    card.querySelector('[data-a=copyimg]').onclick = () => copyImage(key);
+    card.querySelector('[data-a=download]').onclick = () => download(key);
+    card.querySelector('[data-a=reset]').onclick = () => { delete edits[p.id]; ta.value = p.text; ta.dispatchEvent(new Event('input')); };
+    const pb = card.querySelector('[data-a=prompt]');
+    if (pb) pb.onclick = () => copyText(videoPrompt(p, ta.value), 'Video prompt copied: paste it to your AI assistant, opened in the scene folder');
+    root.appendChild(card);
+  }
+  applyFilter();
+}
+function renderListing() {
+  const L = K.listing || {}, root = document.getElementById('listing');
+  const rows = [];
+  if (L.short) rows.push(['Short description', L.short, `${L.short.length} characters (aim for ~140)${xlen(L.short) > 280 ? ' · over 280 for X' : ''}`]);
+  if (L.long) rows.push(['Long description', L.long, 'max two short paragraphs']);
+  if (L.handles) rows.push(['Handles', Object.entries(L.handles).map(([k, v]) => k + ': ' + v).join('\n'), '']);
+  if (L.events) rows.push(['Recurring (UTC)', L.events, '']);
+  if (!rows.length) { root.remove(); return; }
+  root.innerHTML = `<h3>Listing copy <small>for the Places card (display.description), profiles, press and the Foundation marketing package</small></h3>` +
+    rows.map(([label, text, note], i) => `<div class="row"><div class="lbl">${esc(label)}${note ? `<br><span style="opacity:.8">${esc(note)}</span>` : ''}</div>
+      <div class="txt">${esc(text)}</div><button class="btn small" data-i="${i}">Copy</button></div>`).join('');
+  root.querySelectorAll('button[data-i]').forEach(b => b.onclick = () => copyText(rows[+b.dataset.i][1], rows[+b.dataset.i][0] + ' copied'));
+}
+function renderBrand() {
+  document.getElementById('brand').innerHTML = K.logos.map(l => `
+    <div class="tile"><div class="thumb"><img src="${l.src}" alt=""></div>
+      <div class="cap"><code>${esc(l.file.split('/').pop())}</code><span>${l.w}×${l.h}</span>
+        <span><button class="btn small" onclick="copyImageSrc('${l.file}')">Copy</button> <a class="btn small" href="${l.file}" download>Download</a></span></div></div>`).join('');
+  document.getElementById('gallery').innerHTML = Object.entries(K.images).filter(([k, im]) => !im.file.startsWith('logo/')).map(([k, im]) => `
+    <div class="tile"><div class="thumb photo">${im.src ? `<img src="${im.src}" alt="${esc(im.alt||'')}">` : `<span class="missing">not generated yet</span>`}</div>
+      <div class="cap"><code>${esc(im.file.split('/').pop())}</code><span>${im.w ? im.w + '×' + im.h : ''}</span>
+        <span><button class="btn small" onclick="copyImage('${k}')">Copy</button> <button class="btn small" onclick="download('${k}')">Download</button></span></div></div>`).join('');
+  document.getElementById('tips').innerHTML = (K.shotlist_tips || []).map(t => `<li>${esc(t)}</li>`).join('');
+  const vids = K.videos || [];
+  if (vids.length) {
+    document.getElementById('videosec').style.display = '';
+    document.getElementById('videos').innerHTML = vids.map(v => `
+    <div class="tile"><div class="thumb photo"><video src="${esc(v.file)}" controls muted preload="metadata"></video></div>
+      <div class="cap"><code>${esc(v.file.split('/').pop())}</code><span>${v.w ? v.w + '×' + v.h : ''}${v.seconds ? ' · ' + v.seconds + ' s' : ''} · ${fmtSize(v.bytes)}</span>
+        <a class="btn small" href="${esc(v.file)}" download>Download</a></div></div>`).join('');
+  }
+}
+
+// ---- clipboard helpers
+function toast(msg, bad) { const t = document.getElementById('toast'); t.textContent = msg; t.style.background = bad ? '#ff3a26' : ''; t.style.color = bad ? '#fff' : ''; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 1600); }
+async function copyText(text, msg) {
+  try { await navigator.clipboard.writeText(text); toast(msg || 'Copied'); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast(msg || 'Copied'); } catch (e2) { toast('Copy failed: select the text and press ⌘C', true); }
+    ta.remove();
+  }
+}
+async function pngBlobFromSrc(src) {
+  const im = new Image(); im.src = src; await im.decode();
+  const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  c.getContext('2d').drawImage(im, 0, 0);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+async function copyImage(key) {
+  const im = K.images[key];
+  if (!im || !im.src) return toast('Image not generated yet', true);
+  try {
+    const blob = await pngBlobFromSrc(im.src);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('Image copied (preview size). Download for full size.');
+  } catch (e) { console.warn(e); toast('Clipboard blocked here: use Download, or drag the image', true); }
+}
+async function copyImageSrc(file) {
+  const l = K.logos.find(x => x.file === file);
+  if (!l) return;
+  try {
+    const blob = await pngBlobFromSrc(l.src);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('Logo copied');
+  } catch (e) { toast('Clipboard blocked here: use Download', true); }
+}
+function download(key) {
+  const im = K.images[key];
+  if (!im) return;
+  const a = document.createElement('a'); a.href = im.file; a.download = im.file.split('/').pop(); document.body.appendChild(a); a.click(); a.remove();
+  toast('Downloading ' + a.download);
+}
+
+document.querySelectorAll('#platform button').forEach(b => b.onclick = () => { state.platform = b.dataset.p; document.querySelectorAll('#platform button').forEach(x => x.classList.toggle('on', x === b)); renderPosts(); });
+document.querySelectorAll('#tags button').forEach(b => b.onclick = () => { state.tags = b.dataset.t; document.querySelectorAll('#tags button').forEach(x => x.classList.toggle('on', x === b)); renderPosts(); });
+renderListing(); renderFilters(); renderPosts(); renderBrand();
+// Re-read kit-data.js every 30 s (a <script> loads from file:// where fetch() cannot), so a video being
+// generated (videos/<post id>.rendering marker) turns into the playing video without a reload.
+setInterval(() => {
+  const s = document.createElement('script');
+  s.src = 'kit-data.js?t=' + Date.now();
+  s.onload = () => {
+    const data = JSON.stringify(window.KIT);
+    if (data !== lastData) { lastData = data; K = window.KIT; renderFilters(); renderPosts(); renderBrand(); toast('Kit updated'); }
+    s.remove();
+  };
+  s.onerror = () => s.remove();
+  document.body.appendChild(s);
+}, 30000);
+</script>
+</body>
+</html>

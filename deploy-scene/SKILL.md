@@ -32,7 +32,7 @@ Before deploying, verify:
 2. **Discovery metadata is complete** — these four fields decide whether anyone finds and enters the scene, and they are frequently left at template defaults. Check each one and fill in what you can infer from the scene itself; ask the user only for what you can't:
 
    - `display.title` — the scene name, shown under the minimap in-world and in the map modal
-   - `display.description` — one or two sentences on what the scene is
+   - `display.description` — one or two sentences on what the scene is. Aim for ~140 characters that say what the player *does* there (verb first, who with, why come back). It is the line on the Places card that earns the tap ([Foundation marketing requirements](https://app.notion.com/p/decentraland/New-Experience-Marketing-Requirements-38b5f41146a580f1bd93c86f8f1ca96d))
    - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`. Infer them from the scene's theme (see the **create-scene** skill, "Tags (scene categories)")
    - `display.navmapThumbnail` — set, _and_ the image itself valid: the referenced file exists in the project (or the URL resolves), its dimensions are 16:9 (1920x1080 recommended), and the essential content sits inside the central 1080x1080 square. Check the size from the shell — `sips -g pixelWidth -g pixelHeight <path>` on macOS, or `magick identify -format "%wx%h\n" <path>` — and open the image to judge the safe area. If it's missing, wrongly proportioned, or has the subject off to one side, recapture it — see **Thumbnail image** below
 
@@ -115,6 +115,7 @@ Spec:
 - `.png` or `.jpg`, **16:9** aspect ratio, recommended **1920x1080 px**. Other sizes work as long as they keep 16:9 — anything else is stretched
 - **Central square safe area:** parts of the platform show a square crop of the central **1080x1080 px**. Keep text, logos and the main subject inside it. In a 1920x1080 image the left and right 420 px bands can be cropped away
 - **Under 1 MB (1,048,576 bytes)** — the Worlds content server rejects anything larger at deploy time (`Invalid thumbnail: size … exceeds maximum of 1048576 bytes (1MB)`), and a plain 1920x1080 PNG can exceed it. Check with `ls -l` before publishing; if it's over, export JPEG instead (`ffmpeg -i images/thumbnail.png -q:v 2 images/thumbnail.jpg`). For a cover you generate rather than capture — Blender render, image tool — see **creator-hub-mcp** > Gotchas
+- Best practice: a gameplay screenshot with a clear, distinctive logo overlaid and minimal text, still readable at phone-card size
 - Value is a path inside the project (e.g. `images/thumbnail.png`) or a URL to an externally hosted image — an external host must serve permissive CORS headers
 
 **Capture it yourself — ask the user if instead of providing an image they prefer you to capture it** With the **unity-explorer MCP** (see the **unity-explorer-mcp** skill), run the scene in preview, move the camera to frame a shot that shows what the scene is about — composing so the essential content sits in the middle third, inside the central square — and capture a UI-less PNG with the bundled script:
