@@ -137,6 +137,18 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 `sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: ten stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
 
+## Pattern: build the check into the scene, not into the tool calls
+
+When a behaviour cannot be read back through any MCP tool — whether an avatar is hidden, whether a modifier area applies, whether a collider has the right size — **put the assertion in scene code and read the verdict off an in-world panel**. [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) is the reusable shape (`src/qaPanelUi.tsx`):
+
+- A **QA info panel** pinned in a corner holds the instructions, a **Run** button per check, and a PASS (green) / FAIL (red) / NOT RUN result per check. One `explorer_screenshot` then reports the whole suite.
+- Each check **drives itself**: it creates its own probe entities, `movePlayerTo`s the player to a position that discriminates pass from fail, waits for the state to settle, reads an *observable* proxy, prints the verdict, and tears the probes down so it can be re-run.
+- When the property you care about is unreadable, **substitute a readable sibling**: the scene cannot ask whether an avatar is hidden, so it swaps in a `TriggerArea` drawn from the same collider pool and asserts on the enter event instead; for the camera it reads `CameraMode`. Keep the unreadable case as a short manual step in the same panel.
+- Every step logs with a `[checkName]` prefix, so `explorer_get_scene_logs` explains a FAIL without another screenshot.
+- Hold **Alt** to use a panel like this (pointer unlock), and keep probe geometry on a **separate entity** from the thing under test — a `MeshRenderer` on the tested entity misreports as soon as the test mutates it.
+
+Write the panel before you start clicking: a check that reports itself survives the session, a conclusion drawn from a screenshot does not.
+
 ## When a capability is missing
 
 When no connected MCP tool can do what the loop needs (a client shortcut key that is not an SDK input action — `press_input` covers those — or reading a value no tool exposes), stop and hand it to the user: name the concrete action you're blocked on and why the existing tools can't cover it. The MCP server and Explorer live outside this scene's repo — extending them is the user's call.

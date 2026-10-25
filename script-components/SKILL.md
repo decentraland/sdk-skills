@@ -367,7 +367,19 @@ A class (or `start()` function) JSDoc may carry `@event <name>` tags alongside `
 export class TriggerAreaDetector { /* … */ }
 ```
 
-- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded ("When a player enters, …"). Declare `@event` and the no-code reaction UI appears for free.
+- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded. **Use one of the nine recognised event names** so the button and the seeded sentence read naturally (`EVENT_LABEL` / `EVENT_CLAUSE` in `ScriptInspector.tsx`, verified at creator-hub `0.52.0`):
+
+| `@event` name | Button label | Seeded clause |
+| --- | --- | --- |
+| `enter` | When a player enters… | `when a player enters <name>` |
+| `exit` | When a player leaves… | `when a player leaves <name>` |
+| `click` | When clicked… | `when <name> is clicked` |
+| `open` / `close` | When it opens… / When it closes… | `when <name> opens` / `closes` |
+| `activate` / `deactivate` | When activated… / When deactivated… | `when <name> is activated` / `deactivated` |
+| `toggle` | When toggled… | `when <name> is toggled` |
+| `unlock` | When unlocked… | `when <name> is unlocked` |
+
+An unrecognised name still works but falls back to the generic `When <event>…` / `when <name> fires "<event>"`, which reads badly to the creator. Declare `@event` and the no-code reaction UI appears for free.
 - Tags are accepted on the **export statement, the class declaration, or the constructor** JSDoc — any of the three.
 - Names match `[A-Za-z0-9_-]+`; duplicates are collapsed.
 

@@ -371,7 +371,7 @@ import { AvatarEmoteCommand, EmoteState } from '@dcl/sdk/ecs'
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 	if (!cmd) return
 	switch (cmd.state ?? EmoteState.ES_STARTED) {
-		case EmoteState.ES_STARTED:     // emote started (also the value when `state` is absent — older clients)
+		case EmoteState.ES_STARTED:     // emote started (also the value when `state` is absent)
 			break
 		case EmoteState.ES_FINISHED:    // non-looping emote played to its natural end
 			break
@@ -381,9 +381,8 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 })
 ```
 
-- Always default absent `state` to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) — entries from older clients omit the field, and older clients never send FINISHED/INTERRUPTED at all, so don't hard-block gameplay on a finish signal without a fallback.
-- **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation.
-- Requires a DCL 2.0 desktop client with playback-completion support.
+- `state` is an **optional** protocol field: always default it to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) rather than assuming it is present.
+- **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation. A scene that needs to know when a masked clip ends must time it itself from the clip duration.
 - Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
 
 ### Emote masks (upper-body only)
@@ -500,7 +499,16 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
+**GOTCHA — an explicit `area` wins over `Transform.scale` for the life of the component, so you cannot resize the region by scaling.** The inverse world scale is re-applied every frame: scaling the area entity (or any of its **parents** — it compensates `lossyScale`) afterwards leaves the region exactly the `area` size, and the player's experience does not change. An axis scaled to **0** still collapses the region on that axis. Consequences:
+
+- **Do not animate or tween the scale of an area entity to grow or shrink the region** — nothing happens. Write `AvatarModifierArea.getMutable(entity).area` instead (and mirror it into `scale` for the editor, as above).
+- **Do not parent an area under a group you scale**, e.g. a prop rig that scales up on activation: the region stays put while the visuals grow, and the mismatch is invisible in-world because there is no API to read whether an avatar is hidden.
+- To *visualise* the region, use a **separate** box entity sized from the same numbers, as the regression scene does — a visible box on the area entity itself will lie the moment either value changes.
+- `TriggerArea` is the exact opposite: `PBTriggerArea` has **no size field at all** (only `mesh` and `collision_mask`), so its volume is the entity's `Transform` — scale it and the trigger follows, including scale changes made later. Two sibling components, opposite sizing rules; do not carry a habit from one to the other. See **add-interactivity**.
+
+Regression coverage: [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) (`src/areaScaleDrift.ts`), which scales a 2x2x2 `CameraModeArea` entity to 2.5 and asserts the camera still releases 2 m from the centre. It scales the entity itself only; the parent case follows from the code (inverse `lossyScale`), not from a test.
+
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
 
 ## Avatar Locomotion Settings
 
@@ -678,7 +686,7 @@ Engine-team test scenes (exercised against the real engine):
 
 - [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
 - [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes)
-- [4,23-emote-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,23-emote-finish) — emote **completion** detection: `AvatarEmoteCommand.onChange(engine.PlayerEntity, ...)` logging every appended entry as `STARTED` / `FINISHED` / `INTERRUPTED`, with absent `state` defaulting to `ES_STARTED` for older explorers. Play an emote out fully to see `FINISHED`; walk away mid-playback to see `INTERRUPTED`. Covers both `triggerEmote` (predefined) and a non-looping `triggerSceneEmote`. — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
+- [4,23-emote-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,23-emote-finish) — emote **completion** detection: `AvatarEmoteCommand.onChange(engine.PlayerEntity, ...)` logging every appended entry as `STARTED` / `FINISHED` / `INTERRUPTED`, with absent `state` defaulting to `ES_STARTED`. Play an emote out fully to see `FINISHED`; walk away mid-playback to see `INTERRUPTED`. Covers both `triggerEmote` (predefined) and a non-looping `triggerSceneEmote`. — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.

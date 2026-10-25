@@ -300,8 +300,8 @@ The popover lists two client rows, picked with a radio:
 Desktop Client flyout toggles:
 
 - **Enable Landscape Terrains**: shows the surrounding landscape. Disabled (and forced off) when the scene's own `landscapeTerrain: false` hides it.
-- **Multi-Instance Preview**: equivalent to `--multi-instance`. Lets a second Explorer window run alongside the first.
-- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the installed `@dcl/sdk-commands` supports it. See the **unity-explorer-mcp** skill.
+- **Multi-Instance Preview**: equivalent to `--multi-instance`. Lets a second Explorer window run alongside the first. Only shown when the project is on **`@dcl/sdk` 7.20.4 or later**.
+- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the project is on **`@dcl/sdk` 7.25.0 or later**. See the **unity-explorer-mcp** skill.
 - **Compress Assets**: previews with assets compressed the way they are in production -- equivalent to `--asset-bundles`. First run may be slow; results are cached. Hidden on Linux (no Unity desktop client ships there) and for scenes whose `@dcl/sdk-commands` predates the flag.
 
 Below a divider, **Show QR Code for Mobile** is a button (not a checkbox) that opens the mobile preview QR.
