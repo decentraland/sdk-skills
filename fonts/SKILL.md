@@ -51,7 +51,7 @@ The Unity explorer supports nothing else. Every other value silently falls back 
 
 The protocol's doc comment, which shows up in editor tooltips, says a font family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Never write a family name or a URL in `fontSrc`.
 
-When the desktop client rejects a font it logs an `SDK_FONTS` warning in the console saying why. Check the console before anything else when a font falls back.
+When the desktop client rejects a font it logs an `SDK_FONTS` warning in the console saying why (for a URL: `font_src "…" cannot be an external URL`). Check the console before anything else when a font falls back.
 
 ## Adding a font to a scene
 
@@ -106,7 +106,7 @@ TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
 <UiEntity uiText={{ value: 'Coded-only text bag', font: 'monospace', fontSrc: 'assets/fonts/AzeretMono-Medium.ttf' }} />
 ```
 
-Editable UI (**build-ui**): a literal `fontSrc` string fits the editable contract, but whether the Creator Hub UI Designer displays and preserves it has not been verified. Open the component in the editor after writing it and check that the prop survives a save.
+Editable UI (**build-ui**): the Creator Hub UI Designer does not know `fontSrc`. Its property panel neither shows nor edits it, and whether a hand-written `fontSrc` survives an editor save has not been verified. Prefer `fontSrc` in coded UI and on `TextShape`. In an editable file, open the component in the editor after writing it and check that the prop is still there after a save.
 
 ## Testing a custom font
 
