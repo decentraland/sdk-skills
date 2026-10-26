@@ -106,6 +106,11 @@ Verified via `30,20-pointer-events-feedback`:
 - `showHighlight` (default `true`) — the entity edge/outline highlight on hover. Independent of the text; requires `showFeedback` to be on to be visible.
 - With `showFeedback: true` and no/empty `hoverText`, the explorer shows its default action prompt (e.g. the button glyph) rather than nothing.
 
+**What the outline draws:** the renderers of the entity that owns the hit collider (which must also carry `PointerEvents`) **plus all its descendants**, never its parent or siblings. Only `MeshRenderer` primitives and GLBs are outlined; `TextShape` never is (unity-explorer `InteractionHighlightSystem`, main 2026-10). So:
+
+- An invisible hitbox (collider + `PointerEvents`, no mesh) outlines nothing unless the visible parts are its **children**. A hitbox placed beside the model or as a child of it gives events and hover text but no outline.
+- A prop made of several entities, each with its own collider and handler, outlines one part at a time. Put one collider and the `PointerEvents` on a root, with the visible parts as children, or make the prop a single GLB.
+
 ### PITFALL: never (re-)register a pointer handler from inside its own callback
 
 Calling `onPointerDown` / `removeOnPointerDown` (or the on/remove variants for Up / Hover) for an entity **from within that entity's own pointer callback** makes the same click fire the handler multiple times (observed: 3 fires from one click, as a state machine re-registered on each fire).
