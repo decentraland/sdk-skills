@@ -223,6 +223,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.
 
+### Scene Retrospectives
+
+**Skill: `scene-retro`** — When the user asks for a retro, retrospective or post-mortem of a scene or game ("make a retro report based on this game"), review the session history and turn real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only: saves a report and changes nothing else.
+
 ### SDK6 → SDK7 Migration
 
 **Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
