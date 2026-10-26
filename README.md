@@ -68,6 +68,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
+| `promote-scene` | Audience-first marketing kit for a scene — names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, logo, renders of the scene's own models, key art, quote cards, footage shot list, a first-20-players plan with a stop rule, and an offline kit page; on request, a Remotion-cut video for one footage post or Short, from the creator's recordings, gameplay it records itself in the Explorer, Blender clips or stills. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
 | `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |

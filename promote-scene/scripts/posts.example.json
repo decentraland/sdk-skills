@@ -1,0 +1,215 @@
+{
+  "game": "Eeireport",
+  "tagline": "Find gate 13 before the final boarding call.",
+  "link": "https://decentraland.org/jump/?realm=yourname.dcl.eth",
+  "handle": "@yourhandle",
+  "listing": {
+    "short": "Walk an empty airport, search abandoned bags and satisfy a protocol-obsessed officer to reach gate 13 before the final boarding call.",
+    "long": "You land as the only passenger in an airport that still runs every procedure. Search the bags in the baggage hall, put your keys in the tray, show your passport and buy something at duty free while the intercom counts down your last chance to board.\n\nIt is a short, one-time horror story you play in your browser. At gate 13 eight copies of you are waiting in line: point out the one that is exactly you."
+  },
+  "audience": {
+    "who": {"text": "People who already collect and argue about photos of empty airports, hotel corridors and malls at 3 a.m., looking for a fifteen-minute scare with a joke in it.", "source": "assumed"},
+    "not_for": {"text": "Players who want combat or a shooter; there is nothing to fight.", "source": "gdd"},
+    "insight": {"text": "They already post 'does this count as liminal?' photos. The game is a place that counts, and it talks back.", "source": "assumed"},
+    "likes": [
+      {"text": "Photos of real empty places with a one-line caption; the thread argues whether it 'counts'.", "source": "research", "url": "https://www.reddit.com/r/LiminalSpace/"},
+      {"text": "Complaint seen repeatedly: 'AI-generated images ruined the sub'. Real renders of a real scene, labelled as such, read better than polished key art.", "source": "research", "url": "https://www.reddit.com/r/LiminalSpace/"}
+    ],
+    "trusts": [{"text": "The sub's mods and its weekly image threads, more than any streamer.", "source": "assumed"}],
+    "outside": [{"text": "Architecture, abandoned-places photography, airports as places rather than as travel.", "source": "assumed"}],
+    "venues": [
+      {"name": "r/LiminalSpace", "kind": "subreddit", "url": "https://www.reddit.com/r/LiminalSpace/", "size": "[CHECK: members]",
+       "why": "The exact people who find an empty airport unsettling on sight.", "rules": "No self-promotion or solicitation; posts must relate to liminal spaces; original content credited. [CHECK: re-read the sidebar]",
+       "walk_in": "Post the corridor render as an image, with the game only in a comment if someone asks. Message the mods first and ask whether a made place is welcome.", "post": "reddit-01", "source": "research", "verified": "2026-10-22"},
+      {"name": "r/IndieDev", "kind": "subreddit", "url": "https://www.reddit.com/r/IndieDev/", "size": "[CHECK: members]",
+       "why": "Devs who upvote a making-of with one surprising detail (the copies dressed from your avatar).", "rules": "Flair required; showcases welcome with a question or process; no bare link drops. [CHECK: re-read the sidebar]",
+       "walk_in": "Comment on three other devs' posts first; then the copies making-of with the gate-13 render.", "post": "reddit-02", "source": "research", "verified": "2026-10-22"}
+    ],
+    "assumptions": [
+      "The first players come from liminal-space photo communities, not from a horror-game community. The GDD's audience line is agent-decided, not confirmed.",
+      "They read Reddit more than they watch streamers."
+    ]
+  },
+  "plan": {
+    "experiment": "One image post of the corridor in r/LiminalSpace (reddit-01) after a note to the mods, with the game named only in a comment. Measure who clicks through and reaches gate 13.",
+    "first_20": "Message 20 people who posted airport or terminal photos in r/LiminalSpace this month, personally, one line, no link until they answer.",
+    "got_it": "Passed security and reached the departures board (the first intercom joke lands there).",
+    "stop_rule": "Fewer than 6 of the 20 reach gate 13 within a week: change the pitch or the venue before posting anywhere else. Ads are not on the table.",
+    "days": null
+  },
+  "hashtags": {
+    "core": [
+      "#Eeireport",
+      "#Decentraland",
+      "#HorrorGame"
+    ],
+    "extra": [
+      "#LiminalSpaces",
+      "#IndieHorror",
+      "#GameJam",
+      "#IndieGame"
+    ]
+  },
+  "brand": {
+    "text": "#F2F0E8",
+    "ink": "#0C0C0E",
+    "accent": "#FF2618",
+    "font": "/System/Library/Fonts/Supplemental/Impact.ttf",
+    "font_small": "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",
+    "icon_text": "13",
+    "icon_top": "GATE",
+    "icon_bottom": "FINAL CALL",
+    "quote_tag": "INTERCOM  //  EEIREPORT"
+  },
+  "keyart": {
+    "1920x1080": "images/keyart/hero_1920x1080.png",
+    "1080x1080": "images/keyart/hero_1080x1080.png"
+  },
+  "keyart_logo_y": 0.25,
+  "x_header_logo": "left",
+  "event_banners": false,
+  "quote_cards": [
+    {
+      "id": "quote_forever",
+      "render": "images/renders/hero.png",
+      "line": "Thank you for staying with us.\nForever."
+    },
+    {
+      "id": "quote_tray",
+      "render": "images/renders/security.png",
+      "line": "The tray. Then the detector.\nThen we talk."
+    }
+  ],
+  "images": {
+    "keyart_landscape": {
+      "file": "images/social/keyart_1920x1080.png",
+      "alt": "A tall thin figure in a lit doorway at the end of a green-tinged airport room, the EEIREPORT wordmark across the middle."
+    },
+    "keyart_square": {
+      "file": "images/social/keyart_1080x1080.png",
+      "alt": "Square key art: the figure in the doorway with the EEIREPORT wordmark."
+    },
+    "x_header": {
+      "file": "images/social/x_header_1500x500.png",
+      "alt": "Banner: the backlit doorway with the EEIREPORT wordmark on the left."
+    },
+    "hero": {
+      "file": "images/renders/hero.png",
+      "alt": "A tall thin black figure stands in a lit doorway at the end of a green-tinged airport room."
+    },
+    "security": {
+      "file": "images/renders/security.png",
+      "alt": "An airport security checkpoint: metal detector arch glowing red, x-ray belt, a customs booth, rope barriers."
+    },
+    "quote_forever": {
+      "file": "images/social/quote_forever.png",
+      "alt": "The figure in the doorway with the line: Thank you for staying with us. Forever."
+    },
+    "quote_tray": {
+      "file": "images/social/quote_tray.png",
+      "alt": "The security checkpoint with the line: The tray. Then the detector. Then we talk."
+    },
+    "logo_lockup": {
+      "file": "logo/eeireport_lockup_on_black.png",
+      "alt": "EEIREPORT wordmark with the tagline Find gate 13 before the final boarding call."
+    },
+    "icon": {
+      "file": "logo/eeireport_icon_1024.png",
+      "alt": "A glowing red 13 between the words GATE and FINAL CALL."
+    }
+  },
+  "shotlist_tips": [
+    "Record in the Decentraland desktop Explorer at 1920x1080 or higher; hide the UI where you can and keep the cursor out of the frame.",
+    "Play with sound on and record system audio: the hum and the chime before every intercom line carry the clips.",
+    "Scares fire once per visit. Reload the World between takes so they happen again.",
+    "For vertical reels, frame the subject in the middle third of a 16:9 recording so a 9:16 crop keeps it.",
+    "Keep the ending (the right pick and the final card) out of public clips."
+  ],
+  "posts": [
+    {
+      "id": "launch-01",
+      "kind": "launch",
+      "title": "Launch: the promise",
+      "cta": true,
+      "text": "You are the only passenger. The airport still runs every one of its procedures.\n\nReach gate 13 before the final boarding call.\n\nEEIREPORT is open for boarding. Free, in your browser, on Decentraland:\n{LINK}",
+      "image": "keyart_landscape",
+      "ig_image": "keyart_square"
+    },
+    {
+      "id": "soon-01",
+      "kind": "soon",
+      "title": "Coming soon: countdown template",
+      "text": "{N} days until final boarding.\n\nEEIREPORT lands {DATE}. Passengers are asked not to run.",
+      "image": "logo_lockup",
+      "ig_image": "icon"
+    },
+    {
+      "id": "footage-01",
+      "kind": "footage",
+      "title": "Footage: did you see it",
+      "text": "Did you see it?\n\n[FOOTAGE]",
+      "image": "hero",
+      "footage": "From the north end of the corridor, walk toward the baggage-hall doorway. The figure crosses the lit doorway and is gone. Cut immediately after it passes. 6 to 8 seconds. Best as a vertical reel; also loops well."
+    },
+    {
+      "id": "quote-01",
+      "kind": "quote",
+      "title": "Quote: the tray",
+      "text": "\"The tray. Then the detector. Then we talk.\"\n\nThe only person left in the airport is very good at his job.",
+      "image": "quote_tray"
+    },
+    {
+      "id": "bts-01",
+      "kind": "bts",
+      "title": "Behind the scenes: bureaucracy horror",
+      "text": "The scariest thing in EEIREPORT is a queue.\n\nThree checkpoints in a zig-zag. Metal in the tray or the detector rings. Leave the hall and the line resets. The officer says nothing that is not in the manual.\n\nHorror comedy by bureaucracy.",
+      "image": "security"
+    },
+    {
+      "id": "reddit-01",
+      "kind": "reddit",
+      "title": "Reddit: the corridor, as an image post",
+      "subreddit": "r/LiminalSpace",
+      "post_title": "An airport that still runs every procedure for its only passenger (I built this place; the intercom is the worst part)",
+      "flair": null,
+      "link_in": "comment",
+      "text": "Rendered from the scene itself, nothing generated. Ask me about the figure in the doorway.",
+      "image": "hero",
+      "why_here": "Image-first sub where empty airports are the canon; a real place with a one-line caption is the native format.",
+      "rules_note": "No self-promotion in the post body; the game and link go in a comment only if someone asks. Ask the mods first. [CHECK: re-read the sidebar before posting]",
+      "modelled_on": [
+        {"title": "[CHECK: a top image post of an empty terminal from the last year]", "url": "https://www.reddit.com/r/LiminalSpace/top/?t=year", "note": "real place, one line, no link"}
+      ]
+    },
+    {
+      "id": "reddit-02",
+      "kind": "reddit",
+      "title": "Reddit: making-of the copies",
+      "subreddit": "r/IndieDev",
+      "post_title": "I made a horror game where the queue at gate 13 is eight copies of your own avatar, dressed live from what you're wearing. One of them is exactly you.",
+      "flair": "Showcase",
+      "link_in": "body",
+      "text": "Jam game, free in the browser. The copies are built when you arrive: each gets one difference from a pool (white hair, a bandana, sunglasses, a beard, taller, shorter). If you already wear a hat, the hat difference is skipped.\n\nQuestion for the devs here: three wrong picks sends you back to arrivals. Too harsh for a fifteen-minute game?\n\n{LINK}",
+      "image": "gate13",
+      "why_here": "Dev sub that rewards one surprising mechanic and a real question; showcases with process do well, bare links do not.",
+      "rules_note": "Pick the Showcase flair; one post per milestone; answer every comment the same day. [CHECK: re-read the sidebar before posting]",
+      "modelled_on": [
+        {"title": "[CHECK: a top 'I made a … where …' showcase from the last year]", "url": "https://www.reddit.com/r/IndieDev/top/?t=year", "note": "mechanic in the title, GIF, a question at the end"}
+      ]
+    },
+    {
+      "id": "short-01",
+      "kind": "short",
+      "title": "Short: still breathing",
+      "hook": "\"Would the passenger who is still breathing\nplease proceed to gate thirteen.\"",
+      "beats": ["the only passenger", "every procedure still runs", "gate 13 is boarding", "do not run"],
+      "yt_title": "The airport is empty and the intercom knows you're there",
+      "text": "A fifteen-minute horror story in an airport that still runs every procedure. Free, in your browser: {LINK}\n\n#Eeireport #horrorgame #liminalspaces",
+      "image": "quote_forever",
+      "footage": "Vertical. Start on the departures board, hold 2 seconds while the hook card sits over it; cut to the first-person walk down the corridor toward the lit doorway; the figure crosses and is gone; end on the lockup. 18 to 25 seconds. Keep the subject in the middle third of the 16:9 recording. Nothing from gate 13 itself.",
+      "modelled_on": [
+        {"title": "[CHECK: a 'POV: you are the only one here' horror Short with >100k views]", "url": "https://www.youtube.com/results?search_query=liminal+horror+game+short", "note": "hook card over a slow walk, captions, one scare, no voice-over"}
+      ]
+    }
+  ]
+}
