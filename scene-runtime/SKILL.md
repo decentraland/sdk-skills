@@ -272,16 +272,21 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (a fullscreen panel was already open), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction). Never assume the panel opened: on any rejection, show the information another way or tell the player what to open.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Call it from an input callback: called at top level it always returns `REJECTED_NO_USER_GESTURE`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
 
 ```typescript
 import { openExplorerUi, OpenExplorerUiResult } from "~system/RestrictedActions";
-import { ExplorerUi } from "@dcl/sdk/ecs";
+import { ExplorerUi, InputAction, pointerEventsSystem } from "@dcl/sdk/ecs";
 
-const { openResult } = await openExplorerUi({ ui: ExplorerUi.EU_PLACES });
-if (openResult !== OpenExplorerUiResult.OPENED && openResult !== OpenExplorerUiResult.WAS_ALREADY_OPEN) {
-  showHint("Open Places from the menu to find more scenes"); // your own UI fallback
-}
+pointerEventsSystem.onPointerDown(
+  { entity: placesSign, opts: { button: InputAction.IA_POINTER, hoverText: "Places" } },
+  async () => {
+    const { openResult } = await openExplorerUi({ ui: ExplorerUi.EU_PLACES });
+    if (openResult !== OpenExplorerUiResult.OPENED) {
+      showHint("Open Places from the menu to find more scenes"); // your own UI fallback
+    }
+  },
+);
 ```
 
 `ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
