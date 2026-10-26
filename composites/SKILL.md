@@ -98,7 +98,7 @@ For tree/vegetation models where the bounding box is unknown, assume a **12 m sa
 
 ### Never change scene.json parcel count without explicit user instruction
 
-Adding parcels to `scene.json` is not always an option, it depends where the scene will be published to. If publishing to Genesis City, parcels must be **owned or rented** by the deploying wallet; if publishing to a World, it might be an option. If the scene is currently too small for what the user is asking for, ask the user for confirmation to change the scene layout and include more parcels. If they disagree then **work within the existing parcel bounds and make the scene as rich as possible within 16×16m**. Do not silently expand the parcel list. If more space is truly needed, ask the user first.
+**If the design needs more space than the parcels allow, ask the user whether to add parcels.** Don't add them silently, and don't compress the design (stacking rooms vertically, shrinking them below third-person scale) to avoid asking. Adding parcels to `scene.json` is not always an option, it depends where the scene will be published to. If publishing to Genesis City, parcels must be **owned or rented** by the deploying wallet; if publishing to a World, it might be an option. If the user declines, **work within the existing parcel bounds and make the scene as rich as possible within them**.
 
 ## Composite format catalog (reference)
 
@@ -134,7 +134,7 @@ Before writing a fresh composite, verify:
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
 - [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop — every item below is done for you by `create_entity` / `set_component` (see the gate at the top of this skill and **creator-hub-mcp**).
-- [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards. If it is open and the MCP is not available, stop and ask — do not move the static entities into `src/` instead unless the user explicitly chooses that (**sdk-scenes** → Agent Behavioral Guidelines, item 5).
+- [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**. The owner can reopen the scene at any time; a parcel change written while the Hub was open was reverted by its autosave (2026-10). The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards. If it is open and the MCP is not available, stop and ask — do not move the static entities into `src/` instead unless the user explicitly chooses that (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 

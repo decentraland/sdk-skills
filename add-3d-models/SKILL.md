@@ -11,7 +11,9 @@ description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContai
 
 **Before placing any GLB model, determine its actual world-space bounding box.** Raw accessor `min`/`max` values are NOT sufficient — many models have large node-level scales baked in. You **must** account for node transforms. Use the bounding box script in `{baseDir}/references/model-patterns.md`.
 
-Then compute the safe placement zone: `safeMinX = -bbox.minX + edgeMargin (>=1m)` etc. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
+**The script prints glTF axes, and Decentraland negates X:** `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over. A room laid out from unconverted glTF X extents gets wall gaps and shifted doorways.
+
+Then compute the safe placement zone **in DCL axes**: `safeMinX = -dclMinX + edgeMargin (>=1m)`, `safeMaxX = sceneMaxX - dclMaxX - edgeMargin`, and the same for Z with the script's Z values. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
 
 ## RULE: Geometry baked in world coordinates — check the bounds in DCL axes, and probe the axes first
 
@@ -27,7 +29,7 @@ Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendere
 
 **So, before baking the real thing, export a cheap asymmetric probe and look at it.** A symmetric box tells you nothing — mirror and rotation errors are invisible on it. Use a model with one obviously distinguishable side: a short bar along +X plus a different-length bar along +Z, or any asset with one open end. Place it at a known position, then confirm in-world (**unity-explorer-mcp**): screenshot from a known camera pose, walk into it and read the blocked position from `explorer_get_player_state`, or both. Only then bake the full set. One throwaway export is far cheaper than re-baking a kit.
 
-**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.** Note also that the bounding-box script in `{baseDir}/references/model-patterns.md` reports **glTF** axes, which are not DCL axes on every component — convert before comparing against scene bounds.
+**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.**
 
 ## RULE: Account for model depth before neighboring entities
 

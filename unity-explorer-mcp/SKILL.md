@@ -9,6 +9,16 @@ description: "Set up, launch and drive a Decentraland Explorer through its MCP a
 
 **Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no `claude mcp add`, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged. **One extra rule applies on that path: before `launch_preview`, check `preview_status` *and* the OS process list (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows), because `stop_preview` can return `{ok: true}` while the Explorer keeps running and the next launch then never connects** — see "Preview lifecycle" in **creator-hub-mcp**.
 
+**Never write scene files in a burst while the Explorer is running.** Each change goes in as ONE write (iteration loop, step 1). Check `get_scene_state` before the next write, and stop the dev server first for a multi-file patch run or a generator script. Two saves seconds apart can load a torn bundle, and only an Explorer relaunch recovers from that (Locksmith, 2026-10: four relaunches in two days).
+
+**Read before:**
+
+| Before you… | Read |
+|---|---|
+| `set_camera_mode` or `set_camera_pose` | [`reference/camera-and-movement.md`](reference/camera-and-movement.md) (check `camera.modeChangeAllowed` first) |
+| any click, hover, `press_input` or `ui_*` call | [`reference/interaction.md`](reference/interaction.md) (two id spaces) |
+| counting, killing or relaunching Explorer processes | [`reference/recovery.md`](reference/recovery.md) (bracketed `pgrep`; the watchdog's command line also contains the Explorer path) |
+
 ## Gates
 
 Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. **Running as a subagent, you cannot open a gate at all** — there is no user to ask: stop and report the pending decision to your caller with your recommendation, rather than passing the gate on your own authority. Doing so violates the gate even when the workaround happens to work. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
@@ -91,7 +101,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    **Not running in Claude Code?** For Cursor, Cline, or a custom SDK harness, the connection details and config shapes are under "Registering in a client other than Claude Code" in [`reference/setup.md`](reference/setup.md). The Claude Code **VS Code extension** and the Creator Hub's embedded chat *are* Claude Code: they take the commands above, with the harness differences noted in the bind gate.
 
-3. **Wait for the world to load**: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`. While polling keeps failing, the client is most likely sitting on the auth screen — `--skip-auth-screen true` only skips it when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask — so tell the user to log in, wait for them, then continue.
+3. **Wait for the world to load**: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`. Give the poll a deadline of about 90 s, and parse the result as JSON: never grep the raw text for `isReady`, because the payload's spacing (`"isReady": true`) defeats a literal pattern and the poll never ends. While polling keeps failing, the client is most likely sitting on the auth screen — `--skip-auth-screen true` only skips it when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask — so tell the user to log in, wait for them, then continue.
 
 ## The iteration loop
 
@@ -125,9 +135,9 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 ## Scene health
 
-- `scene.json` changes (parcels, spawn points) are not hot-reloaded — restart the `npm run start` process, then `reload_scene`.
+- `scene.json` changes (spawn points, display fields) are not hot-reloaded — restart the `npm run start` process, then `reload_scene`. **A change to `scene.base`, `scene.parcels` or `worldConfiguration` needs more: `reload_scene` is not enough.** The dev server builds the realm's `localSceneParcels` once at start, so restart it, then relaunch the Explorer at the new `scene.base`, never at a position from an earlier launch. Restarting `npm run start` without `--position` does both.
 - After `teleport` or `reload_scene`, re-check `get_scene_state` before interacting; readiness can lag a few seconds.
-- One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position 0,0` spawns at parcel 0,0.
+- One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position x,y` spawns at parcel `x,y`; without it the launch uses `scene.base`.
 - `teleport` silently no-ops in local-scene-development mode: `/goto` is disallowed there (chat shows "Teleport is not allowed in local scene development mode") but the tool still answers "Arrived at (x,y)". Use `move_to` for repositioning in local-scene sessions.
 
 - **Missing tools**: `mcp__explorer__*` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (`/mcp` menu in the terminal CLI, `/mcp reconnect explorer` in the VS Code extension) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.

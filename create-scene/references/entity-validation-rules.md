@@ -74,7 +74,7 @@ Unreferenced states are dead code and indicate a misconfigured interaction.
 
 ### Rule 9: `avatar-attach-requires-transform`
 
-**If** an entity has `AvatarAttach`, **then** it must have `Transform`. The Transform defines the offset and orientation of the attachment relative to the avatar bone.
+**If** an entity has `AvatarAttach`, **then** it must have `Transform`. The Explorer overwrites that Transform's position and rotation with the anchor's every frame (only `scale` is kept), so it is **not** an offset. To offset an attachment, give the parts their offsets as children of the attached entity (see **player-avatar** → "Avatar Attachments").
 
 ### Rule 10: `virtual-camera-requires-transform`
 

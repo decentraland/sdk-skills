@@ -96,7 +96,7 @@ const npc = engine.addEntity()
 Transform.create(npc, { position: Vector3.create(8, 0, 8) })
 
 AvatarShape.create(npc, {
-  id: 'npc-1',               // unique identifier (required)
+  id: 'guard-0001',          // unique; its last 4 characters show beside the name
   name: 'Guard',             // display name shown above head
   bodyShape: 'urn:decentraland:off-chain:base-avatars:BaseMale', // or BaseFemale
   wearables: [
@@ -115,8 +115,8 @@ AvatarShape.create(npc, {
 
 **Notes:**
 - Always include eyebrows, mouth, and eyes wearables — the avatar won't render face features without them.
-- `id` is required and must be unique per AvatarShape entity.
-- Set `name: ''` (empty string) to suppress the name tag above the NPC's head.
+- `id` is required and must be unique per AvatarShape entity. **The Explorer prints the last 4 characters of `id` after the name**, in faded text, the way an unclaimed player name shows its address. An NPC has no profile, so it always gets the suffix and no field turns it off: `id: 'guard-1'` with `name: 'Guard'` renders as "Guard" with a faded "rd-1" appended. Choose ids whose last four characters look intentional, such as `guard-0001` (an id shorter than 4 characters shows `0000`). The only way to lose the suffix is to drop the whole tag (unity-explorer `NametagPlacementSystem`, `NametagElement.BuildName`, main 2026-10).
+- Set `name: ''` (empty string) to suppress the name tag above the NPC's head, suffix included.
 - Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween. For an NPC that continuously chases the player (or another moving target), use `Tween.setMoveContinuous` — do NOT re-create `setMove` tweens every frame, which causes visible jitter. See the **animations-tweens** skill ("PITFALL — a CONSTANTLY changing target") and the [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube) test scene.
 - Use `expressionTriggerTimestamp` as a Lamport timestamp to replay the same emote: first play = 0, second play = 1, etc.
 - **Clone the current player's look:** read `getPlayer()` and pass `userData.wearables` and `userData.emotes` straight into `AvatarShape.create`. `getPlayer()` may return null / empty emotes on the first frames — poll in a system until `userData.emotes.length > 0` before spawning (verified pattern in test scene 4,21).
@@ -189,7 +189,7 @@ Useful for storefronts and wearable displays:
 
 ```typescript
 AvatarShape.create(mannequin, {
-  id: 'mannequin-1',
+  id: 'mannequin-0001',
   name: 'Display',
   wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
   showOnlyWearables: true,

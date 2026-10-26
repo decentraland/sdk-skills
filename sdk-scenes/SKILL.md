@@ -22,6 +22,8 @@ Any modification to `scene.parcels` in scene.json changes the scene's coordinate
 
 > "To fit the scene you described, I'd need to expand from 1 parcel (16×16 m) to a 2×1 layout (32×16 m). This changes the coordinate bounds for every entity. Should I go ahead?"
 
+The rule is to **ask**, not to avoid the change. When the design needs more space than the parcels give, put the question to the user. Don't add parcels silently, and don't shrink the design to fit so you can skip the question. (2026-10: an agent stacked three escape rooms vertically in one parcel instead of asking; the owner: "How come you didn't realize you need to assign more parcels??")
+
 ### 2. Fetching assets from external sources
 
 Downloading any file not already in the project — 3D models (.glb), images, audio, video. The user may have their own assets in mind, may not want new files added, or may be targeting a specific visual style. Confirm before downloading:
@@ -68,6 +70,8 @@ Before calling anything a platform limitation, check in this order: the owning t
 ### 7. Working without a runtime view
 
 If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone. Two sessions on one scene (2026-10) shipped every visual defect to the owner this way.
+
+When the Explorer MCP is **connected**, verify every change in-world before you report it done. Don't wait for the user to ask. "Unverified in-world" is not a finished state when you could have verified it. If the MCP was set up before but the Explorer isn't running, offer to launch it, going through **unity-explorer-mcp**'s gates. Don't launch it unasked.
 
 ### General principle
 
