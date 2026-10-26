@@ -11,6 +11,8 @@ description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContai
 
 **Before placing any GLB model, determine its actual world-space bounding box.** Raw accessor `min`/`max` values are NOT sufficient — many models have large node-level scales baked in. You **must** account for node transforms. Use the bounding box script in `{baseDir}/references/model-patterns.md`.
 
+**The script prints glTF axes, and Decentraland negates X:** `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over. A room laid out from unconverted glTF X extents gets wall gaps and shifted doorways.
+
 Then compute the safe placement zone: `safeMinX = -bbox.minX + edgeMargin (>=1m)` etc. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
 
 ## RULE: Geometry baked in world coordinates — check the bounds in DCL axes, and probe the axes first

@@ -8,7 +8,7 @@ Create NPC avatars in your scene:
 import { AvatarShape } from '@dcl/sdk/ecs'
 
 AvatarShape.create(entity, {
-	id: 'npc-unique-id', // Unique identifier (required)
+	id: 'npc-0001', // Unique; its last 4 characters show beside the name
 	name: 'NPC Name', // Display name
 	bodyShape: 'urn:decentraland:off-chain:base-avatars:BaseMale', // or BaseFemale
 	wearables: [
@@ -73,7 +73,7 @@ Display wearables without a full avatar body — useful for storefronts:
 
 ```typescript
 AvatarShape.create(entity, {
-	id: 'mannequin-1',
+	id: 'mannequin-0001',
 	name: 'Display',
 	wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
 	showOnlyWearables: true,

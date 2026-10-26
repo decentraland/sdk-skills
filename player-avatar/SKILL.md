@@ -184,6 +184,20 @@ AvatarAttach.create(hat, {
 
 `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves.
 
+**The attached entity's own `Transform` position and rotation are ignored.** Every frame the Explorer sets that entity's world position and rotation to the anchor's and writes the result back into its `Transform`. Only `scale` survives (unity-explorer `AvatarAttachUtils.ApplyAnchorPointTransformValues`, main 2026-10). Children keep their local Transforms, so to offset an attachment put the `AvatarAttach` on an empty root and parent the visible parts to it:
+
+```typescript
+const anchor = engine.addEntity()
+Transform.create(anchor, {})
+AvatarAttach.create(anchor, { anchorPointId: AvatarAnchorPointType.AAPT_HIP })
+
+const padlock = engine.addEntity()
+GltfContainer.create(padlock, { src: 'assets/Models/padlock.glb' })
+Transform.create(padlock, { parent: anchor, position: Vector3.create(0.15, -0.1, 0.12) }) // offset from the hip
+```
+
+**Measure a seat offset; don't tune it by eye.** In the Locksmith scene (2026-10) the owner corrected a seated player's position six times over two days. What fixed it: during `sittingChair`, the hip sits about 0.37 m behind the avatar root, and the seat offset became 0.38 m. That value comes from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP`, play the sitting emote, and read its world position with the Explorer MCP's `get_entity_details` (**unity-explorer-mcp**). Then place the player root so the hip lands on the seat.
+
 > **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
 
 ### Held items vs cosmetic items — `AvatarAttach` vs parenting to `engine.CameraEntity` / `engine.PlayerEntity`
