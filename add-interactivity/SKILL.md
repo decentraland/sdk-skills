@@ -65,6 +65,8 @@ These lookups must happen inside `main()` or functions called after `main()` —
 
 Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range — it is measured **from the avatar**, not the camera (see "Distance rules" below) — and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
 
+**Register the handler on the entity that owns the collider.** Pointer events reach the entity whose collider the ray hits — a handler on a parent group, or on a child that has no collider of its own, never fires. When a model is an empty parent with the collider mesh on a child entity, register on the child (or give the parent its own `MeshCollider`). A headset the player could not click (2026-10-12) was a handler on the parent of the collider entity. Collider layers: **Colliders Required** below.
+
 ### Distance rules (`maxDistance` / `maxCameraDistance` / `maxPlayerDistance`)
 
 **`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments called it a camera distance; that was wrong, and Unity/Godot always measured player distance. Verified: protocol `pointer_events.proto` (`0e82dcd`), `@dcl/ecs` `EventSystemOptions` (`6a98834a`), test scene `34,20-pointer-events-distances`.
@@ -103,6 +105,11 @@ Verified via `30,20-pointer-events-feedback`:
 - `showFeedback` (default `true`) — enables the hover UI. **`hoverText` only appears when `showFeedback` is true.** With `showFeedback: false`, no hover text shows regardless of `hoverText`.
 - `showHighlight` (default `true`) — the entity edge/outline highlight on hover. Independent of the text; requires `showFeedback` to be on to be visible.
 - With `showFeedback: true` and no/empty `hoverText`, the explorer shows its default action prompt (e.g. the button glyph) rather than nothing.
+
+**What the outline draws:** the renderers of the entity that owns the hit collider (which must also carry `PointerEvents`) **plus all its descendants**, never its parent or siblings. Only `MeshRenderer` primitives and GLBs are outlined; `TextShape` never is (unity-explorer `InteractionHighlightSystem`, main 2026-10). So:
+
+- An invisible hitbox (collider + `PointerEvents`, no mesh) outlines nothing unless the visible parts are its **children**. A hitbox placed beside the model or as a child of it gives events and hover text but no outline.
+- A prop made of several entities, each with its own collider and handler, outlines one part at a time. Put one collider and the `PointerEvents` on a root, with the visible parts as children, or make the prop a single GLB.
 
 ### PITFALL: never (re-)register a pointer handler from inside its own callback
 
@@ -312,6 +319,8 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 **Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale` (radius taken from `scale.x`).
 
 **Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (bitwise-OR them, e.g. `CL_PLAYER | CL_CUSTOM4`) to react to physics or custom layers.
+
+**Sizing: the Transform *is* the volume — there is no size field.** `PBTriggerArea` carries only `mesh` and `collision_mask`; size **and rotation** come entirely from the entity's `Transform`, and the volume tracks scale changes made at any time, on the entity or on a parent. This is the opposite of the sibling area components: `AvatarModifierArea` and `CameraModeArea` take an explicit `area: Vector3` that overrides `Transform.scale` for the life of the component, so scaling those entities later changes nothing. Do not carry a habit from one to the other (see **player-avatar** and **camera-control**).
 
 **Detecting non-player entities:** a `TriggerArea` fires for any entity whose own collider is on a layer the area listens for. To make a scene entity trip an area, give it a `MeshCollider`/`GltfContainer` collider on a matching custom layer and set the area's mask to include it (verified `75,-9-trigger-areas`: a `GltfContainer` with `visibleMeshesCollisionMask: ColliderLayer.CL_CUSTOM4` trips an area created with `TriggerArea.setBox(entity, ColliderLayer.CL_PLAYER | ColliderLayer.CL_CUSTOM4)`). You can also put a `TriggerArea` on a moving/falling entity to detect when *it* enters another volume.
 

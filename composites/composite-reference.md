@@ -11,7 +11,7 @@ This file must exist at `assets/scene/main.composite`.
 Two file forms carry initial-scene entity state; do not confuse them:
 
 - **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. This is the file to author when creating a scene from scratch. For an existing scene that is open in the Creator Hub, change it through the Creator Hub MCP (skill: **creator-hub-mcp**) rather than by editing the file — see "Editing an existing composite" below.
-- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
+- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON, and there is never a reason to: `sdk-commands build` regenerates it from `main.composite` on every build, and the `start` watcher rebuilds on any `.composite` change (`logic/composite.ts`, `logic/bundle.ts` in `@dcl/sdk-commands`). After a hand edit to the composite (Creator Hub closed), rebuild and the CRDT follows; patching both files "consistently" is wasted work. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
 
 The rest of this document describes the `main.composite` JSON format.
 
@@ -228,6 +228,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 
 - Slug rule: `asset.name.trim().replaceAll(' ', '_').toLowerCase()`
 - Example: "Tree Forest Pink 01" → `assets/asset-packs/tree_forest_pink_01/Tree_Forest_Pink_01.glb`
+- The `<filename>` part is the key exactly as the asset's `contents` lists it in `catalog.json`, which for the newer items (the Genesis Plaza and template-scene imports) includes a subfolder: "Photo Building" → `assets/asset-packs/photo_building/photo_building/photo_building.glb`. The `glb:` field of each row in **add-3d-models** → `references/asset-pack-catalog.md` is that final path.
 
 **Default collision masks:** If not provided, set `visibleMeshesCollisionMask: 0` and `invisibleMeshesCollisionMask: 3` (CL_POINTER + CL_PHYSICS).
 
@@ -241,7 +242,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 	"data": {
 		"512": {
 			"json": {
-				"mesh": { "$case": "box", "box": {} }
+				"mesh": { "$case": "box", "box": { "uvs": [] } }
 			}
 		}
 	}
@@ -249,6 +250,8 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 ```
 
 Mesh types: `box`, `sphere`, `cylinder`, `plane`.
+
+**Raw JSON gets none of the TypeScript helpers' defaults.** A bare `"box": {}` fails the build with `TypeError: message.uvs is not iterable` because the protobuf serializer iterates `uvs`. Always write `"uvs": []` for `MeshRenderer` `box` and `plane` (`sphere` and `cylinder` have no `uvs`; `MeshCollider` meshes have none either, so `"box": {}` is correct there).
 
 Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiusBottom": 0.5 } }`
 

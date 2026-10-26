@@ -8,8 +8,9 @@ The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
 - `--mcp-port <port>` — MCP server port (implies `--mcp`); adjust the 8123 URLs in Setup steps 1 and 2 to match.
 - `--port <port>` — dev-server port; the launched client follows it automatically.
-- `--position x,y` — spawn parcel.
-- `-n` — force a new client instance; `--multi-instance` — allow concurrent Explorer instances.
+- `--position x,y` — spawn parcel. Defaults to `scene.base` from `scene.json`; leave it out unless you need another parcel of the scene. A position outside `scene.parcels` can leave the Explorer looping on the loading screen.
+- `--multi-instance` — allow concurrent Explorer instances; this is what gives you a second process. **Avoid `-n`**: it adds `open-deeplink-in-new-instance` to the deep link (`sdk-commands` `explorer-alpha.ts`), which is not on the Explorer's deep-link allowlist and raises an unsafe-parameters dialog (unity-explorer `DeepLinkAllowlist`, main 2026-10).
+- **Windows appends `/` to the last deep-link value**, and the Explorer strips it only from `realm` (`ApplicationParametersParser`). `mcp-port=8124/` fails integer parsing and silently falls back to 8123. Put a harmless parameter last (e.g. `-- --hub true`) so it absorbs the suffix, then probe the port you asked for before assuming it applied. Graphics and window flags forwarded through the deep link did not apply on this path in a 2026-10 Windows session; when they matter, launch `Decentraland.exe` directly with them (below). Verify the effective MCP port, scene readiness, cached identity and quality preset as **separate** checks — they fail independently.
 - Anything after a second standalone `--` is forwarded verbatim into the Explorer launch as extra parameters, e.g. `npm run start -- --mcp --skip-auth-screen true -- --windowed-mode --resolution 1280x720` (npm consumes the first `--`).
 
 Two launch errors:
@@ -31,12 +32,12 @@ From here on use the chosen ports instead of 8000/8123 — including registratio
 
 ## Launching a specific Explorer build manually
 
-Only when the user points you at their own build instead of the installed client. Serve with `npm run start -- --no-client`, then:
+Only when the user points you at their own build instead of the installed client. Serve with `npm run start -- --no-client`, then launch at the scene's base parcel. Read `scene.base` from `scene.json` on every launch; never reuse the position from an earlier launch, since the owner may have moved the scene:
 
 ```bash
-# macOS
+# macOS — replace <base> with scene.base, e.g. 52,-14
 open /path/to/Decentraland.app --args \
-  --realm http://127.0.0.1:8000 --local-scene true --position 0,0 \
+  --realm http://127.0.0.1:8000 --local-scene true --position <base> \
   --debug --skip-auth-screen --skip-version-check true \
   --mcp --windowed-mode --resolution 1280x720
 ```

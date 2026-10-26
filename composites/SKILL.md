@@ -16,7 +16,7 @@ The mandatory workflow below applies to EVERY composite you author or edit: chec
 Before touching the file, pick the first row that matches:
 
 1. **Creator Hub MCP tools are available in the session** (`mcp__creator-hub__*` in Claude Code; bare `scene_state` / `create_entity` inside the Creator Hub's own AI assistant) → do NOT edit `main.composite`, `main.crdt`, or `scene.json` by hand. Use the tools for every entity, component, and settings change. The format catalog in this skill remains your reference for component shapes — `set_component` takes the same JSON the composite stores — and Step 0 (bounds) still applies.
-2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > AI > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub.
+2. **The Creator Hub is running but the tools are not connected** → tell the user the MCP is the safer route and how to connect (`{baseDir}/../creator-hub-mcp/reference/connect.md`: Settings > AI > *Expose AI assistant MCP server*, copy the snippet). Fall back to file editing only if they decline, and only with the scene closed in the Creator Hub. If the scene is (or may be) open and the MCP is not connected, this is a **stop-and-ask**: offer close-the-scene / connect-the-MCP / build-in-code and wait. Building the static entities in `src/` instead is the user's decision, never yours — not as a greybox, not because the session is non-interactive (canonical rule: **sdk-scenes** → Agent Behavioral Guidelines, item 5).
 3. **No Creator Hub in play** (CLI-only project, CI, the app is closed and the user wants it that way) → the file workflow below applies in full.
 
 ## Step 0 — Read scene.json and Compute Bounds (MANDATORY)
@@ -98,7 +98,7 @@ For tree/vegetation models where the bounding box is unknown, assume a **12 m sa
 
 ### Never change scene.json parcel count without explicit user instruction
 
-Adding parcels to `scene.json` is not always an option, it depends where the scene will be published to. If publishing to Genesis City, parcels must be **owned or rented** by the deploying wallet; if publishing to a World, it might be an option. If the scene is currently too small for what the user is asking for, ask the user for confirmation to change the scene layout and include more parcels. If they disagree then **work within the existing parcel bounds and make the scene as rich as possible within 16×16m**. Do not silently expand the parcel list. If more space is truly needed, ask the user first.
+**If the design needs more space than the parcels allow, ask the user whether to add parcels.** Don't add them silently, and don't compress the design (stacking rooms vertically, shrinking them below third-person scale) to avoid asking. Adding parcels to `scene.json` is not always an option, it depends where the scene will be published to. If publishing to Genesis City, parcels must be **owned or rented** by the deploying wallet; if publishing to a World, it might be an option. If the user declines, **work within the existing parcel bounds and make the scene as rich as possible within them**.
 
 ## Composite format catalog (reference)
 
@@ -134,7 +134,7 @@ Before writing a fresh composite, verify:
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
 - [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop — every item below is done for you by `create_entity` / `set_component` (see the gate at the top of this skill and **creator-hub-mcp**).
-- [ ] **The scene is NOT currently open in the Creator Hub.** The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards.
+- [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**. The owner can reopen the scene at any time; a parcel change written while the Hub was open was reverted by its autosave (2026-10). The inspector autosaves and overwrites `main.composite` wholesale from its in-memory engine, discarding external edits with no error. Ask the user to close the scene before you write, and to reopen it afterwards. If it is open and the MCP is not available, stop and ask — do not move the static entities into `src/` instead unless the user explicitly chooses that (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 
@@ -169,3 +169,5 @@ The build must pass with zero errors. If it fails, the composite is invalid. Com
 
 - `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts
+- An error naming a file you never meant to ship (`Composite 'art/.../before.composite' can't be read`, or a schema error from a backup) → the build globs **every** `*.composite` under the project (`sdk-commands` `logic/composite.ts`), including recovery copies. Store backups with another extension (`before-composite.json`) or outside the project, and check the `.composite:` list in the build's debug output; a deploy ignore rule does not hide a file from the build.
+- A schema error on an `inspector::*` component you added → never invent an inspector component (`inspector::TransformConfig` is not one); only write inspector components whose entry already exists in the file, copying its exact shape.

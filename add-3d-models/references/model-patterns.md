@@ -28,14 +28,14 @@ console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFix
 "
 ```
 
-**The `World min`/`max` this prints are glTF axes, not DCL axes.** Decentraland mirrors the glTF X axis (verified in both renderers — see [`blender-authoring.md`](blender-authoring.md)), so convert before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over unchanged. This only bites for models whose placement is baked into the mesh — see the axis section in [`blender-authoring.md`](blender-authoring.md).
+**The `World min`/`max` this prints are glTF axes, not DCL axes.** Decentraland mirrors the glTF X axis (verified in both renderers — see [`blender-authoring.md`](blender-authoring.md)), so convert before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over unchanged. This matters for every model that isn't symmetric in X: its extents land on the opposite side of the origin from where the glTF numbers put them. Baked-placement models get it worst, since the whole mesh can land outside the scene (axis section in [`blender-authoring.md`](blender-authoring.md)).
 
-Safe placement zone calculation:
+Safe placement zone calculation, in DCL axes:
 ```
-safeMinX = -bbox.minX + edgeMargin (>=1 m)
-safeMinZ = -bbox.minZ + edgeMargin (>=1 m)
-safeMaxX = sceneMaxX - bbox.maxX - edgeMargin
-safeMaxZ = sceneMaxZ - bbox.maxZ - edgeMargin
+safeMinX = -dclMinX + edgeMargin (>=1 m)      # dclMinX = -gltfMaxX
+safeMaxX = sceneMaxX - dclMaxX - edgeMargin   # dclMaxX = -gltfMinX
+safeMinZ = -minZ + edgeMargin (>=1 m)         # Z as printed
+safeMaxZ = sceneMaxZ - maxZ - edgeMargin
 ```
 
 ## Collider Detection Script
@@ -216,6 +216,51 @@ Animator.create(zombie, {
   ]
 })
 ```
+
+## Creator Hub Asset-Pack Catalog Workflow
+
+The latest Creator Hub asset-pack additions (420 models + 7 Smart Items from the Genesis Plaza and template-scene imports) are listed in `{baseDir}/references/asset-pack-catalog.md`, same row style as the OpenDCL catalog. Older pack items are not catalogued offline — search them live with `search_catalog` when the Creator Hub MCP is available.
+
+### Search both catalogs at once
+```bash
+grep -i "lamp post" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md
+grep "^##" {baseDir}/references/asset-pack-catalog.md   # packs / categories
+```
+
+### Download an item (several files: GLB + external textures)
+Asset-pack GLBs reference their textures as separate files, so a single `curl` of the GLB gives an untextured model. Save this helper in the scene root (or your scratch dir) and run it from the scene root with the `id:` from the catalog row — it fetches the live catalog (`https://builder-items.decentraland.org/asset-packs/latest/catalog.json`), then every file of the item into `assets/asset-packs/<folder>/…`, the same folder the Creator Hub uses, so the scene looks identical whichever path imported it. Works for any asset id in the packs, not only the catalogued ones. Node 18+ (bundled with every SDK7 project).
+
+```javascript
+// dl-asset.mjs — download Creator Hub asset-pack items by id. Run from the scene root:
+//   node dl-asset.mjs <asset-id> [<asset-id> ...]
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
+const BASE = 'https://builder-items.decentraland.org'
+const SKIP = new Set(['thumbnail.png', 'preview.webp'])
+const { assetPacks } = await (await fetch(`${BASE}/asset-packs/latest/catalog.json`)).json()
+for (const id of process.argv.slice(2)) {
+  const asset = assetPacks.flatMap((p) => p.assets).find((a) => a.id === id)
+  if (!asset) { console.error(`no catalog asset with id ${id}`); continue }
+  const dir = `assets/asset-packs/${asset.name.trim().replaceAll(' ', '_').toLowerCase()}` // same folder the Creator Hub uses
+  for (const [rel, hash] of Object.entries(asset.contents)) {
+    if (SKIP.has(rel)) continue
+    const res = await fetch(`${BASE}/contents/${hash}`)
+    if (!res.ok) throw new Error(`${rel}: HTTP ${res.status}`)
+    const out = `${dir}/${rel}`
+    await mkdir(dirname(out), { recursive: true })
+    await writeFile(out, Buffer.from(await res.arrayBuffer()))
+    console.log(out)
+  }
+}
+```
+
+```bash
+node dl-asset.mjs 35cbea0a-1b00-5c58-899d-34299b8da185   # Photo Building → assets/asset-packs/photo_building/photo_building/photo_building.glb
+```
+
+Then reference the `glb:` path from the catalog row, with the collider mask the row's `col:` field dictates (`col:yes` → `visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3`; `col:no` → `3 / 0`), and an `Animator` when the row lists `[anim: …]`. Origins sit at the centre of the footprint at ground level unless the row carries a `bbox:` field. Delete `dl-asset.mjs` before deploying, or keep it out of the scene folder.
+
+**Smart Items** from this catalog (`SMART ITEM` rows) are scripted (`asset-packs::Script`): with the Creator Hub MCP, `place_smart_item` the id — it downloads the files and wires the Script/Config components. Without it, the helper fetches the files (including `composite.json` and the `.ts` script) and you copy the item's `composite` from the live catalog JSON into `main.composite` as described in **composites** → "Editing an existing composite". The two water items have no real model: their GLB is an editor-only placeholder and `Water.ts` builds the surface at runtime.
 
 ## Checking Model Load State
 

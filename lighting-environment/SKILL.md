@@ -67,7 +67,7 @@ import { Quaternion } from '@dcl/sdk/math'
 const spotlight = engine.addEntity()
 Transform.create(spotlight, {
   position: Vector3.create(8, 4, 8),
-  rotation: Quaternion.fromEulerDegrees(-90, 0, 0)  // Point downward
+  rotation: Quaternion.fromEulerDegrees(90, 0, 0)  // Point straight down — +90, not -90 (see below)
 })
 
 LightSource.create(spotlight, {
@@ -80,7 +80,7 @@ LightSource.create(spotlight, {
 - `innerAngle` — full-brightness cone angle (degrees). Default `21.8`. Min `0`, max `179`.
 - `outerAngle` — outer fade angle (degrees). Default `30`. Max `179`.
 - `innerAngle` cannot exceed `outerAngle` — if it does, the engine clamps them to the same value.
-- The light direction follows the entity's forward vector (set via Transform rotation).
+- The cone shines along the entity's local **+Z** (its forward): the Explorer parents the Unity `Light` under the entity's transform with an identity local pose (`LightSourceLifecycleSystem.cs`, unity-explorer main 2026-10). **Pitch `+90` about X points it straight down; `-90` points it at the sky** — `Quaternion.fromEulerDegrees(90, 0, 0)` rotates `Vector3.Forward()` to `(0, -1, 0)` and `-90` to `(0, 1, 0)`, computed with `@dcl/ecs-math` (2026-10-22). The SDK docs' spot example and an earlier version of this skill wrote `-90` for "downward", so a ceiling spot that seems to do nothing may be lighting the roof. Not yet re-confirmed in-world — check the cone once with the sanity test under Light Limits.
 - `type` is a discriminated union. To read/mutate spot params at runtime, narrow first:
   `if (comp.type?.$case === 'spot') { comp.type.spot.innerAngle = 30 }`
 
@@ -123,12 +123,15 @@ lightData.active = !lightData.active
 ## Light Limits
 
 - A scene may **create** many lights (the engine test scene spawns ~9 across 2 parcels); the renderer decides how many render.
-- Depending on the player's quality settings, between ~4 and ~10 lights render at once. If the scene has more than that, only the closest lights to the player are rendered.
+- The desktop quality preset caps scene lights: **Low = 0 (scene lights disabled entirely), Medium = 6, High = 10** (`QualityPresetLow/Medium/High.asset`, unity-explorer main 2026-10; the Settings slider can lower a preset's cap further). If the scene has more than the cap, only the closest lights to the player render.
+- **Troubleshoot "my light doesn't show" by checking the player's active preset first** — on Low a correctly authored `LightSource` renders nothing, and no amount of intensity, range, material or attachment-offset tuning changes that. State the supported minimum (Medium) rather than demanding High. A visible emissive flame is not proof the candle lights the room: keep the glowing mesh and the light cast onto surroundings as separate checks.
 - Up to ~3 shadow-casting lights render at once.
 - The renderer auto-culls lights based on quality settings and proximity.
 - Intensity is in **candela** (lumens/m² at 1m, i.e. lumens/4π). Default `16000`.
 - `range` default is `-1` → auto-computed as `intensity^0.25` (fourth root, in meters). Set an explicit `range` to override — this also limits a light's influence and saves performance.
 - Spread lights out so few are near the player at once (only the closest ones render).
+- **Keep the scene readable with no scene light at all.** Desktop *Low* and mobile *Very Low* render zero scene lights, and a desktop owner test (2026-10-09) saw a point light while two spots in the same room stayed dark (cause not established). Anything gameplay-critical — the path, the interactable, a "lights turn warm" story beat — must survive on emissive materials, textures and the skybox; `LightSource` is accent. This generalises the Mobile rule under Platform Support.
+- **One-minute sanity test before tuning anything:** at the default `intensity: 16000`, place one point light 2.5 m above the floor and one spot at the same height pitched `+90` (straight down), next to an emissive plane as a reference. Point visible, spot dark → aim or preset, not intensity. Neither visible → the preset is Low. Only then tune. Eight rounds of 8–60 cd guesses written in code (2026-10-08) preceded the one test that answered this; the catalog's Point Light / Spotlight Smart Items start at 16000 for a reason.
 
 ## SkyboxTime (Day/Night Cycle)
 
@@ -284,7 +287,7 @@ Constraints:
 
 ## Platform Support
 
-- **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows).
+- **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows). One owner test (2026-10-09, point + two spots at default intensity) showed only the point light; not reproduced, and the spots may have been pitched up (see Spot Lights) — run the sanity test under Light Limits before calling it a client defect.
 - **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) is **available since v1.13.0** — no longer a parity gap. Budgeted at runtime, see below.
 - **Bevy explorer:** Full support (point lights, spot lights, shadows).
 

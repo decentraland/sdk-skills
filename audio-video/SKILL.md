@@ -40,9 +40,11 @@ The expected workflow when a user asks for sound:
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time. A 16-bit `.wav` is several times the size of the same clip as MP3/OGG — convert before dropping it in (`ffmpeg -i in.wav -b:a 128k out.mp3`).
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
+
+**Every `AudioSource` entity needs a `Transform` — including `global: true` ones.** The Unity Explorer creates the Unity audio source only for entities that carry a `TransformComponent` (`UpdateAudioSourceSystem.CreateAudioSource` query, unity-explorer main 2026-10). Without one the SDK, the build and the headless engine all accept the component, but nothing ever plays and no error is logged. `global` changes spatialization, not this prerequisite. Create `Transform.create(entity)` (any position) before `AudioSource.create` — a silent wind bed and, later, a silent voice cue in the same project were both this (2026-10). Listed as a validation rule in `create-scene/references/entity-validation-rules.md`.
 
 **Spatial falloff is very wide — `global: false` is not "only in this room".** `PBAudioSource` has no distance fields at all, and the Explorer sets only `spatialize`/`spatialBlend`/`dopplerLevel` on the pooled Unity `AudioSource`, leaving its distance curve at Unity's defaults (logarithmic, `minDistance` 1 m, `maxDistance` 500 m) — verified in unity-explorer `AudioSourceExtensions.FromPBAudioSourceWithClip` + `AudioSourcesPlugin` and in `audio_source.gen.d.ts` (7.30.1). Several quiet room ambiences therefore all bleed into every room and read as "the sounds play everywhere" (owner-reported symptom, 2026-10-10).
 
@@ -57,6 +59,10 @@ AudioSource.stopSound(entity)                            // stops, resets cursor
 
 Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
 
+**One `AudioSource` plays one clip at a time.** `playSound` on an entity that is already playing replaces that clip (the retrigger test scene's URL-swap case), so cues that can overlap — a click, a verdict sting, a death sound — each need their own entity, and positional repeats that can stack (several tiles clicked in a row) need a small pool of entities used round-robin. Also check each clip's length against the moment it plays in (`ffprobe -v quiet -show_entries format=duration -of csv=p=0 file.mp3`): a 10 s sting over a 2 s gameplay beat is either cut off by the next cue or spills past it (owner-reported, 2026-10).
+
+**There is no fade or crossfade API.** `PBAudioSource` has `volume` and nothing else for levels, so ducking is a system that eases `AudioSource.getMutable(entity).volume` toward a target per frame (write only while the value is changing). To duck music and bring it back mid-track, keep it `playing: true` at volume 0 — or pause with `stopSound(entity, false)` and resume with `playSound(entity, url, false)`, since the default `resetCursor` would restart the track.
+
 **Detecting when a sound finishes:** when a non-looping clip ends on its own, the engine flips `AudioSource.playing` back to `false`. Poll it with the READ-ONLY getter and edge-detect the `true → false` transition — never poll with `getMutable` (dirties the component every frame):
 
 ```typescript
@@ -68,7 +74,7 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback. On **mobile**, `AudioEvent` (`PBAudioEvent`) ships in **v1.14.0 (Sep 2026)** together with the audio parity pass that aligns volume curves and spatial attenuation with Unity (docs commit `b4d4c88`) — before that, mobile mixes differ audibly from desktop and emits no audio events, which is the same "no finish signal" case the timeout fallback already covers.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. On **mobile**, `AudioEvent` (`PBAudioEvent`) ships in **v1.14.0 (Sep 2026)** together with the audio parity pass that aligns volume curves and spatial attenuation with Unity (docs commit `b4d4c88`) — before that, mobile mixes differ audibly from desktop and emits no audio events, which is the same "no finish signal" case the timeout fallback already covers.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 

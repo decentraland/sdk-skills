@@ -200,7 +200,7 @@ The same logic applies beyond plain colors: prefer one texture atlas over many s
 
 ## RULE: No materials on collider meshes
 
-Collider meshes (name ending in `_collider`) are never rendered — the engine strips them to physics geometry. A material on a collider mesh still counts against the scene's material limit and bloats the file for zero visual effect.
+Collider meshes (name ending in `_collider`) are never rendered — the engine strips them to physics geometry. **Blender is not the engine:** an imported GLB brings its `_collider` meshes in as ordinary visible geometry, so hide or delete them before any preview render, or they show up as white boxes. A material on a collider mesh still counts against the scene's material limit and bloats the file for zero visual effect.
 
 - Clear all material slots on every `_collider` mesh before export (`obj.data.materials.clear()`).
 - Keep colliders ultra-low-poly: boxes, planes, or convex hulls approximating the visible shape — never a copy of the detailed mesh.

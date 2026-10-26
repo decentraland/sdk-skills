@@ -31,6 +31,8 @@ The budget can be distributed across multiple Worlds however the user likes. Che
 
 If the budget is exceeded (e.g. after selling/transferring assets), there is a **48-hour grace period** to free space before Worlds become inaccessible. Regain access by acquiring more MANA/NAMEs/LAND or undeploying scenes.
 
+**Size the upload before publishing**, not after: run the size pass in the **deploy-scene** pre-deployment checklist (heavy GLBs with embedded 2048 px texture maps are the usual surprise, and the project's `bin/index.js` is a dev build several MB larger than the minified bundle `deploy` uploads).
+
 ## 1. Configure scene.json
 
 Add a `worldConfiguration` section to `scene.json`:
@@ -67,7 +69,7 @@ Worlds are listed on Places unless opted out, so the same metadata that drives d
 - `display.title` — the World's name
 - `display.description` — one or two sentences on what it is
 - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
-- `display.navmapThumbnail` — `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; keep essential content inside the central 1080x1080 square, which is what square crops of the thumbnail show. Verify the file exists and check its size with `sips -g pixelWidth -g pixelHeight <path>` (macOS) or `magick identify -format "%wx%h\n" <path>`. Capture it yourself with the unity-explorer MCP rather than asking the user — full spec and procedure in the **deploy-scene** skill ("Thumbnail image")
+- `display.navmapThumbnail` — `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; keep essential content inside the central 1080x1080 square, which is what square crops of the thumbnail show. Verify the file exists and check its size with `sips -g pixelWidth -g pixelHeight <path>` (macOS) or `magick identify -format "%wx%h\n" <path>`. Then crop the central square and look at the crop, not the full frame: text that runs edge to edge looks fine in the full frame (crop commands in **deploy-scene**'s pre-deploy checklist). Capture it yourself with the unity-explorer MCP rather than asking the user — full spec and procedure in the **deploy-scene** skill ("Thumbnail image")
 
 ## 2. Deploy
 
@@ -92,11 +94,17 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 
 ## 3. Access the World
 
-After a successful deploy, the `/deploy` command outputs a visit URL automatically. The World is also accessible at:
+After a successful deploy, the `/deploy` command outputs a visit URL automatically.
+
+**The link to share with players is the web `/jump` link**, which works whether or not they have the desktop client installed:
 
 ```
-https://decentraland.zone/bevy-web?realm=NAME.dcl.eth
+https://decentraland.org/jump?realm=NAME.dcl.eth
 ```
+
+This is the canonical path. The older `https://decentraland.org/play/world/NAME.dcl.eth` form only 301-redirects to it — do not generate `/play` URLs. For a Genesis City scene the equivalent is `https://decentraland.org/jump?position=x,y`. The Creator Hub's post-publish panel shows and copies exactly this link, and its **Jump In** button opens the desktop client separately via `decentraland://?realm=NAME.dcl.eth&dclenv=<env>` (creator-hub `4305bb17c`) — prefer the web link in anything you write for players, and the deeplink only when the target is known to have the client.
+
+Also available: `https://decentraland.zone/bevy-web?realm=NAME.dcl.eth` for the browser (Bevy) client.
 
 From inside Decentraland, use the chatbox command:
 ```

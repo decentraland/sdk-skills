@@ -86,7 +86,11 @@ CameraModeArea.create(fpArea, {
 
 When the player leaves the area, the camera reverts to their preferred mode.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `CameraModeArea` with a dropdown for `mode` (`First Person` / `Third Person`; Cinematic is intentionally omitted -- use `VirtualCamera` for that). A "Camera Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the camera region. Default init: `{ area: {1,1,1}, mode: CameraType.CT_FIRST_PERSON }`. Verified against creator-hub commit `a843390a`.
+**GOTCHA — a non-zero `area` wins over `Transform.scale` for the life of the component.** Scaling the area entity, or any of its parents, after `CameraModeArea.create()` does **not** resize the region: it stays exactly `area` metres. An axis scaled to 0 still collapses it. So a camera region cannot be grown by tweening a scale or by parenting it under a rig that scales — write `CameraModeArea.getMutable(entity).area` instead (and mirror the numbers into `scale` so the Creator Hub gizmo agrees). Size a *visible* debug box as a separate entity; a `MeshRenderer` on the area entity itself misreports the volume as soon as either value changes. Full rule, plus the opposite behaviour of `TriggerArea` (no size field — the Transform *is* the volume, later scale changes included), in **player-avatar** → `AvatarModifierArea`. Regression coverage in [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) → `src/areaScaleDrift.ts`.
+
+**A whole-experience restriction needs whole-experience coverage.** An area that covers only the spawn route proves nothing once the scene teleports, respawns, jumps the player to an alternate height, or hands the camera back after a cinematic. Size the area to the full horizontal *and* vertical play space (including debug jumps and death/restart positions), then test every transition in-world: spawn, teleport, death/restart, alternate height, unlock/relock and cinematic handback. When handing control back, restore the mode the scene intends (first person for a first-person scene), not a generic third person.
+
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `CameraModeArea` with a dropdown for `mode` (`First Person` / `Third Person`; Cinematic is intentionally omitted -- use `VirtualCamera` for that). A "Camera Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the camera region. **That mirroring is an editor-time write, not a runtime binding** — at runtime `area` stands alone (GOTCHA above). Default init: `{ area: {1,1,1}, mode: CameraType.CT_FIRST_PERSON }`. Verified against creator-hub commit `a843390a`. The same sizing rule as `AvatarModifierArea` in **player-avatar** applies: the explicit `area` sizes the region, and `Transform.scale` is kept mirrored for the editor. After `place_smart_item`, confirm with `entity_detail` that the entity carries `core::CameraModeArea`: the pack's `composite.json` defines it (`asset-packs::Placeholder` + `core::CameraModeArea`, creator-hub `origin/main` 2026-10-19), but one placement arrived without it (2026-10-08, Bevy editor, not reproduced) — if so, `set_component` it, sized to the room.
 
 ## VirtualCamera (Cinematic Cameras)
 
@@ -180,8 +184,26 @@ Choosing a value:
 > ```
 >
 > If the camera is reused rather than one-shot, simply keep the entity around and skip the delete.
+>
+> **The way back ignores `defaultTransition`.** Returning to the first-person, third-person or drone camera is always a fixed 0.5 s ease-in-out blend (the Explorer's camera blend settings, unity-explorer main 2026-10). From a shot far from the player that reads as a jump. To hand back smoothly, tween the virtual camera to the player camera's pose, then clear `virtualCameraEntity` once it arrives (a 0.9 s tween worked in the Locksmith scene, 2026-10):
+>
+> - Read the pose from `Transform.get(engine.CameraEntity)` **just before the handback tween starts**, not at shot start: if the avatar moved during the shot, an early pose is stale.
+> - Tween the entity that carries the camera's world pose. On a parented rig like the spectate one, unparent the camera first. Otherwise tween the rig root so that the camera, not the root, ends on that pose. A tween on a child runs in its parent's local space, so a world pose fed to it lands somewhere else.
 
 **Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
+
+**Never write `0` — or any entity that has no `VirtualCamera` — into `virtualCameraEntity`.** The engine releases the player camera only when the field is *absent*: `undefined` is omitted from the message, and `MainCameraSystem` then clears the binding. A *present* value whose entity carries no `VirtualCamera` (`0` is `engine.RootEntity`) makes the engine retry every frame and keep the **currently active** virtual camera: if a rig was active, the view stays stuck on it even after input is restored (if none was active, nothing changes). This bites save/restore code: the field is `optional`, so a fresh `MainCamera` reads `undefined` — you only ever get `0` from a saved value scene code wrote, typically a `?? 0` / `|| 0` fallback — and writing that `0` back later sticks the camera (a capture sequence stuck this way, 2026-10; the mechanism is read from `MainCameraSystem.HandleVirtualCameraChange` on unity-explorer main, not reproduced in isolation). Treat both `undefined` and `0` as "no previous camera":
+
+```typescript
+function restoreCamera(previous: Entity | undefined) {
+	const cam = MainCamera.getMutableOrNull(engine.CameraEntity)
+	if (!cam) return
+	if (previous && VirtualCamera.has(previous)) cam.virtualCameraEntity = previous
+	else cam.virtualCameraEntity = undefined // or MainCamera.deleteFrom(engine.CameraEntity) if the scene never bound one
+}
+```
+
+Then verify the handback in-world (`get_player_state` → `camera.mode` back to a retail mode), including the interrupted and respawn paths — a headless test cannot see a stuck view.
 
 You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
 

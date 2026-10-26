@@ -34,7 +34,7 @@ Before deploying, verify:
    - `display.title` — the scene name, shown under the minimap in-world and in the map modal
    - `display.description` — one or two sentences on what the scene is
    - `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`. Infer them from the scene's theme (see the **create-scene** skill, "Tags (scene categories)")
-   - `display.navmapThumbnail` — set, _and_ the image itself valid: the referenced file exists in the project (or the URL resolves), its dimensions are 16:9 (1920x1080 recommended), and the essential content sits inside the central 1080x1080 square. Check the size from the shell — `sips -g pixelWidth -g pixelHeight <path>` on macOS, or `magick identify -format "%wx%h\n" <path>` — and open the image to judge the safe area. If it's missing, wrongly proportioned, or has the subject off to one side, recapture it — see **Thumbnail image** below
+   - `display.navmapThumbnail` — set, _and_ the image itself valid: the referenced file exists in the project (or the URL resolves), its dimensions are 16:9 (1920x1080 recommended), and the essential content sits inside the central 1080x1080 square. Check the size from the shell — `sips -g pixelWidth -g pixelHeight <path>` on macOS, or `magick identify -format "%wx%h\n" <path>` — then crop the central square and look at that, not at the full frame. All text and the subject must be inside it. On macOS: `H=$(sips -g pixelHeight <path> | awk '/pixelHeight/{print $2}'); sips -c $H $H <path> --out "${TMPDIR:-/tmp}/thumb-square.png"`. With ImageMagick: `H=$(magick identify -format %h <path>); magick <path> -gravity center -crop ${H}x${H}+0+0 +repage "${TMPDIR:-/tmp}/thumb-square.png"`. Then read the square image. If it's missing, wrongly proportioned, or has the subject off to one side, recapture it — see **Thumbnail image** below
 
 3. **Code compiles**:
 
@@ -52,6 +52,15 @@ Before deploying, verify:
    ```
 
 6. **Assets are within limits** — see the **optimize-scene** skill for full limit formulas per parcel count (triangles, entities, materials, textures) and the flat 330 m height limit. Keep scene load time under 15 seconds by optimizing assets.
+
+   Then do a **size pass on what will actually upload**, before the deploy rather than after a rejection:
+
+   ```bash
+   find assets -type f -size +1M -exec ls -lh {} +        # the heavy files
+   npx @gltf-transform/cli inspect assets/Models/big.glb   # Textures table: each embedded map's resolution and bytes
+   ```
+
+   Embedded 2048 px texture maps are the usual surprise — two generated GLBs carried 17 MB of them in a 34 MB scene, noticed only after publishing (agent-reported, 2026-10). Resize them to 1024 or less (`npx @gltf-transform/cli resize in.glb out.glb --width 1024 --height 1024`, or in Blender — see **optimize-scene**): the converter downscales to 1024 anyway, and the raw file still counts in full. Do not estimate from `bin/index.js` in the project: the preview's dev build carries an inline source map and no minification, while `deploy` rebuilds with `--production` (minified, no map — `commands/deploy/index.ts` in `@dcl/sdk-commands`), typically a fraction of the size.
 
 7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
@@ -74,6 +83,18 @@ npx @dcl/sdk-commands deploy
 3. Click "Publish"
 4. Connect wallet
 5. Confirm transaction
+
+### The link to share after publishing
+
+The success panel shows and copies a **web `/jump` link**, which works for players without the desktop client; its **Jump In** button opens the desktop client separately (creator-hub `4305bb17c`). Use the same forms in anything you write for players:
+
+| Target | Share link |
+| --- | --- |
+| Genesis City scene | `https://decentraland.org/jump?position=x,y` |
+| World | `https://decentraland.org/jump?realm=NAME.dcl.eth` |
+| Desktop client directly | `decentraland://?position=x,y&dclenv=<env>` (or `?realm=…`) |
+
+`/jump` is canonical — the legacy `/play/...` paths only 301-redirect to it, so do not generate them.
 
 ## scene.json for Deployment
 
@@ -128,6 +149,8 @@ sips -z 1080 1920 images/thumbnail.png                              # then resam
 ```
 
 Point `display.navmapThumbnail` at the resulting path. Only if the MCP is unavailable, ask the user for an image rather than shipping the scene without one. Make sure `.dclignore` doesn't exclude the thumbnail — it must be uploaded with the scene.
+
+**Letter case matters.** The path in `navmapThumbnail` must match the folder on disk **exactly**: the deploy file list preserves on-disk casing and the Catalyst matches case-sensitively, while macOS and Windows resolve either casing locally — so a mismatch publishes as `Scene thumbnail '…' must be a file included in the deployment` and never shows up in testing. In a Creator Hub project the standard folder is **`assets/Images/`** (capital I), which is also where the Hub writes its own autogenerated capture. `ls assets` before writing the path, and never keep two folders differing only in case.
 
 ### Spawn Points
 
@@ -229,6 +252,8 @@ You can also catch conversion issues **before** publishing by enabling local ass
 | Publication stuck on Converting stage                | Conversion failed, or the scene is queued behind others              | Conversion normally takes seconds, so more than a couple of minutes points at a failure rather than a queue. Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
 | 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed the conversion cap  | `/detectabs` to check; textures in 3D models are capped to **1024x1024** during conversion (not 512x512 — that figure is out of date)                                                                                                                                                              |
 | Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet                    | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing                                                                                                                                                                                                    |
+| "Scene thumbnail '…' must be a file included in the deployment" (the file plainly exists) | Letter-case mismatch between `display.navmapThumbnail` and the folder on disk — usually `assets/images/` in scene.json vs `assets/Images/` on disk | The uploaded file list keeps on-disk casing and the Catalyst matches case-sensitively, while macOS/Windows resolve either casing locally — so this only shows up at deploy. `ls assets` to see the real folder name and make `navmapThumbnail` match it exactly. Standard is **`assets/Images/`** (capital I), the folder the asset importer creates. Never keep two folders differing only in case |
+| "Invalid thumbnail: size … exceeds maximum of 1048576 bytes" | Thumbnail over 1 MB (a plain 1920x1080 PNG is) | Export JPEG at high quality (`ffmpeg -i cover.png -q:v 2 cover.jpg`) or shrink to 1344x756. The check is server-side at deploy, so nothing warns you locally. Must also be 16:9 within 1% |
 
 ### Genesis City vs Worlds
 

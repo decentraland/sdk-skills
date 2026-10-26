@@ -1,6 +1,6 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog, plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
+description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog and the Creator Hub asset packs (Genesis City, Halloween, Sci-fi, Fantasy, Smart Items — the latest additions are catalogued offline), plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
 ---
 
 # Adding 3D Models to Decentraland Scenes
@@ -11,7 +11,9 @@ description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContai
 
 **Before placing any GLB model, determine its actual world-space bounding box.** Raw accessor `min`/`max` values are NOT sufficient — many models have large node-level scales baked in. You **must** account for node transforms. Use the bounding box script in `{baseDir}/references/model-patterns.md`.
 
-Then compute the safe placement zone: `safeMinX = -bbox.minX + edgeMargin (>=1m)` etc. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
+**The script prints glTF axes, and Decentraland negates X:** `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over. A room laid out from unconverted glTF X extents gets wall gaps and shifted doorways.
+
+Then compute the safe placement zone **in DCL axes**: `safeMinX = -dclMinX + edgeMargin (>=1m)`, `safeMaxX = sceneMaxX - dclMaxX - edgeMargin`, and the same for Z with the script's Z values. Place the origin only within the safe zone. **When bounding box is unknown**, use a conservative **12 m buffer from all edges** for trees/large foliage, or **3 m** for small props.
 
 ## RULE: Geometry baked in world coordinates — check the bounds in DCL axes, and probe the axes first
 
@@ -27,7 +29,7 @@ Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendere
 
 **So, before baking the real thing, export a cheap asymmetric probe and look at it.** A symmetric box tells you nothing — mirror and rotation errors are invisible on it. Use a model with one obviously distinguishable side: a short bar along +X plus a different-length bar along +Z, or any asset with one open end. Place it at a known position, then confirm in-world (**unity-explorer-mcp**): screenshot from a known camera pose, walk into it and read the blocked position from `explorer_get_player_state`, or both. Only then bake the full set. One throwaway export is far cheaper than re-baking a kit.
 
-**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.** Note also that the bounding-box script in `{baseDir}/references/model-patterns.md` reports **glTF** axes, which are not DCL axes on every component — convert before comparing against scene bounds.
+**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.**
 
 ## RULE: Account for model depth before neighboring entities
 
@@ -50,6 +52,7 @@ Decentraland is mostly played in the default third-person camera, which sits **b
 - **This applies when scaling a catalog model too.** The model-swap audit below picks `scale` from native size; for architecture the target is the oversized figure, not the realistic one.
 - **Plan floor area with these numbers.** Oversized rooms change how much parcel area a floorplan needs, so apply them when computing bounds (see **composites** Step 0), not after placing.
 - **Judge it from the retail camera, never from a free camera or the editor viewport.** Those views flatter interiors because they can sit outside the geometry. Walk the route in `third_person` and screenshot from there (**unity-explorer-mcp**). If the camera clips the ceiling or the avatar's head crowds the top of the frame, the room is too short.
+- **Walk every opening before detail work.** Export the greybox and walk the avatar through each doorway with production collider settings: opening width and height, no collider on thresholds or crosspieces, and faces readable from both sides. The transformed-bounds audit only proves the model sits inside the parcels, not that the player can get in — a 0.58 m chapel door with a colliding crosspiece passed every headless check and blocked the owner in-world (2026-10).
 
 *Observed, same session:* a first interior shell built at near-realistic heights (4 m ceilings, 2.8 m doorways, a 2.2 m aircraft cabin, a 2.6 m jet bridge) read cramped in third person, and the creator asked for more headroom. A 0.75 m clear metal-detector arch needed near-exact alignment before the avatar would pass through it at all.
 
@@ -142,6 +145,8 @@ Choose the mask based on role:
 
 Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/Models/`.
 
+**Omit `Transform` fields you do not set — never pass an explicit `undefined`.** `Transform.create(e, { position, rotation: maybeUndefined })` keeps the `undefined`: the schema's `extend` spreads your object over the defaults (`...value`, `Transform.ts` in `@dcl/ecs`), so the default rotation is replaced by nothing and the next serialization reads `value.rotation.x` and throws — inside the engine update, not at the `create` call, so the stack points nowhere useful. Build the object conditionally: `...(rot ? { rotation: rot } : {})`.
+
 ### Asset folder conventions
 
 - **Default** for models you download yourself: `assets/Models/`.
@@ -156,7 +161,7 @@ Always check the scene's existing folders before deciding where to put a new mod
 
 When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
 
-> "I can download the best match from the free catalog (8,800+ ready-made models), or create a custom model for you in Blender. Which do you prefer?"
+> "I can download the best match from the free catalogs (8,800+ OpenDCL models plus the Creator Hub asset packs), or create a custom model for you in Blender. Which do you prefer?"
 
 - **Catalog** → the workflow in the next section (search → review → download).
 - **Blender** → author the model by driving Blender; full guide (both ways to drive it, setup, modeling rules, export) in `{baseDir}/references/blender-authoring.md`, ready-made `bpy` scripts in `{baseDir}/references/blender-patterns.md`. Blender is also the path for **editing** an existing scene model — retexturing, reshaping, optimizing — not just creating new ones.
@@ -191,15 +196,15 @@ Whenever a task creates or edits a model in Blender and the MCP could possibly b
 
 Always say which path you're on; never let the user believe the MCP did work the CLI did, or vice versa. The modeling rules (low-poly, PBR, palette textures, bare colliders, scene limits) are identical on both paths.
 
-## Free 3D Models — OpenDCL Catalog (8,800+ models)
+## Free 3D Models — two catalogs
 
-Always check the scene's local asset folder first. Before fetching any model, confirm with the user.
+Always check the scene's local asset folder first. Before fetching any model, confirm with the user. Search **both** catalogs with one grep — `grep -i "keyword" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md` — and try synonyms if nothing matches. Browse categories with `grep "^##"` on either file. Every row has a `preview:` image URL; fetch it to check the look before importing. The Creator Hub packs' names, tags and captions are generated and can be wrong — the `decorations` item **Human** (tags `man, person, figure…`, caption "Human figure in mid-action") is the word *HUMAN* in 3D letters — so for a pack item not in `asset-pack-catalog.md`, open its `thumbnail.png` in the pack before placing it (**creator-hub-mcp** → `search_catalog`).
 
-The catalog is at `{baseDir}/references/model-catalog.md`. Search with `grep -i "keyword"`. Try synonyms if no results. Browse categories with `grep "^##"`.
+**OpenDCL catalog (8,800+ models)** — `{baseDir}/references/model-catalog.md`. Single-file GLBs. Workflow: search → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add `Animator` if the model has animations.
 
-**Workflow**: Search catalog → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add Animator if model has animations.
+**Creator Hub asset packs** — `{baseDir}/references/asset-pack-catalog.md`: the 420 models + 7 Smart Items most recently added (Genesis Plaza and template-scene imports: buildings, street furniture, office/café furniture, nature, Halloween, a sci-fi lab kit, a chess set, and scripted buttons, doors, a piston platform and water). Each item is a GLB **plus external textures**, so download with the `dl-asset.mjs` helper in `{baseDir}/references/model-patterns.md` (not a bare curl) into `assets/asset-packs/<folder>/`; rows give the final `glb:` path, the `col:` flag for the collider mask, and the `id:` that `place_smart_item` takes when the scene is open in the Creator Hub (then prefer the MCP route). The packs' older items are not catalogued offline: search them live with `search_catalog` (**creator-hub-mcp**).
 
-> **Important**: `GltfContainer` only works with **local files**. Always download into `assets/Models/` first. Never `cd` into the models directory — run curl from the project root.
+> **Important**: `GltfContainer` only works with **local files**. Always download first (`assets/Models/` for OpenDCL, `assets/asset-packs/<folder>/` for pack items). Never `cd` into the models directory — run curl / the helper from the project root.
 
 ## Troubleshooting
 
@@ -228,9 +233,9 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - Use texture atlases when possible to reduce draw calls
 - Materials in models should use PBR for best results
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
-- ⚠️ **No Draco compression if the scene targets mobile.** The mobile client does not support `KHR_draco_mesh_compression` and cannot load a Draco-compressed GLTF/GLB — the model is simply absent, with no visible error. Ship uncompressed meshes and reduce triangles/texture size instead. Desktop and Bevy load Draco fine, so a Draco model that "works in preview" can still be invisible on a phone — this is a mobile-only failure mode worth checking explicitly. (Docs commit `b4d4c88`, Oct 2026. Note the `54,-55-Testing-3d-models` engine scene below includes a Draco variant — it is a desktop capability test, not a cross-platform recommendation.)
+- ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local or Creator Hub mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed and reduce triangles/texture size instead. (Docs commit `5f212e3`, Oct 2026; error dialog tracked in godot-explorer #2432. Note the `54,-55-Testing-3d-models` engine scene below includes a Draco variant — it is a desktop capability test, not a cross-platform recommendation.)
 
-For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalog (8,800+ models), see `{baseDir}/references/model-catalog.md`.
+For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalogs, see `{baseDir}/references/model-catalog.md` (8,800+ OpenDCL models) and `{baseDir}/references/asset-pack-catalog.md` (Creator Hub asset packs, latest additions).
 
 ## Example scenes
 

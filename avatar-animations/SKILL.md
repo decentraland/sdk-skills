@@ -1,19 +1,28 @@
 ---
 name: avatar-animations
-description: Author custom avatar animations (scene emotes) for the player in Blender on the official Decentraland avatar rig, export them as `_emote.glb`, verify them, and hand them to a scene — including upper-body-only (masked) clips. Use when the user wants a custom emote, a new avatar animation, to animate the player/avatar, to make the avatar do something specific (sit, hold cards, carry a crate, throw, cheer), to work with the Blender avatar rig, to produce a scene emote .glb, or an upper-body / sitting / holding animation for the player. Do NOT use for playing animations baked into a model (see animations-tweens), for merely triggering emotes that already exist (see player-avatar), or for NPC animation (see npcs).
+description: Find or author avatar animations (scene emotes) for the player — first the built-in emotes, then the Creator Hub Avatar Animations pack (45 downloadable `_emote.glb` clips, catalogued with previews), and only then a custom clip authored in Blender on the official Decentraland avatar rig, exported as `_emote.glb`, verified and handed to the scene — including upper-body-only (masked) clips. Use when the user wants an avatar animation or emote of any kind, a custom emote, to animate the player/avatar, to make the avatar do something specific (sit, hold cards, carry a crate, throw, cheer), to work with the Blender avatar rig, to produce a scene emote .glb, or an upper-body / sitting / holding animation for the player. Do NOT use for playing animations baked into a model (see animations-tweens), for merely triggering an emote the scene already has (see player-avatar), or for NPC animation (see npcs).
 ---
 
 # Authoring Avatar Animations (Scene Emotes)
 
 This skill covers **making the animation file**: posing the official Decentraland avatar rig in Blender, exporting a clip as a `*_emote.glb`, verifying it, and handing it to the scene. The scene-side API that plays it — `triggerSceneEmote`, `stopEmote`, `AvatarEmoteCommand`, the `AvatarMask` enum, the permission — lives in **player-avatar**; this skill links there rather than repeating it.
 
-**Check the embedded emotes before authoring anything.** The Explorer ships 21 emotes playable by name from a scene (`triggerEmote`) or on an `AvatarShape` — including looping sitting poses. Full list with loop flags (single source of truth): `{baseDir}/references/embedded-emotes.md`.
+## RULE: Look for an existing animation before authoring one
+
+When the user asks for an avatar animation, go through these in order and stop at the first fit — authoring is the last resort, not the default:
+
+1. **Built-in emotes** — 32 ids playable by name (`triggerEmote({ predefinedEmote })`, or `AvatarShape.expressionTriggerId`), nothing to download: wave, clap, dances, sitting poses (looping), button/lever/door/chest interactions, punch, throw… Catalogued with animated previews in `{baseDir}/references/animation-catalog.md` §1; loop flags and the 5 embedded-only ids in `{baseDir}/references/embedded-emotes.md`. In the Creator Hub they sit inside the Avatar Animations pack with a **Built-in** badge, cannot be dragged into the scene, and offer **Copy name** — there is no file, by design (§1 of the catalog has the editor details).
+2. **Avatar Animations asset pack** — 45 ready-made `_emote.glb` clips (sitting on stools, puffs, bean bags and ledges; chess; a full fishing set; carry, pick up, drink, craft, water plants, whack, sword, magic, fly, dance…). `{baseDir}/references/animation-catalog.md` §2 has every row with duration, download and the `triggerSceneEmote` path. Fetch the `preview:` webp to confirm the motion.
+3. **Custom clip** — only when nothing above matches (or the user explicitly wants their own): the Blender workflow below.
+
+Say which of the three you picked and why. A built-in or pack clip usually reads more naturally than a hand-authored one and costs minutes instead of hours; a custom clip is still the right call for a pose tied to a specific prop or scene geometry.
 
 **Scope check before you start:**
 
 | The user wants | Skill |
 | --- | --- |
-| A new animation *of the player's avatar* that doesn't exist yet | **this skill** |
+| An avatar animation of any kind — check the catalog first | **this skill** → `references/animation-catalog.md` (built-in, then pack), then **player-avatar** to play it |
+| A new animation *of the player's avatar* that nothing in the catalog covers | **this skill** (Blender workflow) |
 | To play a built-in emote, or a `_emote.glb` that already exists | **player-avatar** |
 | To play an animation clip baked into a `.glb` model/prop | **animations-tweens** |
 | To animate an NPC | **npcs** |

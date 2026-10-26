@@ -414,7 +414,9 @@ When running the scene locally with `npm run start`:
 npx @gltf-transform/cli optimize input.glb output.glb --compress draco
 ```
 
-⚠️ **Draco is desktop/web only.** The mobile client does not support `KHR_draco_mesh_compression` and cannot load a Draco-compressed GLTF/GLB at all — the model simply does not appear. If the scene targets mobile, ship uncompressed meshes and cut triangles/textures instead (docs commit `b4d4c88`). Run `optimize` with `--compress false` for a cross-platform build. [UNVERIFIED: whether the other `gltf-transform` compression modes (`meshopt`, `quantize`) load on mobile — the docs only call out Draco.]
+⚠️ **Draco does not decode on mobile, and the failure is silent and preview-only-visible.** The mobile app ships **no runtime Draco decoder**. A Draco-compressed `.gltf`/`.glb` loads on a phone **only from the scene's optimized assets**, where the asset server has already decompressed it. When a scene has no optimized assets — **local preview, Creator Hub mobile preview, QR preview** — the model **fails to load with no error at all**: no console message, no placeholder, just an absent mesh (docs commit `5f212e3`, Oct 2026; an error dialog is tracked in godot-explorer #2432).
+
+The trap is the asymmetry: a published scene can look fine on a phone while the same model is invisible in every mobile preview — and a creator debugging that preview has nothing to go on. **Export without Draco** if the scene targets mobile; run `optimize` with `--compress false` for a cross-platform build, and cut triangles/textures instead. [UNVERIFIED: whether the other `gltf-transform` compression modes (`meshopt`, `quantize`) load on mobile — the docs only call out Draco.]
 
 ## Example scenes
 

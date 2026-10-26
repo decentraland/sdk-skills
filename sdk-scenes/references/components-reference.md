@@ -21,7 +21,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **Billboard** | `billboardMode: BillboardMode`, `targetEntity?: Entity` | Makes entity face the camera (default) or, when `targetEntity` is set, that entity instead. Unset or `engine.CameraEntity` = faces camera. If the target is missing/deleted, reorientation freezes until it exists again. Multiplayer: camera-facing billboards are computed locally per player (each sees it facing them); a `targetEntity` billboard faces the same way for ALL players, since the target position is scene state. |
 | **VisibilityComponent** | `visible: boolean` | Show/hide entity without removing it. |
 | **NftShape** | `urn: string`, `style?: NftFrameType`, `color?: Color3` | Display an NFT artwork frame. The NFT is identified by `urn`. |
-| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
+| **TextShape** | `text: string`, `fontSize?: number`, `textColor?: Color4`, `font?: Font`, `fontSrc?: string`, `outlineWidth?: number`, `outlineColor?: Color3`, `shadowColor?: Color3`, `shadowBlur?: number`, `shadowOffsetX?: number`, `shadowOffsetY?: number` | Render 3D text in the scene. Give text a thin contrasting outline (`outlineWidth` ~0.1–0.2 + an `outlineColor` that contrasts the text) so it stays legible against any background. |
 | **LightSource** | `type` (`{ $case: 'point' \| 'spot' }`; `innerAngle`/`outerAngle` live inside the `spot` variant), `color?`, `intensity?` (16000), `range?` (-1 = auto), `shadow?: boolean` (false) | Add point or spot lights (no directional type). Set via `LightSource.create(e, { type: LightSource.Type.Spot({ innerAngle, outerAngle }), shadow: true })`. |
 | **ParticleSystem** | `rate`, `maxParticles`, `lifetime`, `gravity`, `shape`, `initialColor`, `colorOverTime`, `initialSize`, `texture`, `blendMode`, `loop`, `spriteSheet` | Emit particles (fire, smoke, sparks, snow). Many fields — see the `particle-system` skill for the full list, enums, and presets. Unity explorer only. |
 
@@ -29,7 +29,7 @@ All components are imported from `@dcl/sdk/ecs`.
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **PointerEvents** | `pointerEvents: Array<{ eventType, eventInfo: { button, hoverText, maxDistance } }>` | Define clickable/hoverable areas. Use `pointerEventsSystem.onPointerDown()` helper. |
+| **PointerEvents** | `pointerEvents: Array<{ eventType, interactionType?, eventInfo: { button, hoverText, maxDistance, maxCameraDistance?, showFeedback?, showHighlight?, priority? } }>` | Define clickable/hoverable areas. Use `pointerEventsSystem.onPointerDown()` helper. `maxDistance` (default `10`) is **avatar** distance, not camera distance; `maxCameraDistance` (7.28.0+, unset by default) is the camera-origin check and ORs with it. See `add-interactivity`. |
 | **PointerEventsResult** | Read-only | Results of pointer events (which button, hit point). |
 | **PointerLock** | `isPointerLocked: boolean` | Whether pointer is locked (first-person mode). |
 | **PrimaryPointerInfo** | Read-only: `pointerType`, `screenCoordinates`, `screenDelta`, `worldRayDirection` | Screen coordinates and world ray of the primary pointer. It has no entity field — get the hovered/hit entity from `PointerEventsResult` or a raycast. |
@@ -45,7 +45,7 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **Animator** | `states: Array<{ clip, playing, loop, speed, weight }>` | Play animations embedded in GLTF models. |
 | **Tween** | `mode`, `duration`, `easingFunction`, `currentTime`, `playing?` | Animate entity properties over time. `mode` is a discriminated union: `move`, `rotate`, `scale`, `textureMove`, `moveRotateScale`, plus the endless variants `moveContinuous`, `rotateContinuous`, `textureMoveContinuous` (these loop forever — take a speed rather than a `duration`). While a tween plays, the engine updates the entity's `Transform` in real time — `Transform.get(entity)` returns the live mid-tween value. |
-| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. |
+| **TweenSequence** | `sequence: Array<{ ... }>`, `loop` | Chain multiple tweens together. ⚠️ **Not implemented on mobile — sequenced tweens do not animate at all.** Plain `Tween` works there; the sequence wrapper does not. |
 | **TweenState** | Read-only | Current state of a tween. |
 
 ## Audio & Video
@@ -68,6 +68,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
+| **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. Not implemented on mobile. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
 | **AvatarEmoteCommand** | `emoteUrn`, `loop` | Read-only. Written by the Explorer to report avatar emote playback to the scene. Appended to every player entity (local and remote). Do NOT use to trigger emotes -- use `triggerEmote`/`triggerSceneEmote` from `~system/RestrictedActions` instead. |
 | **AvatarEquippedData** | Read-only | Data about equipped wearables. |
 | **AvatarLocomotionSettings** | `walkSpeed?`, `jogSpeed?`, `runSpeed?`, `jumpHeight?`, `runJumpHeight?`, `hardLandingCooldown?`, `doubleJumpHeight?`, `glidingSpeed?`, `glidingFallingSpeed?` | Override the player's movement speeds and jump/glide behavior (m/s and m). Apply to `engine.PlayerEntity`. All fields optional; engine defaults apply when omitted. Defaults: `walkSpeed` 1.5, `jogSpeed` 8, `runSpeed` 10, `jumpHeight` 1, `runJumpHeight` 1.5, `doubleJumpHeight` 2, `glidingSpeed` 6, `glidingFallingSpeed` 1, `hardLandingCooldown` 0.75 — the `.proto` carries none, but the docs page `creator/sdk7/interactivity/avatars/locomotion.md`, the Creator Hub "Locomotion Settings" smart item, and unity-explorer's `CharacterControllerSettings.asset` all agree on these. Negative values clamp to 0. See `player-avatar/references/avatar-apis.md`. |
@@ -88,7 +89,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
 | **UiTransform** | `width`, `height`, `positionType`, `flexDirection`, `alignItems`, `justifyContent`, `margin`, `padding`, `position` | Layout and positioning (CSS flexbox-like). |
-| **UiText** | `value: string`, `fontSize`, `color`, `textAlign`, `font` | Render text in UI. |
+| **UiText** | `value: string`, `fontSize`, `color`, `textAlign`, `font`, `fontSrc` | Render text in UI. `fontSrc` (custom `.ttf`) is covered by the **fonts** skill. |
 | **UiBackground** | `color?`, `textureMode?`, `texture?` | Background color or image for UI elements. |
 | **UiInput** | `placeholder`, `fontSize`, `color`, `onSubmit` | Text input field. |
 | **UiInputResult** | Read-only | Input field value. |

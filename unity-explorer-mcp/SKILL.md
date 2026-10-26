@@ -9,6 +9,16 @@ description: "Set up, launch and drive a Decentraland Explorer through its MCP a
 
 **Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no `claude mcp add`, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged. **One extra rule applies on that path: before `launch_preview`, check `preview_status` *and* the OS process list (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows), because `stop_preview` can return `{ok: true}` while the Explorer keeps running and the next launch then never connects** — see "Preview lifecycle" in **creator-hub-mcp**.
 
+**Never write scene files in a burst while the Explorer is running.** Each change goes in as ONE write (iteration loop, step 1). Check `get_scene_state` before the next write, and stop the dev server first for a multi-file patch run or a generator script. Two saves seconds apart can load a torn bundle, and only an Explorer relaunch recovers from that (Locksmith, 2026-10: four relaunches in two days).
+
+**Read before:**
+
+| Before you… | Read |
+|---|---|
+| `set_camera_mode` or `set_camera_pose` | [`reference/camera-and-movement.md`](reference/camera-and-movement.md) (check `camera.modeChangeAllowed` first) |
+| any click, hover, `press_input` or `ui_*` call | [`reference/interaction.md`](reference/interaction.md) (two id spaces) |
+| counting, killing or relaunching Explorer processes | [`reference/recovery.md`](reference/recovery.md) (bracketed `pgrep`; the watchdog's command line also contains the Explorer path) |
+
 ## Gates
 
 Certain points in this skill are **gates**: you ask, call no tool after asking, and let the user answer. A gate opens only on their reply — never on your own judgment, never on their silence, never because a workaround is available to you. **Running as a subagent, you cannot open a gate at all** — there is no user to ask: stop and report the pending decision to your caller with your recommendation, rather than passing the gate on your own authority. Doing so violates the gate even when the workaround happens to work. The gates, in order: the **skills-install gate** and **restart gate** (below), the **intent gate** (pre-flight), the **launch/kill gate** (Setup step 1), and the **bind gate** (Setup step 2).
@@ -24,7 +34,7 @@ npx skills add decentraland/sdk-skills --all       # scene-local (run inside the
 npx skills add decentraland/sdk-skills --all -g    # global (user-level, ~/.claude/skills)
 ```
 
-A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the install buys nothing.
+A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the `Skill` tool cannot load the new skills by name. A restart is needed for automatic discovery and native MCP binding only: an agent with filesystem access can read an installed `SKILL.md` from disk and follow it in the same session.
 
 Declining either gate is fine — the scene can still be implemented, just less efficiently. Until the skills actually load, the **stale memory** rule under the iteration loop governs every SDK7 API you write.
 
@@ -75,7 +85,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    - **Reconnect the `explorer` server** — fastest, and keeps this conversation. How, depends on the harness: the **terminal CLI** opens an interactive server menu on `/mcp`, with a reconnect entry to pick. The **VS Code extension** (and any embedded chat panel, e.g. the Creator Hub's) has no such menu — a bare `/mcp` there only prints a status line plus usage, so the command to give the user is `/mcp reconnect explorer` (or `/mcp reconnect all`), typed into the chat.
    - **Start a fresh session / new conversation tab**, leaving the Explorer running — the tools bind automatically at the new session's startup. In the VS Code extension and embedded panels this is just a new conversation tab, *not* restarting the app or the Explorer — say so, because users assume the expensive reading and decline. Make it the recommended path there whenever `/mcp reconnect` answers *"MCP controls aren't available right now — the terminal is still starting up or is showing another view."* — a failure mode in that harness with no in-chat fix, and the new tab is the path that works.
-   - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and no screenshot images you can inspect.
+   - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and screenshots that arrive as base64 you must decode to a file before viewing (`scripts/screenshot.sh` does it — see [`reference/curl-fallback.md`](reference/curl-fallback.md)). Slower, but every check above is still possible on this path; do not report screenshots as unavailable.
 
    Use `AskUserQuestion` if your client has it, one option each; label the second *"Restart session / new tab (Explorer stays up)"* so it can't be misread as closing the Explorer. Otherwise put the same three in plain text and close with *"Which do you prefer?"*.
 
@@ -91,13 +101,13 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    **Not running in Claude Code?** For Cursor, Cline, or a custom SDK harness, the connection details and config shapes are under "Registering in a client other than Claude Code" in [`reference/setup.md`](reference/setup.md). The Claude Code **VS Code extension** and the Creator Hub's embedded chat *are* Claude Code: they take the commands above, with the harness differences noted in the bind gate.
 
-3. **Wait for the world to load**: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`. While polling keeps failing, the client is most likely sitting on the auth screen — `--skip-auth-screen true` only skips it when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask — so tell the user to log in, wait for them, then continue.
+3. **Wait for the world to load**: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`. Give the poll a deadline of about 90 s, and parse the result as JSON: never grep the raw text for `isReady`, because the payload's spacing (`"isReady": true`) defeats a literal pattern and the poll never ends. While polling keeps failing, the client is most likely sitting on the auth screen — `--skip-auth-screen true` only skips it when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask — so tell the user to log in, wait for them, then continue.
 
 ## The iteration loop
 
 Repeat until **every requirement has proof**: a screenshot or state read demonstrating it, captured from a retail camera mode (`first_person`/`third_person`, not the free camera), with `get_scene_state` healthy and no unexplained errors in the logs.
 
-1. **Edit** the scene TypeScript in `src/` — read the owning topic skill before writing an API you can't recall exactly (**stale memory**, below). **One write per change**: batch multi-part changes into ONE write, write new modules before wiring them in, and confirm `get_scene_state` still shows a scene before saving again — two saves seconds apart can load a **torn bundle**, a scene drop only the user can recover by restarting the client ([`reference/recovery.md`](reference/recovery.md)). Hot reload lands within a few seconds; `reload_scene` gives a deterministic reset. Before placing, downloading, converting, or exporting a 3D model read [`reference/assets.md`](reference/assets.md); before tuning emissives/bloom, UI overlays, skybox time, or thin geometry read [`reference/visuals.md`](reference/visuals.md). **Asset files churn harder than `src/`:** every file added, removed or renamed under `assets/` triggers its own hot reload — the watcher counts files, not commands, so a single `rm` of seven GLBs still produced seven reloads in 30 s and, once, an Explorer restart (observed 2026-10-10). Do asset-file work **before** launching the preview where possible, keep it to one command so the burst is short, and never run it while someone is mid-playtest.
+1. **Edit** the scene TypeScript in `src/` — read the owning topic skill before writing an API you can't recall exactly (**stale memory**, below). **One write per change**: batch multi-part changes into ONE write, write new modules before wiring them in, and confirm `get_scene_state` still shows a scene before saving again — two saves seconds apart can load a **torn bundle**, a scene drop only the user can recover by restarting the client ([`reference/recovery.md`](reference/recovery.md)). Hot reload lands within a few seconds; `reload_scene` gives a deterministic reset. The dev server's watcher rewrites `bin/index.js` on every save — never run `sdk-commands build` by hand while it runs (two writers, one file), and when a change seems absent in-world, `grep bin/index.js` for a string literal from your edit before debugging the scene: a build that passed is not proof the running bundle contains it. Before placing, downloading, converting, or exporting a 3D model read [`reference/assets.md`](reference/assets.md); before tuning emissives/bloom, UI overlays, skybox time, or thin geometry read [`reference/visuals.md`](reference/visuals.md). **Asset files churn harder than `src/`:** every file added, removed or renamed under `assets/` triggers its own hot reload — the watcher counts files, not commands, so a single `rm` of seven GLBs still produced seven reloads in 30 s and, once, an Explorer restart (observed 2026-10-10). Do asset-file work **before** launching the preview where possible, keep it to one command so the burst is short, and never run it while someone is mid-playtest.
 2. **Confirm the scene is healthy**: `get_scene_state` — a `state` of `JavaScriptError` or `EcsError` means your code crashed the scene runtime.
 3. **Read the runtime output**: `get_scene_logs` with `sinceSeq` set to the last sequence number you saw. Scene `console.log` output and exceptions land here, and errors survive in the buffer after they scroll by.
 4. **Look and verify**: position the view (`teleport`, `move_to`, `walk`, `look_at`) — `look_at` sets your facing, and `walk` and `screenshot` follow the camera. Then `screenshot` and inspect the image against what the scene code should produce. Before framing shots, free-camera sweeps, or navigating precise lines, read [`reference/camera-and-movement.md`](reference/camera-and-movement.md).
@@ -110,7 +120,7 @@ Repeat until **every requirement has proof**: a screenshot or state read demonst
 
 **Cross-examine** every conclusion: confirm each visual claim with a state read (ECS values via `get_entity_details`, logs, `get_player_state` position), and each state claim with pixels. One channel lies routinely — colliders exist that pixels don't show, entities render invisible while their state looks healthy, animations silently don't play. **In-world text is a state read, not a picture:** a `TextShape` sign is unreadable in a downscaled capture past a few metres, and `get_entity_details` on its entity returns the exact `PBTextShape` string for a fraction of a screenshot's tokens. The reference files call out where cross-examination is mandatory.
 
-**MANDATORY — camera cleanup before finishing.** Whenever you stop working (end of task, handing back to the user, or pausing for their input), `set_camera_mode third_person` is your last camera action — the camera is never left in `free` mode — and confirm via `get_player_state` → `camera.mode` if anything in between could have failed.
+**MANDATORY — camera cleanup before finishing.** Whenever you stop working (end of task, handing back to the user, or pausing for their input), restore the scene's intended retail mode as your last camera action — `set_camera_mode third_person` by default, `first_person` when the scene deliberately forces first person (a `CameraModeArea` or camera lock covers the play space); the camera is never left in `free` mode — and confirm via `get_player_state` → `camera.mode` if anything in between could have failed.
 
 ## Screenshot frequency & cost
 
@@ -125,9 +135,9 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 ## Scene health
 
-- `scene.json` changes (parcels, spawn points) are not hot-reloaded — restart the `npm run start` process, then `reload_scene`.
+- `scene.json` changes (spawn points, display fields) are not hot-reloaded — restart the `npm run start` process, then `reload_scene`. **A change to `scene.base`, `scene.parcels` or `worldConfiguration` needs more: `reload_scene` is not enough.** The dev server builds the realm's `localSceneParcels` once at start, so restart it, then relaunch the Explorer at the new `scene.base`, never at a position from an earlier launch. Restarting `npm run start` without `--position` does both.
 - After `teleport` or `reload_scene`, re-check `get_scene_state` before interacting; readiness can lag a few seconds.
-- One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position 0,0` spawns at parcel 0,0.
+- One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position x,y` spawns at parcel `x,y`; without it the launch uses `scene.base`.
 - `teleport` silently no-ops in local-scene-development mode: `/goto` is disallowed there (chat shows "Teleport is not allowed in local scene development mode") but the tool still answers "Arrived at (x,y)". Use `move_to` for repositioning in local-scene sessions.
 
 - **Missing tools**: `mcp__explorer__*` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (`/mcp` menu in the terminal CLI, `/mcp reconnect explorer` in the VS Code extension) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.
@@ -136,6 +146,18 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 ## Regression rig: `149,149-synthetic-input-showcase`
 
 `sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: ten stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
+
+## Pattern: build the check into the scene, not into the tool calls
+
+When a behaviour cannot be read back through any MCP tool — whether an avatar is hidden, whether a modifier area applies, whether a collider has the right size — **put the assertion in scene code and read the verdict off an in-world panel**. [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) is the reusable shape (`src/qaPanelUi.tsx`):
+
+- A **QA info panel** pinned in a corner holds the instructions, a **Run** button per check, and a PASS (green) / FAIL (red) / NOT RUN result per check. One `explorer_screenshot` then reports the whole suite.
+- Each check **drives itself**: it creates its own probe entities, `movePlayerTo`s the player to a position that discriminates pass from fail, waits for the state to settle, reads an *observable* proxy, prints the verdict, and tears the probes down so it can be re-run.
+- When the property you care about is unreadable, **substitute a readable sibling**: the scene cannot ask whether an avatar is hidden, so it swaps in a `TriggerArea` drawn from the same collider pool and asserts on the enter event instead; for the camera it reads `CameraMode`. Keep the unreadable case as a short manual step in the same panel.
+- Every step logs with a `[checkName]` prefix, so `explorer_get_scene_logs` explains a FAIL without another screenshot.
+- Hold **Alt** to use a panel like this (pointer unlock), and keep probe geometry on a **separate entity** from the thing under test — a `MeshRenderer` on the tested entity misreports as soon as the test mutates it.
+
+Write the panel before you start clicking: a check that reports itself survives the session, a conclusion drawn from a screenshot does not.
 
 ## When a capability is missing
 

@@ -302,9 +302,10 @@ raycastSystem.registerGlobalDirectionRaycast(
   (result) => { /* handle hits */ }
 )
 
-// Target position raycast
+// Target position raycast — the helper option is `target` (`GlobalTargetRaycastSystemOptions`);
+// `globalTarget` exists only as the `$case` of the raw `Raycast.direction` union (see input-reference.md)
 raycastSystem.registerGlobalTargetRaycast(
-  { entity: myEntity, opts: { globalTarget: Vector3.create(8, 0, 8), maxDistance: 20 } },
+  { entity: myEntity, opts: { target: Vector3.create(8, 0, 8), maxDistance: 20 } },
   (result) => { /* handle result */ }
 )
 

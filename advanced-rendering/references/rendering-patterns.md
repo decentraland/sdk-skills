@@ -12,7 +12,7 @@ Transform.create(floatingLabel, { position: Vector3.create(8, 4, 8) })
 
 TextShape.create(floatingLabel, {
   text: 'NPC Name',
-  fontSize: 16,
+  fontSize: 3,  // world units: 10 ≈ 1 m tall, so about 0.3 m — 16 would be a 1.6 m banner
   textColor: Color4.White(),
   outlineColor: Color4.Black(),
   outlineWidth: 0.08,

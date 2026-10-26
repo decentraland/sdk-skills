@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
 ---
 
 # Player and Avatar System in Decentraland
@@ -95,6 +95,24 @@ function proximityCheck() {
 engine.addSystem(proximityCheck)
 ```
 
+### GOTCHA: remote players' Transforms are in WORLD coordinates
+
+`Transform.get(engine.PlayerEntity).position` for the **local** player is **scene-local** (relative to the scene's base parcel). Another player's entity — the one you get from `engine.getEntitiesWith(PlayerIdentityData)` — reports its position in **world** coordinates. Mixing them silently puts remote players hundreds of metres away.
+
+Convert by subtracting the base parcel times 16:
+
+```typescript
+import { Vector3 } from '@dcl/sdk/math'
+
+// scene.json base parcel 33,20
+const SCENE_ORIGIN = Vector3.create(33 * 16, 0, 20 * 16)
+const sceneLocal = Vector3.subtract(worldPosition, SCENE_ORIGIN)
+```
+
+`33,20-spectate-mode` applies the subtraction **conditionally** — only when the position falls outside the scene's AABB — which is how it handles the local and remote players through one code path without needing to know which is which. If you always know the entity is a remote player, subtract unconditionally.
+
+Read the base parcel from `scene.json` rather than hardcoding it, or the conversion breaks the moment the scene is redeployed elsewhere.
+
 ## Player Profile Data
 
 Get the player's name, wallet address, and guest status:
@@ -116,6 +134,8 @@ function main() {
 - `isGuest` — `true` if the player hasn't connected a wallet
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
+
+**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile — same frame as the local player's — only since mobile app **v1.15.0** (docs commit `5f212e3`, Oct 2026). On an older mobile build those values are in a different frame, so proximity checks and leaderboards keyed on another player's position mis-fire there. Anything safety-critical should be derived from the local player's own position on each client rather than from a remote one.
 
 ## Profile Data for Off-Scene Users (Catalyst)
 
@@ -163,6 +183,22 @@ AvatarAttach.create(hat, {
 ```
 
 `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves.
+
+**The attached entity's own `Transform` position and rotation are ignored.** Every frame the Explorer sets that entity's world position and rotation to the anchor's. Only `scale` survives (unity-explorer `AvatarAttachUtils.ApplyAnchorPointTransformValues`, main 2026-10). It then writes the pose back into the entity's `Transform`, **relative to the local player**: `position` is the anchor's world position minus the player's (world axes, not rotated into the player's facing), and `rotation` is relative to the player's rotation (`AvatarAttachHandlerSystem.UpdateAvatarAttachedEntitySDKTransform`). Children keep their local Transforms, so to offset an attachment put the `AvatarAttach` on an empty root and parent the visible parts to it:
+
+```typescript
+import { Vector3 } from '@dcl/sdk/math'
+
+const anchor = engine.addEntity()
+Transform.create(anchor, {})
+AvatarAttach.create(anchor, { anchorPointId: AvatarAnchorPointType.AAPT_HIP })
+
+const padlock = engine.addEntity()
+GltfContainer.create(padlock, { src: 'assets/Models/padlock.glb' })
+Transform.create(padlock, { parent: anchor, position: Vector3.create(0.15, -0.1, 0.12) }) // offset from the hip
+```
+
+**Measure a seat offset; don't tune it by eye.** In the Locksmith scene (2026-10) the owner corrected a seated player's position six times over two days. What fixed it: during `sittingChair`, the hip sits about 0.37 m behind the avatar root, and the seat offset became 0.38 m. That value comes from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP` and play the sitting emote. Then read its `Transform` (`Transform.get` in scene code, or the Explorer MCP's `get_entity_details`, **unity-explorer-mcp**). By the write-back rule above, its `position` is the hip's offset from the player root in world axes, so turn it into the chair's frame using the player's facing. Then place the player root so the hip lands on the seat.
 
 > **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
 
@@ -296,6 +332,8 @@ triggerEmote({ predefinedEmote: 'clap' })
 
 ### Custom Scene Emotes
 
+**Need a clip?** Before authoring one, check `{baseDir}/../avatar-animations/references/animation-catalog.md`: animated previews of every built-in emote, and 45 ready-made `_emote.glb` files from the Creator Hub's Avatar Animations pack (sitting on stools/puffs/bean bags, chess, fishing, carry, drink, dance…) with their download and the exact `src` path to play them.
+
 > ⚠️ **CRITICAL FILE NAMING REQUIREMENT:** The emote `.glb` file **MUST** end with `_emote.glb` (case-insensitive). This is **not** optional and **not** just a convention — the runtime rejects files that don't match this suffix.
 >
 > **Why this matters:** Scenes with incorrectly named emote files often **work fine in `npm run start` preview** but **silently fail in production** once deployed. Preview is more permissive; the deployed runtime is strict. Always rename the file on disk (e.g. `SnowballThrow.glb` → `SnowballThrow_emote.glb`) before deploying.
@@ -337,6 +375,8 @@ stopEmote({}).then(({ success }) => {
 
 If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
+**Mobile:** `stopEmote` is supported from mobile app **v1.15.0** (docs commit `5f212e3`). The same release also made scene-started **upper-body** emotes pause when the player leaves the scene, resume on return, and stop on scene unload — and made them read as upper-body to *other* mobile players. On older mobile builds a looping scene emote could not be stopped from the scene, so do not design a mechanic whose only exit is `stopEmote`; give the player an action that also restores the pose some other way.
+
 ### Detecting when an emote finishes
 
 Every emote lifecycle event is appended to the `AvatarEmoteCommand` grow-only set on the player entity, with a `state` field (`EmoteState` enum). Works for scene-triggered emotes (`triggerEmote`/`triggerSceneEmote`), emotes the player plays via the emote wheel, AND other players' emotes (pass their entity instead of `engine.PlayerEntity`).
@@ -347,7 +387,7 @@ import { AvatarEmoteCommand, EmoteState } from '@dcl/sdk/ecs'
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 	if (!cmd) return
 	switch (cmd.state ?? EmoteState.ES_STARTED) {
-		case EmoteState.ES_STARTED:     // emote started (also the value when `state` is absent — older clients)
+		case EmoteState.ES_STARTED:     // emote started (also the value when `state` is absent)
 			break
 		case EmoteState.ES_FINISHED:    // non-looping emote played to its natural end
 			break
@@ -357,9 +397,8 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 })
 ```
 
-- Always default absent `state` to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) — entries from older clients omit the field, and older clients never send FINISHED/INTERRUPTED at all, so don't hard-block gameplay on a finish signal without a fallback.
-- **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation.
-- Requires a DCL 2.0 desktop client with playback-completion support.
+- `state` is an **optional** protocol field: always default it to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) rather than assuming it is present.
+- **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation. A scene that needs to know when a masked clip ends must time it itself from the clip duration.
 - Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
 
 ### Emote masks (upper-body only)
@@ -378,7 +417,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
-- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Verified against docs commit `b4d4c88`.
+- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap — and since **v1.15.0** a masked emote is also seen as upper-body by *other* mobile players rather than as full-body. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Still open: emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile at all. Verified against docs commit `5f212e3` (Oct 2026, mobile v1.15.0).
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 - Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
@@ -386,7 +425,55 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
 
-**A copy of the player (lookalike, mirror twin, a queue of "you") is always an `AvatarShape` fed from `getPlayer()` — never a baked model**, so it matches whatever the player is wearing at the time. Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
+**A lookalike of the player (a queue of "you", a posed clone) is an `AvatarShape` fed from `getPlayer()` — not a baked model**, so it matches whatever the player is wearing at the time. The exception is a double that must track the player every frame (mirror, shadow, replay): `AvatarShape` locomotion is engine-driven, so it lags behind and auto-faces its direction of travel — that one is a rigged GLB with an `Animator`, see **npcs** → "Copies of the player". Field mapping (`avatar?.eyesColor` → `eyeColor`, `avatar?.bodyShapeUrn` → `bodyShape`), posing the copy with `expressionTriggerId`, and the fact that avatars ignore `VisibilityComponent` are all in **npcs** → "Copies of the player".
+
+## Custom Nametag Plates (`AvatarNametag`)
+
+Draws a plate with scene-provided text **above** an avatar's native nametag — for a rank, role, team, or title the scene assigns ("VIP", "Team Red", "Club Owner"). It does not replace the native nametag. Requires `@dcl/sdk` **7.28.0+** (not in 7.27.0 or earlier).
+
+```typescript
+import { AvatarNametag, engine } from '@dcl/sdk/ecs'
+
+AvatarNametag.createOrReplace(engine.PlayerEntity, { label: 'Club Owner' })
+```
+
+A plain LWW component from `@dcl/sdk/ecs` — standard `create` / `createOrReplace` / `getMutable` / `getOrNull` / `deleteFrom`, no helper functions. `label: string` is required; `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag's colors (border defaults to the background, so no visible border). Full field table, `label` edge cases, component ids, and the multiplayer roster pattern: `{baseDir}/references/avatar-nametag.md`.
+
+**Valid targets:** `engine.PlayerEntity`, any remote player entity (the ones carrying `PlayerIdentityData`), and any entity with an `AvatarShape` (NPCs — see the **npcs** skill). Writes to **any other entity are silently ignored** — no error, no plate.
+
+### Attaching to other players
+
+Remote players are ordinary entities, so both idioms are one-liners:
+
+```typescript
+import { onEnterScene } from '@dcl/sdk/src/players'
+import { AvatarNametag } from '@dcl/sdk/ecs'
+
+onEnterScene((player) => {
+	AvatarNametag.createOrReplace(player.entity, { label: rankFor(player.userId) })
+})
+```
+
+```typescript
+import { engine, AvatarNametag, PlayerIdentityData } from '@dcl/sdk/ecs'
+
+for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
+	AvatarNametag.createOrReplace(entity, { label: rankFor(identity.address) })
+}
+```
+
+`AvatarNametag.deleteFrom(entity)` removes the plate immediately; the native nametag is unaffected. To revert a color to its native default, use `createOrReplace` and omit the field — it clears fields you leave out, whereas `getMutable` keeps them.
+
+### Gotchas
+
+- **No avatar-readiness dance.** Writing to a still-loading avatar is fine — the renderer retries internally and applies the plate when the avatar is ready. Do NOT poll, delay, or try to detect avatar readiness before writing.
+- **The plate is client-local and is never relayed**, and player entity ids are recycled across disconnects — resolve the entity from the user id on *every* write (both idioms above do). For everyone to see the same tags, derive them from shared data (the roster pattern in the reference) or sync the assignment: **multiplayer-sync** → "Per-player visuals are NOT automatically shared".
+- **Never call `createOrReplace` while iterating `engine.getEntitiesWith(...)`.** Replacing a component can move the entity to a different archetype and invalidate the live iterator. Collect entities into an array first, then write.
+- **Don't rewrite the component every tick.** Compare against `AvatarNametag.getOrNull(entity)` before writing, or the scene emits a CRDT message per player per frame.
+- **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. For a bare colored plate with no text, use a spaces-only label (`label: '    '`; more spaces = wider plate). Setting `labelColor` equal to `backgroundColor` does **not** hide the text — the rendered text color is not an exact match to the plate, so the word stays faintly visible.
+- **Colors have no alpha.** `Color3` only; there is no opacity field.
+- **Not implemented on mobile** (no ETA as of the Oct 2026 parity refresh). Mobile players see no plate at all, so never make it the only carrier of information — mirror rank/role in a `TextShape`, a HUD list, or a color the avatar already wears.
+- Plates are hidden along with the native nametag inside an `AvatarModifierArea` using `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` (see below). There is no way to keep the plate while hiding the native tag.
 
 ## Avatar Modifier Areas
 
@@ -422,13 +509,22 @@ AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking on avatars to see p
 AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the area
 ```
 
-`modifiers` is an array — combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`. The `AvatarModifierArea` component takes both an `area: Vector3` field (the region size) AND the entity's `Transform.scale`; set both to the same size. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+`modifiers` is an array — combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`. The region size is the explicit `area: Vector3` field — the runtime sizes the region from a non-zero `area` and compensates out `Transform.scale` (a zero or unset `area` falls back to the scale, and a zero scale axis still collapses the region on that axis — `SDKEntityTriggerAreaComponent`, unity-explorer main). **Still keep `Transform.scale` equal to `area`:** the Creator Hub writes the gizmo scale into `area` whenever the entity is edited and draws the placeholder cube from the scale, so a mismatch shows the user a misleading box and the next editor save silently resizes the region to the scale. Set `area` to the dimensions you mean and mirror the same numbers in `scale`; never rely on `scale` alone to size the area. `excludeIds` is an array of wallet addresses that stay unaffected (e.g. keep the scene owner visible); mutate it at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
 
-`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
+`AMT_HIDE_AVATARS` hides both avatars AND nametags — do not combine it with `AMT_HIDE_NAMETAGS` (redundant). Both modifiers also hide any `AvatarNametag` plate (see above); there is no way to hide the native tag while keeping the plate. Use `AMT_HIDE_NAMETAGS` only when you want nametags hidden while keeping avatars visible (e.g. stages, presentations, clean visual experiences). `AMT_HIDE_NAMETAGS` is combinable with `AMT_DISABLE_PASSPORTS`.
 
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it will have their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime reads `area`, not `scale`, for the region size), so resizing the entity via the gizmo automatically updates the modifier region. Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
+**GOTCHA — an explicit `area` wins over `Transform.scale` for the life of the component, so you cannot resize the region by scaling.** The inverse world scale is re-applied every frame: scaling the area entity (or any of its **parents** — it compensates `lossyScale`) afterwards leaves the region exactly the `area` size, and the player's experience does not change. An axis scaled to **0** still collapses the region on that axis. Consequences:
+
+- **Do not animate or tween the scale of an area entity to grow or shrink the region** — nothing happens. Write `AvatarModifierArea.getMutable(entity).area` instead (and mirror it into `scale` for the editor, as above).
+- **Do not parent an area under a group you scale**, e.g. a prop rig that scales up on activation: the region stays put while the visuals grow, and the mismatch is invisible in-world because there is no API to read whether an avatar is hidden.
+- To *visualise* the region, use a **separate** box entity sized from the same numbers, as the regression scene does — a visible box on the area entity itself will lie the moment either value changes.
+- `TriggerArea` is the exact opposite: `PBTriggerArea` has **no size field at all** (only `mesh` and `collision_mask`), so its volume is the entity's `Transform` — scale it and the trigger follows, including scale changes made later. Two sibling components, opposite sizing rules; do not carry a habit from one to the other. See **add-interactivity**.
+
+Regression coverage: [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) (`src/areaScaleDrift.ts`), which scales a 2x2x2 `CameraModeArea` entity to 2.5 and asserts the camera still releases 2 m from the centre. It scales the entity itself only; the parent case follows from the code (inverse `lossyScale`), not from a test.
+
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
 
 ## Avatar Locomotion Settings
 
@@ -606,13 +702,15 @@ Engine-team test scenes (exercised against the real engine):
 
 - [100,102-avatar-attach-test](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/100,102-avatar-attach-test) — `AvatarAttach` on multiple anchor points; enumerates every player via `PlayerIdentityData` and attaches to `player.address`; a follower entity reconstructs the attached world position from `PlayerEntity` + attached Transform.
 - [80,-1-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-1-scene-emotes)
-- [4,23-emote-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,23-emote-finish) — emote **completion** detection: `AvatarEmoteCommand.onChange(engine.PlayerEntity, ...)` logging every appended entry as `STARTED` / `FINISHED` / `INTERRUPTED`, with absent `state` defaulting to `ES_STARTED` for older explorers. Play an emote out fully to see `FINISHED`; walk away mid-playback to see `INTERRUPTED`. Covers both `triggerEmote` (predefined) and a non-looping `triggerSceneEmote`. — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
+- [4,23-emote-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,23-emote-finish) — emote **completion** detection: `AvatarEmoteCommand.onChange(engine.PlayerEntity, ...)` logging every appended entry as `STARTED` / `FINISHED` / `INTERRUPTED`, with absent `state` defaulting to `ES_STARTED`. Play an emote out fully to see `FINISHED`; walk away mid-playback to see `INTERRUPTED`. Covers both `triggerEmote` (predefined) and a non-looping `triggerSceneEmote`. — `triggerEmote`, `triggerSceneEmote` (with a deliberately mis-named non-`_emote.glb` file shown NOT playing), `stopEmote`, `mask: AvatarMask.AM_UPPER_BODY`, plus `loop: false` + mask (plays once, returns to locomotion) and `loop: true` + mask (repeats until stopped).
 - [11,0-move-player-to-duration](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/11,0-move-player-to-duration) — `movePlayerTo` with `duration`, reading `result.success` via `.then()`, `InputModifier` locking input during the slide, and a `CL_PHYSICS` obstacle the avatar passes through mid-transition.
 - [9,99-modifier-areas](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) — `AvatarModifierArea` (`AMT_HIDE_AVATARS`) with runtime-mutated `excludeIds`, alongside `CameraModeArea`.
 - [10,99-avatar-modifier-hide-nametags](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/10,99-avatar-modifier-hide-nametags) — `AvatarModifierArea` with `AMT_HIDE_NAMETAGS`: hides nametags while keeping avatars visible.
+- [4,24-avatar-nametag](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag) — `AvatarNametag` on the local player, remote players, and an `AvatarShape` NPC: every color field and its fallback, label edge cases, `deleteFrom`, `AMT_HIDE_NAMETAGS`, plus the multiplayer roster module (`src/modules/multiplayerRoster.ts`) documented in `references/avatar-nametag.md`.
 - [0,1-input-modifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier) — `InputModifier` toggling every Standard flag (`disableAll/Walk/Jog/Run/Jump/Emote`), both via the helper and the raw `$case` form.
 - [80,-4-restricted-actions](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) — `movePlayerTo` (incl. elevated `y`, `avatarTarget`-only turns), `triggerEmote`, `triggerSceneEmote`, `teleportTo`, `openExternalUrl`.
 - [88,-13-avatar-masks](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-13-avatar-masks) — emote masks: looping `AvatarMask.AM_UPPER_BODY` scene emote + `AvatarAttach` anchor to hold a synced crate, `stopEmote` to release. Also includes `loop: false` + mask pair (plays once then returns upper body to locomotion) and `loop: true` + mask pair (repeats until stopped) for verifying the masked-emote loop flag is respected.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
+For `AvatarNametag` fields, edge cases, and the multiplayer roster pattern, see `{baseDir}/references/avatar-nametag.md`.

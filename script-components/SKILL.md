@@ -345,7 +345,13 @@ Most catalog Smart Items were migrated from the Actions/Triggers no-code graph t
 
 **New items are written as Scripts from the start.** `locomotion_settings` ("Locomotion Settings", `utils`, creator-hub `cb097fff`) is the current reference example and worth reading before writing your own: nine `Slider<Min,Max,Step>` params seeded with the SDK defaults and a `@param` tooltip each, a `start()` that writes a component onto `engine.PlayerEntity` (a **global** effect, not a per-entity one — the item has no in-world presence at all), two `@action` methods (`apply` re-writes the values, `restoreDefaults` calls `deleteFrom`), and an editor-only `asset-packs::Placeholder` cube so the thing can be selected in the viewport while being invisible in-world. It carries no `Actions`, no `Triggers`, no `Config`, and no `States`. See the **player-avatar** skill for what it configures.
 
+**Newer reference examples** (under `packs/smart_items/assets/`; behaviour below is from the items' change descriptions, not re-verified in-world): `floor_pressure_button/FloorButton.ts` — a **shared multiplayer button**: a trigger area the size of its disc; in the default `all players` mode the button stays down while *anyone* stands on it and its On Press / On Release actions run **once**, on the client of the player who caused the change (first on / last off), with a `press()`/`release()` *hold* synced through `asset-packs::States`; `my player` makes it a private per-player button. `water_plane/Water.ts` — builds the water out of five translucent `MeshRenderer` layers at runtime (the GLB is an editor-only `Placeholder`), refits its trigger area only when rescaled, and spawns splashes in scene coordinates. `lab_stair_platform/PistonPlatform.ts` — `startState` as a string-literal union (the editor turns it into an enum dropdown) and only `States` in Sync-Components, since `update()` replays `Animator`/`AudioSource` from the synced state on every client.
+
 **`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
+
+**[FIXED in `@dcl/sdk` 7.30.1] Adding the FIRST smart item during a live preview no longer needs a restart.** On 7.30.0 and earlier, `isEditorScene()` ran once, before the esbuild context was created, and its verdict was baked into the static entrypoint. Adding the first smart item (or the first `asset-packs::Script`) to a scene while `npm run start` / the Creator Hub preview was **already running** rebuilt a bundle that executed the item's `Script` without the asset-packs bootstrap, so `getComponents` threw **`Component asset-packs::Actions not found`** — and the preview stayed broken until it was restarted. js-sdk-toolchain `52fa56cf` (PR #1644, tag `7.30.1`) re-evaluates `isEditorScene()` on every watch rebuild.
+
+If you are carrying the old "restart the preview" workaround, drop it on 7.30.1+: the watch rebuild recovers on its own. On an older pin the restart is still the fix, and the error text is the tell — it is a bundling defect, not a missing component in the composite, so do not go looking for `asset-packs::Actions` in the entity tree. The public `~sdk/script-utils` surface (`ActionCallback`, `getScriptInstance`, `getAllScriptInstances`, `callScriptMethod`) is unchanged by the fix.
 
 **`trigger_area` is now a Script item too.** The old Actions/Triggers `trigger_area` asset was deleted in creator-hub `e43441b5`; the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`) is the only one left — the interim "Trigger Area (Script)" label is gone. Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
 
@@ -361,7 +367,19 @@ A class (or `start()` function) JSDoc may carry `@event <name>` tags alongside `
 export class TriggerAreaDetector { /* … */ }
 ```
 
-- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded ("When a player enters, …"). Declare `@event` and the no-code reaction UI appears for free.
+- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded. **Use one of the nine recognised event names** so the button and the seeded sentence read naturally (`EVENT_LABEL` / `EVENT_CLAUSE` in `ScriptInspector.tsx`, verified at creator-hub `0.52.0`):
+
+| `@event` name | Button label | Seeded clause |
+| --- | --- | --- |
+| `enter` | When a player enters… | `when a player enters <name>` |
+| `exit` | When a player leaves… | `when a player leaves <name>` |
+| `click` | When clicked… | `when <name> is clicked` |
+| `open` / `close` | When it opens… / When it closes… | `when <name> opens` / `closes` |
+| `activate` / `deactivate` | When activated… / When deactivated… | `when <name> is activated` / `deactivated` |
+| `toggle` | When toggled… | `when <name> is toggled` |
+| `unlock` | When unlocked… | `when <name> is unlocked` |
+
+An unrecognised name still works but falls back to the generic `When <event>…` / `when <name> fires "<event>"`, which reads badly to the creator. Declare `@event` and the no-code reaction UI appears for free.
 - Tags are accepted on the **export statement, the class declaration, or the constructor** JSDoc — any of the three.
 - Names match `[A-Za-z0-9_-]+`; duplicates are collapsed.
 

@@ -57,6 +57,8 @@ Switching the canvas to **mobile** frames the UI inside a **phone body with a la
 
 The canvas draws two guide areas, matching the renderer `screenInset` in use, plus a toggleable set of **reference HUD controls** (joystick, jump, F/E, emote, profile, chat, compass, counter, pointer) drawn as non-interactive discs. The HUD toggle is the game-controller button in the canvas zoom pill (mobile only); it shows by default in the safe-area modes and is hidden by default in full-screen.
 
+The zoom percentage in that pill is **typed, not only stepped**: click it and enter a value. Range **10–200 %** (`ZOOM_MIN` 0.1 / `ZOOM_MAX` 2, step 0.1); input is digits-only and clamped to 200 as you type, **Enter** applies, **Escape** cancels, blur applies, and the **+** button disables at 200 %. Zoom is a view setting only — it never changes the emitted react-ecs source.
+
 What this means when you author:
 
 - **`interactable` excludes the LEFT HUD column only.** It shares its **right** edge with the device area, so the bottom-right action cluster (jump / E / F / pointer) sits *inside* the interactable area by design — an element anchored bottom-right competes with those buttons even under `screenInset: 'interactable'`. Use the HUD guides to place around them.

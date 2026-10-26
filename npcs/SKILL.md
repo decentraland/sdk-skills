@@ -1,6 +1,6 @@
 ---
 name: npcs
-description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB NPCs with dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs in wearables. Use when the user wants to add an NPC, shopkeeper, or quest giver — any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
+description: "Create NPCs (non-player characters) in Decentraland scenes. Two approaches: the NPC Toolkit library (dcl-npc-toolkit) for GLB NPCs with dialogue, movement, and state machines; and AvatarShape for avatar-look NPCs in wearables, including custom label plates above their name (AvatarNametag). Use when the user wants to add an NPC, shopkeeper, or quest giver — any non-player entity with behavior or dialogue. For live player data (position, profile, wearables) see player-avatar instead."
 ---
 
 # NPCs in Decentraland
@@ -96,7 +96,7 @@ const npc = engine.addEntity()
 Transform.create(npc, { position: Vector3.create(8, 0, 8) })
 
 AvatarShape.create(npc, {
-  id: 'npc-1',               // unique identifier (required)
+  id: 'guard-0001',          // unique; its last 4 characters show beside the name
   name: 'Guard',             // display name shown above head
   bodyShape: 'urn:decentraland:off-chain:base-avatars:BaseMale', // or BaseFemale
   wearables: [
@@ -115,11 +115,28 @@ AvatarShape.create(npc, {
 
 **Notes:**
 - Always include eyebrows, mouth, and eyes wearables — the avatar won't render face features without them.
-- `id` is required and must be unique per AvatarShape entity.
-- Set `name: ''` (empty string) to suppress the name tag above the NPC's head.
+- `id` is required and must be unique per AvatarShape entity. **The Explorer prints the last 4 characters of `id` after the name**, in faded text, the way an unclaimed player name shows its address. An NPC has no profile, so it always gets the suffix and no field turns it off: `id: 'guard-1'` with `name: 'Guard'` renders as "Guard" with a faded "rd-1" appended. Choose ids whose last four characters look intentional, such as `guard-0001` (an id shorter than 4 characters shows `0000`). The only way to lose the suffix is to drop the whole tag (unity-explorer `NametagPlacementSystem`, `NametagElement.BuildName`, main 2026-10).
+- Set `name: ''` (empty string) to suppress the name tag above the NPC's head, suffix included.
 - Moving the `Transform` position causes the NPC to walk/run to the destination (it does not teleport). This mutation DOES take effect — unlike the read-only player `Transform`. You can also drive movement with `Tween` (`Tween.Mode.Move`) + `TweenSequence` for scripted paths; the avatar plays its walk animation along the tween. For an NPC that continuously chases the player (or another moving target), use `Tween.setMoveContinuous` — do NOT re-create `setMove` tweens every frame, which causes visible jitter. See the **animations-tweens** skill ("PITFALL — a CONSTANTLY changing target") and the [`79,-4-tween-following-cube`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-4-tween-following-cube) test scene.
 - Use `expressionTriggerTimestamp` as a Lamport timestamp to replay the same emote: first play = 0, second play = 1, etc.
 - **Clone the current player's look:** read `getPlayer()` and pass `userData.wearables` and `userData.emotes` straight into `AvatarShape.create`. `getPlayer()` may return null / empty emotes on the first frames — poll in a system until `userData.emotes.length > 0` before spawning (verified pattern in test scene 4,21).
+
+### Label plate above the NPC's name (`AvatarNametag`)
+
+`AvatarNametag` works on any entity with an `AvatarShape`, not just on players. Attach it to the same entity:
+
+```typescript
+import { AvatarNametag } from '@dcl/sdk/ecs'
+
+AvatarNametag.create(npcEntity, { label: 'Shopkeeper' })
+```
+
+- `name: ''` on the `AvatarShape` shows **only** the plate, with no empty native name box under it — label an NPC with a title alone.
+- `label` is required but may be whitespace-only. `label: '    '` draws a bare colored plate with no text (more spaces = wider plate) — e.g. a team-color badge with no title.
+- `labelColor`, `backgroundColor`, `borderColor` are optional `Color3` fields that fall back to the native nametag colors.
+- Not implemented on mobile — mobile players see the NPC without a plate, so keep the title visible some other way (e.g. a `TextShape`) if it matters.
+
+Field table, edge cases, and gotchas: **player-avatar** skill ("Custom Nametag Plates") and `{baseDir}/../player-avatar/references/avatar-nametag.md`.
 
 ### Playing expressions on an AvatarShape NPC
 
@@ -130,9 +147,13 @@ AvatarShape.getMutable(npc).expressionTriggerTimestamp = 1
 
 `expressionTriggerId` accepts either a **built-in emote name** (`'robot'`, `'wave'`, ...) OR a **scene-emote `.glb` path** (e.g. `'animations/Snowball_Throw_emote.glb'`) — the same `_emote.glb`-suffixed files used with `triggerSceneEmote`. This is how you play a custom emote on an NPC (there is no `triggerSceneEmote` equivalent for AvatarShape entities). To cycle through the player's own emotes, set `expressionTriggerId = userData.emotes[i]`.
 
-**Before authoring a custom clip for an NPC pose (sit, idle variant), check the embedded emotes first.** The Explorer ships 21 emotes that `expressionTriggerId` accepts by name; the sitting ones **loop** and hold the pose with no re-trigger (verified in-world on an `AvatarShape`, SDK 7.30.1, 2026-10-12). Full list with ids and loop flags (single source of truth): `{baseDir}/../avatar-animations/references/embedded-emotes.md`. A built-in sit often reads more naturally than a hand-authored one — only author a custom clip (**avatar-animations**) when nothing embedded fits.
+**Before authoring a custom clip for an NPC pose (sit, idle variant), check the embedded emotes first.** The Explorer ships 21 emotes that `expressionTriggerId` accepts by name; the sitting ones **loop** and hold the pose with no re-trigger (verified in-world on an `AvatarShape`, SDK 7.30.1, 2026-10-12). Full list with ids and loop flags (single source of truth): `{baseDir}/../avatar-animations/references/embedded-emotes.md`. A built-in sit often reads more naturally than a hand-authored one. Next, the Creator Hub's Avatar Animations pack has 45 downloadable `_emote.glb` clips (stools, puffs, bean bags, ledges, chess, fishing, drinking, crafting…) that `expressionTriggerId` plays by file path — catalogued with previews in `{baseDir}/../avatar-animations/references/animation-catalog.md`. Only author a custom clip (**avatar-animations**) when neither fits.
 
 Note: replaying the **same** `expressionTriggerId` value back-to-back requires bumping `expressionTriggerTimestamp`; setting a **different** id each time replays without touching the timestamp.
+
+**Custom clips do not loop on an `AvatarShape`.** The Explorer builds every scene-emote request for an `AvatarShape` with `loop: false` regardless of the clip's own flag (`AvatarShapeHandlerSystem`, with the comment "looping scene emotes on SDK AvatarShapes is not supported yet" — unity-explorer main 2026-10). Only the embedded looping emotes above hold a pose. Authoring an emote, looping it on the live player via `triggerSceneEmote({ loop: true })`, and triggering it on an `AvatarShape` are three different playback paths. For a sustained custom pose: author one long static clip and retrigger it shortly before it ends by bumping `expressionTriggerTimestamp`. Verify the seam in-world — the retrigger has not been checked for visible snapping.
+
+**Hiding an `AvatarShape` is not a position change.** Moving it out of sight (e.g. 60 m underground) makes it *walk* there, visibly, because the Explorer interpolates AvatarShape movement (see "Moving the NPC cancels the emote"). What worked: set `Transform.scale` to near zero (`0.001`) and restore it afterwards (in-world, Unity Explorer 0.186, 2026-10; `VisibilityComponent` on an `AvatarShape` was not tested). Primitives, GLBs, `AvatarShape`, nametags, lights and colliders each hide differently — do not assume one "hide this entity" recipe covers all of them.
 
 **Moving the NPC cancels the emote.** Writing the `AvatarShape`'s `Transform.position`, or running a `Tween` on it, while an emote plays drops the emote and the avatar falls back to its walk cycle — the Explorer re-derives the locomotion blend from the per-frame Transform delta on every frame (`SDKAvatarShapesMotionSystem.UpdateAnimations`, verified against unity-explorer `Explorer/Assets/DCL/Character/CharacterMotion/Systems/SDKAvatarShapesMotionSystem.cs`; symptom owner-reported, behaviour observed in-world, Unity Explorer v0.186.0-alpha, SDK 7.30.1, 2026-10-10). To move an NPC **during** an emote — sink through the floor while screaming, slump sideways — bake the translation into the clip as root/hips motion inside the `_emote.glb`; the Explorer plays that back on an `AvatarShape` (in-world observation, same build/date).
 
@@ -142,7 +163,9 @@ Owner-reported in the same session, **not verified** — confirm before designin
 
 ### Copies of the player
 
-A copy / double / mirror twin of the player is always an `AvatarShape` fed from live `getPlayer()` data, never a baked GLB — see **player-avatar** for the field mapping and the clone bullet above.
+A lookalike of the player — a line-up of "you", a clone posing in a shop, a twin that waves back — is an `AvatarShape` fed from live `getPlayer()` data (field mapping in **player-avatar**, clone bullet above), so it wears whatever the player wears.
+
+**An `AvatarShape` cannot be puppeted frame by frame.** Its locomotion is engine-driven (`SDKAvatarShapesMotionSystem.cs`, unity-explorer main 2026-10): each frame it walks from where it is toward the authored `Transform.position` at 4 m/s, or faster once the target is 1.5 m or more away — frame-rate dependent, because the speed is reset to 4 and nudged by `100·dt` every frame (about 5.7 m/s at 60 fps, 7.3 at 30, the nominal 10 m/s only below ~17 fps) — and it **turns to face its direction of travel** (slerp, 6.5/s); the authored rotation is only applied once it has arrived. A `Tween` on the entity's position suppresses the engine move and a `Tween` on its rotation suppresses the auto-facing, but an entity holds one `Tween`, so you cannot own both. Feeding it the player's mirrored position therefore gives a double that trails at walking pace and spins round when the player backs up — owner-reported on a mirror double, 2026-10-09 ("delay makes it feel super weird", "walking backwards makes it look the other way"), after both a per-frame `Transform` write and a continuous move tween at the mirrored velocity. For a mirror double, a shadow, a replay ghost or anything that must match the player's pose every frame, use a **rigged humanoid GLB** with an `Animator` (idle / walk clips switched from the player's speed) and write its `Transform` directly each frame. It will not wear the player's look; that is the trade. Rigged humanoids with clips: **add-3d-models** → `references/model-catalog.md`, the `character/…` rows whose `[anim: …]` lists `idle` and `walk` (e.g. `base-character`, `berserker-npc`; `arissa3` has idle + running). `mannequin` returns display dummies with no clips.
 
 **What a copy can visibly differ in** is decided by wearable *categories*, which you can read from the catalyst:
 
@@ -166,7 +189,7 @@ Useful for storefronts and wearable displays:
 
 ```typescript
 AvatarShape.create(mannequin, {
-  id: 'mannequin-1',
+  id: 'mannequin-0001',
   name: 'Display',
   wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
   showOnlyWearables: true,
