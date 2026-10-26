@@ -184,9 +184,11 @@ AvatarAttach.create(hat, {
 
 `AvatarAttach` requires the target player to be in the same scene — attachments disappear when the player leaves.
 
-**The attached entity's own `Transform` position and rotation are ignored.** Every frame the Explorer sets that entity's world position and rotation to the anchor's and writes the result back into its `Transform`. Only `scale` survives (unity-explorer `AvatarAttachUtils.ApplyAnchorPointTransformValues`, main 2026-10). Children keep their local Transforms, so to offset an attachment put the `AvatarAttach` on an empty root and parent the visible parts to it:
+**The attached entity's own `Transform` position and rotation are ignored.** Every frame the Explorer sets that entity's world position and rotation to the anchor's. Only `scale` survives (unity-explorer `AvatarAttachUtils.ApplyAnchorPointTransformValues`, main 2026-10). It then writes the pose back into the entity's `Transform`, **relative to the local player**: `position` is the anchor's world position minus the player's (world axes, not rotated into the player's facing), and `rotation` is relative to the player's rotation (`AvatarAttachHandlerSystem.UpdateAvatarAttachedEntitySDKTransform`). Children keep their local Transforms, so to offset an attachment put the `AvatarAttach` on an empty root and parent the visible parts to it:
 
 ```typescript
+import { Vector3 } from '@dcl/sdk/math'
+
 const anchor = engine.addEntity()
 Transform.create(anchor, {})
 AvatarAttach.create(anchor, { anchorPointId: AvatarAnchorPointType.AAPT_HIP })
@@ -196,7 +198,7 @@ GltfContainer.create(padlock, { src: 'assets/Models/padlock.glb' })
 Transform.create(padlock, { parent: anchor, position: Vector3.create(0.15, -0.1, 0.12) }) // offset from the hip
 ```
 
-**Measure a seat offset; don't tune it by eye.** In the Locksmith scene (2026-10) the owner corrected a seated player's position six times over two days. What fixed it: during `sittingChair`, the hip sits about 0.37 m behind the avatar root, and the seat offset became 0.38 m. That value comes from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP`, play the sitting emote, and read its world position with the Explorer MCP's `get_entity_details` (**unity-explorer-mcp**). Then place the player root so the hip lands on the seat.
+**Measure a seat offset; don't tune it by eye.** In the Locksmith scene (2026-10) the owner corrected a seated player's position six times over two days. What fixed it: during `sittingChair`, the hip sits about 0.37 m behind the avatar root, and the seat offset became 0.38 m. That value comes from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP` and play the sitting emote. Then read its `Transform` (`Transform.get` in scene code, or the Explorer MCP's `get_entity_details`, **unity-explorer-mcp**). By the write-back rule above, its `position` is the hip's offset from the player root in world axes, so turn it into the chair's frame using the player's facing. Then place the player root so the hip lands on the seat.
 
 > **Before picking `AvatarAttach`, decide whether the item is cosmetic or aim-critical.** Bone anchors inherit avatar skeleton animation (idle bob, walk cycle, gesture) — great for hats/backpacks/halos, **bad** for held weapons, aiming reticles, or anything where relative position must stay stable. See **Held items vs cosmetic items** below.
 

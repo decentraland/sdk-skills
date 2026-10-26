@@ -28,14 +28,14 @@ console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFix
 "
 ```
 
-**The `World min`/`max` this prints are glTF axes, not DCL axes.** Decentraland mirrors the glTF X axis (verified in both renderers — see [`blender-authoring.md`](blender-authoring.md)), so convert before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over unchanged. This only bites for models whose placement is baked into the mesh — see the axis section in [`blender-authoring.md`](blender-authoring.md).
+**The `World min`/`max` this prints are glTF axes, not DCL axes.** Decentraland mirrors the glTF X axis (verified in both renderers — see [`blender-authoring.md`](blender-authoring.md)), so convert before comparing against scene bounds: `dclMinX = -gltfMaxX`, `dclMaxX = -gltfMinX`; Y and Z carry over unchanged. This matters for every model that isn't symmetric in X: its extents land on the opposite side of the origin from where the glTF numbers put them. Baked-placement models get it worst, since the whole mesh can land outside the scene (axis section in [`blender-authoring.md`](blender-authoring.md)).
 
-Safe placement zone calculation:
+Safe placement zone calculation, in DCL axes:
 ```
-safeMinX = -bbox.minX + edgeMargin (>=1 m)
-safeMinZ = -bbox.minZ + edgeMargin (>=1 m)
-safeMaxX = sceneMaxX - bbox.maxX - edgeMargin
-safeMaxZ = sceneMaxZ - bbox.maxZ - edgeMargin
+safeMinX = -dclMinX + edgeMargin (>=1 m)      # dclMinX = -gltfMaxX
+safeMaxX = sceneMaxX - dclMaxX - edgeMargin   # dclMaxX = -gltfMinX
+safeMinZ = -minZ + edgeMargin (>=1 m)         # Z as printed
+safeMaxZ = sceneMaxZ - maxZ - edgeMargin
 ```
 
 ## Collider Detection Script

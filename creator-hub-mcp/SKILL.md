@@ -266,11 +266,13 @@ If a user inside the Creator Hub asks to scaffold a project or publish, point th
 - **Every thumbnail must survive a square crop: put text, logo and main subject inside the central square.** Parts of the platform show only the centre 1080x1080 of a 1920x1080 image, cutting `(1920 - 1080) / (2 * 1920) ≈ 0.219` of the width off **each** side (`THUMBNAIL_SAFE_AREA_INSET`). That's x 420–1500 at 1920 wide and x 280–1000 at 1280 wide. This applies whether you capture, render or compose the image. Before pointing the scene at it, crop the square and look at the result. Don't judge it from the full frame: a title that runs edge to edge looks fine there (Locksmith, 2026-10).
 
   ```bash
-  H=$(sips -g pixelHeight cover.png | awk '/pixelHeight/{print $2}')
-  sips -c $H $H cover.png --out /tmp/cover-square.png                                # macOS: centred square crop
-  magick cover.png -gravity center -crop ${H}x${H}+0+0 +repage /tmp/cover-square.png  # or ImageMagick
+  OUT="${TMPDIR:-/tmp}/cover-square.png"
+  # macOS
+  H=$(sips -g pixelHeight cover.png | awk '/pixelHeight/{print $2}'); sips -c $H $H cover.png --out "$OUT"
+  # ImageMagick (any OS)
+  H=$(magick identify -format %h cover.png); magick cover.png -gravity center -crop ${H}x${H}+0+0 +repage "$OUT"
   ```
 
-  Then `Read` `/tmp/cover-square.png`. Every word of the text must be in it.
+  Then `Read` the square image. Every word of the text must be in it.
 - **No `node` / `npx` on PATH is not a dead end.** The Creator Hub ships a complete Node (v22, with `npm` and `npx`) and runs every `sdk-commands` child on it (`main/src/modules/node-runtime.ts`, `scripts/download-node.js`): macOS `/Applications/Decentraland Creator Hub.app/Contents/Resources/node-bin/bin/{node,npm,npx}`, Windows `resources\node-bin\node.exe` (plus `npm.cmd` / `npx.cmd`) in the `resources` folder next to the Creator Hub executable, Linux `resources/node-bin/bin/`. Call it by absolute path for `npx tsc --noEmit`, `npx skills add decentraland/sdk-skills --all`, `gltf-transform`, and the like on a creator's machine that has no Node of its own. (Development builds of the Hub carry no bundle and use the developer's Node.)
 - **`asset-packs::Placeholder` `src` needs a resolved file path, not a template variable.** The catalog stores paths with `{assetPath}/model.glb` as a template; setting that string literally via `set_component` produces an invisible or broken gizmo because the engine cannot resolve the variable. `place_smart_item` resolves the path automatically (e.g. to `assets/asset-packs/spotlight/spotlight.glb`). If you must set `Placeholder` manually, use the real on-disk path to the GLB file.

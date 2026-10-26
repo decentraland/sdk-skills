@@ -169,8 +169,6 @@ Choosing a value:
 > 2. Leave the `VirtualCamera` entity (and its rig parents) **alive for ~1 second** so the renderer can blend back to the player camera.
 > 3. Then `engine.removeEntity(...)` the rig.
 >
-> **The way back ignores `defaultTransition`.** Returning to the first-person, third-person or drone camera is always a fixed 0.5 s ease-in-out blend (the Explorer's camera blend settings, unity-explorer main 2026-10). From a shot far from the player that reads as a jump. To hand back smoothly, read the player camera's pose from `Transform.get(engine.CameraEntity)` when the shot starts. Tween the virtual camera to that pose before releasing, then clear `virtualCameraEntity` once it arrives (0.9 s worked in the Locksmith scene, 2026-10).
->
 > ```typescript
 > let rigDestroyTimer = 0
 > function rigDestroySystem(dt: number) {
@@ -186,6 +184,11 @@ Choosing a value:
 > ```
 >
 > If the camera is reused rather than one-shot, simply keep the entity around and skip the delete.
+>
+> **The way back ignores `defaultTransition`.** Returning to the first-person, third-person or drone camera is always a fixed 0.5 s ease-in-out blend (the Explorer's camera blend settings, unity-explorer main 2026-10). From a shot far from the player that reads as a jump. To hand back smoothly, tween the virtual camera to the player camera's pose, then clear `virtualCameraEntity` once it arrives (a 0.9 s tween worked in the Locksmith scene, 2026-10):
+>
+> - Read the pose from `Transform.get(engine.CameraEntity)` **just before the handback tween starts**, not at shot start: if the avatar moved during the shot, an early pose is stale.
+> - Tween the entity that carries the camera's world pose. On a parented rig like the spectate one, unparent the camera first. Otherwise tween the rig root so that the camera, not the root, ends on that pose. A tween on a child runs in its parent's local space, so a world pose fed to it lands somewhere else.
 
 **Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
 
