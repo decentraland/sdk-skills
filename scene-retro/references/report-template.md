@@ -41,7 +41,7 @@ Name the claim, explain the conflicting or insufficient evidence, and propose th
 
 ### Appendix: skill use
 
-A small table: skill, bucket (invoked/loaded, partial read, located only, installed with no evidence of use, relevant in hindsight), when it was consulted relative to the failure, access method, and a local evidence reference (transcript file and line or timestamp, commit hash). No full transcript excerpts.
+A small table: skill, bucket (invoked/loaded, partial read, located only, installed with no evidence of use, relevant in hindsight), when it was consulted relative to the failure, access method, and a local evidence reference (transcript file relative to its transcript root, with line or timestamp; commit hash). No absolute home paths. No full transcript excerpts.
 
 ## Entry format
 
@@ -54,14 +54,14 @@ Each substantive finding makes these six points clear, in prose or as a short li
 5. **Fix:** what fixed it, and how that result was checked.
 6. **Proposed change:** the documentation change, ideally as the sentence or example to add.
 
-Add the classification (incorrect guidance, missing guidance, discoverability, agent error, platform defect, unverified hypothesis) next to the title.
+Add the classification next to the title, using the same names as the skill: incorrect skill guidance, missing guidance, discoverability or workflow weakness, agent error, SDK/Explorer/Creator Hub defect, unverified hypothesis.
 
-Illustrative entry (shows the format; the facts come from `add-interactivity`):
+Illustrative entry. It shows only the format, not a real gap: the scenario is hypothetical, and the current `add-interactivity` skill already documents this behaviour ("What the outline draws"). Don't copy it into a report or treat it as a known issue.
 
-> **Hover outline lit up the whole parent model** (missing guidance)
+> **Hover outline lit up the whole parent model** (missing guidance, in a hypothetical skill that omitted it)
 > 1. Skill: `add-interactivity`, section on pointer events.
 > 2. Consulted: loaded before the first attempt.
 > 3. Symptom: hovering one drawer highlighted the entire cabinet.
-> 4. Evidence: [in-world] screenshot of the outlined cabinet; [source] `PointerEvents` was on the parent entity.
-> 5. Fix: moved `PointerEvents` to the child entity; re-checked by hovering in the Explorer [in-world].
-> 6. Proposed change: "The hover outline covers every mesh under the entity that holds `PointerEvents`. Put it on the smallest entity that should glow."
+> 4. Evidence: [in-world] screenshot of the outlined cabinet; [source] the collider and `PointerEvents` were on the parent entity.
+> 5. Fix: moved the collider and `PointerEvents` to the child entity; re-checked by hovering in the Explorer [in-world].
+> 6. Proposed change: "The hover outline covers every mesh under the entity that owns the hit collider and `PointerEvents`. Put both on the smallest entity that should glow."
