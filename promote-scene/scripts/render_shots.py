@@ -113,6 +113,10 @@ def load(path, at=(0, 0, 0), rot=0, scale=1.0, align_long_x=False, anchor='botto
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
     new = [o for o in bpy.data.objects if o not in before]
+    # The engine strips *_collider meshes to physics; Blender renders them as white boxes. Drop them.
+    for o in [o for o in new if '_collider' in o.name.lower()]:
+        bpy.data.objects.remove(o, do_unlink=True)
+    new = [o for o in bpy.data.objects if o not in before]
     root = bpy.data.objects.new(os.path.basename(path) + '_root', None)
     bpy.context.scene.collection.objects.link(root)
     for o in new:

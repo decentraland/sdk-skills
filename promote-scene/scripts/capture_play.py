@@ -80,6 +80,23 @@ class Explorer:
     def walk(self, seconds, dx=0, dy=1, kind='jog'): return self.call('walk', directionX=dx, directionY=dy, seconds=seconds, kind=kind)
     def press(self, action, **a): return self.call('press_input', action=action, **a)
     def camera_mode(self, mode): return self.call('set_camera_mode', mode=mode)
+    def camera_pose(self, x, y, z, look=None):
+        a = {'x': x, 'y': y, 'z': z}
+        if look: a.update({'lookAtX': look[0], 'lookAtY': look[1], 'lookAtZ': look[2]})
+        return self.call('set_camera_pose', **a)
+
+    def back_to_player(self, mode='third_person', timeout=6):
+        """Leave a free-camera pose and confirm the mode took: set_camera_mode can answer without the
+        camera returning, and the next take is then recorded from the stale pose."""
+        norm = lambda m: str(m or '').replace('_', '').lower()   # 'third_person' / 'ThirdPerson'
+        self.camera_mode(mode)
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            p = self.player()
+            if isinstance(p, dict) and norm((p.get('camera') or {}).get('mode')) == norm(mode):
+                return p
+            time.sleep(0.5)
+        raise RuntimeError('camera still not %s after %ds; fix it before the next take' % (mode, timeout))
 
     def wait_ready(self, timeout=300):
         t0 = time.time()

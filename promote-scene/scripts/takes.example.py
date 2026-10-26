@@ -2,6 +2,9 @@
 # promote/tools/takes.py and rewrite for the scene: read its source for the trigger rectangles, NPC spots,
 # input actions and debug keys; the numbers below are that scene's. Edit this file OUTSIDE the scene folder
 # while the Explorer is up (any write under the scene restarts the scene and locks the player mid-take).
+# Record the takes that use the scene's own camera before any free-camera shot (ex.camera_pose), and end
+# every free-camera take with ex.back_to_player(): set_camera_mode alone once left the camera on the free
+# pose and the next take was recorded from it.
 #
 # What each pattern is for:
 #   begin()            every scene restart: title card away (a root click), cheat on, debug overlay off
