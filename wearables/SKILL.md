@@ -24,7 +24,7 @@ Never build an avatar mesh or armature by hand. The [Decentraland Tools add-on](
 | `AvatarShape_B.blend` | **Male** body |
 | `Avatar_File.blend` | Animation rig, for emotes (see **avatar-animations**). Not for wearables. |
 
-The A = female / B = male mapping is not obvious from the names. Get it right or the representations end up swapped.
+The A = female / B = male mapping is not obvious from the names. Get it right or the representations end up swapped. The toolkit's own README had it backwards until 2026-10 (fixed in dcl-blender-toolkit #16). The mapping was confirmed by rendering both files and measuring their meshes: `ShapeA_*` has narrower shoulders (0.66 vs 0.80 m), a pinched waist and wider hips (0.41 vs 0.37 m). If in doubt, render the two bodies from the front before building.
 
 The base meshes are already weighted to the 62 avatar bones. The fastest route to a body-hugging wearable is to **start from the base mesh of its category** (the upper-body mesh has `uBody` in its object name). Reshape it or inflate it slightly along its normals, delete every other mesh, and add rigid parts.
 

@@ -48,7 +48,7 @@ The Builder validates against `WearableConfigSchema` (builder-client) with `addi
 - `description`: **max 64 characters**. The commonest cause of the error. A longer description can be written in the Builder's item editor after upload.
 - `rarity`: `unique` (1) · `mythic` (10) · `exotic` (50) · `legendary` (100) · `epic` (1000) · `rare` (5000) · `uncommon` (10000) · `common` (100000).
 - `id`: a UUID. Generate a fresh one when forking a project (`crypto.randomUUID()` / `uuidgen`).
-- `data` requires **all five**: `replaces`, `hides`, `tags`, `representations`, `category` — use `[]` for unused lists.
+- `data` requires **all five**: `replaces`, `hides`, `tags`, `representations`, `category`. `replaces`, `hides` and `tags` may be `[]`; `representations` needs at least one entry. `data` also accepts the optional `removesDefaultHiding` and `blockVrmExport`; smart wearables rarely need them, but they are not rejected.
 - `representations[]`: `bodyShapes` (`urn:decentraland:off-chain:base-avatars:BaseMale` / `…:BaseFemale`), `mainFile`, `contents` (must include `mainFile`; paths relative to the project root), `overrideHides`, `overrideReplaces`. Both body shapes must be covered.
 - `category`: `eyebrows`, `eyes`, `facial_hair`, `hair`, `mouth`, `upper_body`, `lower_body`, `feet`, `earring`, `eyewear`, `hat`, `helmet`, `mask`, `tiara`, `top_head`, `skin`, `hands_wear`.
 
@@ -103,11 +103,11 @@ The code runs **only on the wearer's client**. Design every visible effect aroun
 | The wearable model itself | ✅ | ✅ |
 | Avatar emote played with `triggerSceneEmote()` / `triggerEmote()` | ✅ | ✅ |
 | Props and bone-driven particles inside that emote file | ✅ | ✅ |
-| Sound inside the emote file | ❌ | ❌ |
+| Emote sound (scene emotes fetch none) | ❌ | ❌ |
 | Player motion from `Physics` impulses / `AvatarLocomotionSettings` | ✅ | ✅ (it's the avatar's movement) |
 
 - **To show an effect to everyone, put it in an emote as a prop.** Particles must be meshes skinned to animated prop bones — see `{baseDir}/../avatar-animations/references/emote-props.md`. `ParticleSystem` and scene entities are invisible to others.
-- **Scene emotes play no audio** — `triggerSceneEmote` loads the emote with empty audio contents (Explorer `LoadSceneEmotesSystem`; PR #4214: "no audio for those though"). Only Builder-uploaded emotes play sound. There is currently no way to make a smart-wearable sound audible to others; report it via **report-sdk-issue** if the user needs it.
+- **Scene emotes play no audio.** Sound is never part of the GLB: a Builder emote ships it as a separate audio file in the upload zip. `triggerSceneEmote` loads only the main GLB, and its representation's contents list is empty, so no audio file is ever fetched (Explorer `LoadSceneEmotesSystem`; PR #4214: "no audio for those though"). Only Builder-uploaded emotes play sound. There is currently no way to make a smart-wearable sound audible to others; report it via **report-sdk-issue** if the user needs it.
 - **Wearer-only sound:** an entity with `AvatarAttach { anchorPointId: AvatarAnchorPointType.AAPT_POSITION }` (the field is required) plus a looping `AudioSource` with `playing: false`; toggle `playing`. Only the wearer hears it.
 - **Abilities used while moving → mask the emote.** `triggerSceneEmote({ src, loop: true, mask: AvatarMask.AM_UPPER_BODY })` keeps playing through jumps and falls (a full-body emote is cut by locomotion), props still play, and the mask is replicated to remote players. Stop with `stopEmote({})`. Masked emotes emit no `AvatarEmoteCommand` events on the local player — track state yourself.
 
@@ -150,7 +150,7 @@ Create one `AssetLoad` entity in `main()` listing the emote `.glb` and the sound
 
 ## Pre-upload checklist
 
-- [ ] `wearable.json`: only allowed top-level keys; `description` ≤ 64 chars; all five `data` lists present; both body shapes covered; fresh UUID.
+- [ ] `wearable.json`: only allowed top-level keys; `description` ≤ 64 chars; all five required `data` keys present; both body shapes covered; fresh UUID.
 - [ ] Each GLB within category limits (**wearables**); both body shapes exported and referenced.
 - [ ] `thumbnail.png` 256 px square, transparent.
 - [ ] `.dclignore` covers `blender/`, `assets/Images`, `*.zip`; `navmapThumbnail` empty.
