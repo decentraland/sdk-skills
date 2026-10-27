@@ -19,6 +19,8 @@ If the user hasn't described their scene, ask them:
 - How many parcels? (default: 1 parcel = 16x16m)
 - Any specific features? (3D models, interactivity, UI, multiplayer)
 
+Do not plan a login, nickname prompt, chat, friends list, emote menu, avatar editor or loading screen by default: the Explorer provides all of them (**game-design** → *The platform already provides this*).
+
 ## 2. Scaffold the Project with `/init`
 
 **Always run `/init` first.** This uses the official `@dcl/sdk-commands init` to create scene.json, package.json, tsconfig.json, and src/index.ts with the correct, up-to-date configuration, and installs dependencies automatically.

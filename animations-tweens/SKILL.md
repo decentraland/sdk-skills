@@ -241,6 +241,26 @@ Available from `EasingFunction`: `EF_LINEAR`, `EF_EASEINQUAD`/`EASEOUTQUAD`/`EAS
 
 For complex animations, create a system with `engine.addSystem((dt) => { ... })` and modify `Transform.getMutable(entity)` each frame. Use a custom component (e.g. `Spinner`) to mark which entities need animating.
 
+### Following / easing toward a moving goal: tween first, `dt`-based smoothing second
+
+- **Default: continuous tweens.** For an entity that keeps chasing a goal that moves (pet, homing pickup, follower, drifting marker), use `Tween.setMoveContinuous` / `setRotateContinuous`, re-aimed only when the direction changes materially. The renderer interpolates at display frame rate from its own live transform, so motion is frame-rate independent with no per-frame CRDT writes. Full chase loop: `{baseDir}/references/animation-patterns.md` → *Follow a constantly changing target*.
+- Continuous modes move at **constant speed** and have no destination. Stop them yourself (`Tween.deleteFrom` on a distance check, or the stop-after `duration`).
+- **Use a system instead** when the motion must *decelerate into* the goal (a follow that slows as it arrives) or when the eased value is not a transform (volume, a UI number, a material color). A system writes a CRDT update every frame for each moving entity, so keep it to a few entities.
+- **In a system, never use a fixed lerp factor per frame** (`x += (goal - x) * 0.1`). It converges faster at 60 fps than at 30 fps, so the feel changes with the player's frame rate. Make the factor depend on `dt` (seconds):
+
+```typescript
+const RATE = 8 // per second; ~5 = floaty, ~12 = snappy
+engine.addSystem((dt) => {
+  const pos = Transform.get(follower).position
+  const goal = Transform.get(engine.PlayerEntity).position
+  if (Vector3.distanceSquared(pos, goal) < 0.0001) return // settled: stop writing
+  const t = 1 - Math.exp(-RATE * dt)                      // same feel at any frame rate
+  Transform.getMutable(follower).position = Vector3.lerp(pos, goal, t)
+})
+```
+
+For rotations use `Quaternion.slerp(current, target, t)` with the same `t`; for plain numbers, `Scalar.lerp` (all from `@dcl/sdk/math`).
+
 ## Troubleshooting
 
 | Problem                                             | Cause                                                                                                                                                                    | Solution                                                                                                                                                                                                           |

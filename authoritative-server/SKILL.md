@@ -82,7 +82,14 @@ Persist data across server restarts. **Server-only** — guard with `isServer()`
 - **Scene Storage** (global, shared across all players): `Storage.set/get/delete(key)` — top-level methods on `Storage`
 - **Player Storage** (per-player, scoped by wallet address): `Storage.player.set/get/delete(address, key)`
 
-Storage only accepts strings — use `JSON.stringify()`/`JSON.parse()` for objects. Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
+Values are JSON: `set` serializes any JSON-serializable value (it throws on `undefined`, `NaN`/`Infinity`, functions, `Map`/`Set`), and `get<T>` resolves the parsed value, or `null` **only** when the key does not exist. A **failed read throws** — it is never reported as `null`. Stringified JSON (`JSON.stringify` on write, `JSON.parse` on read) still works, since a string is valid JSON. Verified in `@dcl/sdk@auth-server` (js-sdk-toolchain `auth-server` @ `10922ec`, `packages/@dcl/sdk/src/server/storage/{scene,player}.ts`).
+
+- **Load or create — never assign defaults on join.** Writing a fresh save every time a player joins wipes their progress. `get` first; create only on `null`; keep the loaded object with `saves[address] ??= …`. Never catch a failed read and fall back to defaults followed by a write.
+- **Validate every transfer server-side.** Reject an `amount` that is not a positive finite integer (`Number.isInteger(amount) && amount > 0`) and check the sender holds enough; otherwise a negative amount moves currency the wrong way. `Schemas.Int` does not constrain the sign.
+- **Idle/offline progress from timestamps, not timers.** Save the server's `Date.now()` with the state; on the next visit add `rate × elapsed` (capped), then advance the timestamp. Never trust a client-sent time.
+- Code for all three: `{baseDir}/references/server-patterns.md` → *Load-or-create a player save*, *Validate every transfer on the server*, *Progress while nobody is in the scene*.
+
+Local dev storage is at `node_modules/@dcl/sdk-commands/.runtime-data/server-storage.json`. Production storage at [decentraland.org/storage](https://decentraland.org/storage). CLI: `npx sdk-commands storage scene/player set/get/delete ...`. Storage persists across deploys (scoped to world, not hash).
 
 There is **no append and no compare-and-set** — adding to a log is read-modify-write, so two server instances (the window where an old and a new deploy overlap) can lose each other's rows: re-reading and merging by id right before the write narrows the window but cannot close it. For a growing log (playtest answers, round history, telemetry) split it across numbered keys with a head key that names the current part: see `{baseDir}/references/server-patterns.md` → *Append-only logs: rolling CSV parts in Storage*, the pattern the Scene Feedback module uses.
 

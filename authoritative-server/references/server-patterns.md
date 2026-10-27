@@ -254,6 +254,74 @@ async function flush() {
 
 Persist on: game over, player leaves, round end, or a periodic debounced save. Never persist on: every score change, every position update, every frame/tick.
 
+### Load-or-create a player save (never overwrite on join)
+
+Assigning default data every time a player joins wipes their save. Read first; create only on a confirmed absence. `Storage.player.get` resolves `null` only when the key does not exist and **throws** when the read fails — let it throw (or retry), never fall back to defaults followed by a write.
+
+```typescript
+type PlayerSave = { coins: number; crops: number; grownAt: number }
+const saves: Record<string, PlayerSave> = {} // in-memory working state, keyed by lower-cased address
+// `dirty` is the Set from the checkpoint example above; its flush writes Storage.player.set(address, 'save', saves[address])
+
+async function loadOrCreate(address: string): Promise<PlayerSave> {
+  const key = address.toLowerCase()
+  if (saves[key]) return saves[key]                       // already loaded this session
+  const stored = await Storage.player.get<PlayerSave>(key, 'save') // throws on failure
+  if (stored) return (saves[key] ??= stored)
+  const fresh: PlayerSave = { coins: 0, crops: 0, grownAt: Date.now() }
+  saves[key] ??= fresh
+  dirty.add(key)                                          // persisted at the next checkpoint
+  return saves[key]
+}
+
+room.onMessage('playerJoin', async (_data, context) => {
+  const save = await loadOrCreate(context.from)
+  settleIdle(save) // see below
+})
+```
+
+`??=` keeps whichever value landed first if two joins race. Same rule for scene-wide state: `Storage.get(key)` → create only on `null`.
+
+### Validate every transfer on the server
+
+A client message is a request, not a fact. Before moving currency or items, check the amount is a positive finite number (an integer, for counts) and that the sender holds enough — otherwise `amount: -500` moves money *to* the sender. `Schemas.Int` constrains the type, not the sign.
+
+```typescript
+room.onMessage('giveCoins', (data, context) => {
+  const from = saves[context.from.toLowerCase()]
+  const to = saves[String(data.to).toLowerCase()]
+  const amount = data.amount
+  if (!from || !to || from === to) return
+  if (!Number.isInteger(amount) || amount <= 0) return  // rejects NaN, Infinity, negatives, fractions
+  if (from.coins < amount) return
+  from.coins -= amount
+  to.coins += amount
+  dirty.add(context.from.toLowerCase()); dirty.add(String(data.to).toLowerCase())
+})
+```
+
+Apply the same checks to buys, sells, crafting and rewards: the server computes the price and the result; the client only names what it wants.
+
+### Progress while nobody is in the scene (idle / offline)
+
+Never keep a timer running for crops, restocks or energy refills: the server may be stopped between visits and the client is gone. Store the time progress was last settled; on the next visit compute progress from elapsed time and move the timestamp forward. Use the **server's** `Date.now()` — a client clock can be set forward to skip waits, so never accept a client-sent timestamp.
+
+```typescript
+const MS_PER_CROP = 60_000
+const MAX_CROPS = 50
+
+function settleIdle(save: PlayerSave, now = Date.now()) {
+  const elapsed = Math.max(0, now - save.grownAt)        // ignore backwards clock jumps
+  const grown = Math.floor(elapsed / MS_PER_CROP)
+  if (grown === 0) return
+  save.crops = Math.min(MAX_CROPS, save.crops + grown)
+  // Keep the unfinished remainder; once capped, restart the clock at now.
+  save.grownAt = save.crops >= MAX_CROPS ? now : save.grownAt + grown * MS_PER_CROP
+}
+```
+
+Call it on join and before any action that reads or spends the progressed value (harvest, buy); persist at checkpoints like any other state. Scene-wide variants (a shop restock shared by everyone) store the timestamp under a scene key instead.
+
 ### Append-only logs: rolling CSV parts in Storage
 
 Storage holds **strings keyed by name**, with no append operation and **no compare-and-set** — so an append is read-modify-write, and a growing log must be split across keys before it hits the per-value ceiling. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, server side in `src/scene-feedback/lib/server/`) is the reference implementation of this pattern; reuse its shape for any server-side event log (playtest answers, round results, telemetry).

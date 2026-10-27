@@ -278,6 +278,50 @@ Transform.create(mover, { position: Vector3.create(8, 0, 8) })
 MeshCollider.setBox(mover, ColliderLayer.CL_CUSTOM1)
 ```
 
+### Collectible Pickup (spinning coin, delayed removal)
+
+```typescript
+import {
+  engine, Transform, MeshRenderer, Tween, TriggerArea, triggerAreaEventsSystem,
+  AudioSource, EasingFunction, timers
+} from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+// One shared SFX entity that outlives the coins (removing an entity silences its AudioSource)
+const sfx = engine.addEntity()
+Transform.create(sfx, { position: Vector3.create(8, 1, 8) })
+AudioSource.create(sfx, { audioClipUrl: 'assets/Audio/coin.mp3', playing: false })
+
+function spawnCoin(position: Vector3) {
+  const coin = engine.addEntity() // parent: position, trigger, spin around world Y
+  Transform.create(coin, { position })
+  Tween.setRotateContinuous(coin, Quaternion.fromEulerDegrees(0, 90, 0), 180) // 180°/s
+  TriggerArea.setBox(coin) // 1 m box from the parent's unit scale
+
+  const disc = engine.addEntity() // child: thin cylinder stood upright so its face shows
+  Transform.create(disc, {
+    parent: coin,
+    rotation: Quaternion.fromEulerDegrees(90, 0, 0),
+    scale: Vector3.create(0.6, 0.06, 0.6)
+  })
+  MeshRenderer.setCylinder(disc)
+
+  let collected = false
+  triggerAreaEventsSystem.onTriggerEnter(coin, (result) => {
+    if (collected || result.trigger?.entity !== engine.PlayerEntity) return
+    collected = true // gate repeats: enter can fire again before removal
+    Transform.getMutable(sfx).position = position
+    AudioSource.getMutable(sfx).pitch = 1 + (Math.random() * 2 - 1) * 0.06
+    AudioSource.playSound(sfx, 'assets/Audio/coin.mp3')
+    Tween.setScale(disc, Vector3.create(0.6, 0.06, 0.6), Vector3.Zero(), 120, EasingFunction.EF_EASEINBACK)
+    timers.setTimeout(() => {
+      triggerAreaEventsSystem.removeOnTriggerEnter(coin)
+      engine.removeEntityWithChildren(coin)
+    }, 120) // the scale-out covers the disappearance
+  })
+}
+```
+
 ---
 
 ## Raycasting

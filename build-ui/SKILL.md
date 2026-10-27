@@ -23,6 +23,7 @@ Both are ordinary React-ECS and run anywhere; the editable contract is a *subset
 | Open a web page | `openExternalUrl` | **scene-runtime** |
 | Clickable objects in 3D space | pointer events | **add-interactivity** |
 | On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
+| Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | **game-design** → *The platform already provides this* |
 
 ## Choosing the mode
 
