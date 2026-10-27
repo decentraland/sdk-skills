@@ -54,7 +54,7 @@ Sources: `@dcl/ecs/src/systems/raycast.ts`, protocol `raycast.proto` / `raycast_
 **First person:** one ray from the camera along the look direction. Cheapest form: a child entity of `engine.CameraEntity` with a **continuous** `Raycast` (`localDirection: (0,0,1)`) while the weapon is equipped. On fire, read its latest `RaycastResult`, so there is no extra async wait.
 
 **Third person: use two rays.** A ray from the camera alone hits things the avatar cannot see: it shoots *past* the cover the avatar stands behind, or around corners.
-1. **Aim ray**, from the camera along the look direction. Its closest hit, or `camPos + dir * range` if nothing is hit, is the **aim point**: what the crosshair is on.
+1. **Aim ray**, from the camera along the look direction. Its closest hit, or `camPos + dir * range` if nothing is hit, is the **aim point**: what the crosshair is on. The camera sits behind the avatar, so **ignore hits nearer than the avatar** along the look direction (query all hits and filter by `length`). Otherwise a wall behind the player becomes the aim point and the shot fires backwards. As a last guard, an aim point behind the shoulder falls back to straight ahead.
 2. **Fire ray**, from the shoulder toward the aim point, with `maxDistance = distance(shoulder, aimPoint) + 0.25`. Whatever this ray hits first is what the shot actually hits. If that is a wall before the aim point, the wall takes the hit.
 
 Keep the aim ray continuous, so on fire only the fire ray is async. In first person, skip ray 2.
@@ -68,12 +68,12 @@ Full code: `{baseDir}/references/hitscan.md`. It covers the aim ray, the two-ray
 An entity with a custom `Projectile` component (velocity, gravity, age, max age, owner, damage), moved by one system:
 
 1. **Check before you move.** Each tick, read the projectile's continuous look-ahead `RaycastResult`. If a valid hit lies within this tick's travel distance, measured along the direction of travel (`dot(hit.position - pos, dir) <= speed * dt`, including negative values caught late), it is an impact: resolve it at `hit.position` and remove the projectile.
-2. Otherwise move: `pos += v * dt`, then `v.y -= g * dt` (gravity applied by hand), and face the direction of travel with `Quaternion.lookRotation(dir)`.
+2. Otherwise move with the exact constant-gravity step: `pos += v * dt`, minus `0.5 * g * dt²` on y, then `v.y -= g * dt`, and face the direction of travel with `Quaternion.lookRotation(v)`. Moving with the old velocity and only then applying gravity makes every arc land long of where `solveBallistic` aimed it.
 3. Re-aim the look-ahead ray along the new direction, with `maxDistance = speed * dt * 3 + 0.5`. Because results lag a tick or two, the ray has to reach further than one step. That is what stops fast shots tunneling through thin walls.
 
 Rules:
 - **Spawn about 1 m clear of the muzzle**, along the aim direction, so the first step cannot start inside the shooter or the gun. Also drop `entityId === engine.PlayerEntity` hits for the local player's own projectiles.
-- **Lifetime cap** (for example 4-6 s), plus the 64 m raycast-distance cutoff above. Always remove the entity, even on a miss.
+- **Lifetime cap** (for example 4-6 s) **and a range cap**: remove the projectile once it is more than ~60 m from the camera. Past the 64 m cutoff above its look-ahead ray stops running, and a fast shot flies through everything. Always remove the entity, even on a miss.
 - **No collider on the projectile.** Use `MeshRenderer` without a `MeshCollider`, or for a GLB set `invisibleMeshesCollisionMask: 0` (its default is `CL_POINTER | CL_PHYSICS`). Otherwise other rays, and the player, collide with bullets.
 - A projectile's `Raycast` updates every tick. Keep the number of live projectiles small (tens, not hundreds). Pool entities rather than creating and removing them every shot if fire rates are high.
 
@@ -88,7 +88,7 @@ Full system, spawn helper and solver: `{baseDir}/references/projectiles.md`.
 - `applyDamage(target, amount, sourceId)` is the single entry point. It ignores dead or invulnerable targets, subtracts HP, records `lastDamageSource`, starts a short **invulnerability window** (i-frames, about 0.1-0.5 s for multi-hit weapons, about 1-2 s after the local player takes damage or respawns), then fires feedback and, at 0 HP, the death handler.
 - **Damage source id:** use a string (`getPlayer()?.userId` for players, `'npc:<name>'` or `'hazard:<name>'` otherwise). It decides kill credit and ignores friendly fire, and it is what you send over the network.
 - **Local player health** lives in your own state entity. Do not put it on `engine.PlayerEntity`, whose Transform is engine-owned. Death: freeze with `InputModifier` (`disableAll`), show the UI, then `timers.setTimeout`, `movePlayerTo({ newRelativePosition: spawn })` from `~system/RestrictedActions`, remove the `InputModifier`, restore HP, and grant spawn protection.
-- **Enemy death:** play the animation or particles, stop its AI, then remove it after a `timers.setTimeout` (or pool it).
+- **Enemy death:** play the animation or particles, stop its AI, then remove it after a `timers.setTimeout` with **`engine.removeEntityWithChildren`** (or pool it). Its hitboxes are child entities: plain `engine.removeEntity` leaves them behind as invisible colliders that keep blocking shots. Drop the hitbox colliders at the moment of death, so the corpse doesn't absorb shots during the animation.
 
 Code: `{baseDir}/references/health-damage.md`.
 
@@ -110,7 +110,7 @@ Code: `{baseDir}/references/health-damage.md`.
 - **Bind fire to `InputAction.IA_POINTER`** (left mouse; the interaction button on mobile). Secondary or alt fire: `IA_PRIMARY` (E) / `IA_SECONDARY` (F). Weapon slots: `IA_ACTION_3`-`IA_ACTION_6` (keys 1-4). There is **no right-mouse `InputAction`** (protocol `input_action.proto`), so aim-down-sights needs a key.
 - **Semi-auto:** `inputSystem.isTriggered(IA_POINTER, PET_DOWN)` fires once per press. **Auto:** `inputSystem.isPressed(IA_POINTER)` every tick, gated by a cooldown. Both called **without an entity** are answered from every entity's input results (see **advanced-input**). For a gun that is what you want: a click anywhere fires.
 - **Fire-rate cooldown:** accumulate `dt` in the weapon system (`cooldown -= dt; if (cooldown <= 0 && wantsFire) { fire(); cooldown = 1 / roundsPerSecond }`). Do not use `timers` for this.
-- **Pointer lock:** when locked, the desktop explorer shows its own centre crosshair (unity-explorer `UpdateCursorInputSystem`), so the look ray matches it. When unlocked, the player aims with the cursor: cast along `PrimaryPointerInfo.worldRayDirection` instead of camera forward, or request lock on equip with `PointerLock.getMutable(engine.CameraEntity).isPointerLocked = true` (**advanced-input**). The native crosshair cannot be hidden on desktop. On mobile, `TouchScreenControls.hideCrosshair()` hides it.
+- **Pointer lock:** when locked, the desktop explorer shows its own centre crosshair (unity-explorer `UpdateCursorInputSystem`), so the look ray matches it. When unlocked, the player aims with the cursor: cast along `PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity).worldRayDirection` (optional: check it before use) instead of camera forward, or request lock on equip with `PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: true })`. `PointerLock.getMutable` throws when the component was never created (**advanced-input**). The native crosshair cannot be hidden on desktop. On mobile, `TouchScreenControls.hideCrosshair()` hides it.
 - **Mobile:** touching the screen is **not** a pointer press. The player aims by turning the camera so the crosshair is on the target, then presses the on-screen `IA_POINTER` button to fire, so the look ray from the camera centre is the aim. Never hide the `IA_POINTER` button or the crosshair in a shooter. To make fire the big central button, `TouchScreenControls.setMainAction(InputAction.IA_POINTER)` (**advanced-input** → *TouchScreenControls*).
 - Gate firing on game state (equipped, alive, round active) so `IA_POINTER` still works for normal clicks elsewhere.
 
@@ -127,14 +127,15 @@ Any client-reported hit can be forged. A modified client can send "I hit X for 9
 
 | Model | APIs | Use for |
 |---|---|---|
-| **Shooter decides, victim applies** | Shooter raycasts locally, then `MessageBus.emit('hit', { target, dmg, src })`. Each client owns its own HP and applies hits addressed to it | Casual PvP / co-op. Cheap, cheatable |
+| **Shooter decides, victim applies** | Shooter raycasts locally, then `MessageBus.emit('hit', { target, dmg })`. Each client owns its own HP and applies hits addressed to it, crediting the **`sender`** argument of `on('hit', (payload, sender) => …)`, never a source id from the payload | Casual PvP / co-op. Cheap, cheatable |
 | **Shared target state** | Target `Health` on a `syncEntity`'d entity | Co-op PvE objects. CRDT is **last-write-wins**: two players damaging at once can lose a hit. Send hits as messages to one owner instead of writing HP from every client |
 | **Server decides** | Client sends a *fire intent* via `room.send('fire', { origin, dir })`. The server checks rate, the origin against the server-read player position, and range, applies damage to a server-owned synced `Health` (with `validateBeforeChange` server-only), and broadcasts results | Competitive PvP, rewards, leaderboards. See **authoritative-server** |
 
 - `MessageBus.emit` also delivers to the sender's own `on()` handler, with `sender === 'self'`. Skip those messages or the shooter applies damage twice. `MessageBus` is client-only and marked deprecated in source (**multiplayer-sync**).
+- **Kill credit comes from `sender`, not the payload.** `sender` is filled in by comms; a payload field like `src` is whatever the sending client wrote, so any player could credit a kill to someone else. The same goes for any id that matters (who fired, who healed).
 - **Don't `syncEntity` a projectile's Transform every tick.** Broadcast one "fired" event (origin, velocity, owner) and let each client simulate its own copy. Only the owner (or the server) resolves damage.
 - **The server can raycast.** The authoritative server (`decentraland/hammurabi-headless`) runs `Raycast` and writes `RaycastResult` like a client does, against the scene's colliders (`MeshCollider`, `GltfContainer` collider meshes), with the same collision masks and query types. Use it to validate a fire intent: re-cast from the server-read shooter position toward the claimed target and reject the hit if a wall is in the way. Combine with rate limits and range checks. Whether the server's rays hit **avatars** is not verified: decide the victim from player positions, not from an avatar hit on the server.
-- Remote-avatar ray hits carry no `entityId`. Identify the victim by the nearest `PlayerIdentityData` + `Transform` to `hit.position`, normalising coordinates as **player-avatar** describes (remote Transforms may be world-space). Code in hitscan.md.
+- Remote-avatar ray hits carry no `entityId`. Identify the victim by the nearest `PlayerIdentityData` + `Transform` to `hit.position`, after converting their positions to scene coordinates: remote players' Transforms are in **world** coordinates, so always subtract the base parcel × 16 (**player-avatar**). Code in hitscan.md.
 
 ## Gotchas
 

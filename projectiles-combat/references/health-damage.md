@@ -111,6 +111,25 @@ onDeath.push((target, _amount, source) => {
 })
 ```
 
+## Enemy death
+
+Hitboxes are **child entities**, and `engine.removeEntity` does not remove children: an enemy removed that way leaves its invisible hitboxes behind, blocking later shots. Remove enemies with `engine.removeEntityWithChildren`. Also drop the hitbox colliders at the moment of death, so the corpse doesn't absorb shots while its death animation plays.
+
+```typescript
+import { MeshCollider } from '@dcl/sdk/ecs'
+
+onDeath.push((target) => {
+  if (target === playerStats) return
+  for (const [hb, box] of engine.getEntitiesWith(Hitbox)) {
+    if (box.owner === target) MeshCollider.deleteFrom(hb) // stops blocking shots right away
+  }
+  // stop its AI and play the death animation / particles here
+  timers.setTimeout(() => engine.removeEntityWithChildren(target), 1000) // body + every hitbox child
+})
+```
+
+Pooling instead: hide the enemy (`VisibilityComponent`), keep the hitbox colliders off, and restore both on respawn.
+
 Environmental damage to the local player (lava, spikes, enemy fireballs): `applyDamage(playerStats, n, 'hazard:lava', 1)`. Pair with `Physics.applyKnockbackToPlayer` (**player-physics**) so the hit is felt.
 
 ## UI state for hit marker / damage flash / health bar

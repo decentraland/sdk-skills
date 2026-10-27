@@ -10,12 +10,14 @@ import {
   MeshRenderer, GltfContainer, Schemas
 } from '@dcl/sdk/ecs'
 import { Vector3, Quaternion } from '@dcl/sdk/math'
+import { applyDamage, resolveTarget, playerStats, spawnImpact } from './health-damage' // health-damage.md
 
 export const Projectile = engine.defineComponent('combat::Projectile', {
   velocity: Schemas.Vector3,   // m/s
   gravity: Schemas.Number,     // m/s^2, positive = falls. 0 = straight line
   age: Schemas.Number,         // s
   maxAge: Schemas.Number,      // s. Hard lifetime cap
+  maxRange: Schemas.Number,    // m from the camera. Past ~64 m the explorer stops running its raycast
   damage: Schemas.Number,
   source: Schemas.String,      // damage source id (userId, 'npc:turret-1', ...)
   mask: Schemas.Number,        // ColliderLayer bits the projectile collides with
@@ -23,19 +25,20 @@ export const Projectile = engine.defineComponent('combat::Projectile', {
 })
 
 const LOOKAHEAD_TICKS = 3 // results lag 1-2 ticks, so the ray must reach further than one step
+const MAX_RANGE = 60       // m from the camera: stay under the ~64 m raycast cutoff (SKILL.md)
 ```
 
 Typical masks:
 - Player's arrow (PvE): `CL_PHYSICS | CL_CUSTOM1` (walls + enemy hitboxes).
 - Player's arrow (PvP): add `CL_PLAYER`, with `fromLocalPlayer: true`.
-- Enemy fireball aimed at the local player: `CL_PHYSICS | CL_MAIN_PLAYER`, with `fromLocalPlayer: false`. Each client simulates it and damages only its own player.
+- Enemy fireball aimed at the local player: `CL_PHYSICS | CL_MAIN_PLAYER`, with `fromLocalPlayer: false`. Each client simulates it and damages only its own player: a hit on `engine.PlayerEntity` goes to `playerStats` (see `onProjectileImpact` below).
 
 ## Spawn
 
 ```typescript
 export function spawnProjectile(o: {
   muzzle: Vector3; velocity: Vector3; damage: number; source: string; mask: number
-  fromLocalPlayer: boolean; gravity?: number; maxAge?: number; model?: string; clearance?: number
+  fromLocalPlayer: boolean; gravity?: number; maxAge?: number; maxRange?: number; model?: string; clearance?: number
 }): Entity {
   const dir = Vector3.normalize(o.velocity)
   const clearance = o.clearance ?? 1 // spawn ~1 m in front of the muzzle
@@ -56,6 +59,7 @@ export function spawnProjectile(o: {
     gravity: o.gravity ?? 0,
     age: 0,
     maxAge: o.maxAge ?? 5,
+    maxRange: Math.min(o.maxRange ?? MAX_RANGE, MAX_RANGE),
     damage: o.damage,
     source: o.source,
     mask: o.mask,
@@ -97,6 +101,8 @@ export function projectileSystem(dt: number) {
     if (p.age > p.maxAge) { despawn(e); continue } // lifetime cap: always clean up
 
     const t = Transform.getMutable(e)
+    // Range cap: past ~64 m from the camera the look-ahead ray stops running and the shot would tunnel
+    if (Vector3.distance(t.position, Transform.get(engine.CameraEntity).position) > p.maxRange) { despawn(e); continue }
     const speed = Vector3.length(p.velocity)
     if (speed < 0.01) { despawn(e); continue }
     const dir = Vector3.scale(p.velocity, 1 / speed)
@@ -113,10 +119,15 @@ export function projectileSystem(dt: number) {
       }
     }
 
-    // 2. MOVE, then apply gravity by hand
-    t.position = Vector3.add(t.position, Vector3.scale(p.velocity, dt))
+    // 2. MOVE with the exact constant-gravity step, so the path matches solveBallistic.
+    // (Moving with the old velocity and only then applying gravity makes every arc land long.)
+    t.position = Vector3.create(
+      t.position.x + p.velocity.x * dt,
+      t.position.y + p.velocity.y * dt - 0.5 * p.gravity * dt * dt,
+      t.position.z + p.velocity.z * dt
+    )
     p.velocity.y -= p.gravity * dt
-    t.rotation = Quaternion.lookRotation(dir)
+    t.rotation = Quaternion.lookRotation(p.velocity)
 
     // 3. RE-AIM the look-ahead ray from the new position along the new direction
     Raycast.createOrReplace(e, {
@@ -134,10 +145,16 @@ function despawn(e: Entity) {
   engine.removeEntity(e) // also drops its Raycast / RaycastResult
 }
 
-// Wire to health-damage.md: applyDamage + spawnImpact. Called once per projectile.
-function onProjectileImpact(e: Entity, hit: Hit, p: { damage: number; source: string }) {
-  // if (hit.entityId !== undefined) applyDamage(resolveTarget(hit.entityId as Entity), p.damage, p.source)
-  // if (hit.position) spawnImpact(hit.position, hit.normalHit)
+// Called once per projectile.
+function onProjectileImpact(e: Entity, hit: Hit, p: { damage: number; source: string; fromLocalPlayer: boolean }) {
+  if (hit.entityId === engine.PlayerEntity) {
+    // An enemy shot reached the local player's capsule (CL_MAIN_PLAYER). The player's HP lives on playerStats.
+    if (!p.fromLocalPlayer) applyDamage(playerStats, p.damage, p.source, 1)
+  } else if (hit.entityId !== undefined) {
+    const t = resolveTarget(hit.entityId as Entity) // a Hitbox child resolves to its owner + multiplier
+    if (t) applyDamage(t.target, p.damage * t.multiplier, p.source)
+  }
+  if (hit.position) spawnImpact(hit.position, hit.normalHit)
   despawn(e)
 }
 ```
@@ -147,6 +164,7 @@ Notes:
 - An explosive (grenade, rocket) applies area damage at impact: loop over `Health` entities within a radius, and use `Physics.applyKnockbackToPlayer(pos, mag, radius, KnockbackFalloff.LINEAR)` for the local player (**player-physics**).
 - A grenade with a fuse instead of impact: on a world hit, reflect the velocity, `v - 2*dot(v,n)*n`, times a damping factor (for example 0.4), using `hit.normalHit`, and explode when `age` reaches the fuse time.
 - Live-projectile budget: every projectile is one ray per tick. Keep it to tens.
+- Remote players' projectiles are visual copies: simulate them with the same system but leave out the damage (for example a `damage: 0` copy), or the hit is counted on every client.
 
 ## Ballistic solver
 

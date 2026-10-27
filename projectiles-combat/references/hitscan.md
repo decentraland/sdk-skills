@@ -25,10 +25,12 @@ type Hit = {
 }
 
 // With player bits in the mask, the shooter's own capsule can show up. Drop it and keep the closest.
-export function nearestHit(hits: readonly Hit[]): Hit | undefined {
+// minLength skips hits nearer than that along the ray (third-person aim, below).
+export function nearestHit(hits: readonly Hit[], minLength = 0): Hit | undefined {
   let best: Hit | undefined
   for (const h of hits) {
     if (h.entityId === engine.PlayerEntity) continue
+    if (h.length < minLength) continue
     if (!best || h.length < best.length) best = h
   }
   return best
@@ -38,6 +40,8 @@ export function nearestHit(hits: readonly Hit[]): Hit | undefined {
 ## Aim ray (continuous, follows the camera)
 
 A child of `engine.CameraEntity` inherits the camera's world pose, and `localDirection` is rotated by that pose. The ray always points where the camera looks. Create it on equip and delete it on unequip.
+
+In third person the ray starts at the camera, **behind the avatar**, so it can hit things between the camera and the avatar (a wall behind the player, a pillar the camera passes). Such an aim point lies behind the shoulder, and the shoulder ray would fire backwards. So the aim ray uses `RQT_QUERY_ALL`, and hits nearer than the avatar along the look direction are ignored.
 
 ```typescript
 let aimRay: Entity | undefined
@@ -49,7 +53,7 @@ export function equipAimRay() {
   Raycast.create(aimRay, {
     direction: { $case: 'localDirection', localDirection: Vector3.Forward() },
     maxDistance: RANGE + 10, // + room for the third-person camera boom
-    queryType: QUERY,
+    queryType: RaycastQueryType.RQT_QUERY_ALL, // all hits, so the ones behind the avatar can be skipped
     collisionMask: SHOT_MASK,
     continuous: true
   })
@@ -64,15 +68,30 @@ export function unequipAimRay() {
 export function currentAim(): { point: Vector3; hit?: Hit } {
   const cam = Transform.get(engine.CameraEntity)
   const dir = Vector3.rotate(Vector3.Forward(), cam.rotation)
+  // Third person: skip hits closer to the camera than the avatar (measured along the look direction)
+  const firstPerson = CameraMode.getOrNull(engine.CameraEntity)?.mode === CameraType.CT_FIRST_PERSON
+  const chest = Vector3.add(Transform.get(engine.PlayerEntity).position, Vector3.create(0, 1.2, 0))
+  const minLength = firstPerson ? 0 : Math.max(0, Vector3.dot(Vector3.subtract(chest, cam.position), dir)) + 0.3
   const res = aimRay ? RaycastResult.getOrNull(aimRay) : null
-  const hit = res ? nearestHit(res.hits) : undefined
+  const hit = res ? nearestHit(res.hits, minLength) : undefined
   return hit?.position
     ? { point: Vector3.clone(hit.position), hit }
     : { point: Vector3.add(cam.position, Vector3.scale(dir, RANGE)) }
 }
 ```
 
-When the cursor is **unlocked** on desktop, the player aims with the mouse cursor, not the screen centre. Either request pointer lock on equip (**advanced-input**), or switch the aim ray to `globalDirection` set each tick from `PrimaryPointerInfo.get(engine.RootEntity).worldRayDirection`.
+When the cursor is **unlocked** on desktop, the player aims with the mouse cursor, not the screen centre. Either request pointer lock on equip, or switch the aim ray to `globalDirection` set each tick from the cursor ray. Both components need care (**advanced-input**): `PointerLock.getMutable` throws if the component was never created, and every `PrimaryPointerInfo` field is optional.
+
+```typescript
+import { PointerLock, PrimaryPointerInfo } from '@dcl/sdk/ecs'
+
+// Request lock on equip: createOrReplace, never getMutable on a component that may not exist yet
+PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: true })
+
+// Cursor ray (unlocked aim): create the component if missing, and guard the optional field
+const cursorDir = PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity).worldRayDirection
+if (cursorDir) { /* Raycast.createOrReplace(aimRay, { direction: { $case: 'globalDirection', globalDirection: cursorDir }, ... }) */ }
+```
 
 ## Shoulder origin (third person)
 
@@ -111,6 +130,13 @@ export function fireHitscan(onResult: (r: ShotResult) => void) {
 
   // Third person: the shoulder decides what is actually hit.
   const from = shoulderPosition()
+  const camRot = Transform.get(engine.CameraEntity).rotation
+  const lookDir = Vector3.rotate(Vector3.Forward(), camRot)
+  // Never fire backwards: an aim point behind the shoulder (camera clipping, a stale result) falls back to straight ahead
+  if (Vector3.dot(Vector3.subtract(aim.point, from), lookDir) <= 0.5) {
+    aim.point = Vector3.add(from, Vector3.scale(lookDir, RANGE))
+    aim.hit = undefined
+  }
   const toAim = Vector3.subtract(aim.point, from)
   const dist = Vector3.length(toAim)
   if (dist < 0.01) return onResult({ from, to: aim.point })
@@ -147,14 +173,12 @@ A remote-avatar hit has `entityId === undefined`. Match `hit.position` to the cl
 ```typescript
 import { PlayerIdentityData } from '@dcl/sdk/ecs'
 
-// Normalise world-space remote positions to scene-local. See player-avatar ->
-// "remote players' Transforms are in WORLD coordinates". Read BASE from scene.json.
+// Remote players' Transforms are in WORLD coordinates (player-avatar). This loop only reads remote
+// players, so always subtract the scene origin. Read the base parcel from scene.json.
 const BASE = Vector3.create(0 * 16, 0, 0 * 16) // base parcel x*16, 0, y*16
-const SCENE_SIZE = Vector3.create(16, 0, 16) // parcels * 16
 
 function toSceneLocal(p: Vector3): Vector3 {
-  const inside = p.x >= 0 && p.z >= 0 && p.x <= SCENE_SIZE.x && p.z <= SCENE_SIZE.z
-  return inside ? p : Vector3.subtract(p, BASE)
+  return Vector3.subtract(p, BASE)
 }
 
 export function remotePlayerAt(hitPos: Vector3, maxDist = 1.5): string | undefined {
