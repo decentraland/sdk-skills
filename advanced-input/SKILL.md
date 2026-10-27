@@ -402,4 +402,4 @@ Engine-team test scenes exercising these APIs (ground truth):
 - `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
 - `{baseDir}/references/touch-screen-controls.md` — `TouchScreenControls`: button priority stack and "+" overflow rules, custom button icons, declutter/full-custom-HUD examples, helper semantics.
 
-For basic pointer events and click handlers, see the `add-interactivity` skill.
+For basic pointer events and click handlers, see the `add-interactivity` skill. For fire buttons, auto-fire vs semi-auto and fire-rate cooldowns, see the `projectiles-combat` skill.

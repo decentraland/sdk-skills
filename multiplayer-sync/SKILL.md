@@ -254,6 +254,8 @@ bus.emit('hit', { damage: 10 })
 - `syncEntity`: late joiners get current state, automatic conflict resolution — CRDT last-write-wins, so if two players change the same component simultaneously the last write wins. The state persists as long as at least one player remains in the scene
 - `MessageBus`: fire-and-forget, late joiners miss past messages, good for transient effects
 
+For combat (who decides a hit, broadcasting shots instead of syncing projectile Transforms, the trust problem with client-reported hits) see **projectiles-combat** → *Multiplayer*.
+
 ### Binary MessageBus (Performance Optimization)
 
 The regular `MessageBus` JSON-encodes every payload before sending. For high-frequency messages or large payloads, there's a lower-level binary alternative that sends raw `Uint8Array` data directly — faster to process because it skips JSON serialization on both ends. This is the same transport `syncEntity` uses internally.

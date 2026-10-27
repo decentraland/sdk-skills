@@ -232,6 +232,7 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 - `{baseDir}/references/particle-presets.md` — 17 ready-to-use preset configurations from the SDK7 test scene (fire, magic, snowfall, vortex, fountain, swarms, sparks, rain, bursts, fireworks, campfire, trails).
 - Live tuner: `ParticleLab.dcl.eth` (open with Decentraland client).
+- Bullet impacts, explosions and muzzle effects spawned at a raycast hit: **projectiles-combat** (`references/health-damage.md` → *Impact effect*).
 
 ## Example scenes
 
