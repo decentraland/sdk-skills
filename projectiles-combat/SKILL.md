@@ -30,7 +30,7 @@ Default to hitscan. Use a visible projectile only when travel time is part of th
 
 ## Raycast facts that shape everything (verified)
 
-Sources: `@dcl/ecs/src/systems/raycast.ts`, protocol `raycast.proto` / `raycast_result.proto` / `common/raycast_hit.proto` / `mesh_collider.proto`, unity-explorer main `ExecuteRaycastSystem.cs` + `PhysicsLayers.cs` (released in v0.191.0-alpha).
+Sources: `@dcl/ecs/src/systems/raycast.ts`, protocol `raycast.proto` / `raycast_result.proto` / `common/raycast_hit.proto` / `mesh_collider.proto`, unity-explorer main `ExecuteRaycastSystem.cs` + `PhysicsLayers.cs`.
 
 - **Results are asynchronous.** The renderer runs the ray and writes `RaycastResult` back. `raycastSystem.register*` also waits one tick before creating the `Raycast` component. Expect the callback **2-3 ticks after you fire**. A continuous `Raycast` component read in a system lags about one tick. You cannot raycast and use the answer in the same tick.
 - **One `Raycast` per entity.** Registering again on the same entity replaces both the component and the callback, so the earlier shot's callback never fires. For overlapping shots (auto-fire), give each shot its own entity.
@@ -45,8 +45,8 @@ Sources: `@dcl/ecs/src/systems/raycast.ts`, protocol `raycast.proto` / `raycast_
 ## Where shots come from
 
 - Camera: `Transform.get(engine.CameraEntity)` gives `position` and `rotation` (scene-relative). Look direction: `Vector3.rotate(Vector3.Forward(), rotation)`.
-- Player: `Transform.get(engine.PlayerEntity).position` is the avatar **root at the feet**. The Unity character capsule is 1.6 m tall, centred 0.8 m above the root (`CharacterObject.prefab`). The docs place the first-person camera at about 1.75 m.
-- Shoulder or hand: attach an **empty** entity with `AvatarAttach` (`AAPT_RIGHT_SHOULDER` / `AAPT_RIGHT_HAND`). The explorer writes the bone's offset **from the player root** (world axes) back into that entity's `Transform`, so the bone's world position is `playerPos + Transform.get(anchor).position` (see **player-avatar**). Fallback before the first write-back: feet + `(0, 1.4, 0)` [UNVERIFIED estimate].
+- Player: `Transform.get(engine.PlayerEntity).position` is the avatar **root at the feet**: standing on ground at y = 0 it reads y = 0.08 (the controller's skin width). The Unity character capsule is 1.6 m tall, centred 0.8 m above the root (`CharacterObject.prefab`). The first-person camera sits 1.75 m above the root. Both measured in-world (2026-10-27).
+- Shoulder or hand: attach an **empty** entity with `AvatarAttach` (`AAPT_RIGHT_SHOULDER` / `AAPT_RIGHT_HAND`), and **give it a `Transform`**: without one, nothing is written back. The explorer writes the bone's offset **from the player root** (world axes) into that `Transform`, so the bone's world position is `playerPos + Transform.get(anchor).position` (see **player-avatar**). Measured offsets (standing idle): right shoulder about 1.37 m above the root, right hand about 0.83 m. Use `(0, 1.37, 0)` as the fallback before the first write-back arrives.
 - Camera mode: `CameraMode.get(engine.CameraEntity).mode` is `CameraType.CT_FIRST_PERSON` or `CT_THIRD_PERSON`. A `CameraModeArea` can force first person in an arena (**camera-control**).
 
 ## Hitscan
@@ -111,7 +111,7 @@ Code: `{baseDir}/references/health-damage.md`.
 - **Semi-auto:** `inputSystem.isTriggered(IA_POINTER, PET_DOWN)` fires once per press. **Auto:** `inputSystem.isPressed(IA_POINTER)` every tick, gated by a cooldown. Both called **without an entity** are answered from every entity's input results (see **advanced-input**). For a gun that is what you want: a click anywhere fires.
 - **Fire-rate cooldown:** accumulate `dt` in the weapon system (`cooldown -= dt; if (cooldown <= 0 && wantsFire) { fire(); cooldown = 1 / roundsPerSecond }`). Do not use `timers` for this.
 - **Pointer lock:** when locked, the desktop explorer shows its own centre crosshair (unity-explorer `UpdateCursorInputSystem`), so the look ray matches it. When unlocked, the player aims with the cursor: cast along `PrimaryPointerInfo.worldRayDirection` instead of camera forward, or request lock on equip with `PointerLock.getMutable(engine.CameraEntity).isPointerLocked = true` (**advanced-input**). The native crosshair cannot be hidden on desktop. On mobile, `TouchScreenControls.hideCrosshair()` hides it.
-- **Mobile:** the scene can't read where a tap lands. Aim with the camera centre. Consider `TouchScreenControls.setMainAction(InputAction.IA_POINTER)` so the big button fires [UNVERIFIED whether that reports as a global `IA_POINTER` press — test on device].
+- **Mobile:** touching the screen is **not** a pointer press. The player aims by turning the camera so the crosshair is on the target, then presses the on-screen `IA_POINTER` button to fire, so the look ray from the camera centre is the aim. Never hide the `IA_POINTER` button or the crosshair in a shooter. To make fire the big central button, `TouchScreenControls.setMainAction(InputAction.IA_POINTER)` (**advanced-input** → *TouchScreenControls*).
 - Gate firing on game state (equipped, alive, round active) so `IA_POINTER` still works for normal clicks elsewhere.
 
 ## First-person weapon model (viewmodel)
@@ -133,7 +133,7 @@ Any client-reported hit can be forged. A modified client can send "I hit X for 9
 
 - `MessageBus.emit` also delivers to the sender's own `on()` handler, with `sender === 'self'`. Skip those messages or the shooter applies damage twice. `MessageBus` is client-only and marked deprecated in source (**multiplayer-sync**).
 - **Don't `syncEntity` a projectile's Transform every tick.** Broadcast one "fired" event (origin, velocity, owner) and let each client simulate its own copy. Only the owner (or the server) resolves damage.
-- The headless server has no renderer, so do not expect `RaycastResult` there [UNVERIFIED]. Server validation is math: distance, cone, rate limits, simple shape tests.
+- **The server can raycast.** The authoritative server (`decentraland/hammurabi-headless`) runs `Raycast` and writes `RaycastResult` like a client does, against the scene's colliders (`MeshCollider`, `GltfContainer` collider meshes), with the same collision masks and query types. Use it to validate a fire intent: re-cast from the server-read shooter position toward the claimed target and reject the hit if a wall is in the way. Combine with rate limits and range checks. Whether the server's rays hit **avatars** is not verified: decide the victim from player positions, not from an avatar hit on the server.
 - Remote-avatar ray hits carry no `entityId`. Identify the victim by the nearest `PlayerIdentityData` + `Transform` to `hit.position`, normalising coordinates as **player-avatar** describes (remote Transforms may be world-space). Code in hitscan.md.
 
 ## Gotchas

@@ -89,7 +89,7 @@ export function shoulderPosition(): Vector3 {
   // The explorer writes the bone's offset from the player root (world axes) into this Transform.
   const offset = Transform.get(shoulder).position
   const written = offset.x !== 0 || offset.y !== 0 || offset.z !== 0
-  return Vector3.add(feet, written ? offset : Vector3.create(0, 1.4, 0)) // 1.4: [UNVERIFIED] fallback
+  return Vector3.add(feet, written ? offset : Vector3.create(0, 1.37, 0)) // measured in-world 2026-10-27 until the first write-back lands
 }
 ```
 
