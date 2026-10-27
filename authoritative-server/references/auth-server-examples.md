@@ -293,7 +293,7 @@ Never trust client-reported positions. The server sees real positions via `Playe
 
 `Storage.set/get/delete` are top-level methods on `Storage` for scene-wide (global) values — there is no `Storage.world` namespace. `Storage.player.set/get/delete` is scoped by wallet address. Values are JSON-serialized: `set` takes any JSON-serializable value and `get<T>` returns it parsed, or `null` when the key does not exist (a failed read throws). The string-based examples below remain valid — a string is JSON. **Server-only** — guard with `isServer()`.
 
-`set` and `delete` resolve to a **boolean**: `false` means the operation did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it. For the persist-at-checkpoints pattern and the cap details, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
+`set` resolves to a **boolean**: `false` means the write did not persist (network error, or the isolate's 40 in-flight host-call cap — the SDK logs the error and resolves `false` instead of throwing). Always check it. `delete` is different: a failed delete **throws**, and it resolves `false` only when the key did not exist (`true` when it was deleted). For the persist-at-checkpoints pattern and the cap details, see `{baseDir}/references/server-patterns.md` → Storage Patterns and Server Resource Limits.
 
 ### Scene Storage (Global, shared across all players)
 ```typescript

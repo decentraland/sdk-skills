@@ -224,6 +224,7 @@ Storage is durable persistence for data that must survive restarts/deploys, **no
 ```typescript
 // BAD: one Storage.set per score change floods the queue
 room.onMessage('claimPoint', async (data, context) => {
+  if (!context) return
   scores[context.from] = (scores[context.from] ?? 0) + 1
   await Storage.player.set(context.from, 'score', String(scores[context.from])) // fires every claim
 })
@@ -236,6 +237,7 @@ const scores: Record<string, number> = {}
 const dirty = new Set<string>()
 
 room.onMessage('claimPoint', (data, context) => {
+  if (!context) return
   scores[context.from] = (scores[context.from] ?? 0) + 1
   dirty.add(context.from)               // mark for later flush, no Storage call here
 })
@@ -261,7 +263,15 @@ Assigning default data every time a player joins wipes their save. Read first; c
 ```typescript
 type PlayerSave = { coins: number; crops: number; grownAt: number }
 const saves: Record<string, PlayerSave> = {} // in-memory working state, keyed by lower-cased address
-// `dirty` is the Set from the checkpoint example above; its flush writes Storage.player.set(address, 'save', saves[address])
+const dirty = new Set<string>() // addresses whose save changed since the last flush
+
+// Checkpoint flush for this example: writes the whole save under the 'save' key
+async function flushSaves() {
+  for (const address of dirty) {
+    const ok = await Storage.player.set(address, 'save', saves[address]) // false = not persisted, retry next flush
+    if (ok) dirty.delete(address)
+  }
+}
 
 async function loadOrCreate(address: string): Promise<PlayerSave> {
   const key = address.toLowerCase()
@@ -275,6 +285,7 @@ async function loadOrCreate(address: string): Promise<PlayerSave> {
 }
 
 room.onMessage('playerJoin', async (_data, context) => {
+  if (!context) return
   const save = await loadOrCreate(context.from)
   settleIdle(save) // see below
 })
@@ -288,6 +299,7 @@ A client message is a request, not a fact. Before moving currency or items, chec
 
 ```typescript
 room.onMessage('giveCoins', (data, context) => {
+  if (!context) return
   const from = saves[context.from.toLowerCase()]
   const to = saves[String(data.to).toLowerCase()]
   const amount = data.amount
@@ -299,6 +311,8 @@ room.onMessage('giveCoins', (data, context) => {
   dirty.add(context.from.toLowerCase()); dirty.add(String(data.to).toLowerCase())
 })
 ```
+
+This handler is only safe because it never `await`s between the checks and the balance updates. An `await` in between lets a second message run, pass the same checks and spend the same coins again. Load both saves first (`loadOrCreate`), then check and update in one synchronous block.
 
 Apply the same checks to buys, sells, crafting and rewards: the server computes the price and the result; the client only names what it wants.
 
@@ -324,7 +338,7 @@ Call it on join and before any action that reads or spends the progressed value 
 
 ### Append-only logs: rolling CSV parts in Storage
 
-Storage holds **strings keyed by name**, with no append operation and **no compare-and-set** — so an append is read-modify-write, and a growing log must be split across keys before it hits the per-value ceiling. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, server side in `src/scene-feedback/lib/server/`) is the reference implementation of this pattern; reuse its shape for any server-side event log (playtest answers, round results, telemetry).
+Storage holds **JSON values keyed by name** (here, CSV text), with no append operation and **no compare-and-set** — so an append is read-modify-write, and a growing log must be split across keys before it hits the per-value ceiling. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, server side in `src/scene-feedback/lib/server/`) is the reference implementation of this pattern; reuse its shape for any server-side event log (playtest answers, round results, telemetry).
 
 Shape:
 
@@ -368,7 +382,7 @@ Limits a scene creator can realistically hit and should design around:
 | Scene→comms message | **30,000 bytes** max | (separate transport guidance: keep synced messages under 13 KB — see SKILL.md) |
 | Live entities | **100,000** max | — (very unlikely to hit) |
 
-The in-flight host-call cap is **isolate-wide**: one counter (`maxInflightHostCalls`, default 40, in `decentraland/hammurabi-headless`) shared by every host call the scene makes — `signedFetch`, runtime APIs, and each Storage request — not a per-Storage or storage-service queue. On breach the excess call **rejects** immediately with `Error('too many concurrent host calls')`; nothing is queued or retried. The SDK's Storage wrapper (`@dcl/sdk/server`) catches that rejection (internally `wrapSignedFetch` converts it into an error tuple), logs a `console.error`, and resolves the call to **`false`** — `Storage.set` / `Storage.player.set` (and the `delete` variants) never throw, so an unchecked write fails silently and persisted state goes stale or is lost. Always check the boolean.
+The in-flight host-call cap is **isolate-wide**: one counter (`maxInflightHostCalls`, default 40, in `decentraland/hammurabi-headless`) shared by every host call the scene makes — `signedFetch`, runtime APIs, and each Storage request — not a per-Storage or storage-service queue. On breach the excess call **rejects** immediately with `Error('too many concurrent host calls')`; nothing is queued or retried. The SDK's Storage wrapper (`@dcl/sdk/server`) catches that rejection (internally `wrapSignedFetch` converts it into an error tuple), logs a `console.error`, and resolves the call to **`false`**: `Storage.set` / `Storage.player.set` never throw on a failed write, so an unchecked write fails silently and persisted state goes stale or is lost. Always check the boolean. The `delete` variants behave differently: a failed delete **throws**, and `false` only means the key did not exist.
 
 Design implications:
 - **Storage**: keep working state in memory; persist only at checkpoints (see Storage Patterns above). Never `Storage.set` per event/tick, and always check the boolean it resolves to — `false` means the write did not persist.

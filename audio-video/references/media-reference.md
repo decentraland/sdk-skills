@@ -35,9 +35,9 @@ audio.pitch = 1.5      // Speed up
 Use `playSound` / `stopSound` to reliably retrigger. They write the whole component, so identical-parameter clicks still re-emit — hand-mutating `getMutable().playing` can be silently deduped by the LWW-CRDT when values are unchanged, so repeat clicks may do nothing.
 
 ```typescript
-// Signatures (both return false if the entity has no AudioSource):
-//   AudioSource.playSound(entity, src: string, resetCursor = true): boolean
-//   AudioSource.stopSound(entity, resetCursor = true): boolean
+// Signatures:
+//   AudioSource.playSound(entity, src: string, resetCursor = true): boolean  // creates the AudioSource if missing; always true
+//   AudioSource.stopSound(entity, resetCursor = true): boolean               // false if the entity has no AudioSource
 
 AudioSource.playSound(entity, 'sounds/effect.mp3')        // play from 0 every call
 AudioSource.playSound(entity, 'sounds/effect.mp3', false) // resume from currentTime
