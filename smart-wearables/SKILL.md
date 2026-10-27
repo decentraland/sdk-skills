@@ -41,14 +41,14 @@ Scaffold with `npx @dcl/sdk-commands init --project smart-wearable` (the Creator
 
 ## RULE: `wearable.json` must match the Builder schema exactly
 
-The Builder validates against `WearableConfigSchema` (builder-client) with `additionalProperties: false`. Any violation gives the generic **"the wearable config file is invalid"** with no detail.
+The Builder validates against `WearableConfigSchema` (builder-client) with `additionalProperties: false` on the top-level object (nested objects such as `data` are not strict). Any violation gives the generic **"the wearable config file is invalid"** with no detail.
 
 - Top-level keys allowed: `id`, `name`, `description`, `rarity`, `data`, `mapping`. **Nothing else.** Remove legacy `menuBarIcon`, `model`, `bodyShape`, `collectionAddress` if present (older docs and samples listed them).
 - Required: `name`, `data`.
 - `description`: **max 64 characters**. The commonest cause of the error. A longer description can be written in the Builder's item editor after upload.
 - `rarity`: `unique` (1) · `mythic` (10) · `exotic` (50) · `legendary` (100) · `epic` (1000) · `rare` (5000) · `uncommon` (10000) · `common` (100000).
 - `id`: a UUID. Generate a fresh one when forking a project (`crypto.randomUUID()` / `uuidgen`).
-- `data` requires **all five**: `replaces`, `hides`, `tags`, `representations`, `category` — use `[]` for unused lists.
+- `data` requires **all five**: `replaces`, `hides`, `tags`, `representations`, `category`. `replaces`, `hides` and `tags` may be `[]`; `representations` needs at least one entry. Optional: `removesDefaultHiding`, `blockVrmExport`.
 - `representations[]`: `bodyShapes` (`urn:decentraland:off-chain:base-avatars:BaseMale` / `…:BaseFemale`), `mainFile`, `contents` (must include `mainFile`; paths relative to the project root), `overrideHides`, `overrideReplaces`. Both body shapes must be covered.
 - `category`: `eyebrows`, `eyes`, `facial_hair`, `hair`, `mouth`, `upper_body`, `lower_body`, `feet`, `earring`, `eyewear`, `hat`, `helmet`, `mask`, `tiara`, `top_head`, `skin`, `hands_wear`.
 
@@ -103,11 +103,11 @@ The code runs **only on the wearer's client**. Design every visible effect aroun
 | The wearable model itself | ✅ | ✅ |
 | Avatar emote played with `triggerSceneEmote()` / `triggerEmote()` | ✅ | ✅ |
 | Props and bone-driven particles inside that emote file | ✅ | ✅ |
-| Sound inside the emote file | ❌ | ❌ |
+| Sound with a `triggerSceneEmote()` clip | ❌ | ❌ |
 | Player motion from `Physics` impulses / `AvatarLocomotionSettings` | ✅ | ✅ (it's the avatar's movement) |
 
 - **To show an effect to everyone, put it in an emote as a prop.** Particles must be meshes skinned to animated prop bones — see `{baseDir}/../avatar-animations/references/emote-props.md`. `ParticleSystem` and scene entities are invisible to others.
-- **Scene emotes play no audio** — `triggerSceneEmote` loads the emote with empty audio contents (Explorer `LoadSceneEmotesSystem`; PR #4214: "no audio for those though"). Only Builder-uploaded emotes play sound. There is currently no way to make a smart-wearable sound audible to others; report it via **report-sdk-issue** if the user needs it.
+- **Scene emotes play no audio; only Builder-uploaded emotes do.** Why: `{baseDir}/../avatar-animations/references/emote-props.md` → "Playing it". There is currently no way to make a smart-wearable sound audible to others; report it via **report-sdk-issue** if the user needs it.
 - **Wearer-only sound:** an entity with `AvatarAttach { anchorPointId: AvatarAnchorPointType.AAPT_POSITION }` (the field is required) plus a looping `AudioSource` with `playing: false`; toggle `playing`. Only the wearer hears it.
 - **Abilities used while moving → mask the emote.** `triggerSceneEmote({ src, loop: true, mask: AvatarMask.AM_UPPER_BODY })` keeps playing through jumps and falls (a full-body emote is cut by locomotion), props still play, and the mask is replicated to remote players. Stop with `stopEmote({})`. Masked emotes emit no `AvatarEmoteCommand` events on the local player — track state yourself.
 
@@ -150,7 +150,7 @@ Create one `AssetLoad` entity in `main()` listing the emote `.glb` and the sound
 
 ## Pre-upload checklist
 
-- [ ] `wearable.json`: only allowed top-level keys; `description` ≤ 64 chars; all five `data` lists present; both body shapes covered; fresh UUID.
+- [ ] `wearable.json`: only allowed top-level keys; `description` ≤ 64 chars; all five required `data` keys present; both body shapes covered; fresh UUID.
 - [ ] Each GLB within category limits (**wearables**); both body shapes exported and referenced.
 - [ ] `thumbnail.png` 256 px square, transparent.
 - [ ] `.dclignore` covers `blender/`, `assets/Images`, `*.zip`; `navmapThumbnail` empty.
