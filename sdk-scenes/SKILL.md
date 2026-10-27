@@ -219,6 +219,12 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 - **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
+### Wearables & Smart Wearables
+
+**Skill: `smart-wearables`** — Wearables that run SDK7 code while equipped (portable experiences): project layout, the Builder's strict `wearable.json` schema, the 3 MB uncompressed limit, how the preview differs from the published wearable, what other players can see (emote props and bone particles, not scene entities or sound), multiplayer limits (no `MessageBus` or Multiplayer Server; third-party server only), and pack/upload.
+
+**Skill: `wearables`** — Making wearable files: official base meshes (male/female), category triangle/material/texture limits, skinning and rigid parts, texturing, glTF export and verification, thumbnail, representations per body shape, Builder upload.
+
 ### Reporting SDK Issues
 
 **Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.

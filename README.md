@@ -73,6 +73,8 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `scene-retro` | Retrospective of a scene's build sessions: turns real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only; saves a report. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
+| `smart-wearables` | Smart wearables: `wearable.json` schema the Builder accepts, the 3 MB limit, preview vs published behavior, what other players see (emote props yes, scene code and sound no), multiplayer limits, pack and upload. |
+| `wearables` | Wearable files: official base meshes, category limits, skinning, texturing, glTF export and verification, thumbnail, body-shape representations, Builder upload. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
 
 ## What Are Skills?

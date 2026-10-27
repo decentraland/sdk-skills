@@ -9,6 +9,8 @@ Decentraland runs scenes locally in a player's instance of the explorer. By defa
 
 To sync any changes in the scene state, SDK7 uses CRDT-based synchronization.
 
+> **Smart wearables:** none of this works there — no `syncEntity`, no `MessageBus`. Only the wearer's avatar position and emotes reach other players; anything else needs a third-party server. See **smart-wearables** → Multiplayer.
+
 > **Runtime constraint:** Decentraland runs in a QuickJS sandbox. No Node.js APIs (`fs`, `http`, `path`, `process`). Use `fetch()` and `WebSocket` for network communication. See the **scene-runtime** skill for async patterns.
 
 ## Sync Strategy Decision Tree

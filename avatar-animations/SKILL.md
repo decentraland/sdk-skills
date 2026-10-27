@@ -1,6 +1,6 @@
 ---
 name: avatar-animations
-description: Find or author avatar animations (scene emotes) for the player — first the built-in emotes, then the Creator Hub Avatar Animations pack (45 downloadable `_emote.glb` clips, catalogued with previews), and only then a custom clip authored in Blender on the official Decentraland avatar rig, exported as `_emote.glb`, verified and handed to the scene — including upper-body-only (masked) clips. Use when the user wants an avatar animation or emote of any kind, a custom emote, to animate the player/avatar, to make the avatar do something specific (sit, hold cards, carry a crate, throw, cheer), to work with the Blender avatar rig, to produce a scene emote .glb, or an upper-body / sitting / holding animation for the player. Do NOT use for playing animations baked into a model (see animations-tweens), for merely triggering an emote the scene already has (see player-avatar), or for NPC animation (see npcs).
+description: Find or author avatar animations (scene emotes) for the player — first the built-in emotes, then the Creator Hub Avatar Animations pack (45 downloadable `_emote.glb` clips, catalogued with previews), and only then a custom clip authored in Blender on the official Decentraland avatar rig, exported as `_emote.glb`, verified and handed to the scene — including upper-body-only (masked) clips and clips with animated props or bone particles. Use when the user wants an avatar animation or emote of any kind, a custom emote, to animate the player/avatar, to make the avatar do something specific (sit, hold cards, carry a crate, throw, cheer), to work with the Blender avatar rig, to produce a scene emote .glb, or an upper-body / sitting / holding animation for the player. Do NOT use for playing animations baked into a model (see animations-tweens), for merely triggering an emote the scene already has (see player-avatar), or for NPC animation (see npcs).
 ---
 
 # Authoring Avatar Animations (Scene Emotes)
@@ -152,6 +152,8 @@ Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel
 
 Delete every other object first — meshes, `WGT_*` widgets, reference planes, `Armature_Prop`, cameras, lights — and remove the `Starting_Pose` action, or the exporter emits two clips. `export_animation_mode='ACTIVE_ACTIONS'` is what guarantees exactly one animation per file. Full export call in `{baseDir}/references/blender-emote-patterns.md`.
 
+**Exception — emotes with props:** a clip that carries a prop or bone particles keeps `Armature_Prop` and its meshes and exports two clips (`*_Avatar` + `*_Prop`) with `NLA_TRACKS`. See `{baseDir}/references/emote-props.md`.
+
 Save an editable `.blend` (meshes included) **before** stripping, so the user can tweak the actions by hand afterwards.
 
 ## RULE: Verify the exported GLB before handing it over
@@ -182,6 +184,10 @@ Design notes for a seated holding pose that reads well: hips ≈ 0.6 m, hands at
 
 > The bone list and blending mechanism above were read from the Explorer source (`MaskedLegacyEmoteBlender`, `SceneMaskedEmoteSystem`, `CharacterEmoteSystem` on `main`, 2026-09); the "masked stops full-body" rule was confirmed in-world on a seated player. For the **enum values and call signatures**, trust **player-avatar**, which is verified against the shipped protocol.
 
+## Props and particles
+
+A clip can carry an animated prop or bone-driven particles (`Armature_Prop` + a `*_Prop` clip of the same length, exported together with the avatar clip via NLA tracks). Other players see the prop with the animation; sound in the file is **not** played by `triggerSceneEmote`. Layout, limits, making a prop follow the body, particles as bones, the export call and gotchas: `{baseDir}/references/emote-props.md`.
+
 ## File requirements
 
 | Requirement | Value | Source |
@@ -192,7 +198,7 @@ Design notes for a seated holding pose that reads well: hips ≈ 0.6 m, hands at
 | Max file size | **3 MB** | docs |
 | Sampling rate | `1` by default; `2` or `3` to shrink | docs |
 | Animation clips per file | **exactly 1** (Emotes 2.0 may add 1 prop clip; sequences unsupported) | docs |
-| File contents | deforming skeleton + animation **only** — no mesh, no control bones, no cameras/lights | docs |
+| File contents | deforming skeleton + animation **only** — no mesh, no control bones, no cameras/lights (except a prop: `Armature_Prop` + its meshes, see `references/emote-props.md`) | docs |
 | Start / end pose | both from the idle (`Starting_Pose`) | docs |
 | Deform-bone keys | location + rotation + scale on the **first and last** frame, every bone | docs |
 | Animation area | root ≤ **1 m** in each horizontal direction (2 m across); **every mesh part and prop** inside the **4 × 4 × 4 m** `Animation_Area_Reference` box (see RULE above) | docs + measured |
@@ -226,4 +232,6 @@ Gate the whole harness behind a config flag and remove it before publishing.
 - **add-3d-models** → `references/blender-authoring.md` — how to drive Blender at all (headless CLI vs MCP), plus general model export rules.
 - **animations-tweens** — animations baked into props and models, and procedural `Tween` motion.
 - **npcs** — animating `AvatarShape` NPCs and GLB NPCs.
+- **smart-wearables** — emotes played by a smart wearable, the main use of props: the only effects other players see.
+- Official docs: [props and sounds](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/props-and-sounds/) · [particles in emotes](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/particles-in-emotes/)
 - Official docs: [creating emotes](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/creating-emotes/) · [rig features](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/rig-features/) · [avatar rig](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/avatar-rig/)

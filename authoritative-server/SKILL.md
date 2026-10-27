@@ -11,6 +11,8 @@ description: Build multiplayer Decentraland scenes with a headless Multiplayer S
 
 Build multiplayer Decentraland scenes where a **headless server** controls game state, validates changes, and prevents cheating. The same codebase runs on both server and client, with the server having full authority. Decentraland hosts and deploys the server automatically. For basic CRDT multiplayer (no server), see the `multiplayer-sync` skill instead.
 
+> **Not for smart wearables:** the Multiplayer Server doesn't work in a smart wearable. Use a third-party server there; see **smart-wearables** → Multiplayer.
+
 ## Setup
 
 You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), but you do **not** add it manually: the `@dcl/sdk@auth-server` sdk-commands **auto-adds it on every build and preview** (`bundle.ts` writes `authoritativeMultiplayer: true` to `scene.json` via `ensureJsonKey`, only if absent — it also auto-adds a `server-logs` script to `package.json`). The rule is simply: **do not remove it.** Optionally add `logsPermissions` (root-level array of wallet addresses) to authorize reading production server logs — see `{baseDir}/references/server-patterns.md` → Production Logs. The preview automatically starts a local server in the background.
