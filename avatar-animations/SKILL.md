@@ -106,7 +106,7 @@ Blender's **Pose ▸ Copy Pose / Paste X-Flipped** only works on half of this ri
 - **Legs and feet mirror normally**, FK or IK — Paste X-Flipped is exact for IK legs and within ~3 cm for FK legs.
 - **Shoulders, upper arms, forearms, hands and fingers do not** — Paste X-Flipped lands the other hand 40–70 cm away. The rig animator's fix: on every pasted upper-body control, **negate the X and Z values and keep Y**. Example: a pasted arm reading X −0.5, Z 0.1 becomes X 0.5, Z −0.1. Apply it to the rotation (quaternion or Euler) and, on the IK hand and elbow controls, to the location too. Verified exact (0.000 m) for the whole arm chain, FK and IK, all 30 finger controls included.
 - `mirror_side('L')` in `{baseDir}/references/blender-emote-patterns.md` does both steps for every control at once.
-- When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). For fingers, compare a bend each way along the palm normal instead (`auto_sign_pm`). The same angle on `.L` and `.R` does not produce a symmetric pose.
+- When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). For fingers, compare a bend each way along the palm normal instead (`auto_sign_pm`). The same angle on `.L` and `.R` is not symmetric for the elbow, the wrist tilt, Thumb1 and thigh-out, whose signs flip between sides; the curls, wrist flex, shoulder, thigh-forward, knee and foot keep theirs (sign table in `{baseDir}/references/avatar-rig.md`).
 
 ## RULE: FK or IK — lose contact → FK, keep contact → IK
 

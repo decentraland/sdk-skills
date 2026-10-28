@@ -200,8 +200,9 @@ for s, full in (('L', 'Left'), ('R', 'Right')):
         lambda d: rl('CTRL_Avatar_HandThumb1.' + s, 'X', d),
         lambda: -(wpos('Avatar_%sHandThumb4' % full) - wpos('Avatar_%sHandPinky1' % full)).length, 35)
 
-# head down: the top of the head tips forward (-Y)
+# head down: the top of the head tips forward (-Y); spine forward: the neck moves forward (-Y)
 S['headdown'] = auto_sign('CTRL_Avatar_Head', 'X', lambda: -wtail('Avatar_Head').y)
+S['spinefwd'] = auto_sign('CTRL_FK_Avatar_Spine', 'X', lambda: -wpos('Avatar_Neck').y)
 
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
 
@@ -229,7 +230,7 @@ def arm_out(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'Z', d if s == 'L' else -d)
 def arm_twist(s, d): rl('CTRL_FK_Avatar_Arm.' + s, 'Y', d)                  # roll about the bone's own axis
 def arm_side(s, d): rw('CTRL_FK_Avatar_Arm.' + s, 'Y', -d if s == 'L' else d)   # world roll: + lifts a hanging arm sideways
 def head_down(d):   rl('CTRL_Avatar_Head', 'X', S['headdown'] * d)
-def spine_fwd(d):   rl('CTRL_FK_Avatar_Spine', 'X', d)                  # + bends forward (measured +1)
+def spine_fwd(d):   rl('CTRL_FK_Avatar_Spine', 'X', S['spinefwd'] * d)
 def fk_legs():   # only for legs that leave the ground; feet on the floor → keep IK and move CTRL_IK_Foot.*
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
@@ -282,13 +283,24 @@ def ik_hand(s, target, rot=(0, 0, 0), pole=None):
 The hand control sits at the **wrist**, so aiming it at a target puts the wrist there, not the finger. Solve for the fingertip instead: measure the deform tip bone's error and shift the hand control by it, a few passes:
 
 ```python
-def solve_tip(s, target, finger='Index'):
+def solve_tip(s, target, finger='Index', passes=6, tol=0.01):
+    """Move the IK hand until the fingertip reaches `target`; returns the remaining miss in metres."""
     full = 'Left' if s == 'L' else 'Right'
-    for _ in range(4):
+    tip = 'Avatar_%sHand%s4' % (full, finger)
+    for _ in range(passes):
         vl.update()
-        d = Vector(target) - wpos('Avatar_%sHand%s4' % (full, finger))
+        d = Vector(target) - wpos(tip)
+        if d.length < 0.001:
+            break
         move('CTRL_IK_Avatar_Hand.' + s, dx=d.x, dy=d.y, dz=d.z)
+    vl.update()
+    miss = (Vector(target) - wpos(tip)).length
+    if miss > tol:
+        print('WARN solve_tip %s: fingertip %.3f m short of the target (out of reach?)' % (s, miss))
+    return miss
 ```
+
+Assert the returned miss next to `report()` on every contact keyframe. A target out of the arm's reach still drags the hand control toward it, and the fingertip stops short with nothing else to show it.
 
 For face contact the target has to follow the head's *current* rotation. Measured on the shipped `ShapeA`/`ShapeB` head meshes, the nose tip is **0.19 m in front of and 0.06 m below** the head of the `Avatar_Head` bone — that bone starts **mid-face**, not at the skull base, so "head bone + a bit up" lands on the forehead (all face landmarks: `avatar-rig.md` → "Face geometry"):
 
@@ -302,7 +314,7 @@ def nose_world():
 
 It rotates the offset by the head's change from its **rest** orientation. That is safe because `Starting_Pose` leaves `Avatar_Head` within 1° of rest. Checked at frame 0: 3 mm from the `ShapeA` nose tip, 2 cm above the `ShapeB` one, whose nose sits lower. Add `(0, 0, -0.02)` to the offset for `ShapeB`.
 
-**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. `pose()` above has no IK parameter, and its `reset_all()` puts `FK > IK Arm` back to the idle `0`. So on those keyframes call `pose()` with FK angles (`R_fwd`, `R_elbow`, ...) close to the IK pose, then `ik_hand()` / `solve_tip()`, then key.
+**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. `pose()` above is the *seated* example: it has no IK parameter, its `reset_all()` puts `FK > IK Arm` back to `0`, and it switches the legs to FK and drops the hips. On those keyframes build the body the same way as the rest of your clip (for a standing clip: `reset_all()` and keep the legs in IK), set the FK arm (`arm_fwd`, `elbow`, ...) close to the IK pose, then `ik_hand()` / `solve_tip()`, then key.
 
 ## Numeric verification of a pose
 

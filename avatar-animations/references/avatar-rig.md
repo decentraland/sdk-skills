@@ -80,7 +80,7 @@ On **`CTRL_Avatar_UpperBody`** — note the **double space** in the `IsoRot` key
 | `"FK > IK Leg L"` | `1.0` | legs default to **IK** |
 | `"FK > IK Leg R"` | `1.0` | legs default to **IK** |
 | `"IsoRot Arm  FK L"` | `1.0` | 1 = the FK arm turns **with** the torso: after an 80° forward bend of `CTRL_FK_Avatar_Spine` a hanging arm points backward. 0 = it keeps its world orientation and still hangs down. Measured 2026-10-28; the docs' name "Isolate Rotation" suggests the opposite. |
-| `"IsoRot Arm  FK R"` | `1.0` | 1 = the FK arm turns **with** the torso: after an 80° forward bend of `CTRL_FK_Avatar_Spine` a hanging arm points backward. 0 = it keeps its world orientation and still hangs down. Measured 2026-10-28; the docs' name "Isolate Rotation" suggests the opposite. |
+| `"IsoRot Arm  FK R"` | `1.0` | same as L |
 
 On **`CTRL_Avatar_Head`**:
 
@@ -104,7 +104,7 @@ The **rest pose** of the armature is an A/T-pose. The **idle** the runtime blend
 
 | Landmark | World Z | Offset from the `Avatar_Head` bone head |
 | --- | --- | --- |
-| `Avatar_Head` bone head (top of the neck) | 1.72 | this is **mid-face**, not the base of the skull |
+| `Avatar_Head` bone head | 1.72 | this is **mid-face**, not the base of the skull |
 | Nose tip | 1.66 (`ShapeA`), 1.64 (`ShapeB`) | 0.19 m forward (−Y), 0.06 m **down** (0.08 m on `ShapeB`) |
 | Chin | 1.60 | 0.12 m down |
 | Top of the head | 1.90 | 0.18 m up |
