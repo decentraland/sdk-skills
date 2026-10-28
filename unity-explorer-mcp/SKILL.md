@@ -145,7 +145,7 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 
 ## Regression rig: `149,149-synthetic-input-showcase`
 
-`sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: ten stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
+`sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: eleven stations (S1-S11) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
 
 ## Pattern: build the check into the scene, not into the tool calls
 
