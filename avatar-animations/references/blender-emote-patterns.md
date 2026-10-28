@@ -76,7 +76,11 @@ def move(n, dx=0, dy=0, dz=0):
     """Translate control bone `n` by world METRES (dx: avatar left, dy: back, dz: up)."""
     vl.update()
     pb = arm.pose.bones[n]
-    M = (arm.matrix_world @ pb.matrix).to_3x3().normalized()
+    # pose_bone.location lives in the bone's REST frame (parent pose x rest), NOT in its rotated
+    # frame: strip the bone's own basis, or a control that has been rotated (an IK hand, a yawed
+    # COG) translates the wrong way. `rw()` is different — a post-multiplied rotation does act in
+    # the rotated frame, so it keeps `pb.matrix` as is.
+    M = (arm.matrix_world @ pb.matrix @ pb.matrix_basis.inverted()).to_3x3().normalized()
     pb.location += (M.inverted() @ Vector((dx, dy, dz))) * 100.0   # armature scale is 0.01
 
 def setprop(n, key, value):
@@ -196,6 +200,10 @@ for s, full in (('L', 'Left'), ('R', 'Right')):
         lambda d: rl('CTRL_Avatar_HandThumb1.' + s, 'X', d),
         lambda: -(wpos('Avatar_%sHandThumb4' % full) - wpos('Avatar_%sHandPinky1' % full)).length, 35)
 
+# head down: the top of the head tips forward (-Y); spine forward: the neck moves forward (-Y)
+S['headdown'] = auto_sign('CTRL_Avatar_Head', 'X', lambda: -wtail('Avatar_Head').y)
+S['spinefwd'] = auto_sign('CTRL_FK_Avatar_Spine', 'X', lambda: -wpos('Avatar_Neck').y)
+
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
 
 def fist(s, k=1.0):
@@ -220,7 +228,9 @@ Build named verbs on top of `rl`/`rw`/`move`, then express every keyframe as a d
 def arm_fwd(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'X', -d)                # pure forward raise
 def arm_out(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'Z', d if s == 'L' else -d)
 def arm_twist(s, d): rl('CTRL_FK_Avatar_Arm.' + s, 'Y', d)                  # roll about the bone's own axis
+def arm_side(s, d): rw('CTRL_FK_Avatar_Arm.' + s, 'Y', -d if s == 'L' else d)   # world roll: + lifts a hanging arm sideways
 def head_down(d):   rl('CTRL_Avatar_Head', 'X', S['headdown'] * d)
+def spine_fwd(d):   rl('CTRL_FK_Avatar_Spine', 'X', S['spinefwd'] * d)
 def fk_legs():   # only for legs that leave the ground; feet on the floor → keep IK and move CTRL_IK_Foot.*
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
@@ -244,6 +254,67 @@ for frame, kw in CLIP:
     pose(**kw)
     key_all(frame, deform=(frame == 1 or frame == last))
 ```
+
+**A world-axis verb is only "semantic" for the arm direction it was named on.** `arm_side` spreads *hanging* arms outward for positive values, but once the arm points overhead the same world roll closes the V — an overhead reach (yoga) needs **negative** `arm_side`. Likewise, at the default `IsoRot Arm  FK L/R` = `1.0` the FK arm turns *with* the torso: after an 80° `spine_fwd` (forward fold) a hanging arm points backward, and it is `arm_fwd(+90)` that brings it down to hang toward the floor. At `0.0` it keeps hanging down (measured 2026-10-28; `avatar-rig.md` → "Custom properties"). Read the `report()` numbers instead of trusting the verb's name when the pose is far from idle.
+
+**Standing clips: keep the legs in IK** (the rig's default) and step, lunge or crouch by moving the reverse-foot controls in world metres while lowering the COG — `move('CTRL_IK_Foot.R', dy=-0.30)` steps the right foot forward, `move('CTRL_Avatar_Knee.R', ...)` aims the knee, `move('CTRL_Avatar_UpperBody', dz=-0.30, dy=-0.12)` drops into the lunge. Switch to FK only for a leg that leaves the ground (see the FK/IK rule in SKILL.md).
+
+## Arm IK: exact hand placement and fingertip targets
+
+FK angles are fine for gestures; anything that must *touch* something (the face, a prop, the other hand) needs the arm IK. Switch `FK > IK Arm L/R` to `1`, put `CTRL_IK_Avatar_Hand.*` at a world position, orient it about world axes, and optionally place the elbow pole:
+
+```python
+def ik_hand(s, target, rot=(0, 0, 0), pole=None):
+    """Hand control to a WORLD position (metres), then rotated about world axes (degrees)."""
+    setprop('CTRL_Avatar_UpperBody', 'FK > IK Arm ' + s, 1.0)
+    vl.update()
+    ctrl = 'CTRL_IK_Avatar_Hand.' + s
+    d = Vector(target) - wpos(ctrl)
+    move(ctrl, dx=d.x, dy=d.y, dz=d.z)          # needs the REST-frame move() above
+    # rot: (x, y, z) applied in X, Y, Z order, or an ordered list such as [('Z', -90), ('X', 45)]
+    steps = rot if rot and isinstance(rot[0], (tuple, list)) else list(zip('XYZ', rot))
+    for axis, deg in steps:
+        if deg: rw(ctrl, axis, deg)
+    if pole is not None:
+        vl.update(); pc = 'CTRL_IK_Avatar_Elbow.' + s
+        d = Vector(pole) - wpos(pc); move(pc, dx=d.x, dy=d.y, dz=d.z)
+```
+
+The hand control sits at the **wrist**, so aiming it at a target puts the wrist there, not the finger. Solve for the fingertip instead: measure the deform tip bone's error and shift the hand control by it, a few passes:
+
+```python
+def solve_tip(s, target, finger='Index', passes=6, tol=0.01):
+    """Move the IK hand until the fingertip reaches `target`; returns the remaining miss in metres."""
+    full = 'Left' if s == 'L' else 'Right'
+    tip = 'Avatar_%sHand%s4' % (full, finger)
+    for _ in range(passes):
+        vl.update()
+        d = Vector(target) - wpos(tip)
+        if d.length < 0.001:
+            break
+        move('CTRL_IK_Avatar_Hand.' + s, dx=d.x, dy=d.y, dz=d.z)
+    vl.update()
+    miss = (Vector(target) - wpos(tip)).length
+    if miss > tol:
+        print('WARN solve_tip %s: fingertip %.3f m short of the target (out of reach?)' % (s, miss))
+    return miss
+```
+
+Assert the returned miss next to `report()` on every contact keyframe. A target out of the arm's reach still drags the hand control toward it, and the fingertip stops short with nothing else to show it.
+
+For face contact the target has to follow the head's *current* rotation. Measured on the shipped `ShapeA`/`ShapeB` head meshes, the nose tip is **0.19 m in front of and 0.06 m below** the head of the `Avatar_Head` bone — that bone starts **mid-face**, not at the skull base, so "head bone + a bit up" lands on the forehead (all face landmarks: `avatar-rig.md` → "Face geometry"):
+
+```python
+def nose_world():
+    vl.update()
+    M    = (arm.matrix_world @ arm.pose.bones['Avatar_Head'].matrix).to_3x3().normalized()
+    rest = (arm.matrix_world @ arm.pose.bones['Avatar_Head'].bone.matrix_local).to_3x3().normalized()
+    return wpos('Avatar_Head') + (M @ rest.inverted()) @ Vector((0, -0.19, -0.058))
+```
+
+It rotates the offset by the head's change from its **rest** orientation. That is safe because `Starting_Pose` leaves `Avatar_Head` within 1° of rest. Checked at frame 0: 3 mm from the `ShapeA` nose tip, 2 cm above the `ShapeB` one, whose nose sits lower. Add `(0, 0, -0.02)` to the offset for `ShapeB`.
+
+**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. `pose()` above is the *seated* example: it has no IK parameter, its `reset_all()` puts `FK > IK Arm` back to `0`, and it switches the legs to FK and drops the hips. On those keyframes build the body the same way as the rest of your clip (for a standing clip: `reset_all()` and keep the legs in IK), set the FK arm (`arm_fwd`, `elbow`, ...) close to the IK pose, then `ik_hand()` / `solve_tip()`, then key.
 
 ## Numeric verification of a pose
 
