@@ -15,6 +15,24 @@ Decentraland is a **continuous, shared 3D world**. Design around these constrain
 - **Boundary awareness**: Players standing outside your parcel can see into it. Your scene is always on display. Neighboring scenes are visible too — consider visual harmony.
 - **Shared space**: Multiple players are always potentially present. Even a "single-player" puzzle is witnessed by others. Embrace or account for this.
 
+### The platform already provides this — don't rebuild it by default
+
+The Explorer ships these for every scene. Do not plan, scope or build a scene version unless the design genuinely needs a different one:
+
+| Provided by the Explorer | So the scene does NOT need |
+|---|---|
+| Identity: wallet + display name (`getPlayer()?.name`, `.userId`, `.isGuest` from `@dcl/sdk/players`) | A login, account or "enter your nickname" screen |
+| Name tags above every avatar, and a profile **passport** on click | Floating player-name labels. For a rank/team plate, add an `AvatarNametag` (see **player-avatar**) |
+| Text chat, voice chat (nearby, private and community calls), friends list and requests, user blocking | A chat box, a friends list, a mute/block feature |
+| Emote wheel with default + owned emotes | An emote menu (to trigger one from gameplay: `triggerEmote` / `triggerSceneEmote`) |
+| Avatar customization from the backpack (wearables) | A dress-up / character-creator screen |
+| Loading screen while the scene downloads | A loading screen or progress bar |
+
+- **Scenes CAN override any of these when the design calls for it**: hide all avatars and/or name tags in a zone (`AvatarModifierArea` with `AMT_HIDE_AVATARS` / `AMT_HIDE_NAMETAGS`, plus `AMT_DISABLE_PASSPORTS`), then show your own body at the player's position (an `AvatarShape` or a model that follows the player; other players see it only if you sync it yourself — docs `avatars/npc-avatars.md` → *Replace the player's avatar*, **npcs**); silence voice chat on the scene (scene settings restrictions / `featureToggles.voiceChat`, see **create-scene**); show a custom start or title screen. Make it a deliberate choice, not a reflex carried over from standalone games.
+- **Skipping a start screen is a feature.** With none, the player lands straight in the game and starts playing on arrival. If you add one, gate it on the loading screen (see *First impression* in §4) and keep it to one tap.
+
+Verified: Explorer modules `Chat`, `VoiceChat`, `Friends`, `EmotesWheel`, `NameTags`, `Passport`, `Backpack`, `SceneLoadingScreens` (unity-explorer `Explorer/Assets/DCL/`); docs `design-experience/design-games.md` (*Communication between players*, *Avatars*) and `scene-editor/configure/scene-settings.md` (*Scene restrictions*); `AvatarModifierType` enum in protocol `avatar_modifier_area.proto`.
+
 ## 2. Scene Limitation Formulas
 
 Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures logarithmic). Height is a flat 330 m for every scene; content above ~200 m may suffer multiplayer sync issues. Key rule of thumb: **10,000 triangles and 200 entities per parcel**.
@@ -165,6 +183,7 @@ function gameStateSystem(dt: number) {
 - **Place screen UI where the client is not**: never anchor a HUD to the top-left corner (minimap, chat, mobile joystick live there). Anchor right or center, or use the interactable inset; keep mobile HUDs clear of the bottom-right action buttons, or hide those buttons while a full-screen UI is open. Rules and code in the **build-ui** skill.
 - **Immediate feedback**: When a player interacts, respond within the same frame. Use tweens, sounds, or UI popups so the player never wonders "did that work?"
 - **Accessibility**: Use high-contrast text, readable font sizes (fontSize >= 16 for screen UI), and audio cues alongside visual ones.
+- **Photosensitivity: no strobing by default.** Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flickering `LightSource`, full-screen UI flashes, video) can trigger seizures. Keep any flash to **at most 3 per second** (WCAG 2.3.1 "Three Flashes or Below Threshold"), keep flashing regions small, and avoid saturated red and large high-contrast full-view flashes. If the design depends on intense effects (club strobes, lightning, damage flashes), add an in-scene toggle to turn them off or tone them down.
 
 ## 9. MVP Planning
 
@@ -252,7 +271,7 @@ first local tests. Add questions when the creator chooses to collect feedback.
 ### Collection
 - **Core loop**: Gather items, complete sets, earn rewards.
 - **DCL fit**: Strong. Combines well with exploration and daily engagement.
-- **Design tips**: Use entity pooling for collectibles. Scatter items spatially. Tie collections to visual progress (display cases, counters).
+- **Design tips**: Use entity pooling for collectibles. Scatter items spatially. Tie collections to visual progress (display cases, counters). Pickup feel (delayed removal under the effect, upright spinning coins, pitch-varied sound): **add-interactivity** → *Pickups / collectibles: polish details*.
 
 ### Puzzle
 - **Core loop**: Solve spatial or logic challenges to progress.
@@ -286,6 +305,9 @@ first local tests. Add questions when the creator chooses to collect feedback.
 - Block sightlines strategically to create mystery and discovery.
 - Ensure the scene looks inviting from the parcel boundary (this is your "shop window").
 
+### Building Scale
+- Do not build rooms, doors or stairs at real-world size. The third-person camera sits behind the avatar and is pulled forward whenever a wall gets in the way, and the controller has a hard step height and slope limit. Size the floor plan with the canonical table (ceilings, openings, corridors, stairs, ramps) and the verified avatar, collider and camera numbers in **add-3d-models** → *RULE: Scale interiors up for the third-person camera*, before you count parcels.
+
 ### Parcel Transitions
 - If your scene spans multiple parcels, ensure smooth visual transitions.
 - Do not place critical interactive elements right at parcel boundaries (loading edge cases).
@@ -300,6 +322,7 @@ first local tests. Add questions when the creator chooses to collect feedback.
 - **Daily rewards**: Offer small rewards for daily visits. Track visits via external server — DCL has no built-in daily tracking. Display streak counters in-scene.
 - **Progression systems**: Levels or unlockable content tied to cumulative play. Store progress on a server or use NFT-based progression. Show progression visually (leaderboards, badges, evolving scene elements). For persistent leaderboards and per-player progress, the built-in Multiplayer Server's `Storage` persists across redeploys and server sleep, with a server-owned synced component all clients render — see [[authoritative-server]] for the full pattern and reference scene.
 - **Achievements**: Define clear milestones (first win, 100 collectibles, visited all rooms). Announce with sound and visual effects. Display achievement history in-scene (trophy room, wall of fame).
+- **Progress while nobody is there** (crops growing, shop restocking, energy refilling): nothing is guaranteed to run while the scene is empty (the players' clients are gone, and the Multiplayer Server may be stopped between visits), so never model this as a running timer. Store a timestamp; on the next visit compute how many whole units finished, `gained = floor((now − savedAt) / msPerUnit)`, clamp to a cap, and apply it. Then move the timestamp forward by only the time those units took (`savedAt += gained × msPerUnit`), not to `now`, so the partial progress toward the next unit is kept. Reset it to `now` only once the cap is reached. Use the **server's** clock (`Date.now()` on the Multiplayer Server, then `Storage`) — a client's clock can be set forward to skip the wait. Pattern: **authoritative-server** → *Storage*.
 
 ### Monetization Approaches
 - **In-scene purchases**: Sell virtual items or abilities via MANA transactions. Use `signedFetch` for secure server-verified purchases. Always provide free gameplay alongside paid upgrades.

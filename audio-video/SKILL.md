@@ -57,7 +57,19 @@ AudioSource.playSound(entity, 'assets/Audio/click.mp3') // retriggers from 0 eve
 AudioSource.stopSound(entity)                            // stops, resets cursor to 0
 ```
 
-Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
+`playSound` creates the `AudioSource` if the entity has none and always returns `true`; it spreads the existing fields, so `volume`/`pitch`/`global`/`loop` set earlier carry over. `stopSound` returns `false` when there is no `AudioSource` (verified in `@dcl/ecs` 7.31.0 `components/extended/AudioSource`).
+
+**Vary pitch on repeated one-shots.** The same clip retriggered identically (footsteps, hits, coin pickups, clicks) sounds mechanical. Randomize `pitch` by about ±5–7% per play. `pitch` is `PBAudioSource` field 4 (`optional float`, default `1.0`); the Unity Explorer copies it straight onto Unity's `AudioSource.pitch` (`AudioSourceExtensions.cs`), so it shifts speed and tone together — keep the spread small. The Explorer does the same for its own UI and avatar sounds (`AudioPlaybackUtilities.GetPitchWithVariation`).
+
+```typescript
+// entity already has an AudioSource (getMutable throws otherwise)
+function playVaried(entity: Entity, clip: string, spread = 0.06) {
+  AudioSource.getMutable(entity).pitch = 1 + (Math.random() * 2 - 1) * spread // 0.94–1.06
+  AudioSource.playSound(entity, clip) // keeps the pitch just set, restarts from 0
+}
+```
+
+Skip it for music, voice lines and UI cues whose exact note matters.
 
 **One `AudioSource` plays one clip at a time.** `playSound` on an entity that is already playing replaces that clip (the retrigger test scene's URL-swap case), so cues that can overlap — a click, a verdict sting, a death sound — each need their own entity, and positional repeats that can stack (several tiles clicked in a row) need a small pool of entities used round-robin. Also check each clip's length against the moment it plays in (`ffprobe -v quiet -show_entries format=duration -of csv=p=0 file.mp3`): a 10 s sting over a 2 s gameplay beat is either cut off by the next cue or spills past it (owner-reported, 2026-10).
 

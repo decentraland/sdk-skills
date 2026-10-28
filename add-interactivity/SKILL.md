@@ -337,6 +337,13 @@ The callback receives a `PBTriggerAreaResult`. `result.trigger?.entity` is the e
 
 **Underlying components:** `TriggerArea` (config) and `TriggerAreaResult` (CRDT result). You normally don't read `TriggerAreaResult` directly — use the events system.
 
+### Pickups / collectibles: polish details
+
+- **Delay the removal ~0.12 s.** On collect, start the feedback (sound, particle burst, scale-out tween) and remove the entity with `timers.setTimeout(() => engine.removeEntityWithChildren(coin), 120)` (`timers` from `@dcl/sdk/ecs`, never the JS global). Removing it the same tick makes the item blink out before the effect reads. Gate the handler with a `collected` flag so it cannot fire twice during the delay.
+- **Play the pickup sound from a separate, persistent entity**, not the item itself: removing an entity removes its `AudioSource` and cuts the sound. Vary its pitch per pickup (see **audio-video**).
+- **A flat coin edge-on is invisible.** `MeshRenderer.setCylinder` is Y-axis aligned, so a thin disc (`scale` y ≈ 0.06) lies flat like a manhole and shows only its rim from eye level. Put the disc on a **child** rotated 90° on X so it stands upright, and spin the **parent** around Y (`Tween.setRotateContinuous`) so its face sweeps past the player.
+- Full example: `{baseDir}/references/interactivity-patterns.md` → *Collectible Pickup*.
+
 ---
 
 ## Raycasting

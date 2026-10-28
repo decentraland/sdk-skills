@@ -47,6 +47,18 @@ Decentraland is mostly played in the default third-person camera, which sits **b
 | Doorway / opening on a main route | ~2.1 m × 0.9 m | **~4 m tall, ≥3 m wide** |
 | Corridor width | 1.2–1.8 m | **4 m+** |
 | Any gap the avatar must walk through | — | **≥1.2 m clear** |
+| Stairs | ~0.18 m rise × 0.28 m tread | **rise ≤ 0.25 m** (hard limit ~0.4 m), tread ≥ 0.3 m, width as a corridor |
+| Ramps | — | **≤ 30°** for easy walking (hard limit 46°) |
+
+**What these numbers are sized against** (desktop Unity Explorer: source values from `unity-explorer` `origin/dev`, limits measured by walking the avatar in a test scene, 2026-10-27; the mobile client approximates them, see **player-physics**):
+
+- **Avatar:** the base body is **~1.90 m** to the top of the head and ~0.61 m across the shoulders (measured in `Avatar_File.blend`, both body shapes; hair and hats add height).
+- **Collider:** a `CharacterController` capsule, 0.3 m radius (0.6 m wide), skin width 0.08 m (`Character/CharacterObject/CharacterObject.prefab`). Measured: a beam whose underside is **1.80 m** above the floor stops the avatar; at **1.85 m** it passes and the beam grazes the hair. So the collider reaches roughly head height; don't count on a gap between them. Anything walked under needs **≥ 2.0 m** clear (more with the oversized style above), and a low beam also pulls the camera in (below).
+- **Steps:** `StepOffset` is 0.35 m (`CharacterMotion/Settings/CharacterControllerSettings.asset`, applied every frame by `ApplySlopeModifier`), but with the skin width the avatar measurably walks up a **0.40 m** ledge and is stopped by **0.45 m**. Anything higher needs a jump, so a rise above ~0.4 m becomes a jump puzzle.
+- **Slopes:** `slopeLimit` is **46°**. Measured: 30°, 40° and 44° ramps are walkable, and a 48° ramp stops the avatar at its foot. Steeper surfaces count as steep slopes and the avatar slides off them (`ApplyEdgeSlip`).
+- **Camera:** the third-person camera orbits **~4.5 m** from a point about **2 m above the player's feet** (middle rig of `CharacterCamera/Character Camera.prefab`, 60° FOV). Measured in open ground it sits ~4.4 m behind the player horizontally and 2.2–3.2 m above the feet, depending on pitch. Its obstacle avoidance **pulls the camera forward** whenever a wall or ceiling comes between it and the avatar. That is the cramped feeling. Measured: a wall 2.35 m behind the player pulled the camera in to 2.15 m, and under a 1.85 m beam the camera dropped to ~1.9 m height, 0.4 m behind the player. With less than ~4.5 m of room behind the player, the camera jumps in close. Rooms where players turn around therefore read best at **~9 m across or more** (twice the orbit radius). This figure is derived from the camera rig, not from a playtest.
+
+The ceiling, doorway and corridor rows are staff design guidance, not engine limits. The stair and ramp targets are comfort margins chosen under the engine limits; only the "hard limit" values come from the engine.
 
 - **Keep hand-scale props near human scale.** Chairs, desks, counters, railings, screens and signage stay roughly life-size, so the avatar still reads as a person in the room. Scaling the furniture with the envelope just rebuilds the cramped feeling one size larger: grow the *room*, not its contents.
 - **This applies when scaling a catalog model too.** The model-swap audit below picks `scale` from native size; for architecture the target is the oversized figure, not the realistic one.
