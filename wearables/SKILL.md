@@ -62,6 +62,9 @@ Body-hugging wearables need a GLB per body shape: build from `AvatarShape_B.blen
 - A valid single-mesh wearable GLB has **64 nodes**: `Armature` + 62 bones + 1 skinned mesh.
 - Seams with other body parts: weight the neck-line vertices 100% to the neck bone and the waist-line vertices 100% to the hips, so separate wearables meet without gaps. Use the leg bones for the lower body / feet seam.
 - **Rigid parts** (a backpack, tanks, armor plates): weight every vertex **100% to one bone** (e.g. `Avatar_Spine2` for anything on the back). Give the object the same armature parent and an `Armature` modifier, then join it into the body mesh so the wearable stays one skinned mesh.
+- **A rigid part on the back floats unless you measure the gap.** A jetpack placed at a constant offset (the furthest-back point of the whole upper back + 12 mm) stood 2–10 cm off the back under its own footprint, and it read as floating from the side. The back curves away from a flat-fronted part. Two fixes, verified in Blender renders but not yet re-checked in-world:
+  - Ray-cast the body (or the inflated suit) along the back-to-front axis over the part's **own footprint**. Set the part's front face from the furthest-back hit, leaving ~4 mm.
+  - Add a small **mount block** between part and back (9 × 16 cm on the jetpack; the owner rejected a full-width plate as too heavy). Ray-cast its front vertices onto the surface and give each the skin weights of the nearest body vertex (`mathutils.kdtree.KDTree`). Weight its back vertices, which sit inside the part, 100% to the part's bone. The mount bends with the spine where the rigid part cannot.
 - ≤ 4 bone influences per vertex; keep left/right weighting symmetric.
 
 ## Blender gotchas (hit in practice)

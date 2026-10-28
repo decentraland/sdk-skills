@@ -6,7 +6,7 @@ An `upper_body` suit with a twin-rocket pack. Hold **F** to fly; fuel drains whi
 wearable.json                         # upper_body, BaseMale + BaseFemale representations
 scene.json                            # isPortableExperience: true
 thumbnail.png                         # 256 px, transparent
-models/male/jetpack_suit.glb          # ~280 KB each, ~1,230 tris, 2 materials, JPEG textures
+models/male/jetpack_suit.glb          # ~270 KB each, ~1,260 tris, 2 materials, JPEG textures
 models/female/jetpack_suit.glb
 assets/emotes/jetpack_thrust_emote.glb   # Jetpack_Avatar + Jetpack_Prop, 1 s loop, flames/smoke/sparks as bone props
 assets/sounds/jetpack_thrust.mp3      # 1 s loop, wearer-only
@@ -111,5 +111,6 @@ export function setupJetpack() {
 ## Design notes
 
 - **Emote pose:** arms out and slightly back, fists closed, a slight **forward** lean. An arched-back "superhero" pose read as falling backwards and the owner rejected it. Small rumble keys (every 5 frames) sell the thrust. Masked, so the legs keep the jump/fall animation.
-- **Emitters:** nozzle positions measured on the wearable build and passed to the emote build as JSON, then carried through `Avatar_Spine2` per frame (**avatar-animations** → `references/emote-props.md`).
+- **Emitters:** nozzle positions measured on the wearable build and passed to the emote build as JSON, then carried through `Avatar_Spine2` per frame (**avatar-animations** → `references/emote-props.md`). The pack's front face sits at y = 0.129 m on both builds (3.8–3.9 mm clear of either suit), so the male build's nozzle JSON is valid for the female one too.
+- **Fists:** fingers curl on local **Z**, not X (**avatar-animations** → "Elbows and knees hinge on local X — fingers curl on local Z"). The first build curled on X and the fingers folded sideways.
 - **Tell the user** that host scenes can disable the wearable (`featureToggles.portableExperiences`), and that only the wearer hears the thrust.

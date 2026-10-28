@@ -61,11 +61,13 @@ A correctly exported emote GLB therefore has **63 nodes** (`Armature` + 62 bones
 | Spine | `CTRL_FK_Avatar_Spine`, `_Spine1`, `_Spine2` | Distribute a lean across all three rather than bending one hard. |
 | Head / neck | `CTRL_Avatar_Neck`, `CTRL_Avatar_Head` | |
 | Shoulders | `CTRL_Avatar_Shoulder.L` / `.R` | Shrug / clavicle lift. |
-| Arms FK | `CTRL_FK_Avatar_Arm`, `_ForeArm`, `_Hand` (`.L`/`.R`) | Default for arms (`FK > IK Arm *` = 0). Local **Y** of `_Arm` is the bone axis — the twist axis. |
-| Arms IK | `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow` (`.L`/`.R`) | Needs `FK > IK Arm L/R` = 1. |
-| Legs FK | `CTRL_FK_Avatar_UpLeg`, `_Leg`, `_Foot`, `_ToeBase` (`.L`/`.R`) | Needs `FK > IK Leg L/R` = 0. |
+| Arms FK | `CTRL_FK_Avatar_Arm`, `_ForeArm`, `_Hand` (`.L`/`.R`) | Default for arms (`FK > IK Arm *` = 0). Local **Y** of `_Arm` is the bone axis — the twist axis. `_ForeArm` locks Y and Z: the elbow bends on local **X**. `_Hand` (wrist) has no locks. |
+| Arms IK | `CTRL_IK_Avatar_Hand`, `CTRL_IK_Avatar_Elbow` (`.L`/`.R`) | Needs `FK > IK Arm L/R` = 1. `CTRL_IK_Avatar_Elbow` (like `CTRL_Avatar_Knee`) locks all rotation: place it by location. |
+| Legs FK | `CTRL_FK_Avatar_UpLeg`, `_Leg`, `_Foot`, `_ToeBase` (`.L`/`.R`) | Needs `FK > IK Leg L/R` = 0. `_Leg` locks Y and Z: the knee bends on local **X**. |
 | Legs IK | `CTRL_IK_Foot`, `CTRL_IK_Foot_Roll`, `CTRL_IK_Foot_ToeTip`, `CTRL_IK_Avatar_ToeBase`, `CTRL_Avatar_Knee` (`.L`/`.R`) | Reverse-IK foot setup; default for legs (`FK > IK Leg *` = 1). Keep IK whenever the foot stays on the ground — sitting included. |
-| Fingers | `CTRL_Avatar_Hand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.{L,R}` | 30 bones; no `4` control — the tip bone is deform-only. |
+| Fingers | `CTRL_Avatar_Hand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.{L,R}` | 30 bones; no `4` control — the tip bone is deform-only. All lock **only Y**. Local **Z** curls toward the palm (+Z on both sides of this file). Local **X** swings the finger sideways in the palm plane, on every joint. `Thumb1` local X swings the thumb across the palm: + closes it on `.L`, − on `.R`. |
+
+Rotation locks (measured 2026-10-28, `Avatar_File.blend`, Blender 5.1.1) show the axes the rig means you to use, but a script writing `rotation_quaternion` bypasses them. Stay on the free axes yourself. Axis table and the bug this caused: the skill doc's RULE "Elbows and knees hinge on local X — fingers curl on local Z".
 
 ## Custom properties (measured defaults)
 

@@ -156,20 +156,61 @@ def auto_sign(bone, axis, metric, prep=None):
     reset_all()
     return 1 if after > before else -1
 
+def auto_sign_pm(pose_fn, metric, deg=50):
+    """+1 if pose_fn(+deg) scores higher on `metric` than pose_fn(-deg). Compares a bend each way
+    instead of before/after, so a joint that already sits bent in the idle cannot fool it."""
+    reset_all(); pose_fn(deg);  vl.update(); plus  = metric()
+    reset_all(); pose_fn(-deg); vl.update(); minus = metric()
+    reset_all()
+    return 1 if plus > minus else -1
+
+def hand_frame(full, rig=None):
+    """(fwd, palm, across) unit vectors of one hand in its CURRENT pose. palm = normal of the knuckle
+    plane pointing out of the palm (to the thumb's side); across = index knuckle -> pinky knuckle."""
+    rig = rig or arm
+    W = lambda b: rig.matrix_world @ rig.pose.bones['Avatar_%sHand%s' % (full, b)].head
+    h, i1, p1 = W(''), W('Index1'), W('Pinky1')
+    fwd, across = ((i1 + p1) / 2 - h).normalized(), (p1 - i1).normalized()
+    n = fwd.cross(across).normalized()
+    return fwd, (n if (W('Thumb1') - i1).dot(n) > 0 else -n), across
+
+FINGERS = ('Index', 'Middle', 'Ring', 'Pinky')
+capture_base()                       # reset_all() needs the idle snapshot
 S = {}
 for s, full in (('L', 'Left'), ('R', 'Right')):
     # elbow flexion: does the hand move forward (-Y in world) ?
     S['elbow' + s] = auto_sign('CTRL_FK_Avatar_ForeArm.' + s, 'X',
                                lambda: -wpos('Avatar_%sHand' % full).y)
-    # finger curl: does the fingertip get closer to the palm ?
-    S['curl' + s]  = auto_sign('CTRL_Avatar_HandIndex1.' + s, 'X',
-                               lambda: -(wpos('Avatar_%sHandIndex4' % full)
-                                         - wpos('Avatar_%sHand' % full)).length)
+    reset_all(); _, n, _ = hand_frame(full)
+    # finger curl = local Z: the tip must move to the PALM side. Not "closer to the wrist" -- a
+    # sideways swing (local X) shortens that distance too, and that test passed on the wrong axis.
+    S['curl' + s] = auto_sign_pm(
+        lambda d: [rl('CTRL_Avatar_HandIndex%d.%s' % (k, s), 'Z', d) for k in (1, 2, 3)],
+        lambda: wpos('Avatar_%sHandIndex4' % full).dot(n))
+    # thumb curl = local Z on Thumb2/3, same metric
+    S['thumbcurl' + s] = auto_sign_pm(
+        lambda d: [rl('CTRL_Avatar_HandThumb%d.%s' % (k, s), 'Z', d) for k in (2, 3)],
+        lambda: wpos('Avatar_%sHandThumb4' % full).dot(n), 35)
+    # thumb across the palm = local X on Thumb1 (sign differs per side): tip toward the pinky knuckle
+    S['thumbacross' + s] = auto_sign_pm(
+        lambda d: rl('CTRL_Avatar_HandThumb1.' + s, 'X', d),
+        lambda: -(wpos('Avatar_%sHandThumb4' % full) - wpos('Avatar_%sHandPinky1' % full)).length, 35)
 
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
+
+def fist(s, k=1.0):
+    """Closed fist on side s; k scales it (0 = the idle hand). Values checked in hand close-ups."""
+    for f in FINGERS:
+        for j, deg in ((1, 60), (2, 70), (3, 45)):              # the middle joint bends most
+            rl('CTRL_Avatar_Hand%s%d.%s' % (f, j, s), 'Z', S['curl' + s] * deg * k)
+    rl('CTRL_Avatar_HandThumb1.' + s, 'X', S['thumbacross' + s] * 35 * k)
+    for j, deg in ((2, 30), (3, 45)):
+        rl('CTRL_Avatar_HandThumb%d.%s' % (j, s), 'Z', S['thumbcurl' + s] * deg * k)
 ```
 
-Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls). Upper arms: set the *direction* with `rw()` on world axes (local X is tilted and sweeps the arm across the chest), then **twist** with `rl(..., 'Y', deg)` — local Y is the bone axis and the only way to roll the arm — and fine-tune locally. See the RULE in the skill doc.
+Measured on `Avatar_File.blend`: +Z curls toward the palm on all four fingers and both sides, and +X on Thumb1 closes the thumb on `.L` but opens it on `.R`. Detect the signs anyway, since they come from the rig's bone rolls. The index sign is reused for the other three fingers.
+
+Which axis bends what, and the locks, are in the skill doc's RULE "Elbows and knees hinge on local X — fingers curl on local Z". Elbows and knees bend on **local X**; finger and thumb curls on **local Z**; Thumb1 crosses the palm on **local X**; the wrist has no locks. A script ignores the rig's rotation locks, so stay on those axes yourself. Upper arms: set the *direction* with `rw()` on world axes (local X is tilted and sweeps the arm across the chest), then **twist** with `rl(..., 'Y', deg)` — local Y is the bone axis and the only way to roll the arm — and fine-tune locally. See the RULE in the skill doc.
 
 ## Semantic pose vocabulary + a parametric default pose
 
@@ -293,6 +334,69 @@ for i, f in enumerate(files):
 res = bpy.data.images.new('sheet', cols * tile, rows * tile, alpha=True)
 res.pixels = canvas.ravel().tolist()
 res.filepath_raw = out; res.file_format = 'PNG'; res.save()
+```
+
+## Hand and finger check
+
+Body-scale renders hide finger mistakes. A fist curled on the wrong axis (local X) folded the fingers sideways in the plane of the palm, and only the owner caught it in-world. Check hands with numbers and close-ups whenever a clip poses the fingers.
+
+**Numbers.** `finger_report` gives each tip's offset from its knuckle, in cm, in the hand's own frame (`hand_frame` above). A curl keeps **side ≈ 0**, pulls fwd down and keeps palm positive. Several cm of side is the wrong axis:
+
+```python
+def finger_report(full, rig=None):
+    """{finger: (fwd, palm, side)} in cm: fingertip minus knuckle, in the hand's current frame."""
+    rig = rig or arm
+    W = lambda b: rig.matrix_world @ rig.pose.bones['Avatar_%sHand%s' % (full, b)].head
+    fwd, n, across = hand_frame(full, rig)
+    return {f: tuple(round((W(f + '4') - W(f + '1')).dot(v) * 100, 1) for v in (fwd, n, across))
+            for f in FINGERS + ('Thumb',)}
+```
+
+| Hand | Index / Middle / Ring / Pinky (fwd, palm, side) |
+| --- | --- |
+| Idle (`Starting_Pose`) | fwd +4 to +10, palm +3 to +6, side ≈ 0 |
+| Fist curled on local Z (correct) | fwd ≈ −3, palm **+1 to +5**, side ≈ 0 |
+| Fist curled on local X (the bug) | fwd ≈ −2 to −3, palm **≤ 0**, side **3–7 cm** (sign varies) |
+
+**The exported GLB.** Run the same report on the file you ship, not only on the authoring `.blend`. Blender's glTF importer parks each clip on a **muted** NLA track with no active action. If you skip the assignment below, you measure the T-pose rest and the check passes on the wrong pose.
+
+```python
+# Blender --background --python check_hands.py -- clip_emote.glb [ActionName]
+# (paste hand_frame, FINGERS and finger_report above this line; the default arm=None is not used here)
+import bpy, sys
+argv = sys.argv[sys.argv.index('--') + 1:]
+bpy.ops.wm.read_factory_settings(use_empty=True)
+bpy.ops.import_scene.gltf(filepath=argv[0])
+rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and 'Avatar_Hips' in o.pose.bones)
+act = (bpy.data.actions[argv[1]] if len(argv) > 1 else
+       next(a for a in bpy.data.actions if not a.name.endswith('_Prop')))   # skip a prop clip
+ad = rig.animation_data or rig.animation_data_create()
+for t in list(ad.nla_tracks):
+    ad.nla_tracks.remove(t)
+ad.action, ad.action_slot = act, act.slots[0]
+f0, f1 = (int(x) for x in act.frame_range)
+for f in sorted({f0, (f0 + f1) // 2, f1}):
+    bpy.context.scene.frame_set(f)
+    for full in ('Left', 'Right'):
+        print('F%03d' % f, full, finger_report(full, rig))
+```
+
+**Close-ups.** Render only the hands mesh, with the camera placed from the hand's own frame. Use it after `setup_render()`. To render a test pose rather than the clip, clear the action after `capture_base()` (`arm.animation_data.action = None`) and do not call `frame_set` again, or `Starting_Pose` comes back and every variant renders identically.
+
+```python
+import os
+def hand_closeups(full, out_dir, dist=0.55):
+    for o in bpy.data.objects:
+        if o.type == 'MESH':
+            o.hide_render = o.name != 'ShapeB_Hands_BaseMesh'
+    vl.update()
+    fwd, n, across = hand_frame(full)
+    c = wpos('Avatar_%sHandMiddle1' % full)
+    scene.camera.data.lens = 85
+    for name, d in (('back', -n), ('palm', n), ('thumbside', -across), ('tips', fwd)):
+        aim(scene.camera, c + d * dist, c)
+        scene.render.filepath = os.path.join(out_dir, '%s_%s.png' % (full, name))
+        bpy.ops.render.render(write_still=True)
 ```
 
 ## Export — one clip per file

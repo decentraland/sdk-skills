@@ -33,9 +33,9 @@ Say which of the three you picked and why. A built-in or pack clip usually reads
 1. **Get the rig** — `Avatar_File.blend`, never a hand-built armature. Download + bone/control/property reference: `{baseDir}/references/avatar-rig.md`.
 2. **Set up** — set the scene to **30 fps** (the shipped file is 24), capture the `Starting_Pose` values, create one new action per clip.
 3. **Author** — pose `CTRL_` bones only, in Pose mode, keyframing every bone you touch at every keyframe.
-4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet.
+4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet. If the clip poses the fingers, add hand close-ups and the fingertip decomposition.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
-6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`.
+6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB.
 7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, add the permission, play it (see **player-avatar**).
 
 Ready-made `bpy` helpers for every step — the helper module, sign detection, render/contact-sheet setup, the export call, and the GLB verifier — are in `{baseDir}/references/blender-emote-patterns.md`.
@@ -83,7 +83,19 @@ World axes alone do not give a perfect arm pose, though. Arms move in many direc
 - **Twist** — palm up/down, elbow pointing out or in, a wrist that has to face a prop — can only be done by rotating the bone about its own length, which is **local Y** on this rig (verified: local Y of `CTRL_FK_Avatar_Arm.*` is the bone axis; rotating it leaves the elbow where it is and only rolls the forearm and hand). `rl('CTRL_FK_Avatar_Arm.L', 'Y', deg)`.
 - **Fine-tuning** once the gross direction is right — a small local correction is often more precise than another world-axis rotation.
 
-Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls) — `rl()` is correct there.
+## RULE: Elbows and knees hinge on local X — fingers curl on local Z
+
+| Control | Locked | Bend axis |
+| --- | --- | --- |
+| `CTRL_FK_Avatar_ForeArm.*` (elbow), `CTRL_FK_Avatar_Leg.*` (knee) | Y, Z | **local X** |
+| `CTRL_FK_Avatar_Hand.*` (wrist) | none | free; detect the axis per pose |
+| `CTRL_Avatar_Hand{Index,Middle,Ring,Pinky}{1,2,3}.*` | Y | **local Z = curl**. Local X swings the finger **sideways** in the plane of the palm, on every joint. |
+| `CTRL_Avatar_HandThumb1.*` | Y | local X swings the whole thumb across the palm. The sign differs per side. |
+| `CTRL_Avatar_HandThumb2/3.*` | Y | local Z = curl |
+
+- Curling fingers on X shipped an emote whose fingers folded sideways, and the owner caught it in-world. A sign test based on "the tip gets closer to the wrist" passed on X too, because a sideways swing also shortens that distance. Detect the curl sign by the tip's displacement along the **palm normal** (`auto_sign_pm` in `{baseDir}/references/blender-emote-patterns.md`).
+- A closed fist that reads well in close-ups: joints 1/2/3 at 60/70/45° (the middle joint bends most), thumb 35° across on Thumb1, and 30/45° on Thumb2/3.
+- **Rotation locks are a hint, not a guard.** They constrain Blender's interactive transform tools, but a script writing `rotation_quaternion` ignores them. A 30° scripted turn about a forearm's locked Z moved the hand 14 cm. Rotate only about the axes the rig leaves free.
 
 ## RULE: Legs mirror, the upper body does not — fix the pasted upper body by flipping X and Z
 
@@ -92,7 +104,7 @@ Blender's **Pose ▸ Copy Pose / Paste X-Flipped** only works on half of this ri
 - **Legs and feet mirror normally**, FK or IK — Paste X-Flipped is exact for IK legs and within ~3 cm for FK legs.
 - **Shoulders, upper arms, forearms, hands and fingers do not** — Paste X-Flipped lands the other hand 40–70 cm away. The rig animator's fix: on every pasted upper-body control, **negate the X and Z values and keep Y**. Example: a pasted arm reading X −0.5, Z 0.1 becomes X 0.5, Z −0.1. Apply it to the rotation (quaternion or Euler) and, on the IK hand and elbow controls, to the location too. Verified exact (0.000 m) for the whole arm chain, FK and IK, all 30 finger controls included.
 - `mirror_side('L')` in `{baseDir}/references/blender-emote-patterns.md` does both steps for every control at once.
-- When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). The same angle on `.L` and `.R` does not produce a symmetric pose.
+- When you pose a **single** joint rather than mirroring, still detect its sign programmatically — rotate +15°, measure which way the downstream bone moved, cache (`auto_sign`). For fingers, compare a bend each way along the palm normal instead (`auto_sign_pm`). The same angle on `.L` and `.R` does not produce a symmetric pose.
 
 ## RULE: FK or IK — lose contact → FK, keep contact → IK
 
@@ -129,6 +141,13 @@ Renders catch composition; numbers catch clipping. Print world positions of hand
 
 Render four angles per keyframe (front three-quarter, straight front, side, top) with Workbench and tile them into one contact sheet. Iterate in a cheap **pose-only stage** first (seconds per run), and only then do the full build with exports.
 
+**Hands need their own check.** Body-scale renders did not reveal fingers folding sideways. Whenever a clip poses the fingers:
+
+- Render the hands in close-up: only `ShapeB_Hands_BaseMesh` visible, with the camera placed from the hand's own frame (back, palm, thumb side, along the fingers).
+- Decompose each fingertip's offset from its knuckle into forward / palm-normal / sideways. A curl keeps **sideways ≈ 0** and the palm component positive. Several cm sideways with palm ≤ 0 means the wrong axis.
+
+Both scripts are in `{baseDir}/references/blender-emote-patterns.md` → "Hand and finger check". When you render a test pose, clear the action after `frame_set(0)` (`arm.animation_data.action = None`) or the render re-applies `Starting_Pose` and every variant looks the same (see "Key everything" above).
+
 ## RULE: Stay inside the animation area
 
 Measured on the reference objects in `Avatar_File.blend` (world metres, Blender Z-up):
@@ -159,6 +178,8 @@ Save an editable `.blend` (meshes included) **before** stripping, so the user ca
 ## RULE: Verify the exported GLB before handing it over
 
 Parse the GLB's JSON chunk and assert: **1 animation, 0 meshes, 63 nodes** (`Armature` + 62 deform bones), **1 skin**, **62 channels each** for translation/rotation/scale, and `duration == (last_frame − first_frame) / 30`. Verifier script in `{baseDir}/references/blender-emote-patterns.md`. A duration mismatch means the scene FPS wasn't 30.
+
+If the clip poses the fingers, also run the fingertip decomposition on the **exported** GLB: re-import it, assign the avatar clip, and measure. Blender's glTF importer leaves each clip on a **muted** NLA track with no active action. Measured without assigning it, the skeleton sits in its T-pose rest, so the check passes on the wrong pose.
 
 Typical size for a 1–4 s clip at `export_frame_step=1` is **70–110 KB** — far under the 3 MB cap, so there is normally no reason to raise the sampling step.
 
