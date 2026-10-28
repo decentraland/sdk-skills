@@ -98,6 +98,18 @@ Keyframe every property you change: `pb.keyframe_insert('["FK > IK Leg L"]', fra
 | `Avatar_Head` | `(0.000, 0.029, 1.718)` |
 | `Avatar_LeftHand` | `(0.286, −0.024, 0.912)` |
 
+## Face geometry (measured on the ShapeA / ShapeB head meshes, standing idle)
+
+| Landmark | World Z | Offset from the `Avatar_Head` bone head |
+| --- | --- | --- |
+| `Avatar_Head` bone head (top of the neck) | 1.72 | this is **mid-face**, not the base of the skull |
+| Nose tip | 1.66 | 0.19 m forward (−Y), 0.06 m **down** |
+| Chin | 1.60 | 0.12 m down |
+| Top of the head | 1.90 | 0.18 m up |
+| Head width | | ≈ 0.30 m |
+
+Aiming a hand at "head bone + 0.12 up" lands on the forehead. For any hand-to-face contact build the target from these offsets in the head's *current* rotated frame and solve the fingertip onto it with the arm IK (`nose_world()` / `solve_tip()` in `{baseDir}/references/blender-emote-patterns.md` → "Arm IK").
+
 The **rest pose** of the armature is an A/T-pose. The **idle** the runtime blends from is the `Starting_Pose` action (arms down). Always start and end your clip from `Starting_Pose` values, not from the identity/rest transform.
 
 ## Mirroring: legs yes, upper body no
@@ -114,3 +126,20 @@ Why: the right-leg bone frames are the mirror of the left ones, which is what X-
 Equivalent if you set the `.R` values directly from the raw `.L` values instead of pasting: upper body `(w, x, y, z)` → `(w, −x, −y, z)` and location `(x, y, −z)`; legs `(w, x, −y, −z)` and location `(−x, y, z)`. That lands within ~1 mm for the arms and ~5–10 cm for FK legs rather than exactly, because Paste X-Flipped also compensates the small roll differences between left and right rest bones and a raw sign flip does not. In a script, evaluate the pose (`view_layer.update()`) before pasting — the flipped paste is computed from the evaluated pose. `Starting_Pose` itself follows the same relation (`CTRL_FK_Avatar_Arm.L` idles at quaternion `(0.78, −0.08, 0.21, 0.51)`, `.R` at `(0.79, 0.06, −0.21, 0.52)`), though it is not perfectly symmetric (hands ≈ 2 cm, feet ≈ 8 cm off a mirror).
 
 `mirror_side()` in `{baseDir}/references/blender-emote-patterns.md` runs the paste and the fix. When posing one joint rather than mirroring, still detect its sign programmatically (`auto_sign`, same file); the same angle never does the same thing on both sides of the upper body.
+
+Measured with the `auto_sign` metrics from that reference (Blender 5.1, 2026-09-25; finger and thumb rows re-measured 2026-10-28 with the palm-normal metric) — `+1` means a positive rotation about the control's local axis moves the joint the way the verb says:
+
+| Joint (control, local axis) | L | R |
+| --- | --- | --- |
+| Elbow flex (`CTRL_FK_Avatar_ForeArm`, X) | −1 | **+1** |
+| Wrist flex (`CTRL_FK_Avatar_Hand`, X) | −1 | **+1** |
+| Finger curl (`CTRL_Avatar_HandIndex1/2/3`, Z) | +1 | +1 |
+| Thumb curl (`CTRL_Avatar_HandThumb2/3`, Z) | +1 | +1 |
+| Thumb across the palm (`CTRL_Avatar_HandThumb1`, X) | +1 | **−1** |
+| Thigh out (`CTRL_FK_Avatar_UpLeg`, Z) | +1 | **−1** |
+| Shoulder up (`CTRL_Avatar_Shoulder`, Z) | −1 | −1 |
+| Thigh forward (`CTRL_FK_Avatar_UpLeg`, X) | +1 | +1 |
+| Knee bend (`CTRL_FK_Avatar_Leg`, X) | −1 | −1 |
+| Foot down (`CTRL_FK_Avatar_Foot`, X) | +1 | +1 |
+
+Head down / turn left / tilt right (`CTRL_Avatar_Head` X / Y / Z) and spine forward / side / twist (`CTRL_FK_Avatar_Spine` X / Z / Y) are all `+1`. Elbow, wrist and thumb-across flip between sides; finger and thumb curls do not; the legs are mixed. Re-run detection rather than copying this table if the rig file changes.

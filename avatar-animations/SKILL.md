@@ -77,6 +77,8 @@ pb.rotation_quaternion @= Quaternion(local_axis, math.radians(deg))
 
 - Pure forward raise → world **X**.
 - Moving a raised arm in/out → yaw about world **Z**.
+- A world-axis move is only "semantic" for the arm direction it was tuned on: the roll that spreads hanging arms outward **closes** the V once the arms point overhead (sign flips), and after a deep forward fold the arms point backward so a *forward* raise is what brings them down to hang. Check the numbers, not the verb name.
+- Translating a control (`pose_bone.location`) works in the bone's **rest** frame, not its rotated frame — strip `matrix_basis` before converting a world delta, or a rotated control (an IK hand, a yawed COG) moves the wrong way. `move()` in the patterns reference does this.
 
 World axes alone do not give a perfect arm pose, though. Arms move in many directions, and the rig's animator works with world **and** local rotations together. Two things need the bone's **local** axes:
 
@@ -130,6 +132,12 @@ setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
 ```
 
 Whatever the mode, check the feet: world Z of `Avatar_LeftToeBase` / `Avatar_RightToeBase` must stay **≥ 0** or the avatar sinks through the floor.
+
+## RULE: Touching something (face, prop, other hand) — arm IK, solve the fingertip, measured landmarks
+
+FK angles cannot land a finger on a target reliably. Switch that arm to IK (`FK > IK Arm L/R` = 1), place `CTRL_IK_Avatar_Hand.*` in world space, then iterate the **fingertip** (`Avatar_*HandIndex4`, a deform bone) onto the target by shifting the hand control by the remaining error — the hand control is at the wrist, so aiming *it* puts the wrist on the target. The `Avatar_Head` bone starts **mid-face**, not at the skull base: the nose tip is 0.19 m in front of and 0.06 m below it, the chin 0.12 m below, so build face targets from the measured offsets in the head's *current* rotation (`{baseDir}/references/avatar-rig.md` → "Face geometry"; `ik_hand` / `solve_tip` / `nose_world` in `{baseDir}/references/blender-emote-patterns.md`).
+
+Key the FK arm to roughly the same pose as the IK target on the keyframes where `FK > IK Arm` switches: the property is interpolated between keys, so an FK arm left hanging at the side swings through the chest while the blend runs.
 
 ## RULE: Verify with numbers as well as renders
 
