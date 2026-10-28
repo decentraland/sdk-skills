@@ -135,7 +135,7 @@ function main() {
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
 
-**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile too, the same frame as the local player's.
+**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile too, the same frame as the local player's. Derive anything safety-critical from the local player's own position on each client, not from a remote one.
 
 ## Profile Data for Off-Scene Users (Catalyst)
 

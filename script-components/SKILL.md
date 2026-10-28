@@ -307,7 +307,7 @@ solve() {
 }
 ```
 
-Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one. The truthiness guard needs `@dcl/sdk` 7.30.0+; on an older pin an unwired param is a truthy placeholder whose call logs a `console.error`.
+Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one. The truthiness guard needs `@dcl/sdk` 7.28.0+; on an older pin an unwired param is a truthy placeholder whose call logs a `console.error`.
 
 ## Calling other scripts from code
 

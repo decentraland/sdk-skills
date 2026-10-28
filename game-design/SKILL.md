@@ -28,7 +28,7 @@ The Explorer ships these for every scene. Do not plan, scope or build a scene ve
 | Avatar customization from the backpack (wearables) | A dress-up / character-creator screen |
 | Loading screen while the scene downloads | A loading screen or progress bar |
 
-- **Scenes CAN override any of these when the design calls for it**: hide all avatars and/or name tags in a zone (`AvatarModifierArea` with `AMT_HIDE_AVATARS` / `AMT_HIDE_NAMETAGS`, plus `AMT_DISABLE_PASSPORTS`), then show your own body at the player's position (an `AvatarShape` or a model that follows the player; other players see it only if you sync it yourself — docs `avatars/npc-avatars.md` → *Replace the player's avatar*, **npcs**); silence voice chat on the scene (scene settings restrictions / `featureToggles.voiceChat`, see **create-scene**); show a custom start or title screen. Make it a deliberate choice, not a reflex carried over from standalone games.
+- **Scenes CAN override any of these when the design calls for it**: hide all avatars and/or name tags in a zone (`AvatarModifierArea` with `AMT_HIDE_AVATARS` / `AMT_HIDE_NAMETAGS`, plus `AMT_DISABLE_PASSPORTS`), then show your own body at the player's position (an `AvatarShape` or a model that follows the player; other players see it only if you sync it yourself — docs `avatars/npc-avatars.md` → *Replace the player's avatar*, **npcs**); silence voice chat on the scene (scene settings restrictions / `featureToggles.voiceChat`, see `{baseDir}/../create-scene/references/scene-json.md` → Feature Toggles); show a custom start or title screen. Make it a deliberate choice, not a reflex carried over from standalone games.
 - **Skipping a start screen is a feature.** With none, the player lands straight in the game and starts playing on arrival. If you add one, gate it on the loading screen (see *First impression* in §4) and keep it to one tap.
 
 Verified: Explorer modules `Chat`, `VoiceChat`, `Friends`, `EmotesWheel`, `NameTags`, `Passport`, `Backpack`, `SceneLoadingScreens` (unity-explorer `Explorer/Assets/DCL/`); docs `design-experience/design-games.md` (*Communication between players*, *Avatars*) and `scene-editor/configure/scene-settings.md` (*Scene restrictions*); `AvatarModifierType` enum in protocol `avatar_modifier_area.proto`.
@@ -113,7 +113,7 @@ engine.addSystem(lodSystem)
 Remove collision meshes from decorative objects that players never interact with. This reduces physics body count significantly.
 
 ### Disable Landscape Terrain (Worlds)
-For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove the auto-generated grassland/trees/sea around the scene. Two payoffs: it frees rendering budget, and it lets you commit to a self-contained aesthetic (open water, space, void). Ignored in Genesis City. See the `create-scene` skill.
+For single-scene Worlds, set `landscapeTerrain: false` in `scene.json` to remove the auto-generated grassland/trees/sea around the scene. Two payoffs: it frees rendering budget, and it lets you commit to a self-contained aesthetic (open water, space, void). Ignored in Genesis City. See `{baseDir}/../create-scene/references/scene-json.md` → Fields.
 
 ## 6. Input System Design
 
@@ -247,7 +247,7 @@ first local tests. Add questions when the creator chooses to collect feedback.
 - [ ] **Within scene limits**: Triangle count, entity count, texture count, and file size all within budget for the target parcel count.
 - [ ] **Performance acceptable**: Maintains 30+ FPS during gameplay with target entity/triangle counts.
 - [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls.
-- [ ] **No mechanic depends on a mobile gap**: no `TweenSequence` on the path across (it does not move on mobile), no fence made only of invisible or sub-1 cm colliders, no Draco GLBs, no information carried only by `AvatarNametag`. Full list, consequences and workarounds: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+- [ ] **No mechanic depends on a mobile gap**: no `TweenSequence` on the path across (it does not move on mobile), no fence made only of invisible or sub-1 cm colliders, no Draco GLBs, no information carried only by `AvatarNametag`, no Smart Item on the path a mobile player needs. Full list of gaps, consequences and workarounds, and what does work on mobile (`ParticleSystem`, `LightSource` and more): `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - [ ] **Within mobile scene limits**: ≤ 8 light sources (2 shadow-casting) and ≤ 8 VFX emitters, and the scene still reads on the Very Low graphics profile where no scene light is active. See **optimize-scene** → *Mobile Scene Limits*.
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
@@ -373,7 +373,7 @@ Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤
 | Server-authoritative games, leaderboards, anti-cheat | **authoritative-server** | Competitive scoring, persistent progress, admin-gated host controls. The Gem Rush reference scene (`92,-9`) is a complete competitive game architecture with server-side proximity anti-cheat and checkpoint-only storage. |
 | FPS-style / mouselook camera controls | **camera-control** | Mouselook pattern: `PrimaryPointerInfo.screenDelta` + VirtualCamera + PointerLock + InputModifier. Desktop only. |
 | Spectate / observer / director camera | **camera-control** | Spectate Mode pattern: free or player-following camera, WASD/E/F/1/2 controls, parcel-bounds clamping, player roster. Combine with an admin check (authoritative-server) to restrict who can enter spectate mode. |
-| Audio-reactive visuals (music visualizers, beat detection) | **audio-analysis** | `AudioAnalysis` component on `AudioSource` or `VideoPlayer` (progressive only, not HLS). Drive geometry/lights/colors from `amplitude` and 8 frequency `bands`. |
+| Audio-reactive visuals (music visualizers, beat detection) | **audio-analysis** | `AudioAnalysis` component on `AudioSource` or `VideoPlayer` (progressive only, not HLS; mobile analyses `AudioSource` only). Drive geometry/lights/colors from `amplitude` and 8 frequency `bands`. |
 | Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs. `UiInputBinding` prop for binding InputActions to UI elements (on-screen buttons for mobile). |
 | Mobile touch controls | **advanced-input** | `TouchScreenControls` component for hiding/showing on-screen buttons, setting main action, hiding joystick/crosshair. Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform`. |
 | Open Explorer UI panels from scenes | **scene-runtime** | `openExplorerUi()` restricted action to open map, backpack, settings, etc. from a user gesture. Useful for onboarding flows and UX shortcuts. |

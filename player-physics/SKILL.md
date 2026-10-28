@@ -103,6 +103,6 @@ While the player is gliding (glider open), forces behave differently:
 
 ## Mobile does not move exactly like desktop
 
-Physics-relevant rules on mobile: give every collider at least 1 cm of thickness (thinner ones collide only from above); never fence a play area or kill boundary with an invisible collider alone (invisible blockers may not block), back it with a `TriggerArea` + `movePlayerTo` or visible geometry; leave a margin on step and ledge heights and on landing zones after an impulse or knockback, and verify precision platforming on a device. Full list of movement and collision differences: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+Physics-relevant rules on mobile: give every collider at least 1 cm of thickness (thinner ones collide only from above); never fence a play area or kill boundary with an invisible collider alone (invisible blockers may not block), back it with a `TriggerArea` + `movePlayerTo` or visible geometry; leave a margin on step and ledge heights and on landing zones after an impulse or knockback, and verify precision platforming on a device. Full list of movement and collision differences (including `TweenSequence` moving platforms, which do not move on mobile): `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 For full code examples (launch pad, wind tunnel, repulsion field, coordinate conversion), see `{baseDir}/references/physics-patterns.md`.

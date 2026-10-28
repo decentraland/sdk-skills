@@ -154,6 +154,8 @@ function globalInputSystem() {
 engine.addSystem(globalInputSystem)
 ```
 
+Below `@dcl/sdk` 7.28.0, a key pressed over one entity in the same frame the pointer is released over another is dropped: `isPressed` and the global `isTriggered` read `false` while that entity's `isTriggered` reads `true`. Upgrade the pin rather than work around it.
+
 ## All InputAction Values
 
 | InputAction    | Key/Button                                                       |

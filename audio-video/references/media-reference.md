@@ -203,7 +203,7 @@ Material.setBasicMaterial(screen2, { texture: tex })
 
 ## AudioAnalysis (Advanced)
 
-Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. Desktop and mobile.
+Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor).
 
 ```typescript
 import { AudioAnalysis, AudioAnalysisView } from '@dcl/sdk/ecs'

@@ -155,6 +155,7 @@ PointerEventType.PET_PROXIMITY_LEAVE; // Player moves out of entity's proximity 
 - `removeOnPointerDown` / `removeOnClick` / `removeOnPointerUp` / the hover and proximity variants **remove the `PointerEvents` entry the registration created, whether or not `hoverText` was passed**, so the renderer stops advertising an interaction whose callback is gone, and re-registering does not grow the array.
 - The callback map is keyed by `eventType:interactionType`, so **`onProximityDown` and `onPointerDown` coexist** on the same entity: register both a cursor and a proximity handler for the same event type, and **both callbacks fire** when both conditions are met.
 - A removal takes only its own registration's entry: `removeOnClick` and `onPointerDown` (both `PET_DOWN` + `CURSOR`) are independent.
+- On an older pin, a removal without `hoverText` leaves its entry behind (the interaction stays advertised and re-registering grows the array), and `onProximityDown` replaces an existing `onPointerDown` on the same entity.
 
 ---
 
@@ -332,4 +333,4 @@ Engine-team test scenes exercising these APIs (ground truth):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — declarative `PointerEvents` read in a system via `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-1-raycast-unit-tests — component-based `Raycast`/`RaycastResult` for all four direction modes, incl. origin under a transformed parent chain.
 
-For full code examples and implementation patterns, see `{baseDir}/references/interactivity-patterns.md`. For the input action reference table and declarative PointerEvents component, see `{baseDir}/references/input-reference.md`.
+For full code examples and implementation patterns, see `{baseDir}/references/interactivity-patterns.md`. For the declarative PointerEvents component, see `{baseDir}/references/input-reference.md`; for the input action table, **advanced-input** → *All InputAction Values*.

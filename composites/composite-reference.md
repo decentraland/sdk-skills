@@ -678,7 +678,7 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core. The build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required. Even so, do not add any of these components unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. The build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency). Even so, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 
@@ -722,6 +722,7 @@ Entities defined in the composite can be fetched in TypeScript code by name or b
 The Creator Hub auto-generates `assets/scene/entity-names.ts` with an `EntityNames` enum that lists every named entity. Import it to get type-safe access:
 
 ```ts
+import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {

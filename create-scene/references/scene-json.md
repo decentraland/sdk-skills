@@ -1,6 +1,6 @@
 # scene.json reference
 
-Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file.
+Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file — except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0` (**creator-hub-mcp** → *Tool catalog*, Settings row; spawn points: *RULE — confirm a batch landed on disk*; thumbnail: *Gotchas*).
 
 ## Fields
 

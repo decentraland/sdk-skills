@@ -31,7 +31,7 @@ executeTask(async () => {
 
 ## Restricted Actions — extended
 
-The full list, the player-interaction rule, and canonical examples (`movePlayerTo`, `teleportTo`, `triggerEmote`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md. Details below extend those.
+The full list, which actions need a player gesture (`openExplorerUi` only) or a confirmation, and canonical examples (`teleportTo`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md → *Restricted Actions*. `movePlayerTo` and emotes live in **player-avatar**. Details below extend those.
 
 ### teleportTo — signature
 

@@ -174,7 +174,9 @@ const Loot = engine.defineComponent('game::Loot', {
 })
 ```
 
-### Schema behavior to rely on
+### Schema behavior to rely on (`@dcl/sdk` 7.28.0+)
+
+On an older pin these do not hold: never leave a `OneOf` field unset (serializing it throws and stops the engine tick for the whole scene), and treat `false`, `0` and `''` in an `Optional` or primitive-schema component as unset. Upgrading to 7.28.0 can newly fail to compile code that calls `.push()` on a component array read; that code already threw at runtime.
 
 - `Schemas.Optional(...)` holds falsy values: `false`, `0` and `''` round-trip, so `Optional(Schemas.Boolean)` is a real tri-state.
 - A `Schemas.OneOf(...)` field the scene never sets is safe: it serializes and reads back as `{}` with no `$case`.

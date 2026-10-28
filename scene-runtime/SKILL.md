@@ -332,13 +332,9 @@ For a custom engine instance, use `createTimers(engineInstance)` from `@dcl/sdk/
 **Callbacks vs per-frame state.** A one-shot or periodic **callback** (do X in 2 s, every 1 s) is `timers.setTimeout` / `setInterval`; `timers` is itself an engine system that accumulates `dt`, so it is already frame-synchronized. **Per-frame game state** you update or read every tick (a cooldown bar, regeneration, a countdown shown in UI) is a `dt` accumulator inside your own system:
 
 ```typescript
-let elapsed = 0;
+let cooldown = 0; // seconds left; a UI bar reads it every frame
 engine.addSystem((dt: number) => {
-  elapsed += dt;
-  if (elapsed >= 3) {
-    elapsed = 0;
-    // Do something every 3 seconds
-  }
+  if (cooldown > 0) cooldown = Math.max(0, cooldown - dt);
 });
 ```
 
@@ -358,7 +354,7 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ### engine.removeEntity(entity): boolean
 
-Removes all components from an entity and releases its id for reuse. Returns `boolean`:
+Removes all components from an entity and releases its id for reuse. Returns `boolean` (7.27.0+; older SDKs return `void` and can purge a live remote avatar's components):
 - `true` — entity accepted; components purged, id released for recycling.
 - `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
 

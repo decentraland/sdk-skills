@@ -55,7 +55,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **AudioSource** | `audioClipUrl: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `pitch: number` | Play audio clips (.mp3, .ogg, .wav). |
 | **AudioStream** | `url: string`, `playing: boolean`, `volume: number`, `spatial?: boolean`, `spatialMinDistance?: number`, `spatialMaxDistance?: number` | Stream audio from a URL. Non-spatial by default; set `spatial: true` to position it in 3D space at the entity. |
 | **AudioEvent** | Read-only | Audio playback events. |
-| **AudioAnalysis** | `mode: PBAudioAnalysisMode`, `amplitudeGain?`, `bandsGain?`; output: `amplitude`, `band0..band7` | Real-time amplitude + 8-band frequency data from `AudioSource`/`AudioStream`/`VideoPlayer`. Use `AudioAnalysis.createAudioAnalysis(entity)` then `readIntoView`. Desktop and mobile. |
+| **AudioAnalysis** | `mode: PBAudioAnalysisMode`, `amplitudeGain?`, `bandsGain?`; output: `amplitude`, `band0..band7` | Real-time amplitude + 8-band frequency data from `AudioSource`/`AudioStream`/`VideoPlayer`. Use `AudioAnalysis.createAudioAnalysis(entity)` then `readIntoView`. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor). |
 | **VideoPlayer** | `src: string`, `playing: boolean`, `loop: boolean`, `volume: number`, `playbackRate: number`, `position?: number`, `spatial?: boolean`, `spatialMinDistance?: number`, `spatialMaxDistance?: number` | Play video on a surface. Requires `Material` with video texture. `position` seeks (seconds); audio is non-spatial unless `spatial: true`. |
 | **VideoEvent** | Read-only | Video playback events. |
 

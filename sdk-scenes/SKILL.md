@@ -95,7 +95,7 @@ Composite entities load faster, are editable in the Creator Hub, and keep the co
 
 ## CRITICAL RULE — Editing an existing composite
 
-**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`). Its tools edit the open scene live, with autosave, undo and the editor bookkeeping handled for you; tool list, connection and the decision ladder are in **creator-hub-mcp**. Editing the file while the scene is open in the Creator Hub loses your work silently, with no error: the inspector autosaves about 100 ms after any editor transaction and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk (mechanism: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode)).
+**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0`, see **creator-hub-mcp**). Its tools edit the open scene live, with autosave, undo and the editor bookkeeping handled for you; tool list, connection and the decision ladder are in **creator-hub-mcp**. Editing the file while the scene is open in the Creator Hub loses your work silently, with no error: the inspector autosaves about 100 ms after any editor transaction and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk (mechanism: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode)).
 
 Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
 
@@ -182,7 +182,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Audio Analysis (Reactive Visualizers)
 
-**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Desktop and mobile; Bevy leaves the values at 0.
+**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor). Bevy leaves the values at 0.
 
 ### Blockchain & NFTs
 
@@ -301,4 +301,4 @@ The `.composite` JSON format for declaring initial scene entities. Includes `get
 1. Identify the topic from the user's request
 2. Load the corresponding skill — it contains the full API, code patterns, and rules
 3. For broad requests spanning multiple topics, load each relevant skill
-4. For asset discovery, grep the relevant catalog (never read a catalog whole; the model catalog is ~5,800 lines) and suggest specific assets before fetching any
+4. For asset discovery, read the relevant catalog's header first (the animation catalog's holds the `triggerEmote` vs `triggerSceneEmote` split and the emote permission), then grep the model and asset-pack catalogs by keyword rather than reading them whole (the model catalog is ~5,800 lines); suggest specific assets before fetching any

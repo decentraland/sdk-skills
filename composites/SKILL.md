@@ -11,7 +11,7 @@ The mandatory workflow below applies to EVERY composite you author or edit: chec
 
 ## Gate — use the Creator Hub MCP instead of editing the file (check FIRST)
 
-**Hand-editing `main.composite` is the fallback, not the default.** If a Creator Hub is involved, pick your row of the decision ladder in **creator-hub-mcp** → *RULE — the MCP is the way to change the scene graph*; the rule behind it is **sdk-scenes** → *CRITICAL RULE — Editing an existing composite*, and a scene that is (or may be) open with no MCP connected is a stop-and-ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5). The file workflow below applies in full only with no Creator Hub in play (CLI-only project, CI, the app closed by choice), or after the user declines the MCP and closes the scene.
+**Hand-editing `main.composite`, `main.crdt` or `scene.json` is the fallback, not the default.** If a Creator Hub is involved, pick your row of the decision ladder in **creator-hub-mcp** → *RULE — the MCP is the way to change the scene graph*; the rule behind it is **sdk-scenes** → *CRITICAL RULE — Editing an existing composite*, and a scene that is (or may be) open with no MCP connected is a stop-and-ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5). The file workflow below applies in full only with no Creator Hub in play (CLI-only project, CI, the app closed by choice), or after the user declines the MCP and closes the scene.
 
 When you do work through the MCP tools, this skill still applies in two ways: the format catalog in the reference is your guide to component shapes (`set_component` takes the same JSON the composite stores), and Step 0 (bounds) still applies.
 
@@ -124,11 +124,11 @@ Before writing a fresh composite, verify:
 - [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data (it is the id allocator for those ids)
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
-- [ ] No extra library is needed, even for `asset-packs::*` components: the build falls back to the `@dcl/asset-packs` copy bundled inside `@dcl/inspector` when the scene does not declare it
+- [ ] No extra library is needed, even for `asset-packs::*` components: the build falls back to the `@dcl/asset-packs` copy bundled inside `@dcl/inspector` when the scene does not declare it (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency)
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
-- [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, `create_entity` / `set_component` do every item below for you (see the Gate).
+- [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop here and use them: `create_entity` / `set_component` do every item below for you (see the Gate).
 - [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**: the owner can reopen it at any time, and its autosave reverts external edits (a parcel change was lost this way). Ask the user to close the scene before you write and to reopen it afterwards. Open, with no MCP: stop and ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
