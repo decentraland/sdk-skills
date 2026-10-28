@@ -88,9 +88,11 @@ import { PointerLock, PrimaryPointerInfo } from '@dcl/sdk/ecs'
 // Request lock on equip: createOrReplace, never getMutable on a component that may not exist yet
 PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: true })
 
-// Cursor ray (unlocked aim): create the component if missing, and guard the optional field
-const cursorDir = PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity).worldRayDirection
-if (cursorDir) { /* Raycast.createOrReplace(aimRay, { direction: { $case: 'globalDirection', globalDirection: cursorDir }, ... }) */ }
+// Cursor ray (unlocked aim): create the component if missing; the field is optional, so fall back to camera forward
+const aimDir =
+  PrimaryPointerInfo.getOrCreateMutable(engine.RootEntity).worldRayDirection ??
+  Vector3.rotate(Vector3.Forward(), Transform.get(engine.CameraEntity).rotation)
+// Raycast.createOrReplace(aimRay, { direction: { $case: 'globalDirection', globalDirection: aimDir }, ... })
 ```
 
 ## Shoulder origin (third person)

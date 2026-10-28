@@ -209,7 +209,7 @@ Usage (a mortar aimed at the crosshair):
 ```typescript
 const target = currentAim().point // hitscan.md
 const v = solveBallistic(muzzle, target, 22, 9.8)
-if (v) spawnProjectile({ muzzle, velocity: v, gravity: 9.8, damage: 40, source: myId, mask, fromLocalPlayer: true })
+if (v) spawnProjectile({ muzzle, velocity: v, gravity: 9.8, damage: 40, source: myId(), mask, fromLocalPlayer: true })
 else { /* out of range: show a red reticle, or fire the 45-deg max-range shot */ }
 ```
 
