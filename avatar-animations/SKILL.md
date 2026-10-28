@@ -90,7 +90,7 @@ World axes alone do not give a perfect arm pose, though. Arms move in many direc
 | Control | Locked | Bend axis |
 | --- | --- | --- |
 | `CTRL_FK_Avatar_ForeArm.*` (elbow), `CTRL_FK_Avatar_Leg.*` (knee) | Y, Z | **local X** |
-| `CTRL_FK_Avatar_Hand.*` (wrist) | none | free; detect the axis per pose |
+| `CTRL_FK_Avatar_Hand.*` (wrist) | none | **local Z** flexes toward the palm, on both sides. Local X tilts the hand sideways. |
 | `CTRL_Avatar_Hand{Index,Middle,Ring,Pinky}{1,2,3}.*` | Y | **local Z = curl**. Local X swings the finger **sideways** in the plane of the palm, on every joint. |
 | `CTRL_Avatar_HandThumb1.*` | Y | local X swings the whole thumb across the palm. The sign differs per side. |
 | `CTRL_Avatar_HandThumb2/3.*` | Y | local Z = curl |
@@ -143,7 +143,7 @@ Key the FK arm to roughly the same pose as the IK target on the keyframes where 
 
 Renders catch composition; numbers catch clipping. Print world positions of hands, head, feet and any prop reference at **every** keyframe:
 
-- Keep hands **≥ ~0.3 m** from the head centre when a limb passes the head. A throw over the shoulder clipped straight through the skull until the arm was routed outward first.
+- Keep hands **≥ ~0.3 m** from the head centre when a limb passes the head. A throw over the shoulder clipped straight through the skull until the arm was routed outward first. Deliberate face contact (see the RULE on touching) is the exception: check the fingertip lands on its target, and keep the rest of the hand and the forearm outside the head.
 - Keep hands **≥ ~0.10 m** apart rather than overlapping at the centre line.
 - Keep the **face visible** in any default/holding pose — hold objects at upper-chest height with the head tilted down, not in front of the face.
 

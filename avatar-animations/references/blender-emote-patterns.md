@@ -200,6 +200,9 @@ for s, full in (('L', 'Left'), ('R', 'Right')):
         lambda d: rl('CTRL_Avatar_HandThumb1.' + s, 'X', d),
         lambda: -(wpos('Avatar_%sHandThumb4' % full) - wpos('Avatar_%sHandPinky1' % full)).length, 35)
 
+# head down: the top of the head tips forward (-Y)
+S['headdown'] = auto_sign('CTRL_Avatar_Head', 'X', lambda: -wtail('Avatar_Head').y)
+
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
 
 def fist(s, k=1.0):
@@ -226,6 +229,7 @@ def arm_out(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'Z', d if s == 'L' else -d)
 def arm_twist(s, d): rl('CTRL_FK_Avatar_Arm.' + s, 'Y', d)                  # roll about the bone's own axis
 def arm_side(s, d): rw('CTRL_FK_Avatar_Arm.' + s, 'Y', -d if s == 'L' else d)   # world roll: + lifts a hanging arm sideways
 def head_down(d):   rl('CTRL_Avatar_Head', 'X', S['headdown'] * d)
+def spine_fwd(d):   rl('CTRL_FK_Avatar_Spine', 'X', d)                  # + bends forward (measured +1)
 def fk_legs():   # only for legs that leave the ground; feet on the floor → keep IK and move CTRL_IK_Foot.*
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
@@ -250,9 +254,9 @@ for frame, kw in CLIP:
     key_all(frame, deform=(frame == 1 or frame == last))
 ```
 
-**A world-axis verb is only "semantic" for the arm direction it was named on.** `arm_side` spreads *hanging* arms outward for positive values, but once the arm points overhead the same world roll closes the V — an overhead reach (yoga) needs **negative** `arm_side`. Likewise the arm rotates *with* the torso: after a deep `spine_fwd` (forward fold) the arms point backward, and it is `arm_fwd(+90)` that brings them down to hang toward the floor. Read the `report()` numbers instead of trusting the verb's name when the pose is far from idle.
+**A world-axis verb is only "semantic" for the arm direction it was named on.** `arm_side` spreads *hanging* arms outward for positive values, but once the arm points overhead the same world roll closes the V — an overhead reach (yoga) needs **negative** `arm_side`. Likewise, at the default `IsoRot Arm  FK L/R` = `1.0` the FK arm turns *with* the torso: after an 80° `spine_fwd` (forward fold) a hanging arm points backward, and it is `arm_fwd(+90)` that brings it down to hang toward the floor. At `0.0` it keeps hanging down (measured 2026-10-28; `avatar-rig.md` → "Custom properties"). Read the `report()` numbers instead of trusting the verb's name when the pose is far from idle.
 
-**Standing clips: keep the legs in IK** (the rig's default) and step, lunge or crouch by moving the reverse-foot controls in world metres while lowering the COG — `move('CTRL_IK_Foot.R', dy=-0.30)` steps the right foot forward, `move('CTRL_Avatar_Knee.R', ...)` aims the knee, `move('CTRL_Avatar_UpperBody', dz=-0.30, dy=-0.12)` drops into the lunge. Switch to FK legs only for seated poses, where the feet must follow the thighs.
+**Standing clips: keep the legs in IK** (the rig's default) and step, lunge or crouch by moving the reverse-foot controls in world metres while lowering the COG — `move('CTRL_IK_Foot.R', dy=-0.30)` steps the right foot forward, `move('CTRL_Avatar_Knee.R', ...)` aims the knee, `move('CTRL_Avatar_UpperBody', dz=-0.30, dy=-0.12)` drops into the lunge. Switch to FK only for a leg that leaves the ground (see the FK/IK rule in SKILL.md).
 
 ## Arm IK: exact hand placement and fingertip targets
 
@@ -296,7 +300,9 @@ def nose_world():
     return wpos('Avatar_Head') + (M @ rest.inverted()) @ Vector((0, -0.19, -0.058))
 ```
 
-**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. In the parametric `pose()` this means passing the FK angles (`R_fwd`, `R_elbow`, ...) together with `R_ik` on the same keyframe.
+It rotates the offset by the head's change from its **rest** orientation. That is safe because `Starting_Pose` leaves `Avatar_Head` within 1° of rest. Checked at frame 0: 3 mm from the `ShapeA` nose tip, 2 cm above the `ShapeB` one, whose nose sits lower. Add `(0, 0, -0.02)` to the offset for `ShapeB`.
+
+**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. `pose()` above has no IK parameter, and its `reset_all()` puts `FK > IK Arm` back to the idle `0`. So on those keyframes call `pose()` with FK angles (`R_fwd`, `R_elbow`, ...) close to the IK pose, then `ik_hand()` / `solve_tip()`, then key.
 
 ## Numeric verification of a pose
 
