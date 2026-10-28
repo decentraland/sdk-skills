@@ -216,6 +216,8 @@ export function scoreSystem(dt: number): void {
 
 Basic `Storage` API usage (Scene + Player get/set/delete, boolean-checking) and the CLI commands are in `{baseDir}/references/auth-server-examples.md` → Storage. The concurrent host-call cap that makes over-frequent writes fail is documented under Server Resource Limits below. This section covers the **checkpoint persistence pattern** that follows from that cap.
 
+**Key player data by the lower-cased address.** `context.from` arrives exactly as the transport reports it, with no case normalization. Lower-case it once at the top of each handler (`const address = context.from.toLowerCase()`) and use that value for every in-memory map, `dirty` set and Storage call. A mix of raw and lower-cased keys splits one player's data across two entries.
+
 ### Persist at Checkpoints, Not on Every Change
 
 Storage is durable persistence for data that must survive restarts/deploys, **not** a live datastore. A server should hold its working state in memory (faster and correct) and flush to Storage only at meaningful checkpoints. Over-frequent writes hit the isolate's in-flight host-call cap (see Server Resource Limits) and the excess `Storage.set` resolves to `false` — a silent, unchecked write loss.
@@ -225,8 +227,9 @@ Storage is durable persistence for data that must survive restarts/deploys, **no
 // BAD: one Storage.set per score change floods the queue
 room.onMessage('claimPoint', async (data, context) => {
   if (!context) return
-  scores[context.from] = (scores[context.from] ?? 0) + 1
-  await Storage.player.set(context.from, 'score', String(scores[context.from])) // fires every claim
+  const address = context.from.toLowerCase()
+  scores[address] = (scores[address] ?? 0) + 1
+  await Storage.player.set(address, 'score', String(scores[address])) // fires every claim
 })
 ```
 
@@ -238,8 +241,9 @@ const dirty = new Set<string>()
 
 room.onMessage('claimPoint', (data, context) => {
   if (!context) return
-  scores[context.from] = (scores[context.from] ?? 0) + 1
-  dirty.add(context.from)               // mark for later flush, no Storage call here
+  const address = context.from.toLowerCase()
+  scores[address] = (scores[address] ?? 0) + 1
+  dirty.add(address)                    // mark for later flush, no Storage call here
 })
 
 // Debounced flush: run periodically (e.g. every ~30s via a dt-accumulator system),
@@ -258,11 +262,13 @@ Persist on: game over, player leaves, round end, or a periodic debounced save. N
 
 ### Load-or-create a player save (never overwrite on join)
 
-Assigning default data every time a player joins wipes their save. Read first; create only on a confirmed absence. `Storage.player.get` resolves `null` only when the key does not exist and **throws** when the read fails — let it throw (or retry), never fall back to defaults followed by a write.
+Assigning default data every time a player joins wipes their save. Read first; create only on a confirmed absence. `Storage.player.get` resolves `null` only when the key does not exist and **throws** when the read fails. Catch the failure, leave the player unloaded and tell the client so it can retry the join. Defaults followed by a write would replace the real save. While the save is unloaded, every handler for that player returns early, so an uncaught throw drops their later actions silently.
 
 ```typescript
 type PlayerSave = { coins: number; crops: number; grownAt: number }
-const saves: Record<string, PlayerSave> = {} // in-memory working state, keyed by lower-cased address
+// In-memory working state, keyed by lower-cased address. No prototype, so a key like
+// '__proto__' or 'constructor' never finds an inherited value.
+const saves: Record<string, PlayerSave> = Object.create(null)
 const dirty = new Set<string>() // addresses whose save changed since the last flush
 
 // Checkpoint flush for this example: writes the whole save under the 'save' key
@@ -286,8 +292,14 @@ async function loadOrCreate(address: string): Promise<PlayerSave> {
 
 room.onMessage('playerJoin', async (_data, context) => {
   if (!context) return
-  const save = await loadOrCreate(context.from)
-  settleIdle(save) // see below
+  const address = context.from.toLowerCase()
+  try {
+    const save = await loadOrCreate(address)
+    if (settleIdle(save)) dirty.add(address) // see below
+  } catch (error) {
+    console.error(`[Server] could not load save for ${address}`, error)
+    room.send('saveUnavailable', {}, { to: [context.from] }) // client re-sends playerJoin after a delay
+  }
 })
 ```
 
@@ -295,46 +307,55 @@ room.onMessage('playerJoin', async (_data, context) => {
 
 ### Validate every transfer on the server
 
-A client message is a request, not a fact. Before moving currency or items, check the amount is a positive finite number (an integer, for counts) and that the sender holds enough — otherwise `amount: -500` moves money *to* the sender. `Schemas.Int` constrains the type, not the sign.
+A client message is a request, not a fact. Validate every field before using it:
+- **Addresses:** a client-sent address must match `0x` plus 40 hex digits. Otherwise a value like `'__proto__'` can reach your maps and your `dirty` set. `Storage.player.*` throws a `TypeError` on anything else.
+- **Amounts:** an amount must be a positive finite number (an integer, for counts), and the sender must hold enough. Otherwise `amount: -500` moves money *to* the sender. `Schemas.Int` constrains the type, not the sign.
 
 ```typescript
+const ADDRESS = /^0x[0-9a-f]{40}$/
+
 room.onMessage('giveCoins', (data, context) => {
   if (!context) return
-  const from = saves[context.from.toLowerCase()]
-  const to = saves[String(data.to).toLowerCase()]
+  const fromAddress = context.from.toLowerCase()
+  const toAddress = String(data.to).toLowerCase()
+  if (!ADDRESS.test(toAddress) || toAddress === fromAddress) return // rejects junk keys and self-transfers
+  const from = saves[fromAddress]
+  const to = saves[toAddress]
+  if (!from || !to) return                              // both players must be in the scene (saves loaded)
   const amount = data.amount
-  if (!from || !to || from === to) return
   if (!Number.isInteger(amount) || amount <= 0) return  // rejects NaN, Infinity, negatives, fractions
   if (from.coins < amount) return
   from.coins -= amount
   to.coins += amount
-  dirty.add(context.from.toLowerCase()); dirty.add(String(data.to).toLowerCase())
+  dirty.add(fromAddress); dirty.add(toAddress)
 })
 ```
 
-This handler is only safe because it never `await`s between the checks and the balance updates. An `await` in between lets a second message run, pass the same checks and spend the same coins again. Load both saves first (`loadOrCreate`), then check and update in one synchronous block.
+This handler only moves coins between players whose saves are loaded, which means both are in the scene. A transfer to anyone else returns without effect. To pay an offline player, validate the address first, then `await loadOrCreate(toAddress)`. Skipping the validation would let any string create a persisted save. After the `await`, read the balances again and run the checks and the update with no further `await`. An `await` between the checks and the update lets a second message run, pass the same checks and spend the same coins again.
 
 Apply the same checks to buys, sells, crafting and rewards: the server computes the price and the result; the client only names what it wants.
 
 ### Progress while nobody is in the scene (idle / offline)
 
-Never keep a timer running for crops, restocks or energy refills: the server may be stopped between visits and the client is gone. Store the time progress was last settled; on the next visit compute progress from elapsed time and move the timestamp forward. Use the **server's** `Date.now()` — a client clock can be set forward to skip waits, so never accept a client-sent timestamp.
+Never keep a timer running for crops, restocks or energy refills. Nothing is guaranteed to run while the scene is empty: the players' clients are gone, and the Multiplayer Server may be stopped between visits. Store the time progress was last settled; on the next visit compute progress from elapsed time and move the timestamp forward. Use the **server's** `Date.now()` — a client clock can be set forward to skip waits, so never accept a client-sent timestamp.
 
 ```typescript
 const MS_PER_CROP = 60_000
 const MAX_CROPS = 50
 
-function settleIdle(save: PlayerSave, now = Date.now()) {
+// Returns true when the save changed, so the caller can mark it dirty
+function settleIdle(save: PlayerSave, now = Date.now()): boolean {
   const elapsed = Math.max(0, now - save.grownAt)        // ignore backwards clock jumps
   const grown = Math.floor(elapsed / MS_PER_CROP)
-  if (grown === 0) return
+  if (grown === 0) return false
   save.crops = Math.min(MAX_CROPS, save.crops + grown)
   // Keep the unfinished remainder; once capped, restart the clock at now.
   save.grownAt = save.crops >= MAX_CROPS ? now : save.grownAt + grown * MS_PER_CROP
+  return true
 }
 ```
 
-Call it on join and before any action that reads or spends the progressed value (harvest, buy); persist at checkpoints like any other state. Scene-wide variants (a shop restock shared by everyone) store the timestamp under a scene key instead.
+Call it on join and before any action that reads or spends the progressed value (harvest, buy). When it returns `true`, mark the save dirty and persist it at the next checkpoint like any other state. Scene-wide variants (a shop restock shared by everyone) store the timestamp under a scene key instead.
 
 ### Append-only logs: rolling CSV parts in Storage
 
