@@ -80,11 +80,9 @@ Decentraland uses a **Y-up** coordinate system — test model orientation after 
 
 ## RULE: Use composite for initial models
 
-**Always add models that exist at scene load to `assets/scene/main.composite`, not in TypeScript.** Only use TypeScript for models spawned dynamically at runtime. Use `visibleMeshesCollisionMask: 3, invisibleMeshesCollisionMask: 0` when the model has **no `_collider` meshes** (common case). Use `visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3` when it has `_collider` meshes. Never set both to non-zero simultaneously.
+Models present at scene load go in `assets/scene/main.composite`, through the Creator Hub MCP when the scene is open there; only models spawned at runtime go in TypeScript (**sdk-scenes** → *CRITICAL RULE — Composite-first scene authoring*). To add behavior to a composite model, fetch it by name or tag (`{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code).
 
-To add behavior to a composite model, fetch it in `index.ts` by name or tag — do NOT re-create it.
-
-**When the scene is open in the Creator Hub and its MCP tools are available, add the model through them instead of writing the composite** (skill: **creator-hub-mcp**): `search_catalog` + `place_smart_item` for a catalog item (the catalog covers static items as well as Smart Items and downloads the files for you), or `create_entity` + `set_component` `Transform` + `set_component` `core::GltfContainer` for a GLB you placed under `assets/Models/`. The bounding-box, collider-mask, and Animator rules in this skill apply either way.
+Through the MCP (**creator-hub-mcp**): `search_catalog` + `place_smart_item` for a catalog item (the catalog covers static items as well as Smart Items and downloads the files for you), or `create_entity` + `set_component` `Transform` + `set_component` `core::GltfContainer` for a GLB you placed under `assets/Models/`. The bounding-box, collider-mask, and Animator rules in this skill apply either way.
 
 ## RULE: Swapping a model `src` requires fresh Transform — never inherit scale/position
 
@@ -104,35 +102,23 @@ This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...
 
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
 
-This rule is for hand-editing the file, which you should only do when the Creator Hub MCP is unavailable (see **creator-hub-mcp** — its `create_entity` does this registration for you, and hand-editing while the scene is open in the Creator Hub loses the edit).
-
-If `assets/scene/main.composite` already contains `inspector::Nodes` (the user has opened the scene in the Creator Hub at least once), every new entity you add MUST also be registered there or it will be **invisible in the Creator Hub entity tree** — the model still renders in-world, but the user cannot select/edit it from the editor. You also need a `core-schema::Name` entry and an `inspector::TransformConfig` entry for the new entity.
-
-See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact arrays to append to. Don't skip this when adding 3D models to an existing scene.
+Hand-editing a composite that already contains `inspector::Nodes` (only without the MCP, with the scene closed): every new model needs an `inspector::Nodes` entry, a `core-schema::Name` and an `inspector::TransformConfig`, or it renders in-world but is invisible in the Creator Hub entity tree. Procedure: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode).
 
 ## RULE: Parenting a model to the player — pick by item type
 
-When a `GltfContainer` entity needs to follow the player (held weapon, aiming reticle, cosmetic backpack, halo, torch), there are three SDK7 mechanisms and they are NOT interchangeable. **Default for aim-sensitive items: parent to `engine.CameraEntity`** — this is the most common porting mistake when coming from SDK6.
-
-- **Aim-sensitive held item** (gun, aiming reticle, flashlight — anything the player should be able to point by looking around) → `Transform.create(entity, { parent: engine.CameraEntity, position: ..., ... })`. Follows camera yaw **+ pitch**, so the item points where the player is looking. This is the SDK7 analogue of SDK6's `Attachable.FIRST_PERSON_CAMERA`. **Recommended default for held gameplay items.**
-- **Yaw-only / body-fixed item** (held shield not used for aim, static carried torch, non-aimed inventory item) → `Transform.create(entity, { parent: engine.PlayerEntity, position: ..., ... })`. Follows feet + body yaw only — no pitch, no animation. Wrong default for guns: a weapon parented to `PlayerEntity` stays flat when the player looks up to aim.
-- **Cosmetic item** (hat, halo, backpack, name plate, decorative torch visible to other players) → `AvatarAttach.create(entity, { anchorPointId: AAPT_HEAD | AAPT_SPINE | AAPT_LEFT_HAND | ... })`. Follows the animated bone — the item visually moves with idle bob, walk cycle, and gestures. **Not for aim** (animation jitter makes aim-sensitive items unusable).
-
-Using a bone anchor like `AAPT_RIGHT_HAND` for a gun **looks** correct ("put the gun in the hand") but the hand bone is animated — the gun jitters every frame and is unaimable. This is a porting trap when coming from SDK6's `Attachable.FIRST_PERSON_CAMERA` pattern; the correct SDK7 mapping is `engine.CameraEntity`, NOT `AvatarAttach` and NOT `engine.PlayerEntity` (which loses pitch).
-
-See [[player-avatar]] (Held items vs cosmetic items) for the full comparison and a worked gun example. For SDK6 porting context, see [[migrate-sdk6-to-sdk7]].
+To make a model follow the player (held gun, reticle, torch, backpack, halo), pick the mechanism by intent: aim-sensitive held item → parent to `engine.CameraEntity`; body-fixed, yaw-only item → parent to `engine.PlayerEntity`; cosmetic item → `AvatarAttach` (bone anchors animate, so never for aim). Comparison table and a worked gun example: **player-avatar** → *Held items vs cosmetic items*.
 
 ## RULE: Always check for animations
 
-Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has animations**, always add an `Animator` component. Without it the engine silently loops the first clip forever. **If no animations**, omit `Animator`.
+Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has animations**, decide what should play: with no `Animator` the renderer autoplays and loops the file's first clip, which code cannot stop or switch. Add an `Animator` to pick another clip, start still, or switch clips at runtime (**animations-tweens**). **If no animations**, omit `Animator`.
 
 ## RULE: Always check for built-in colliders
 
 Check whether the GLB contains `_collider` meshes (mesh or node name includes `_collider`). Use the collider detection script in `{baseDir}/references/model-patterns.md`.
 
-### Two correct patterns — pick one, never mix
+### Two standard patterns
 
-**Model HAS `_collider` meshes**: `visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3`
+**Model HAS `_collider` meshes**: `visibleMeshesCollisionMask: 0, invisibleMeshesCollisionMask: 3` (the protocol defaults)
 
 **Model has NO `_collider` meshes**: `visibleMeshesCollisionMask: 3, invisibleMeshesCollisionMask: 0`
 
@@ -145,7 +131,7 @@ Choose the mask based on role:
 | Clickable-only, no bulk | `1`                        | Detect clicks only     |
 | Purely decorative       | `0`                        | No interaction         |
 
-**Anti-pattern — DO NOT USE**: `visibleMeshesCollisionMask: 2, invisibleMeshesCollisionMask: 3` — mixes both patterns and causes pointer detection failures.
+**Mixing masks works when you mean it.** The two collider sets are independent and coexist on one entity, each answering only the layers in its own mask. Pointer events land on whichever set carries `CL_POINTER` (`1`); a `CL_PHYSICS`-only (`2`) collider neither receives nor blocks clicks. `visible: 3, invisible: 2` gives clicks on the exact visible mesh while the `_collider` hull also blocks walking. `visible: 2, invisible: 3` makes clicks register only on the `_collider` shapes, so a click on visible geometry the hull does not cover does nothing — the usual cause of "some clicks miss" on a mixed setup.
 
 ## RULE: Always validate entity positions against parcel bounds
 
@@ -167,7 +153,7 @@ Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for run
 
 Always check the scene's existing folders before deciding where to put a new model.
 
-**Dragging from the Local Assets tab onto the viewport is the user's fastest path** when the scene is open in the Creator Hub. `.glb` / `.gltf` drop as a plain model, as they always have. Since creator-hub `062ed0a2` **media files drop as catalog Smart Items instead of bare components**: `.png` / `.jpg` / `.jpeg` spawn the **Image** item with the `Material` PBR texture `src` repointed and the plane lifted `+0.5 m` so it stands on the ground, and `.mp3` / `.mp4` spawn their matching items (see **audio-video**). Offer the drag for a flat image rather than hand-assembling a plane + `Material`; full table and asset ids in **creator-hub-mcp**.
+**Dragging from the Local Assets tab onto the viewport is the user's fastest path** when the scene is open in the Creator Hub. `.glb` / `.gltf` drop as a plain model; **media files drop as catalog Smart Items instead of bare components**: `.png` / `.jpg` / `.jpeg` spawn the **Image** item with the `Material` PBR texture `src` repointed and the plane lifted `+0.5 m` so it stands on the ground, and `.mp3` / `.mp4` spawn their matching items (see **audio-video**). Offer the drag for a flat image rather than hand-assembling a plane + `Material`; full table and asset ids in **creator-hub-mcp**.
 
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 
@@ -245,7 +231,7 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - Use texture atlases when possible to reduce draw calls
 - Materials in models should use PBR for best results
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
-- ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local or Creator Hub mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed and reduce triangles/texture size instead. (Docs commit `5f212e3`, Oct 2026; error dialog tracked in godot-explorer #2432. Note the `54,-55-Testing-3d-models` engine scene below includes a Draco variant — it is a desktop capability test, not a cross-platform recommendation.)
+- ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local, Creator Hub or QR mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed (`npx @gltf-transform/cli optimize in.glb out.glb --compress false`) and reduce triangles/texture size instead; quantization, texture compression and mesh decimation are unaffected. [UNVERIFIED: whether `meshopt` compression loads on mobile — the docs clear only the three forms above.] The `54,-55-Testing-3d-models` engine scene below includes a Draco variant: it is a desktop capability test, not a cross-platform recommendation.
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalogs, see `{baseDir}/references/model-catalog.md` (8,800+ OpenDCL models) and `{baseDir}/references/asset-pack-catalog.md` (Creator Hub asset packs, latest additions).
 

@@ -16,9 +16,9 @@ Those three built-in faces are the only ones. There is no font name list beyond 
 
 ## RULE: Check the SDK version before writing `fontSrc`
 
-`fontSrc` needs the **first `@dcl/sdk` release after 7.30.1** (decentraland/js-sdk-toolchain#1656). On 7.30.1 and earlier the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
+`fontSrc` needs **`@dcl/sdk` 7.31.0** or later. On earlier versions the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
 
-Read the installed version from `node_modules/@dcl/sdk/package.json` (or `package.json`) before writing it. If the scene is older, either upgrade `@dcl/sdk` or stay with a built-in `font`. Never patch the SDK's generated serializers in `node_modules`. The QA scene did that as a temporary bridge, and it breaks on the next install.
+Read the installed version from `node_modules/@dcl/sdk/package.json` (or `package.json`) before writing it. If the scene is older, either upgrade `@dcl/sdk` or stay with a built-in `font`. Never patch the SDK's generated serializers in `node_modules`; it breaks on the next install.
 
 ## RULE: Always set `font` next to `fontSrc`
 
@@ -26,7 +26,7 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` (or `packag
 
 ## RULE: The mobile app ignores `fontSrc`
 
-The Decentraland mobile app does not support custom fonts: it always renders the `font` fallback (decentraland/godot-explorer#3092, no ETA). Every scene that uses `fontSrc` must still look right and fit with its fallback:
+The Decentraland mobile app does not support custom fonts: it always renders the `font` fallback. Every scene that uses `fontSrc` must still look right and fit with its fallback:
 
 - Choose the fallback deliberately (previous rule), not as an afterthought.
 - Never rely on the custom font's width to make text fit a fixed box. Size the box so the fallback fits too.
@@ -36,7 +36,7 @@ When the user adds a custom font, tell them it won't show on mobile.
 
 ## RULE: A custom font is a `.ttf` file in the scene
 
-`fontSrc` is a file path, not a font name. Custom fonts are available, but a font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. When the user wants a custom font and the scene has no `.ttf` for it yet, tell them custom fonts are supported and ask them to provide the `.ttf` file (and its licence). Do not fetch one yourself.
+`fontSrc` is a file path, not a font name. Custom fonts are available, but a font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. When the user wants a custom font and the scene has no `.ttf` for it yet, tell them custom fonts are supported and either ask for the `.ttf`, or offer to download it, confirming first like any asset download (**sdk-scenes** → Agent Behavioral Guidelines, item 2). Either way, the font's licence must allow redistributing it with the scene: most Google Fonts use the SIL Open Font License, which does.
 
 The Unity explorer supports nothing else. Every other value silently falls back to `font` there:
 
@@ -106,13 +106,13 @@ TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
 <UiEntity uiText={{ value: 'Coded-only text bag', font: 'monospace', fontSrc: 'assets/fonts/AzeretMono-Medium.ttf' }} />
 ```
 
-Editable UI (**build-ui**): the Creator Hub UI Designer does not know `fontSrc`. Its property panel neither shows nor edits it, and whether a hand-written `fontSrc` survives an editor save has not been verified. Prefer `fontSrc` in coded UI and on `TextShape`. In an editable file, open the component in the editor after writing it and check that the prop is still there after a save.
+Editable UI (**build-ui**): write `fontSrc` on the element by hand. The Creator Hub UI Designer neither shows nor edits it, but its saves splice only the props they change, so a hand-written `fontSrc` survives (Prettier may re-indent the line). Its canvas renders the `font` fallback. A custom font alone is not a reason to switch a UI to coded mode.
 
 ## Testing a custom font
 
 The desktop client (Unity explorer) loads scene fonts only from asset bundles, never from the raw `.ttf`. So the custom font shows only where bundles exist:
 
-- **Local preview with optimized assets:** in the Creator Hub, **Play Options → Desktop Client → Compress Assets**; from the CLI, `npm run start -- --asset-bundles`. The Desktop Explorer converts the scene's assets, fonts included, itself. This needs a Desktop Explorer release newer than v0.189.0: older releases convert with a version that builds no font bundles, so preview shows the fallback even with Compress Assets on.
+- **Local preview with optimized assets:** in the Creator Hub, **Play Options → Desktop Client → Compress Assets**; from the CLI, `npm run start -- --asset-bundles`. The Desktop Explorer converts the scene's assets, fonts included, itself.
 - **Plain local preview** (no optimized assets): always the `font` fallback. That is expected, not a bug.
 - **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
 - **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.

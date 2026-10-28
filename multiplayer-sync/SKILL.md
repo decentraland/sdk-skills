@@ -174,18 +174,13 @@ const Loot = engine.defineComponent('game::Loot', {
 })
 ```
 
-### Schema fixes landed in `@dcl/sdk` 7.28.0 — drop the old workarounds
+### Schema behavior to rely on
 
-All four were real bugs; if you are on 7.28.0+ you can write the obvious code.
-
-| Fix | Old broken behavior | Now |
-|---|---|---|
-| `Schemas.Optional(...)` with falsy values (`da82bfb0`) | `false`, `0` and `''` were treated as unset — never written, read back as `undefined`. An `Optional(Schemas.Boolean)` could only hold `true` or nothing. | Presence is tested for `undefined`/`null`, so falsy values round-trip. `Optional(Boolean)` is now a real tri-state. |
-| `Schemas.OneOf(...)` left unselected (`0dce4d2d`) | `create()` returns `{}` with no `$case`; serialization called `$case.toString()`, **threw, and killed the engine tick for the whole scene**. | The unset case is encoded as index `0` (real cases start at 1) and deserializes back to `{}`. A `OneOf` field the scene never sets is safe. |
-| Components defined **directly from a primitive or array schema** (`5ec1a8a1`) | Every accessor tested the stored value for truthiness, so a component holding `0`, `false` or `''` reported itself as missing: `get` threw "not found", `getOrNull`/`deleteFrom` returned `null`, `getMutable` threw, `getOrCreateMutable` threw "already exists", and `create` silently succeeded over an existing falsy value. `deepReadonly` also spread non-objects, so a number came back as `{}` and an array as an index-keyed object. | Presence is asked of the map, and `deepReadonly` passes primitives through and copies arrays as arrays. |
-| `ReadonlyPrimitive` narrowed (`5ec1a8a1`) | Included array types, so `DeepReadonly<number[]>` resolved back to `number[]` — a `.push()` type-checked and then threw at runtime, because the array is frozen. | `ReadonlyPrimitive = number \| string \| boolean`. Array reads now resolve through the `ReadonlyArray` branch: **`.push()` no longer type-checks.** Copy the array (`[...arr]`) before mutating. This is a **public API change**; existing code that mutated a component array read may newly fail to compile — that code was already broken at runtime. |
-
-Related in the same release: `Player.wearables` and `Player.emotes` from the `@dcl/sdk` player helper are now **copies**, not aliases of the frozen component arrays, so writing to them no longer throws.
+- `Schemas.Optional(...)` holds falsy values: `false`, `0` and `''` round-trip, so `Optional(Schemas.Boolean)` is a real tri-state.
+- A `Schemas.OneOf(...)` field the scene never sets is safe: it serializes and reads back as `{}` with no `$case`.
+- A component defined directly from a primitive or array schema may hold `0`, `false` or `''`; every accessor treats that as present.
+- Component reads are deeply readonly: an array read is a `ReadonlyArray`, so `.push()` does not type-check. Copy it (`[...arr]`) before mutating and write the result back through `getMutable`.
+- `Player.wearables` and `Player.emotes` from the `@dcl/sdk` player helper are copies, not the frozen component arrays.
 
 ## Parent-Child Sync Relationships
 
@@ -352,7 +347,7 @@ onLeaveScene((userId) => {
 
 ### SDK Observables (low-level)
 
-The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above. Recent fixes to be aware of:
+The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above.
 
 ## GOTCHA: remote players' Transforms are world coordinates
 
@@ -362,7 +357,7 @@ The local player's `Transform` is scene-local; **another player's entity reports
 
 Some components that *look* multiplayer are **client-local**: writing them on a remote player's entity changes only what the writing client sees. They are never relayed, and `syncEntity` does not help — player entities are engine-owned, not scene-created.
 
-- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself. **It is still not implemented on mobile** — it was previously listed as shipping in v1.14.0, but the Oct 2026 refresh (docs commit `5f212e3`, mobile app v1.15.0) moved it back to *missing, no ETA*. Mobile players see no plate at all, so **never make the plate the only carrier of information a player needs**: mirror rank/role in a `TextShape`, a HUD list or a color the avatar already wears.
+- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself. It is not rendered on mobile, so never make it the only carrier of information a player needs (**player-avatar** → *Custom Nametag Plates* → Gotchas).
 
 Two ways to make a client-local visual agree across clients:
 
@@ -373,12 +368,12 @@ In both cases: resolve the target `Entity` from the user id on **every** write. 
 
 ## Multiplayer Testing
 
-Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing Preview a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
+Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing **Play** a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
 
-- **Second desktop instance**: in Creator Hub open **Play Options** (the dropdown arrow on the **Play** button), hover the **Desktop Client** row to open its flyout, and tick **Multi-Instance Preview** (requires `@dcl/sdk` >= 7.20.4); or run `npx sdk-commands start --multi-instance`. Then press **Play** / run the command again. `-n` ("open a new instance of the Client even if one is already running") forces a new window on its own. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each.
+- **Second desktop instance**: in Creator Hub open **Play Options** (the dropdown arrow on the **Play** button), hover the **Desktop Client** row to open its flyout, and tick **Multi-Instance Preview** (requires `@dcl/sdk` >= 7.20.4); or run `npx sdk-commands start --multi-instance`. Then press **Play** / run the command again. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each, otherwise both windows are the same player. `--multi-instance` is the only flag that lifts the single-instance lock; `-n` does not, and the Explorer answers its deep-link parameter with an unsafe-parameters warning.
 - **Desktop + browser**: leave the desktop client open and add the Bevy web client as player 2 — **Play Options** → select the **Web (Bevy)** client row, or `npx sdk-commands start --web` (alias `--bevy-web`), which opens `https://decentraland.org/bevy-web/?preview=true&realm=<local realm origin>` (`.zone` under `--dclenv zone`). Browser tabs have no instance limit.
 
-The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `open-deeplink-in-new-instance=true` (from `-n`) or `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
+The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
 
 ### Offline Mode
 

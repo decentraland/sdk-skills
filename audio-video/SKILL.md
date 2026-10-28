@@ -86,7 +86,7 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. On **mobile**, `AudioEvent` (`PBAudioEvent`) ships in **v1.14.0 (Sep 2026)** together with the audio parity pass that aligns volume curves and spatial attenuation with Unity (docs commit `b4d4c88`) — before that, mobile mixes differ audibly from desktop and emits no audio events, which is the same "no finish signal" case the timeout fallback already covers.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. `AudioEvent` works on mobile too.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
@@ -180,7 +180,7 @@ Always check the scene's existing folders before deciding where to put a new fil
 
 ### Fastest path when the scene is open in the Creator Hub
 
-Dragging a media file from the **Local Assets** tab onto the viewport spawns the matching catalog Smart Item already pointed at that file (creator-hub `062ed0a2`) — `.mp3` / `.ogg` / `.wav` spawn **Ambient Sound - Forest Birds** with `AudioSource.audioClipUrl` repointed, `.mp4` spawns **Video Screen** with both `VideoPlayer.src` and `asset-packs::VideoScreen.defaultURL` repointed. That is one gesture instead of create-entity-plus-components, and the entity arrives with the full component set and basic-view config of a hand-placed item. Prefer it over building the entity by hand when the user is at the keyboard; see **creator-hub-mcp** for the asset ids and the equivalent tool calls.
+Dragging a media file from the **Local Assets** tab onto the viewport spawns the matching catalog Smart Item already pointed at that file — `.mp3` / `.ogg` / `.wav` spawn **Ambient Sound - Forest Birds** with `AudioSource.audioClipUrl` repointed, `.mp4` spawns **Video Screen** with both `VideoPlayer.src` and `asset-packs::VideoScreen.defaultURL` repointed. That is one gesture instead of create-entity-plus-components, and the entity arrives with the full component set and basic-view config of a hand-placed item. Prefer it over building the entity by hand when the user is at the keyboard; see **creator-hub-mcp** for the asset ids and the equivalent tool calls.
 
 ⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
 
@@ -188,7 +188,7 @@ Dragging a media file from the **Local Assets** tab onto the viewport spawns the
 
 ## Audio-reactive scenes (visualizers, beat sync)
 
-For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component used for music visualizers, equalizer bars, and reactive lights/particles.
 
 ## Permission for External Media
 

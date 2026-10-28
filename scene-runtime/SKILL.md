@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (movePlayerTo, teleport, emotes, external URLs), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (teleportTo / realm change, external URLs, NFT dialog, explorer panels, clipboard), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
@@ -46,7 +46,7 @@ const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 
 `signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
 
-> **Permission**: the nominal permission for external HTTP is `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets), declared in `scene.json` `requiredPermissions`. In practice plain/signed `fetch` to non-media hosts is not hard-blocked in preview/Worlds even without it (the `66,6-signed-fetch` test scene calls `signedFetch` with an empty `requiredPermissions`). Declare `USE_FETCH` anyway for correctness and forward-compat. `signedFetch` does not require prior player interaction — restricted actions do, `fetch`/`signedFetch` do not.
+> **Permission**: the nominal permission for external HTTP is `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets), declared in `scene.json` `requiredPermissions`. In practice plain/signed `fetch` to non-media hosts is not hard-blocked in preview/Worlds even without it (the `66,6-signed-fetch` test scene calls `signedFetch` with an empty `requiredPermissions`). Declare `USE_FETCH` anyway for correctness and forward-compat. `fetch` and `signedFetch` need no prior player interaction.
 
 ## WebSocket
 
@@ -186,29 +186,18 @@ engine.addSystem(lateSystem, 10);         // runs after regular systems
 
 ## Restricted Actions
 
-These require prior player interaction (e.g. a click) before they can execute. Import from `~system/RestrictedActions`:
+They run only while the player is inside the scene. `openExplorerUi` also needs a fresh player gesture (see its section); `openExternalUrl`, `teleportTo`, `changeRealm` and `openNftDialog` ask the player to confirm first. Player movement and emotes (`movePlayerTo`, `triggerEmote`, `triggerSceneEmote`, `stopEmote`): **player-avatar**. Import from `~system/RestrictedActions`:
 
 ```typescript
 import {
-  movePlayerTo,
   teleportTo,
-  triggerEmote,
   changeRealm,
   openExternalUrl,
   openNftDialog,
-  triggerSceneEmote,
   copyToClipboard,
   setCommunicationsAdapter,
   openExplorerUi,
 } from "~system/RestrictedActions";
-
-// Move player within scene bounds. Optional: cameraTarget (where the
-// CAMERA looks), avatarTarget (where the AVATAR faces — for rotating in
-// place), duration (seconds, for a smooth glide instead of a snap).
-movePlayerTo({
-  newRelativePosition: { x: 8, y: 0, z: 8 },
-  cameraTarget: { x: 8, y: 1, z: 12 },
-});
 
 // Teleport to coordinates in Genesis City
 teleportTo({ worldCoordinates: { x: 50, y: 70 } });
@@ -223,9 +212,6 @@ teleportTo({ realm: "foo.dcl.eth", worldCoordinates: { x: 0, y: 0 } });
 // Omit worldCoordinates to land on that realm's default spawn.
 // This replaces changeRealm.
 teleportTo({ realm: "foo.dcl.eth" });
-
-// Play a built-in emote
-triggerEmote({ predefinedEmote: "wave" });
 
 // Open URL in browser (prompts user)
 openExternalUrl({ url: "https://decentraland.org" });
@@ -339,13 +325,11 @@ timers.clearInterval(timerId: number): void
 
 **Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
 
-**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers. Verified against js-sdk-toolchain commit `a2ccd0b1`.
-
-**Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The SDK already ships `timers`. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
+**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers.
 
 For a custom engine instance, use `createTimers(engineInstance)` from `@dcl/sdk/ecs` to get a `Timers` object scoped to that engine.
 
-**System-based timers** (recommended for game logic — synchronized with the frame loop):
+**Callbacks vs per-frame state.** A one-shot or periodic **callback** (do X in 2 s, every 1 s) is `timers.setTimeout` / `setInterval`; `timers` is itself an engine system that accumulates `dt`, so it is already frame-synchronized. **Per-frame game state** you update or read every tick (a cooldown bar, regeneration, a countdown shown in UI) is a `dt` accumulator inside your own system:
 
 ```typescript
 let elapsed = 0;
@@ -378,9 +362,7 @@ Removes all components from an entity and releases its id for reuse. Returns `bo
 - `true` — entity accepted; components purged, id released for recycling.
 - `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
 
-The return type changed from `void` to `boolean` as of js-sdk-toolchain commit `e712ef71`. Existing code that ignores the return value is unaffected.
-
-**Gotcha — avatar entity collision:** before this fix, `engine.removeEntity` could silently purge components of a live remote player's avatar entity. The engine now refuses removal of renderer-reserved ids, preventing this. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
+**Gotcha — avatar entity collision:** `engine.removeEntity` refuses renderer-reserved ids, so it cannot purge a live remote player's avatar entity. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
 
 ### removeEntityWithChildren
 
@@ -491,4 +473,4 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
-Full RestrictedActions reference — `triggerSceneEmote` (`_emote.glb` requirement), `setCommunicationsAdapter`, `movePlayerTo` rotate-in-place, predefined emote names — plus extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.
+`setCommunicationsAdapter`, `teleportTo({ realm })` details and extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.

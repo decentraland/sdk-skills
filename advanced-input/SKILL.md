@@ -73,7 +73,7 @@ engine.addSystem(readPointer)
 ### Field details
 
 - `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the top-left corner of the screen** (positive Y = down — the same space as `UiTransform`/`UiCanvasInformation`, so cursor coords drop straight into a UI `position`). When the cursor is locked, freezes at the screen center.
-- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. This caught the reference mouse-look scenes, which subtracted `delta.y` until sdk7-test-scenes `0e4eecf` corrected them. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
 - `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
 - `pointerType` — `0` for none, `1` for mouse.
 
@@ -154,19 +154,11 @@ function globalInputSystem() {
 engine.addSystem(globalInputSystem)
 ```
 
-### Cross-entity input interference (fixed in `@dcl/sdk` 7.28.0)
-
-`2778e4bb`. The per-entity command scan walked an entity's commands newest-first and stopped as soon as it hit one no newer than the **global** button state — which an entity processed earlier in the _same frame_ had usually just written. The scan then abandoned that entity's remaining commands, including ones for other buttons.
-
-Symptom on 7.27.x and earlier: **releasing the pointer over one entity while a key went down over another in the same frame lost the key.** `isPressed` and the global `isTriggered` both answered `false` while the per-entity `isTriggered` still said `true` — an inconsistency that made the bug look like a scene logic error.
-
-The scan now stops at the frame boundary instead of at another entity's command. Nothing to change in scene code; just stop working around it, and be aware the old behavior is still live for anyone on an older SDK.
-
 ## All InputAction Values
 
 | InputAction    | Key/Button                                                       |
 | -------------- | ---------------------------------------------------------------- |
-| `IA_POINTER`   | Left mouse button                                                |
+| `IA_POINTER`   | Left mouse button / tap                                          |
 | `IA_PRIMARY`   | E key                                                            |
 | `IA_SECONDARY` | F key                                                            |
 | `IA_ACTION_3`  | 1 key                                                            |
@@ -184,12 +176,7 @@ The scan now stops at the frame boundary instead of at another entity's command.
 
 ## Event Types
 
-```typescript
-PointerEventType.PET_DOWN         // Button/key pressed
-PointerEventType.PET_UP           // Button/key released
-PointerEventType.PET_HOVER_ENTER  // Cursor enters entity
-PointerEventType.PET_HOVER_LEAVE  // Cursor leaves entity
-```
+`PointerEventType` values (`PET_DOWN`, `PET_UP`, hover and proximity enter/leave): **add-interactivity** → *All Event Types*.
 
 ## InputModifier (Movement Restriction)
 
@@ -221,6 +208,10 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 ```
 
 **Standard flags** (all optional booleans; verified `input_modifier.gen.d.ts`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent (both seen in test scenes).
+
+`disableJog` is separate from `disableWalk` / `disableRun`: jog is the default movement speed, so disabling only walk and run still lets the player jog.
+
+**Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, and the restrictions lift automatically when the player leaves the scene bounds. To lock input for an action, pair it with `triggerSceneEmote` or `movePlayerTo` (**player-avatar**) and remove the modifier when the action ends.
 
 **Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer — test with the desktop client if your scene relies on it.
 
@@ -256,11 +247,11 @@ function platformCheckSystem() {
 engine.addSystem(platformCheckSystem)
 ```
 
-Import from `@dcl/sdk/platform`. Verified against docs commit `17ca7be`.
+Import from `@dcl/sdk/platform`.
 
 ## Player language (`getPlayerLanguage`)
 
-**Requires `@dcl/sdk` 7.30.0+** (js-sdk-toolchain `201a8a35`, PR #1622 — landed after the 7.29.0 tag, released in 7.30.0; verified with `git merge-base --is-ancestor 201a8a35 7.30.0`). Check the scene's pin before using it on an older project.
+**Requires `@dcl/sdk` 7.30.0+.** Check the scene's pin before using it on an older project.
 
 Same module, `@dcl/sdk/platform`. Use it to pick localized strings for UI text, NPC dialogue, signage, and hover text.
 
@@ -360,29 +351,18 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
 
 Combine with `UiInputBinding` (the `uiInputBinding` prop on `UiEntity`, see **build-ui**) to build custom on-screen action buttons: hide the native buttons here, then bind the same `InputAction`s to your own scene UI.
 
-**Mobile UI sizing alongside touch controls:** `isMobile()` is the switch for the _scene's own_ UI, not for `TouchScreenControls` (which is a safe no-op on desktop). The pattern in `33,20-spectate-mode` is to branch the scene HUD on `isMobile()`: hide pointer-lock affordances, swap keyboard instruction text for joystick/tap text, render icon caps instead of W/A/S/D keycaps, and enlarge tap targets (that scene goes from 32px to 48px). [UNVERIFIED: 48px is that scene's measured choice, not a published Decentraland minimum — treat it as a sensible starting point and check on a device.]
+**Mobile UI sizing alongside touch controls:** `isMobile()` is the switch for the _scene's own_ UI, not for `TouchScreenControls` (which is a safe no-op on desktop). The pattern in `33,20-spectate-mode` is to branch the scene HUD on `isMobile()`: hide pointer-lock affordances, swap keyboard instruction text for joystick/tap text, render icon caps instead of W/A/S/D keycaps, and enlarge tap targets (that scene goes from 32px to 48px). 48px is that scene's choice, not a published Decentraland minimum: start there and check on a device.
 
 For the button priority stack and the "+" overflow rules, custom icons, and full worked examples, see `{baseDir}/references/touch-screen-controls.md`.
 
 ## Mobile considerations
-
-Key facts from the mobile docs expansion (commit `17ca7be`):
 
 - **Touch-only input** -- no mouse hover states, keyboard shortcuts, or right-click.
 - **`borderRadius` unsupported on mobile UI** -- avoid rounded corners in mobile-targeting scenes.
 - **On-screen controls ARE scene-configurable** on SDK 7.26.0+ via `TouchScreenControls` -- hide the joystick, the crosshair, or individual gamepad buttons, re-bind the central button, or swap a button glyph for a scene image. Their positions are still fixed. This supersedes older docs claiming the mobile HUD is static. See the `TouchScreenControls` section above.
 - **The old "~3x scaling for mobile" rule no longer applies as written.** On SDK 7.26.0+ pixel-sized UI is already ~2–3× larger on a phone than before (`devicePixelRatio` was removed from the UI scale factor), and the mobile virtual screen (`1600x720` vs desktop's `1920x1080`) adds ~1.2× more. Start from the desktop sizes, measure on a device, and scale up only what comes up short. See [[build-ui]].
 - **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].
-- **SDK feature parity with the desktop client** (docs commit `5f212e3`, reviewed **Oct 2026, mobile app v1.15.0**):
-  - **Now available:** `ParticleSystem`, `PrimaryPointerInfo`, `AssetLoad`, `LightSource` (scene dynamic lights, **v1.13.0**), avatar masks / upper-body-only emotes (**v1.13.0**). Audio parity (volume curves + spatial attenuation), `AudioEvent` (`PBAudioEvent`), `AudioAnalysis` (`PBAudioAnalysis`), pinch-to-zoom (**v1.14.0**). `stopEmote` restricted action, `Tween` **`MoveRotateScale`** mode, other players' positions reported **scene-relative** like the local player's (`getPlayer({ userId }).position`, `onEnterScene`, items attached to other players), the first Unity-parity pass on player movement, and correct `hitDistance` on downward player raycasts over sloped geometry (**v1.15.0**).
-  - **Still missing, no ETA:**
-    - **`TweenSequence` is not implemented — sequenced tweens do not animate at all.** The single `Tween` component works (including `MoveRotateScale` since v1.15.0); it is the *sequence* wrapper that is dead. Drive multi-step motion from a system instead. See [[animations-tweens]].
-    - **`AvatarNametag`** — the scene-authored plate above a player's nametag. (It was previously listed as shipping in v1.14.0; the Oct 2026 refresh moved it back to missing.)
-    - **Draco mesh compression** (`KHR_draco_mesh_compression`) — the mobile app has **no runtime Draco decoder**. Draco models load only from the scene's *optimized assets*, where the asset server already decompressed them; with no optimized assets — **local preview** — they **fail to load silently, with no error**. Export without Draco.
-    - **Custom fonts** (`fontSrc`) — the mobile app always renders the `font` fallback on `TextShape` and UI text. See **fonts**.
-    - `UiBackground` **nine-slice** (mobile tiles instead of stretching), proximity voice chat, point-at-in-world. **Smart Items are not officially supported on mobile.**
-  - **Known inconsistencies** (beyond the v1.15.0 movement pass): slopes, edges, walls, landing, moving platforms and glide behavior still differ from Unity; **scene colliders thinner than 1 cm only collide from above**, and invisible blockers and some SDK collision layers do not block the player at all; spawn / landing / jump animations and movement blending are missing; some emotes from other clients (Bevy-Web scene emotes, Unity emotes over LiveKit) do not play on mobile; in a Creator Hub mobile preview the mobile player's avatar is **not visible to desktop testers**. Do not tune tight platforming or ledge geometry against desktop feel alone — see [[player-physics]].
-  - Mobile also enforces its own flat scene limits (lights, VFX emitters, particles, triangles…) — see [[optimize-scene]] → *Mobile Scene Limits*. Check the docs parity tracker for the latest.
+- **Feature gaps beyond input** (`TweenSequence`, Draco GLBs, `AvatarNametag`, custom fonts, nine-slice, thin or invisible colliders, movement differences) and what does work: `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Flat mobile scene limits (lights, VFX emitters, particles, triangles): **optimize-scene** → *Mobile Scene Limits*.
 
 ## Example scenes
 

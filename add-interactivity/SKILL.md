@@ -7,44 +7,7 @@ description: Event-driven interactivity for Decentraland entities. Covers pointe
 
 ## RULE: Fetch composite entities — never re-create them
 
-If the entity to make interactive was defined in `assets/scene/main.composite`, **look it up by name or tag in `index.ts`**. Do NOT call `engine.addEntity()` + component create — that would create a duplicate.
-
-```typescript
-import { engine, pointerEventsSystem, InputAction } from "@dcl/sdk/ecs";
-import { EntityNames } from "../assets/scene/entity-names";
-
-export function main() {
-  // By name (type-safe via auto-generated EntityNames enum)
-  const door = engine.getEntityOrNullByName(EntityNames.Door_1);
-  if (door) {
-    pointerEventsSystem.onPointerDown(
-      {
-        entity: door,
-        opts: { button: InputAction.IA_PRIMARY, hoverText: "Open" },
-      },
-      () => {
-        /* open door */
-      }
-    );
-  }
-
-  // By tag (batch operations on groups of composite entities)
-  const crystals = engine.getEntitiesByTag("Crystal");
-  for (const crystal of crystals) {
-    pointerEventsSystem.onPointerDown(
-      {
-        entity: crystal,
-        opts: { button: InputAction.IA_PRIMARY, hoverText: "Collect" },
-      },
-      () => {
-        /* collect crystal */
-      }
-    );
-  }
-}
-```
-
-These lookups must happen inside `main()` or functions called after `main()` — composite entities are not instantiated before that point.
+An entity defined in `assets/scene/main.composite` gets its handlers from code that looks it up by name (`engine.getEntityOrNullByName(EntityNames.Door_1)`) or tag (`engine.getEntitiesByTag('Crystal')`) inside `main()` or later; `engine.addEntity()` would create a duplicate. Patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code.
 
 ---
 
@@ -90,7 +53,7 @@ How the two live thresholds combine:
 - Prefer `maxDistance`; use `maxCameraDistance` only when the check genuinely belongs to the camera (e.g. a fixed `VirtualCamera` looking at something the avatar never walks up to). The default third-person camera trails the avatar by ~7m, so a camera-only rule of 10m is much tighter in practice than it reads.
 - **Proximity events ignore `maxCameraDistance` entirely** — see the Proximity Events section.
 
-Requires `@dcl/sdk` **7.28.0+** for `maxCameraDistance` (`EventSystemOptions.maxCameraDistance`). [UNVERIFIED: renderer support — implemented in the Bevy explorer and in unity-explorer PR #9902; if that PR is not in the Unity build the player is running, `maxCameraDistance` is ignored there and only the player-distance arm applies. Confirm against the deployed explorer before shipping a scene that depends on a camera-only rule.]
+Requires `@dcl/sdk` **7.28.0+** for `maxCameraDistance` (`EventSystemOptions.maxCameraDistance`). The Unity and Bevy explorers both apply it.
 
 Measurement origins (matters when a threshold behaves ~1m off from what you computed):
 
@@ -172,45 +135,26 @@ pointerEventsSystem.onPointerDown(
 
 The `GltfContainer` itself can keep `visibleMeshesCollisionMask: 0`. For an AvatarShape NPC (no mesh collider at all), the same child-collider approach applies — see [[npcs]] Option A.
 
-### All Input Actions
+### Input actions
 
-```typescript
-InputAction.IA_POINTER; // Left mouse button
-InputAction.IA_PRIMARY; // E key
-InputAction.IA_SECONDARY; // F key
-InputAction.IA_ACTION_3; // 1 key
-InputAction.IA_ACTION_4; // 2 key
-InputAction.IA_ACTION_5; // 3 key
-InputAction.IA_ACTION_6; // 4 key
-InputAction.IA_JUMP; // Space key
-InputAction.IA_FORWARD; // W key
-InputAction.IA_BACKWARD; // S key
-InputAction.IA_LEFT; // A key
-InputAction.IA_RIGHT; // D key
-InputAction.IA_WALK; // Control key
-InputAction.IA_MODIFIER; // Shift key
-```
+The `button` in `opts` is an `InputAction` (`IA_POINTER` left mouse, `IA_PRIMARY` E, `IA_SECONDARY` F, `IA_ACTION_3`–`IA_ACTION_6` keys 1–4, …). Full key map: **advanced-input** → *All InputAction Values*.
 
 ### All Event Types
 
 ```typescript
-PointerEventType.PET_DOWN; // Button pressed
-PointerEventType.PET_UP; // Button released
+PointerEventType.PET_DOWN; // Button or key pressed
+PointerEventType.PET_UP; // Button or key released
 PointerEventType.PET_HOVER_ENTER; // Cursor enters entity
 PointerEventType.PET_HOVER_LEAVE; // Cursor leaves entity
 PointerEventType.PET_PROXIMITY_ENTER; // Player walks within entity's proximity range
 PointerEventType.PET_PROXIMITY_LEAVE; // Player moves out of entity's proximity range
 ```
 
-### Handler removal keeps the `PointerEvents` entry in step (SDK 7.28.1+)
+### Handler removal keeps the `PointerEvents` entry in step (`@dcl/sdk` 7.29.0+)
 
-Fixed in `@dcl/ecs` (js-sdk-toolchain #1577, `e3d4af57`). Behavior to rely on going forward:
-
-- `removeOnPointerDown` / `removeOnClick` / `removeOnPointerUp` / the hover and proximity variants now **remove the `PointerEvents` entry the registration created, regardless of whether `hoverText` was passed.** Previously only handlers registered *with* a `hoverText` had their entry removed; every other removal leaked the entry, so the renderer kept advertising an interaction whose callback was gone, and re-registering grew the array by one entry each time (re-shipping the whole array over CRDT). Do not add a dummy `hoverText` as a workaround — that workaround is obsolete.
-- The callback map is keyed by `eventType:interactionType`, so **`onProximityDown` no longer evicts `onPointerDown`** on the same entity. Registering both a cursor and a proximity handler for the same event type is now supported, and **both callbacks fire** when both conditions are met.
-- A removal takes only its own registration's entry: `removeOnClick` no longer steals `onPointerDown`'s descriptor (both write `PET_DOWN` + `CURSOR`).
-
-`@dcl/sdk` 7.28.0 (the current stable) predates this fix — it is on `@next` (`7.28.1-…commit-e3d4af5`). On 7.28.0 and earlier, assume a removal without `hoverText` leaks the entry.
+- `removeOnPointerDown` / `removeOnClick` / `removeOnPointerUp` / the hover and proximity variants **remove the `PointerEvents` entry the registration created, whether or not `hoverText` was passed**, so the renderer stops advertising an interaction whose callback is gone, and re-registering does not grow the array.
+- The callback map is keyed by `eventType:interactionType`, so **`onProximityDown` and `onPointerDown` coexist** on the same entity: register both a cursor and a proximity handler for the same event type, and **both callbacks fire** when both conditions are met.
+- A removal takes only its own registration's entry: `removeOnClick` and `onPointerDown` (both `PET_DOWN` + `CURSOR`) are independent.
 
 ---
 
@@ -255,7 +199,7 @@ Native ECS component for detecting when an entity enters a region. Prefer this o
 
 **The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
 
-**Scene open in the Creator Hub?** The `utils` catalog has a single **"Trigger Area"** Smart Item (`e9fa0eab-44de-4efe-af77-a71171a1a73f`) — an invisible box or sphere the user places and resizes, with a control that seeds the AI assistant's composer with a prompt for what should happen on enter/leave. Reach for it instead of hand-building the entity: it arrives with the shape param, the collider filter, and its Reactions wiring intact, and editing a param no longer wipes those Reactions (fixed in creator-hub `e43441b5`). The older non-script item and the interim "Trigger Area (Script)" label were both removed in that same commit — there is exactly one entry now. See **creator-hub-mcp**.
+**Scene open in the Creator Hub?** The `utils` catalog has a single **"Trigger Area"** Smart Item (`e9fa0eab-44de-4efe-af77-a71171a1a73f`) — an invisible box or sphere the user places and resizes, with a control that seeds the AI assistant's composer with a prompt for what should happen on enter/leave. Reach for it instead of hand-building the entity: it arrives with the shape param, the collider filter, and its Reactions wiring intact, and editing a param keeps those Reactions. See **creator-hub-mcp**.
 
 > **PITFALL — a thin trigger never fires.** A pressure plate or floor marker modelled as a ~0.1m slab has a trigger volume the avatar capsule **never overlaps** while standing on top of it, so the `TriggerArea` silently never fires. This looks like a broken component and is not.
 >
@@ -362,15 +306,9 @@ PITFALL: `RaycastQueryType.RQT_HIT_FIRST` picks the **first** hit in range, **no
 
 ---
 
-## Global Input Handling
+## Global Input and Cursor State
 
-Listen for key presses anywhere (not entity-specific) using `inputSystem.isTriggered()` (just pressed this frame) and `inputSystem.isPressed()` (currently held) inside an `engine.addSystem()`. Use `inputSystem.getInputCommand()` for entity-specific input via system.
-
-Design for both desktop and mobile — mobile has no keyboard, so rely on pointer events and on-screen UI buttons rather than key presses.
-
-## Cursor State
-
-Read pointer lock with `PointerLock.get(engine.CameraEntity).isPointerLocked`. Get cursor position and world ray with `PrimaryPointerInfo.get(engine.RootEntity)`.
+Key presses not tied to an entity (`inputSystem.isTriggered` / `isPressed` in a system), pointer lock and the cursor's screen position and world ray: **advanced-input** (*Input Polling with inputSystem*, *Pointer Lock State*, *Cursor Position and World Ray*). Design for mobile too: it has no keyboard, so rely on pointer events and on-screen UI buttons rather than key presses.
 
 ## Toggle Pattern
 
@@ -380,7 +318,7 @@ For complex interactions (multi-step sequences, cooldowns, several entities reac
 
 ## Smart Items: behavior is Script code, not a trigger graph
 
-Most catalog Smart Items were migrated (creator-hub `658f4daf`) from the Actions/Triggers no-code graph to `asset-packs::Script` code with `@action` methods. If you open a migrated item expecting `asset-packs::Triggers`, there is none — the behavior is in a `.ts` file, its "When X" hooks are optional `ActionCallback` params (`onClick`, `onActivate`/`onDeactivate`, `onReachStart`/`onReachEnd`, `onRing`, `onOpen`/`onClose`), and its state is a synced `asset-packs::States`. The old public action names survive as `call_script_method` pointers, so existing wiring keeps working. Full details, the not-migrated list, and the `world_teleport` -> `teleport` merge are in **script-components**.
+Most catalog Smart Items are `asset-packs::Script` code with `@action` methods, not an Actions/Triggers graph: their "When X" hooks are optional `ActionCallback` params and their state is a synced `asset-packs::States`. Before inspecting or extending one: **script-components** → *Script-based Smart Items*.
 
 ## Example scenes
 

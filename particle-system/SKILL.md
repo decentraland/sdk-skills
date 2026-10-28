@@ -15,13 +15,13 @@ Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (Flo
 
 Players viewing the scene from outside its parcels see nothing. Particles are not part of the scene LOD silhouette. Position emitters within parcel bounds.
 
-## RULE: Engine caps total particles at ~1000
+## RULE: Engine caps total particles at 1,000 (desktop)
 
-The engine enforces a per-scene particle budget and will scale down emission rates across all active particle systems if total live particles would exceed the limit. Cap each system with `maxParticles` and prefer fewer impactful systems over many small ones.
+The desktop (Unity) explorer budgets 1,000 live particles per scene and scales down emission rates across all active particle systems if total live particles would exceed the limit. Cap each system with `maxParticles` and prefer fewer impactful systems over many small ones.
 
 ### Mobile budget (published numbers)
 
-The mobile client publishes explicit figures (docs commit `8139a7f`, Oct 2026):
+The mobile client publishes explicit figures:
 
 | | Soft | Hard |
 | --- | --- | --- |
@@ -30,9 +30,9 @@ The mobile client publishes explicit figures (docs commit `8139a7f`, Oct 2026):
 
 Soft = a warning in the mobile performance panel; hard = the scene will not load. On top of the scene limits, mobile **clamps at runtime to 5,000 particles per emitter and 50,000 per scene** — anything authored above those caps is silently reduced, so a `maxParticles` above 5,000 only wastes budget and buys no visuals.
 
-Practical target: **≤ 8 emitters**, `maxParticles` well under 5,000 each, and keep the sum of simultaneous live particles modest. [UNVERIFIED: how the "~1000" desktop figure above relates to these mobile numbers — they come from different sources, so treat the tighter one as the design target for a cross-platform scene.]
+Practical target: **≤ 8 emitters**, `maxParticles` well under 5,000 each, and keep the sum of simultaneous live particles modest. The desktop cap of 1,000 live particles per scene is far tighter than these mobile numbers, so it is the design target for a cross-platform scene.
 
-Full mobile limit table and the lights/particles rationale: **optimize-scene** → *Mobile Scene Limits*. `ParticleSystem` itself **is** supported on mobile (it is no longer a parity gap).
+Full mobile limit table and the lights/particles rationale: **optimize-scene** → *Mobile Scene Limits*. `ParticleSystem` itself is supported on mobile.
 
 ## RULE: prewarm requires loop = true
 

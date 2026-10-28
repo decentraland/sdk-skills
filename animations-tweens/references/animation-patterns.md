@@ -115,7 +115,7 @@ Tween.setMoveRotateScale(mrsEntity, {
 
 ## Tween Sequences
 
-⚠️ **`TweenSequence` does not animate on the mobile client** (not implemented, no ETA — docs commit `5f212e3`, Oct 2026 / mobile v1.15.0). Every pattern in this section is desktop/web only. For a mobile-safe equivalent, run one plain `Tween` at a time and start the next leg on `tweenSystem.tweenCompleted(entity)`. See the SKILL's *Tween Sequences* gotcha.
+⚠️ **`TweenSequence` does not animate on the mobile client.** Every pattern in this section is desktop/web only. For a mobile-safe equivalent, run one plain `Tween` at a time and start the next leg on `tweenSystem.tweenCompleted(entity)`. See the SKILL's *Tween Sequences* gotcha.
 
 ```typescript
 import { TweenSequence, TweenLoop } from '@dcl/sdk/ecs'

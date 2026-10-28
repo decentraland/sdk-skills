@@ -43,11 +43,7 @@ For the full limits table across all parcel counts, see the **optimize-scene** s
 
 ## 3. Texture Requirements
 
-- **Dimensions must be power-of-two**: 256, 512, 1024, 2048
-- **Recommended sizes**: 1024x1024 for scene objects; wearables allow up to **1024x1024** (max 2 textures per wearable, square, 72 ppi; skins are the exception with 5 textures and 5k tris)
-- **Use texture atlases** to combine multiple small textures into one, reducing draw calls and material count
-- Prefer compressed formats (WebP) over raw PNG where possible
-- Share texture references across materials — do not duplicate texture files
+Texture sizes (1024x1024 maximum; larger textures are downscaled at conversion), formats and atlases: **optimize-scene** → *Texture Optimization*. Wearable texture limits: **wearables**.
 
 ## 4. Asset Preloading
 
@@ -250,13 +246,8 @@ first local tests. Add questions when the creator chooses to collect feedback.
 - [ ] **Multiplayer compatible**: Works correctly with 1 player and with 5+ simultaneous players.
 - [ ] **Within scene limits**: Triangle count, entity count, texture count, and file size all within budget for the target parcel count.
 - [ ] **Performance acceptable**: Maintains 30+ FPS during gameplay with target entity/triangle counts.
-- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls. Now available: `LightSource`, `ParticleSystem`, avatar masks (v1.13.0); audio parity, `AudioEvent`, `AudioAnalysis`, pinch-to-zoom (v1.14.0); `stopEmote`, `Tween` `MoveRotateScale`, scene-relative positions for other players, a first movement-parity pass (v1.15.0). Full list: **advanced-input** → *Mobile considerations*.
-- [ ] **No mechanic depends on something mobile cannot do** (gaps as of Oct 2026 / mobile v1.15.0 — these constrain *design*, not just polish):
-  - **`TweenSequence` does not animate on mobile.** A moving platform, lift or patrolling obstacle built on one simply does not move — if it is the way across a gap, the scene is unfinishable on a phone. Drive multi-leg motion from a system instead (**animations-tweens**).
-  - **Colliders thinner than 1 cm only collide from above, and invisible blockers may not block at all.** Never fence a play area or a fall hazard with an invisible collider alone (**player-physics**).
-  - **Draco-compressed GLBs fail to load silently** unless the scene has optimized assets — and a mobile preview has none, so the model is invisible with no error (**add-3d-models**).
-  - **`AvatarNametag` is not implemented**, so a role/rank plate above a player carries no information on mobile. Never make it the only carrier.
-  - `UiBackground` nine-slice tiles instead of stretching; Smart Items are not officially supported.
+- [ ] **Mobile compatible**: Core interactions work without a keyboard (pointer-only inputs). Use `TouchScreenControls` (see **advanced-input**) to customize on-screen buttons and `UiInputBinding` (see **build-ui**) for custom touch-action buttons. Detect platform with `isMobile()` from `@dcl/sdk/platform` to branch UI/controls.
+- [ ] **No mechanic depends on a mobile gap**: no `TweenSequence` on the path across (it does not move on mobile), no fence made only of invisible or sub-1 cm colliders, no Draco GLBs, no information carried only by `AvatarNametag`. Full list, consequences and workarounds: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - [ ] **Within mobile scene limits**: ≤ 8 light sources (2 shadow-casting) and ≤ 8 VFX emitters, and the scene still reads on the Very Low graphics profile where no scene light is active. See **optimize-scene** → *Mobile Scene Limits*.
 
 > **Starting from scratch?** See the **create-scene** skill first to scaffold the project before designing the game.
@@ -386,7 +377,7 @@ Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤
 | Screen UI, React-ECS, HUD elements | **build-ui** | Building menus, scoreboards, dialogs. `UiInputBinding` prop for binding InputActions to UI elements (on-screen buttons for mobile). |
 | Mobile touch controls | **advanced-input** | `TouchScreenControls` component for hiding/showing on-screen buttons, setting main action, hiding joystick/crosshair. Platform detection via `getPlatform()` / `isMobile()` from `@dcl/sdk/platform`. |
 | Open Explorer UI panels from scenes | **scene-runtime** | `openExplorerUi()` restricted action to open map, backpack, settings, etc. from a user gesture. Useful for onboarding flows and UX shortcuts. |
-| Deployment timing & post-publish troubleshooting | **deploy-scene** | Asset bundle conversion takes ~15 min (plan 30-60 min). Publish 2+ hours before live events. `/detectabs` checks conversion status in-world. Conversion status URLs for monitoring. |
+| Publish timing before live events, conversion checks (`/detectabs`, status URLs) | **deploy-scene** | Its *Post-Publish: Asset Bundle Conversion* section. |
 | Local asset bundle preview | **optimize-scene** | "Compress Assets" (Creator Hub Play Options > Desktop Client) or the `--asset-bundles` CLI flag reproduces production asset bundle conversion locally. Catches texture/model issues before publishing. |
 | Pause gameplay when scene is hidden | **scene-runtime** | `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` is `true` when a fullscreen Explorer UI (map, backpack, loading screen) covers the scene. Use to pause game loops, audio, and expensive systems so they don't run while the player can't see or interact with the scene. |
 | Entity removal returns boolean | **scene-runtime** | `engine.removeEntity(entity)` now returns `boolean` — `false` for renderer-reserved (avatar) entities, where components are left untouched. Check the return when despawning entities in game loops to avoid silently failing to remove an entity. |

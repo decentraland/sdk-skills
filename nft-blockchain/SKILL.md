@@ -52,7 +52,7 @@ Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a
 
 - Signature: `signedFetch({ url, init: { method?, headers?, body? } })`.
 - Response is `{ ok, status, statusText, headers, body }`; **`body` is a string** — call `JSON.parse(response.body)` (there is no `.json()`).
-- It does **not** require prior player interaction (unlike restricted actions).
+- It does **not** require prior player interaction.
 - Need only the signed headers for a library that does its own fetching? Use `getHeaders({ url, init? })` from the same module — it returns `{ headers }`.
 
 ## Smart Contract Interaction

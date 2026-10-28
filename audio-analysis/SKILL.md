@@ -18,7 +18,7 @@ Values are derived from live audio frames. If the source is paused, muted, or no
 ## RULE: Not implemented everywhere — always design a silent fallback
 
 - **Unity (desktop):** implemented.
-- **Mobile (Godot):** `AudioAnalysis` (`PBAudioAnalysis`) ships in mobile **v1.14.0 (Sep 2026)** along with the broader audio parity work and `AudioEvent` (docs commit `b4d4c88`). Older mobile clients write no analysis.
+- **Mobile (Godot):** implemented.
 - **Bevy:** ignores the component (no analysis written).
 
 Where it is unimplemented the values simply stay at `0` — same shape as silence — so the scene never errors, it just goes still. Always design a fallback that does not depend on `amplitude` (e.g. a base scale, a looping tween) so the scene still reads on every client.

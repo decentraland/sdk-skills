@@ -212,21 +212,7 @@ For disabling shadows on a specific node inside a GLTF model, use `GltfNodeModif
 
 ## GltfContainer Collision Masks
 
-Use collision masks to control which collision layers respond to the different mesh layers in a GLTF model. GLTF models have two mesh layers: visible meshes (what players see rendered), and invisible layers (collider meshes, named internally with _collider):
-
-```typescript
-import { engine, Transform, GltfContainer, ColliderLayer } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-const model = engine.addEntity()
-Transform.create(model, { position: Vector3.create(4, 0, 4) })
-
-GltfContainer.create(model, {
-  src: 'models/myModel.glb',
-  visibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS | ColliderLayer.CL_POINTER,
-  invisibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS
-})
-```
+Which mesh set (visible meshes or `_collider` meshes) answers physics and pointer rays is set per GLB with `visibleMeshesCollisionMask` / `invisibleMeshesCollisionMask`: **add-3d-models** → *Always check for built-in colliders*.
 
 ## VisibilityComponent
 

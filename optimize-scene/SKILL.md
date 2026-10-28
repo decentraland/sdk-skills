@@ -29,7 +29,7 @@ Important: Except for the MB size limits, all other limits can be exceeded. It's
 
 ## Mobile Scene Limits
 
-A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading. Verified against docs commit `8139a7f` (Oct 2026).
+A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading.
 
 | Metric | Soft | Hard |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ for (const position of lampPostPositions) {
 // lampPost_01.glb, lampPost_02.glb, ... lampPost_20.glb
 ```
 
-**What reuse does NOT save: draw calls.** 20 lamp posts are 20 renderers either way — whether from 20 entities or from one `.glb` with 20 lamp posts modeled into it. There is no runtime batching or GPU instancing for scene content: the client streams and builds scenes at runtime, so it cannot group repeated objects the way an engine can with pre-baked content. Draw count is fixed at author time.
+**What reuse does NOT save: draw calls.** 20 lamp posts are 20 renderers either way — whether from 20 entities or from one `.glb` with 20 lamp posts modeled into it. Scene content gets no static batching, dynamic batching or GPU instancing: the client streams and builds scenes at runtime, so it cannot group repeated objects the way an engine can with pre-baked content. (The SRP Batcher is on; it makes each draw's setup cheaper and groups draws by shader variant, but does not merge them.) Draw count is fixed at author time.
 
 | Approach | Downloads | Meshes + textures | Renderers | Materials | Culling | Movable/clickable |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -199,6 +199,7 @@ Audit before and after with the triangle-count and material-audit scripts in the
 - **Dimensions must be power-of-two**: 256, 512, 1024
 - **Maximum is 1024x1024.** The asset-bundle-converter enforces `DESKTOP_MAX_TEXTURE_SIZE = 1024` (`AssetBundleConverter.cs` → `ReduceTextureSizeIfNeeded`): anything larger (e.g. 2048) is **downscaled to 1024 at conversion**, so authoring above 1024 wastes source size without visual benefit.
 - **Recommended sizes**: 512x512 for most objects, 1024x1024 for hero pieces
+- Save at 72 DPI: a higher DPI adds file weight with no visual gain
 - Use `.png` for UI/sprites with transparency
 - Use `.jpg` for photos and textures without transparency
 - Prefer compressed formats (WebP) over raw PNG where possible
@@ -318,7 +319,7 @@ Caveats:
 
 Reproduce the server-side asset bundle conversion locally before publishing. This catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models.
 
-- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` is too old for the flag.
+- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux.
 - **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
 
 The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
@@ -364,7 +365,7 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 
 | Pitfall                              | Symptom                          | Fix                                                      |
 | ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
-| Too many unique materials            | Memory + texture budget, lost batching | Atlas textures, reuse models; check `shaderVariants` before blaming frame time |
+| Too many unique materials            | Memory + texture budget (draw cost tracks shader variants, not materials) | Atlas textures, reuse models; check `shaderVariants` before blaming frame time |
 | Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
 | Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
 | Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
@@ -404,19 +405,17 @@ When running the scene locally with `npm run start`:
 | Blender Limited Dissolve    | Remove unnecessary vertices from flat surfaces            |
 | Squoosh (squoosh.app)       | Convert images to WebP, resize to power-of-two            |
 | TexturePacker               | Create texture atlases from multiple images               |
-| gltf-transform CLI          | Compress GLB files with Draco, strip unused data          |
+| gltf-transform CLI          | Optimize GLB files (resize textures, strip unused data)   |
 | glTF Validator              | Check for export errors before importing into DCL         |
 | Creator Hub Scene Inspector | Visual tool for entity counts, triangle counts, placement |
 | Preview Debug Panel (P key) | Live performance metrics during `npm run start`           |
 
 ```bash
-# Optimize a GLB with Draco compression
-npx @gltf-transform/cli optimize input.glb output.glb --compress draco
+# Optimize a GLB for every client (Draco off: the mobile app cannot decode it)
+npx @gltf-transform/cli optimize input.glb output.glb --compress false
 ```
 
-⚠️ **Draco does not decode on mobile, and the failure is silent and preview-only-visible.** The mobile app ships **no runtime Draco decoder**. A Draco-compressed `.gltf`/`.glb` loads on a phone **only from the scene's optimized assets**, where the asset server has already decompressed it. When a scene has no optimized assets — **local preview, Creator Hub mobile preview, QR preview** — the model **fails to load with no error at all**: no console message, no placeholder, just an absent mesh (docs commit `5f212e3`, Oct 2026; an error dialog is tracked in godot-explorer #2432).
-
-The trap is the asymmetry: a published scene can look fine on a phone while the same model is invisible in every mobile preview — and a creator debugging that preview has nothing to go on. **Export without Draco** if the scene targets mobile; run `optimize` with `--compress false` for a cross-platform build, and cut triangles/textures instead. [UNVERIFIED: whether the other `gltf-transform` compression modes (`meshopt`, `quantize`) load on mobile — the docs only call out Draco.]
+On mobile a Draco model fails silently whenever the scene has no optimized assets, which includes every preview. Full rule: **add-3d-models** → *Model Best Practices*.
 
 ## Example scenes
 

@@ -291,9 +291,9 @@ export class Padlock {
 }
 ```
 
-### Unwired `ActionCallback` params are `undefined` (sdk-commands fix `8da580d5`)
+### Unwired `ActionCallback` params are `undefined`
 
-An **optional** `ActionCallback` the user never assigns in the editor now resolves to **`undefined`**, so the obvious guard works:
+An **optional** `ActionCallback` the user never assigns in the editor resolves to **`undefined`**, so the obvious guard works:
 
 ```ts
 constructor(
@@ -307,9 +307,7 @@ solve() {
 }
 ```
 
-**Previously** an unassigned param resolved to a truthy placeholder (`{ entity: 0, action: '' }` wrapped into a callable), so `if (this.onUnlock)` always passed and calling it logged a `console.error`. If you wrote a workaround around that — checking `entity !== 0`, or swallowing the error — remove it. On an older `@dcl/sdk-commands` the old behavior is still live, so a truthiness guard alone is not a safety net there.
-
-Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one.
+Declare these params **optional** (`?`) when the behavior should work with nothing wired; a non-optional `ActionCallback` says the item is broken without one. The truthiness guard needs `@dcl/sdk` 7.30.0+; on an older pin an unwired param is a truthy placeholder whose call logs a `console.error`.
 
 ## Calling other scripts from code
 
@@ -331,9 +329,9 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 ```
 
 
-## Smart Items are now Script-based (creator-hub `658f4daf`, PR #1354)
+## Script-based Smart Items
 
-Most catalog Smart Items were migrated from the Actions/Triggers no-code graph to **`asset-packs::Script` code with `@action`-tagged methods** — the same mechanism this skill documents. What that means when you inspect or extend one:
+Most catalog Smart Items are **`asset-packs::Script` code with `@action`-tagged methods** rather than the Actions/Triggers no-code graph — the same mechanism this skill documents. What that means when you inspect or extend one:
 
 - **A migrated item carries no `asset-packs::Triggers`.** Do not look for a trigger graph; the behavior is in the `.ts` file the `Script` component points at (`Door.ts`, `Seat.ts`, `Button.ts`, `Lever.ts`, `Bell.ts`, `Teleport.ts`, `Sign.ts`, …).
 - **The `Actions` that remain are `call_script_method` pointers** that preserve the old public action names, so existing scenes that referenced "Open" / "Close" / "Open or Close" / "Sit Here" keep working. Their `jsonPayload` is `{"scriptPath": "{assetPath}/Door.ts", "methodName": "open", "params": {}}`.
@@ -347,13 +345,11 @@ Most catalog Smart Items were migrated from the Actions/Triggers no-code graph t
 
 **Newer reference examples** (under `packs/smart_items/assets/`; behaviour below is from the items' change descriptions, not re-verified in-world): `floor_pressure_button/FloorButton.ts` — a **shared multiplayer button**: a trigger area the size of its disc; in the default `all players` mode the button stays down while *anyone* stands on it and its On Press / On Release actions run **once**, on the client of the player who caused the change (first on / last off), with a `press()`/`release()` *hold* synced through `asset-packs::States`; `my player` makes it a private per-player button. `water_plane/Water.ts` — builds the water out of five translucent `MeshRenderer` layers at runtime (the GLB is an editor-only `Placeholder`), refits its trigger area only when rescaled, and spawns splashes in scene coordinates. `lab_stair_platform/PistonPlatform.ts` — `startState` as a string-literal union (the editor turns it into an enum dropdown) and only `States` in Sync-Components, since `update()` replays `Animator`/`AudioSource` from the synced state on every client.
 
-**`world_teleport` was removed** and merged into **`teleport`**, which gained a `world` param. `world` wins when set: a non-empty `world` does a realm change, otherwise it teleports to `x`/`y` coordinates. Update any scene or instruction referencing `world_teleport`.
+**World teleports use `teleport`**: its `world` param, when non-empty, does a realm change; otherwise it teleports to `x`/`y` coordinates. There is no separate `world_teleport` item.
 
-**[FIXED in `@dcl/sdk` 7.30.1] Adding the FIRST smart item during a live preview no longer needs a restart.** On 7.30.0 and earlier, `isEditorScene()` ran once, before the esbuild context was created, and its verdict was baked into the static entrypoint. Adding the first smart item (or the first `asset-packs::Script`) to a scene while `npm run start` / the Creator Hub preview was **already running** rebuilt a bundle that executed the item's `Script` without the asset-packs bootstrap, so `getComponents` threw **`Component asset-packs::Actions not found`** — and the preview stayed broken until it was restarted. js-sdk-toolchain `52fa56cf` (PR #1644, tag `7.30.1`) re-evaluates `isEditorScene()` on every watch rebuild.
+**`Component asset-packs::Actions not found` in a running preview**, right after adding the scene's first smart item or `asset-packs::Script`, is a bundling defect on `@dcl/sdk` older than 7.30.1, not a component missing from the composite: restart the preview. On 7.30.1+ the next watch rebuild recovers on its own.
 
-If you are carrying the old "restart the preview" workaround, drop it on 7.30.1+: the watch rebuild recovers on its own. On an older pin the restart is still the fix, and the error text is the tell — it is a bundling defect, not a missing component in the composite, so do not go looking for `asset-packs::Actions` in the entity tree. The public `~sdk/script-utils` surface (`ActionCallback`, `getScriptInstance`, `getAllScriptInstances`, `callScriptMethod`) is unchanged by the fix.
-
-**`trigger_area` is now a Script item too.** The old Actions/Triggers `trigger_area` asset was deleted in creator-hub `e43441b5`; the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`) is the only one left — the interim "Trigger Area (Script)" label is gone. Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
+**`trigger_area` is a Script item too.** The catalog's only trigger-area item is the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`). Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
 
 ## `@event` — declaring hooks for reaction scripts
 
@@ -385,6 +381,6 @@ An unrecognised name still works but falls back to the generic `When <event>…`
 
 **The detector/reaction split this enables.** The SDK keeps only **one** callback per `(entity, event)` pair, so a second script calling `triggerAreaEventsSystem.onTriggerEnter` on the same entity silently replaces the first. The shipped pattern avoids that: one script owns the SDK callbacks and exposes `onEvent(name, fn)`; reaction scripts on the **same entity** find it with `getAllScriptInstances(entity)` from `~sdk/script-utils` and subscribe. A reaction must never touch `triggerAreaEventsSystem` itself. In `TriggerArea.tsx` the detector also replays `enter` to a late subscriber for anything already inside, and exposes `isInside()` for "while inside" logic.
 
-⚠️ **When writing the `layout` JSON by hand, carry `events` through on every edit.** Rebuilding the layout from `params` alone drops it and the Reactions section is wiped for good — exactly the bug fixed in creator-hub `e43441b5` (editing the Trigger Area's `shape` used to destroy its prompt fields). Spread the existing layout and overwrite only the one param you are changing.
+⚠️ **When writing the `layout` JSON by hand, carry `events` through on every edit.** Rebuilding the layout from `params` alone drops it and the Reactions section is wiped for good. Spread the existing layout and overwrite only the one param you are changing.
 
 **Behavior changes worth knowing:** a seat frees itself when the sitter walks more than **1.5 m** away; `sit()` picks the **nearest free** spot; with no spot free the item shows its `takenMessage` (default **"Seat is taken"**). The avatar is moved *before* the sitting emote plays — reversing that order cancels the emote.

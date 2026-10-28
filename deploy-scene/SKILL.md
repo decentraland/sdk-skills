@@ -5,11 +5,9 @@ description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when 
 
 # Deploying to Genesis City
 
-> **Not installed inside the Creator Hub agent.** The Creator Hub's skill installer denylists this skill, and because the directory holds nothing but `SKILL.md` it is skipped entirely — it never reaches the app's embedded AI assistant. The Creator Hub owns publishing through its own UI. If you are the Creator Hub assistant and a user asks to publish, point them at the app's Publish flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
-
 Deploy to specific parcels you own or have permission to deploy to.
 
-**Use the `/deploy` command** to deploy. It runs `npx @dcl/sdk-commands deploy` and handles the full process:
+Deploy with `npx @dcl/sdk-commands deploy` (or the Creator Hub's **Publish** button). The command handles the full process:
 
 1. Build the scene
 2. Upload assets to IPFS
@@ -43,7 +41,7 @@ Before deploying, verify:
    ```
 
 4. **Scene previews correctly**:
-   Use the `preview` tool to verify the scene works (or `npx @dcl/sdk-commands start` manually, optionally with `--web` to preview in the Bevy Web browser client). Test with multiple browser tabs to verify multiplayer behavior.
+   Run `npx @dcl/sdk-commands start` to verify the scene works (add `--web` to preview in the Bevy Web browser client). Test with multiple browser tabs to verify multiplayer behavior.
 
 5. **Dependencies installed**:
 
@@ -225,7 +223,7 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 After every publish, the content servers compress all `.gltf`/`.glb` models to asset bundles — a significantly lighter format. The conversion starts immediately but is queued per platform (Windows, Mac). While it runs, players are deliberately served the **last fully-working version** of the scene.
 
-- **Typical time:** **seconds.** Longer for very large scenes or when the conversion servers are busy. (This was previously documented as ~15 minutes / 30-60 minutes; corrected in docs commit `2dfbb00`.)
+- **Typical time:** **seconds.** Longer for very large scenes or when the conversion servers are busy.
 - **A conversion running more than a couple of minutes is a failure signal**, not normal queuing — check the status endpoint rather than continuing to wait.
 - **The Jump In button appears as soon as the scene is playable**, once upload and conversion are done.
 - **Before a live event:** publish your final version **at least one hour** in advance, to leave room for anything unexpected. Avoid republishing while waiting — each publish restarts the queue.
@@ -250,7 +248,7 @@ You can also catch conversion issues **before** publishing by enabling local ass
 | Scene looks broken right after deploy                | Asset bundle conversion not done yet                                 | Type `/detectabs` in chat — red-tinted models are not yet converted. Check conversion status (see above) and wait                                                                                                                                                                                  |
 | Some players see old version, others see new         | Per-platform conversion finishes at different times + client caching | Check both `windows` and `mac` under `assetBundles` in the conversion status endpoint. Once both are `complete`, affected players must fully restart Decentraland                                                                                                                                  |
 | Publication stuck on Converting stage                | Conversion failed, or the scene is queued behind others              | Conversion normally takes seconds, so more than a couple of minutes points at a failure rather than a queue. Check the queue status URL for your entity ID. If not queued, check conversion status — if a platform shows `failed`, republish. If it fails again, report the bug with the entity ID |
-| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed the conversion cap  | `/detectabs` to check; textures in 3D models are capped to **1024x1024** during conversion (not 512x512 — that figure is out of date)                                                                                                                                                              |
+| 3D models missing, black, or untextured after deploy | Conversion still in progress, or textures exceed the conversion cap  | `/detectabs` to check; textures in 3D models are capped to **1024x1024** during conversion                                                                                                                                                              |
 | Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet                    | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing                                                                                                                                                                                                    |
 | "Scene thumbnail '…' must be a file included in the deployment" (the file plainly exists) | Letter-case mismatch between `display.navmapThumbnail` and the folder on disk — usually `assets/images/` in scene.json vs `assets/Images/` on disk | The uploaded file list keeps on-disk casing and the Catalyst matches case-sensitively, while macOS/Windows resolve either casing locally — so this only shows up at deploy. `ls assets` to see the real folder name and make `navmapThumbnail` match it exactly. Standard is **`assets/Images/`** (capital I), the folder the asset importer creates. Never keep two folders differing only in case |
 | "Invalid thumbnail: size … exceeds maximum of 1048576 bytes" | Thumbnail over 1 MB (a plain 1920x1080 PNG is) | Export JPEG at high quality (`ffmpeg -i cover.png -q:v 2 cover.jpg`) or shrink to 1344x756. The check is server-side at deploy, so nothing warns you locally. Must also be 16:9 within 1% |

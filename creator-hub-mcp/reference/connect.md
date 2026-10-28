@@ -8,7 +8,7 @@ Connecting the MCP gives the agent the **tools**, not the **skills**. The Creato
 
 The server is localhost-only and gated by a bearer token. Both the **port and the token are random and change every time the Creator Hub starts**, so they are never something you can hard-code — the user copies them from the app:
 
-1. Creator Hub → **Settings > AI** → expand **Expose AI assistant MCP server** (help text: *"Let an AI agent running outside Creator Hub control the open scene. Paste this into the agent's MCP configuration."*). The section only appears when **Enable AI Assistant** is on, which it is by default since Creator Hub 0.50.0. (Before 0.50.0 all of this lived under Settings > Experimental — update any instruction still saying that.)
+1. Creator Hub → **Settings > AI** → expand **Expose AI assistant MCP server** (help text: *"Let an AI agent running outside Creator Hub control the open scene. Paste this into the agent's MCP configuration."*). The section only appears when **Enable AI Assistant** is on, which it is by default.
 2. A read-only JSON snippet appears with a **Copy configuration** button, under the note *"Localhost only. The URL and token change each time Creator Hub restarts."* It has this shape:
 
 ```json
@@ -25,7 +25,7 @@ The server is localhost-only and gated by a bearer token. Both the **port and th
 
 The same snippet is offered in the AI assistant panel when no provider CLI is detected.
 
-### Settings > AI (labels as of creator-hub `e9ba6357`, Creator Hub 0.50.0)
+### Settings > AI
 
 The AI Assistant left Experimental and now has its own **AI** tab. These are the current strings, in case a user reads you a different one:
 

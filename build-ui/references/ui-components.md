@@ -113,7 +113,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
-**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. Needs the first SDK release after 7.30.1. See the **fonts** skill for the explorer support matrix and testing.
+**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, explorer support matrix and testing: the **fonts** skill.
 
 `value` supports simple markup like `<b>`.
 
@@ -157,7 +157,7 @@ Alternatively, a plain `UiEntity` with a `Label` child (or `uiText` in coded UI)
 
 - Halves the alpha of the button's text and background colors (visual dimming only).
 - Sets `onMouseDown` and `onMouseUp` to `undefined`. **`onMouseEnter` / `onMouseLeave` still pass through** — a disabled Button can still run hover handlers, so guard them yourself if that matters.
-- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.28.1+, see **add-interactivity**), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
+- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.29.0+, see **add-interactivity**), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
 - If your code clones palette colors before passing them to a `Button` purely to survive the dimming, that workaround is no longer needed on 7.28.0+. It is still needed if you are pinned below it.
 
 ## Input
@@ -370,7 +370,7 @@ Wraps children so they stay inside the renderer-reported **interactable area** �
 
 **For a whole coded UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area. In the editable aggregator it is the wrapper for roots whose Scene Inset is `interactable`.
 
-⚠️ **Client support.** Either form needs an explorer that reports the area. It works on desktop, and on mobile from client version `1.12.1` onwards — older mobile clients report no margins, so the area falls back to the whole screen and the inset silently does nothing. `1.12.1` is also the release that normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
+**Client support.** Either form needs an explorer that reports the area; the desktop and mobile clients both do.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'

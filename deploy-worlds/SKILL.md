@@ -5,9 +5,6 @@ description: Deploy a Decentraland scene to a World (personal 3D space using a D
 
 # Deploying to Decentraland Worlds
 
-> **Not installed inside the Creator Hub agent.** The Creator Hub's skill installer denylists this skill, and because the directory holds nothing but `SKILL.md` it is skipped entirely — it never reaches the app's embedded AI assistant. The Creator Hub owns publishing through its own UI. If you are the Creator Hub assistant and a user asks to publish, point them at the app's Publish flow. Outside the Creator Hub (Claude Code, Cursor, an SDK agent) the skill works normally.
-
-
 Worlds are personal 3D spaces not tied to LAND. They have no parcel limitations and are automatically listed on the Places page.
 
 ## Requirements
@@ -73,9 +70,7 @@ Worlds are listed on Places unless opted out, so the same metadata that drives d
 
 ## 2. Deploy
 
-**Use the `/deploy` command** — it auto-detects the `worldConfiguration` in scene.json and deploys to the Worlds content server automatically.
-
-Alternatively, deploy manually via CLI:
+Deploy with the CLI. `--target-content` is required: with `worldConfiguration` set and no target, `deploy` stops with `DEPLOY_MISSING_TARGET_CONTENT`.
 
 ```bash
 npx @dcl/sdk-commands deploy --target-content https://worlds-content-server.decentraland.org
@@ -94,7 +89,7 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 
 ## 3. Access the World
 
-After a successful deploy, the `/deploy` command outputs a visit URL automatically.
+A successful deploy prints `Content uploaded successfully` with a `play.decentraland.org` URL for the World.
 
 **The link to share with players is the web `/jump` link**, which works whether or not they have the desktop client installed:
 
@@ -102,7 +97,7 @@ After a successful deploy, the `/deploy` command outputs a visit URL automatical
 https://decentraland.org/jump?realm=NAME.dcl.eth
 ```
 
-This is the canonical path. The older `https://decentraland.org/play/world/NAME.dcl.eth` form only 301-redirects to it — do not generate `/play` URLs. For a Genesis City scene the equivalent is `https://decentraland.org/jump?position=x,y`. The Creator Hub's post-publish panel shows and copies exactly this link, and its **Jump In** button opens the desktop client separately via `decentraland://?realm=NAME.dcl.eth&dclenv=<env>` (creator-hub `4305bb17c`) — prefer the web link in anything you write for players, and the deeplink only when the target is known to have the client.
+This is the canonical path. Generate `/jump` URLs; the `/play/world/NAME.dcl.eth` form only redirects to it. For a Genesis City scene the equivalent is `https://decentraland.org/jump?position=x,y`. The Creator Hub's post-publish panel shows and copies exactly this link, and its **Jump In** button opens the desktop client separately via `decentraland://?realm=NAME.dcl.eth&dclenv=<env>` — prefer the web link in anything you write for players, and the deeplink only when the target is known to have the client.
 
 Also available: `https://decentraland.zone/bevy-web?realm=NAME.dcl.eth` for the browser (Bevy) client.
 
@@ -150,8 +145,7 @@ Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minim
 }
 ```
 
-- `skyboxConfig.fixedTime` — verified against the engine test scenes and current docs.
-- `skyboxConfig.textures`, `miniMapConfig` (`visible`/`dataImage`/`estateImage`) — [UNVERIFIED: not present in the engine test scenes or the current scene-metadata docs; confirm against js-sdk-toolchain scene schema before relying on them].
+- `skyboxConfig.fixedTime`, `skyboxConfig.textures` (`string[]`) and `miniMapConfig` (`visible` / `dataImage` / `estateImage`) are fields of the `@dcl/schemas` `WorldConfiguration` type; the legacy `skybox` and `minimapVisible` fields are deprecated in favour of them.
 
 **`skyboxConfig.fixedTime` values:**
 
