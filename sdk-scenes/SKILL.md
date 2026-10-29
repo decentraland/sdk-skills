@@ -152,6 +152,10 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `player-physics`** — Impulse forces, knockback, repulsion fields.
 
+### Projectiles & Combat
+
+**Skill: `projectiles-combat`** — Guns, bows, fireballs, cannons: hitscan raycasts with two-ray third-person aim, visible projectiles with anti-tunneling, ballistic arcs, health/damage/respawn, hit feedback, fire input on desktop and mobile, and who decides a hit in multiplayer.
+
 ### Camera
 
 **Skill: `camera-control`** — Camera state, `CameraModeArea`, `VirtualCamera` for cinematic shots.

@@ -113,3 +113,5 @@ Mobile app **v1.15.0** (Oct 2026) landed a **first** Unity-parity pass — capsu
 A step, kerb or ledge height tuned until it "just barely" works on desktop may still be unclimbable — or climbable when it shouldn't be — on a phone, and landing position after an impulse or knockback can differ. Give traversal geometry a **margin** rather than tuning to the exact threshold, keep a forgiving landing area on any forced-movement mechanic, and verify on a device before shipping precision platforming. Also note **`TweenSequence` does not animate on mobile** (**animations-tweens**) — a moving platform built on one is a dead platform on a phone. Mobile parity list: **advanced-input** → *Mobile considerations*.
 
 For full code examples (launch pad, wind tunnel, repulsion field, coordinate conversion), see `{baseDir}/references/physics-patterns.md`.
+
+Knockback as hit feedback in combat (explosions, enemy hits) together with health and damage: **projectiles-combat**.
