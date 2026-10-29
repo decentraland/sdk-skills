@@ -401,7 +401,7 @@ Limits and failure modes this pattern still has (all **design** constraints, not
 - **Per-writer rate cap**: the module allows one address at most **100 rows / 10 min**; beyond that it drops. Add an equivalent cap to any append log you expose to clients — otherwise one client can fill a World's storage budget.
 - **Bounded buffer**: 2000 rows. Past that the server **stops acknowledging**, and the client retries every 3 s for up to 30 s before giving up.
 - **Escape on write**: flatten text to one line, and prefix a leading `= + - @` with `'` so a spreadsheet does not execute a submitted cell as a formula. Player-submitted text in a CSV is untrusted input.
-- **Storage ceilings**: **512 KB per value**, **10 MB per World**, shared by every scene in that World. Parts close at **400 KB** (`PART_MAX_BYTES`), and one flush writes at most 200 KB of new rows, so a version fits inside the per-value ceiling. Every extra version also counts against the 10 MB until the next flush deletes it.
+- **Storage ceilings**: **512 KB per value**, **10 MB per World**, shared by every scene in that World. Parts roll over at **400 KB** (`PART_MAX_BYTES`), which is what keeps every version under the per-value ceiling; separately, one flush takes at most 200 KB of new rows (`BATCH_MAX_BYTES`) and leaves the rest for the next flush. Every extra version also counts against the 10 MB until the next flush deletes it.
 
 ## Server Resource Limits
 

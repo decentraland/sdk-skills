@@ -49,9 +49,9 @@ For a smart wearable, four permissions gate an API; an undeclared one makes the 
 
 | Permission           | Gates                                         |
 | -------------------- | --------------------------------------------- |
-| `USE_FETCH`          | `fetch` / `signedFetch`                       |
+| `USE_FETCH`          | `fetch` only. `signedFetch` is not gated: `SignedFetchWrap` has no permission check |
 | `USE_WEBSOCKET`      | WebSocket connections                         |
-| `USE_WEB3_API`       | Wallet transactions and message signing       |
+| `USE_WEB3_API`       | Every Ethereum RPC sent through `sendAsync`, read-only calls such as `eth_call` included, and `signMessage` (a `personal_sign` through the same path). `getUserAccount` is not gated |
 | `OPEN_EXTERNAL_LINK` | `openExternalUrl`                             |
 
 Equip-time prompt, preview behaviour and the rest: **smart-wearables** → Permissions.

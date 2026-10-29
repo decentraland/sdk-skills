@@ -18,7 +18,7 @@ Read this when a deploy uploads a large scene (50 MB or more), fails with a `DEP
 
 | Flag | Effect |
 | --- | --- |
-| `--target-content <url>` / `-tc` | Content server to deploy to. Required for a scene with `worldConfiguration` (`https://worlds-content-server.decentraland.org`). Cannot be combined with `--target` |
+| `--target-content <url>` / `-tc` | Content server to deploy to. A scene with `worldConfiguration` needs this or `--target` (`https://worlds-content-server.decentraland.org`), else `DEPLOY_MISSING_TARGET_CONTENT`. Cannot be combined with `--target` |
 | `--target <url>` / `-t` | Catalyst to deploy to (default `peer.decentraland.org`) |
 | `--multi-scene` | Worlds: deploy alongside the World's other scenes. Without it, see *Worlds: undeploy first* below |
 | `--yes` | Answers the CLI's confirmation prompts, including the one before deleting a World's other scenes |
@@ -36,13 +36,13 @@ The local linker server the CLI starts exposes the deployment as one resource, `
 
 | Request | Result |
 | --- | --- |
-| `POST /api/deploy` (signed payload) | Starts the deploy. With `Prefer: respond-async` it answers **202** with the current state right away; **409** with the state if a deploy is already running |
+| `POST /api/deploy` (signed payload) | Starts the deploy. With `Prefer: respond-async` it answers **202** with the current state right away; **409** with the state whenever the phase is no longer `awaiting-signature` (a deploy already running, or already finished) |
 | `GET /api/deploy` | State as JSON. With `Accept: text/event-stream`: server-sent `state` events, closed after a final phase (an `EventSource` client must `close()` then, or it reconnects) |
 | `DELETE /api/deploy` + header `X-Deploy-Token: <token>` | Cancels. **403** without the right token; **409** once the deploy is final or while a World's old scenes are being removed; else **202** |
 
 State: `{ phase, upload, result, error, cancelRequested }`.
 
-- `phase`: `awaiting-signature` → (`undeploying`, Worlds only) → `uploading` → one of the final phases `deployed`, `failed`, `cancelled`.
+- `phase`: `awaiting-signature` → `uploading` → (a World deploy without `--multi-scene` that has scenes to remove: `undeploying`, then `uploading` again) → one of the final phases `deployed`, `failed`, `cancelled`.
 - `upload`: `{ stage: 'checking' | 'uploading' | 'processing', sentBytes, totalBytes, completedBatches, totalBatches }` (batch fields `null` for a single request); progress events are throttled to one per 250 ms.
 - `result`: `{ entityId, message? }` once deployed. `error`: `{ code, message }`.
 
@@ -55,10 +55,14 @@ State: `{ phase, upload, result, error, cancelRequested }`.
 | `DEPLOY_CANCELLED` | Cancelled (prompt declined, or `DELETE /api/deploy`) and nothing was published |
 | `DEPLOY_CANCELLED_AFTER_UNDEPLOY` | World deploy cancelled after the World's previous scenes were removed: the World can be left **empty**. Deploy again |
 | `DEPLOY_CANCEL_OUTCOME_UNCERTAIN` | Cancelled during upload, and the CLI couldn't confirm whether the server published it. Check the scene before deploying again |
-| `DEPLOY_MISSING_TARGET_CONTENT` | `worldConfiguration` set but no `--target-content` |
+| `DEPLOY_MISSING_TARGET_CONTENT` | `worldConfiguration` set but neither `--target-content` nor `--target` |
 | `DEPLOY_NO_PERMISSION` | Signing wallet has no deploy rights for that World (or those parcels) |
 | `DEPLOY_DELETE_FAILED` | Removing the World's other scenes failed (hint: `--multi-scene`) |
 | `DEPLOY_UPLOAD_FAILED` | Any other upload error |
+| `DEPLOY_INVALID_ARGUMENTS` | `--target` together with `--target-content`, or a `--deploy-token` shorter than 16 characters |
+| `DEPLOY_WORKSPACE_NOT_SUPPORTED` | Run from a workspace with several projects; deploy one scene project at a time |
+| `DEPLOY_INVALID_PROJECT_TYPE` | The project is not a scene (a smart wearable, for example) |
+| `DEPLOY_FAILED` | The API state's code for an error that has no code of its own |
 
 ## Worlds: undeploy first
 

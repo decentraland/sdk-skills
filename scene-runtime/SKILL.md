@@ -44,7 +44,7 @@ const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 
 `signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
 
-> **Permission**: a scene needs none — scenes and portable experiences run with every permission granted. Only a **smart wearable** must declare `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets) in `requiredPermissions`, or the call fails with `Fetch API: permission denied` (**smart-wearables** → Permissions). `fetch` and `signedFetch` need no prior player interaction.
+> **Permission**: a scene needs none — scenes and portable experiences run with every permission granted. Only a **smart wearable** must declare `"USE_FETCH"` for `fetch` (and `"USE_WEBSOCKET"` for sockets) in `requiredPermissions`, or the call fails with `Fetch API: permission denied`; `signedFetch` is gated by no permission (**smart-wearables** → Permissions). `fetch` and `signedFetch` need no prior player interaction.
 
 ## WebSocket
 
