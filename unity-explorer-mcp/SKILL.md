@@ -1,13 +1,15 @@
 ---
 name: unity-explorer-mcp
-description: "Set up, launch and drive a Decentraland Explorer through its MCP automation server to build and test a local SDK7 scene in-world: screenshot, walk, click and debug the running scene. Use when the user asks to see, test, verify, walk through, screenshot, or debug a scene in-world; when they name the Explorer or its MCP server; when they want the Explorer MCP installed, set up or connected; whenever an `mcp__explorer__*` tool is available; and whenever the `explorer` MCP server failed to connect or was never set up at all — ConnectionRefused, or no such server, only means the Explorer is not running yet, which is this skill's normal starting point, not a reason to skip it."
+description: "Set up, launch and drive a Decentraland Explorer through its MCP automation server to build and test a local SDK7 scene in-world: screenshot, walk, click and debug the running scene. Use when the user asks to see, test, verify, walk through, screenshot, or debug a scene in-world; when they name the Explorer or its MCP server; when they want the Explorer MCP installed, set up or connected; whenever an `explorer` MCP tool (`mcp__explorer__*` in Claude Code) is available; and whenever the `explorer` MCP server failed to connect or was never set up at all — ConnectionRefused, or no such server, only means the Explorer is not running yet, which is this skill's normal starting point, not a reason to skip it."
 ---
 
 # Unity Explorer MCP Scene Iteration
 
 **A failed or missing `explorer` MCP connection is the expected starting state, not a blocker.** The MCP server lives *inside* the Explorer process, so `ConnectionRefused` or no `explorer` server at all only means the Explorer is not running yet — continue into the intent gate below; Setup launches it and binds the tools. Once bound, the `mcp__explorer__*` tools are self-describing and the authoritative catalog: read names, arguments, and output shapes there rather than assuming a tool is missing.
 
-**Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no `claude mcp add`, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged. **One extra rule applies on that path: before `launch_preview`, check `preview_status` *and* the OS process list (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows), because `stop_preview` can return `{ok: true}` while the Explorer keeps running and the next launch then never connects** — see "Preview lifecycle" in **creator-hub-mcp**.
+**Any MCP client works** — Claude Code, Codex, Cursor, Gemini CLI, VS Code with Copilot, or another one that speaks Streamable HTTP. This skill writes tool names the way Claude Code prefixes them (`mcp__explorer__get_scene_state`); other clients show the bare name (`get_scene_state`) or their own prefix. Where a step differs per client, the Claude Code command comes first and the others follow or are linked.
+
+**Coming in through the Creator Hub MCP?** When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools below are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). In that case skip **Setup** below entirely — no registration, no bind gate, no port 8123 probe — and go straight to the iteration loop with those tool names. The reference files apply unchanged. **One extra rule applies on that path: before `launch_preview`, check `preview_status` *and* the OS process list (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows), because `stop_preview` can return `{ok: true}` while the Explorer keeps running and the next launch then never connects** — see "Preview lifecycle" in **creator-hub-mcp**.
 
 **Never write scene files in a burst while the Explorer is running.** Each change goes in as ONE write (iteration loop, step 1). Check `get_scene_state` before the next write, and stop the dev server first for a multi-file patch run or a generator script. Two saves seconds apart can load a torn bundle, and only an Explorer relaunch recovers from that (Locksmith, 2026-10: four relaunches in two days).
 
@@ -27,14 +29,14 @@ Certain points in this skill are **gates**: you ask, call no tool after asking, 
 
 This skill only covers driving the Explorer; the SDK7 API knowledge (composite-first rule, component reference) lives in the other topic skills of the `decentraland/sdk-skills` package this skill ships from (entry point `sdk-scenes`). You need them whether or not the Explorer ends up in play, so do this before the pre-flight below.
 
-Load them: session skills first, then the filesystem — scene-local (`.claude/skills/` in the scene folder) and global (`~/.claude/skills/`). This is done when you can **name the topic skills available to you** — not when you've noticed they exist. If they cannot be loaded — e.g. only `unity-explorer-mcp` itself was installed, not the whole package — **skills-install gate**: pull in the rest of the package's topic skills from that same source? Recommend it. On yes, ask at which level — scene-local or global — and run the matching command:
+Load them: session skills first, then the filesystem — scene-local and global skills folders (in Claude Code, `.claude/skills/` in the scene folder and `~/.claude/skills/`; other assistants use their own folders, e.g. `.agents/skills/`). An assistant with no skills support can read each `SKILL.md` straight from disk. This is done when you can **name the topic skills available to you** — not when you've noticed they exist. If they cannot be loaded — e.g. only `unity-explorer-mcp` itself was installed, not the whole package — **skills-install gate**: pull in the rest of the package's topic skills from that same source? Recommend it. On yes, ask at which level — scene-local or global — and run the matching command:
 
 ```bash
 npx skills add decentraland/sdk-skills --all       # scene-local (run inside the scene folder)
-npx skills add decentraland/sdk-skills --all -g    # global (user-level, ~/.claude/skills)
+npx skills add decentraland/sdk-skills --all -g    # global (user-level)
 ```
 
-A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the `Skill` tool cannot load the new skills by name. A restart is needed for automatic discovery and native MCP binding only: an agent with filesystem access can read an installed `SKILL.md` from disk and follow it in the same session.
+A fresh install lands on disk but does not bind — skills load at session start, and only the user can restart. **Restart gate**: restart now to pick the new skills up, or continue this session without them? Recommend restarting — until it happens the assistant cannot load the new skills by name. A restart is needed for automatic discovery and native MCP binding only: an agent with filesystem access can read an installed `SKILL.md` from disk and follow it in the same session.
 
 Declining either gate is fine — the scene can still be implemented, just less efficiently. Until the skills actually load, the **stale memory** rule under the iteration loop governs every SDK7 API you write.
 
@@ -71,7 +73,16 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    This serves the scene at `http://127.0.0.1:8000`, launches the installed Decentraland client against it with the MCP server on port 8123, and hot-reloads the scene whenever a source file changes. Port overrides, the other launch flags, and the two launch errors (`--mcp` rejected as an unknown option; "Please download & install the Decentraland Desktop Client") are under "Launch flags and errors" in [`reference/setup.md`](reference/setup.md).
 
-2. **Register the MCP server, then confirm its tools are actually bound** (default port 8123). Registration and binding are two different things — you need both.
+2. **Register the MCP server, then confirm its tools are actually bound.** Registration and binding are two different things — you need both. Every client takes the same connection details:
+
+   | Field | Value |
+   |---|---|
+   | Transport | Streamable HTTP (**not** stdio — nothing to spawn; the server is embedded in the running Explorer) |
+   | URL | `http://127.0.0.1:8123/unity-explorer-mcp` (`--mcp-port <port>` changes the port) |
+   | Auth | none |
+   | Name | `explorer` |
+
+   **Claude Code** (terminal CLI or VS Code extension):
 
    ```bash
    timeout 15 claude mcp add --transport http --scope user explorer http://127.0.0.1:8123/unity-explorer-mcp
@@ -79,27 +90,30 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    "already exists in local config" means a previous session registered it — registration is persistent config, nothing to do. In non-terminal harnesses (the VS Code extension among them) the command can hang with no output: read a hang as *probably already registered* and move on to the bind gate without retrying — the step 1 probe already confirmed the endpoint.
 
-   **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** Claude Code opens its MCP connections once, at session startup, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its one connection attempt, and `mcp__explorer__*` tools will never appear on their own. Mid-session, only an explicit `/mcp` reconnect re-binds them; alternatively, starting a fresh Claude session while the Explorer keeps running binds them automatically at that session's startup. Both are user actions: there is nothing you can run instead, so ask rather than trying to engineer around it.
+   **Codex, Cursor, Gemini CLI, VS Code with Copilot, or any other client**: the config for each is under "Registering in other clients" in [`reference/setup.md`](reference/setup.md). Check the client's config first; an `explorer` entry from an earlier session means there is nothing to add.
 
-   Open with the situation — *"the Explorer is up, but this Claude session started before it, so the native MCP tools aren't bound"* — then offer three paths, best first, with the fallback's costs stated before they can land in it:
+   **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** MCP clients (Claude Code, Codex, Cursor, Gemini CLI among them) connect to their configured servers when the session starts, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its connection attempt, and the `explorer` tools will not appear on their own. Mid-session, only a reconnect the user triggers re-binds them; alternatively, a fresh session started while the Explorer keeps running binds them at its startup. Both are user actions: there is nothing you can run instead, so ask rather than trying to engineer around it.
 
-   - **Reconnect the `explorer` server** — fastest, and keeps this conversation. How, depends on the harness: the **terminal CLI** opens an interactive server menu on `/mcp`, with a reconnect entry to pick. The **VS Code extension** (and any embedded chat panel, e.g. the Creator Hub's) has no such menu — a bare `/mcp` there only prints a status line plus usage, so the command to give the user is `/mcp reconnect explorer` (or `/mcp reconnect all`), typed into the chat.
-   - **Start a fresh session / new conversation tab**, leaving the Explorer running — the tools bind automatically at the new session's startup. In the VS Code extension and embedded panels this is just a new conversation tab, *not* restarting the app or the Explorer — say so, because users assume the expensive reading and decline. Make it the recommended path there whenever `/mcp reconnect` answers *"MCP controls aren't available right now — the terminal is still starting up or is showing another view."* — a failure mode in that harness with no in-chat fix, and the new tab is the path that works.
+   Open with the situation — *"the Explorer is up, but this session started before it, so the native MCP tools aren't bound"* — then offer three paths, best first, with the fallback's costs stated before they can land in it:
+
+   - **Reconnect the `explorer` server** — fastest, and keeps this conversation. How depends on the client:
+     - **Claude Code terminal CLI**: `/mcp` opens an interactive server menu with a reconnect entry to pick.
+     - **Claude Code VS Code extension** (and any embedded chat panel, e.g. the Creator Hub's): there is no such menu — a bare `/mcp` only prints a status line plus usage, so the command to give the user is `/mcp reconnect explorer` (or `/mcp reconnect all`), typed into the chat.
+     - **Other clients**: toggle the `explorer` server off and on, or use the refresh or restart control, in the client's MCP settings or server list (Cursor's MCP settings; **MCP: List Servers** in VS Code). A client with no such control (Codex CLI) only binds on a new session — offer the next path instead.
+   - **Start a fresh session / new conversation tab**, leaving the Explorer running — the tools bind automatically at the new session's startup. In an IDE or embedded panel this is just a new chat or conversation tab, *not* restarting the app or the Explorer — say so, because users assume the expensive reading and decline. In the Claude Code VS Code extension, make it the recommended path whenever `/mcp reconnect` answers *"MCP controls aren't available right now — the terminal is still starting up or is showing another view."* — a failure mode in that harness with no in-chat fix, and the new tab is the path that works.
    - **The curl fallback** — one shell command per player action, permission prompts on each new call shape, more tokens, and screenshots that arrive as base64 you must decode to a file before viewing (`scripts/screenshot.sh` does it — see [`reference/curl-fallback.md`](reference/curl-fallback.md)). Slower, but every check above is still possible on this path; do not report screenshots as unavailable.
 
-   Use `AskUserQuestion` if your client has it, one option each; label the second *"Restart session / new tab (Explorer stays up)"* so it can't be misread as closing the Explorer. Otherwise put the same three in plain text and close with *"Which do you prefer?"*.
+   If your client has a multiple-choice question tool (`AskUserQuestion` in Claude Code), use it, one option each; label the second *"Restart session / new tab (Explorer stays up)"* so it can't be misread as closing the Explorer. Otherwise put the same three in plain text and close with *"Which do you prefer?"*.
 
    You may only move past this step in one of these three states — no fourth reading exists, and a subagent can only ever be in the first:
 
    - **Tools already present** (the Explorer was running before this session started) — the gate doesn't apply; continue to step 3.
-   - **The user rebound the tools** — via `/mcp` reconnect, or by opening a fresh session/tab with the Explorer left up. Verify by calling a native `mcp__explorer__*` tool, then continue to step 3. (A fresh session ends this conversation; the new one finds them bound and skips this gate.)
+   - **The user rebound the tools** — via a reconnect, or by opening a fresh session/tab with the Explorer left up. Verify by calling a native `explorer` tool (`get_scene_state`), then continue to step 3. (A fresh session ends this conversation; the new one finds them bound and skips this gate.)
    - **The user has explicitly chosen the curl fallback in writing, this session, after being told its costs** — only then read [`reference/curl-fallback.md`](reference/curl-fallback.md) and drive the endpoint over HTTP. A working curl probe is not a decline, and neither is silence.
 
    The probe in step 1 is the only curl call you make before this gate. Getting an answer out of it proves the Explorer is up — which is the trigger to ask, not permission to continue.
 
-   Mention the prevention once, not every session: starting the Explorer *before* Claude Code — or simply leaving it running between sessions — skips this gate entirely.
-
-   **Not running in Claude Code?** For Cursor, Cline, or a custom SDK harness, the connection details and config shapes are under "Registering in a client other than Claude Code" in [`reference/setup.md`](reference/setup.md). The Claude Code **VS Code extension** and the Creator Hub's embedded chat *are* Claude Code: they take the commands above, with the harness differences noted in the bind gate.
+   Mention the prevention once, not every session: starting the Explorer *before* the assistant session — or simply leaving it running between sessions — skips this gate entirely.
 
 3. **Wait for the world to load**: poll `get_scene_state` until `loadingScreenOn` is false and the scene reports `isReady: true`. Give the poll a deadline of about 90 s, and parse the result as JSON: never grep the raw text for `isReady`, because the payload's spacing (`"isReady": true`) defeats a literal pattern and the poll never ends. While polling keeps failing, the client is most likely sitting on the auth screen — `--skip-auth-screen true` only skips it when a valid identity is cached from a previous session, and extra `--multi-instance` instances always ask — so tell the user to log in, wait for them, then continue.
 
@@ -131,7 +145,7 @@ Every `screenshot` tool result lands in your context as an image (~1.2k tokens a
 <skill-dir>/scripts/screenshot.sh -n 10 -i 0.5         # burst, for time-based behavior (tweens, animations)
 ```
 
-Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: anything left in the project is uploaded on deploy and counts against the per-parcel MB limits, so keep `-d`/`-o` targets out of the scene too (or `.dclignore` the directory). Capture many, `Read` few: for a before/after comparison, capture both to disk and read just those two.
+Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: anything left in the project is uploaded on deploy and counts against the per-parcel MB limits, so keep `-d`/`-o` targets out of the scene too (or `.dclignore` the directory). Capture many, view few: for a before/after comparison, capture both to disk and read just those two.
 
 ## Scene health
 
@@ -140,7 +154,7 @@ Frames default to `$TMPDIR/mcp-shots`, deliberately outside the scene folder: an
 - One parcel is 16×16 m; parcel `(x, y)` spans world positions `(16x..16x+16, 16y..16y+16)`. `--position x,y` spawns at parcel `x,y`; without it the launch uses `scene.base`.
 - `teleport` silently no-ops in local-scene-development mode: `/goto` is disallowed there (chat shows "Teleport is not allowed in local scene development mode") but the tool still answers "Arrived at (x,y)". Use `move_to` for repositioning in local-scene sessions.
 
-- **Missing tools**: `mcp__explorer__*` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (`/mcp` menu in the terminal CLI, `/mcp reconnect explorer` in the VS Code extension) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.
+- **Missing tools**: `explorer` tools absent in-session is the **bind gate** — go back to Setup step 2, ask the user to reconnect the server (in Claude Code, the `/mcp` menu in the terminal CLI or `/mcp reconnect explorer` in the VS Code extension; elsewhere, the client's MCP settings) or open a fresh session/conversation tab with the Explorer left running, and end your turn there. The HTTP fallback is in [`reference/curl-fallback.md`](reference/curl-fallback.md), to be opened only after they have been warned of its costs and explicitly chosen it.
 - **Scene dropped out, player off-parcel, connection lost, or a wedged client**: [`reference/recovery.md`](reference/recovery.md).
 
 ## Regression rig: `149,149-synthetic-input-showcase`
