@@ -1,6 +1,6 @@
 ---
 name: sdk-scenes
-description: Build, extend, and deploy Decentraland SDK7 scenes. This is the entry-point skill — it contains agent behavioral guidelines, the composite-first rule, and an index of all individual topic skills. Install this alongside the individual skills you need, or use `--skill '*'` to install everything.
+description: "Build, extend or deploy a Decentraland SDK7 scene. Load it first for any scene task: when to confirm with the user (parcel changes, asset downloads, the Multiplayer Server, a scene open in the Creator Hub, Blender MCP fallback, SDK bug reports), the composite-first rule, and the index of which topic skill to load."
 ---
 
 # Decentraland SDK7 Scene Development
@@ -29,6 +29,8 @@ The rule is to **ask**, not to avoid the change. When the design needs more spac
 Downloading any file not already in the project — 3D models (.glb), images, audio, video. The user may have their own assets in mind, may not want new files added, or may be targeting a specific visual style. Confirm before downloading:
 
 > "I'd like to download a [description] model from [source] and add it to your scene. Should I go ahead?"
+
+For a font, also check that its licence allows redistributing it with the scene (**fonts**).
 
 For streaming references (`AudioStream`, `VideoPlayer`): these don't download files but do add an external URL dependency. Confirm if the URL wasn't provided by the user:
 
@@ -81,32 +83,38 @@ These aren't things the agent should refuse to do — they're things it should c
 
 ## CRITICAL RULE — Composite-first scene authoring
 
-All static entities (models, primitive walls and floors, lights, spawn points) MUST be defined in `assets/scene/main.composite`, NOT created in TypeScript via `engine.addEntity()`. In a scene open in the Creator Hub the way to put them there is the MCP (**creator-hub-mcp**); a room built in `src/` renders in the preview but is invisible in the editor. If the scene is open and the MCP is not available, stop and ask the user (close the scene / connect the MCP / explicitly accept code-built entities) — never build the static entities in `src/` on your own (Agent Behavioral Guidelines, item 5).
+All static entities (models, primitive walls and floors, lights, spawn points) MUST be defined in `assets/scene/main.composite`, NOT created in TypeScript via `engine.addEntity()`. In a scene open in the Creator Hub the way to put them there is the MCP (**creator-hub-mcp**); a room built in `src/` renders in the preview but is invisible and unselectable in the editor's viewport and entity tree. Scene open and no MCP: Agent Behavioral Guidelines, item 5.
 
-TypeScript (`src/index.ts`) is ONLY for:
+| `main.composite` | TypeScript (`src/`) |
+|---|---|
+| Every entity present at scene load: models, lights, primitives, text, audio | Dynamic behavior: systems, event handlers, state changes, UI |
+| Static and decorative objects, and anything the creator should see and edit in the Creator Hub | Entities spawned or despawned at runtime (projectiles, clones, NPCs that appear on demand), whose count depends on runtime state, or whose identity/structure cannot be known at author time |
+| Entities that get behavior later | Fetching those entities by name or tag (`getEntityOrNullByName`, `getEntitiesByTag`) inside `main()` or later, never re-creating them; patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code |
 
-- Dynamic behavior (systems, event handlers, state changes)
-- Referencing composite entities via `getEntityOrNullByName('name')` or `getEntitiesByTag('tag')`
-- Entities that are truly runtime-only (spawned/despawned during gameplay)
+Composite entities load faster, are editable in the Creator Hub, and keep the code focused on logic.
 
 ## CRITICAL RULE — Editing an existing composite
 
-**If the Creator Hub MCP is available, use it — never hand-edit the file.** The Creator Hub ships an MCP server (skill: **creator-hub-mcp**) whose tools (`scene_state`, `create_entity`, `set_component`, `remove_entity`, `place_smart_item`, `attach_script`, `set_scene_settings`, …) edit the open scene live, with autosave, undo, and the editor bookkeeping handled for you. It is pre-wired inside the Creator Hub's own AI assistant, and any other MCP-capable tool (Claude Code, Cursor, Codex, Claude Desktop) can connect to it via Settings > AI > *Expose AI assistant MCP server*. Use it for `scene.json` changes too (`set_scene_settings`). Editing the file while the scene is open in the Creator Hub loses your work silently: the inspector autosaves by default and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk.
+**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0`, see **creator-hub-mcp**). Its tools edit the open scene live, with autosave, undo and the editor bookkeeping handled for you; tool list, connection and the decision ladder are in **creator-hub-mcp**. Editing the file while the scene is open in the Creator Hub loses your work silently, with no error: the inspector autosaves about 100 ms after any editor transaction and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk (mechanism: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode)).
 
 Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
 
-- **The scene must NOT be open in the Creator Hub while you edit the file.** Ask the user to close the scene first, then reopen it when you are done. Until they answer, write nothing static — not to the file, and not to `src/` as a stand-in (Agent Behavioral Guidelines, item 5).
+- **The scene must NOT be open in the Creator Hub while you edit the file.** Ask the user to close the scene first, then reopen it when you are done; until then, item 5 applies.
 - Scan the file for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
 
 ---
 
 ## Individual Skills
 
-This skill is the entry point. The detailed implementation guidance lives in individual topic skills, each installable separately. Install specific ones or use `--skill '*'` for all.
+Load the topic skill that matches the request; for requests spanning several topics, load each.
 
 ### Scene Setup & Configuration
 
-**Skill: `create-scene`** — Scaffolding, `scene.json` schema, multi-parcel layouts, composite vs TypeScript entity rules.
+**Skill: `create-scene`** — Scaffolding a new project, and editing `scene.json` (parcels, spawn points, permissions, tags, feature toggles). Field reference: `{baseDir}/../create-scene/references/scene-json.md`.
+
+### Composite File Format
+
+**Skill: `composites`** — The `.composite` JSON format for static scene entities; hand-editing `main.composite` when the Creator Hub MCP is not available (check item 5 and the CRITICAL RULES above first).
 
 ### 3D Models
 
@@ -174,7 +182,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Audio Analysis (Reactive Visualizers)
 
-**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Unity-explorer only.
+**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor). Bevy leaves the values at 0.
 
 ### Blockchain & NFTs
 
@@ -194,11 +202,11 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Creator Hub MCP (live scene editing)
 
-**Skill: `creator-hub-mcp`** — Editing the scene that is open in the Creator Hub through its MCP server: tool catalog (`scene_state`, `create_entity`, `set_component`, `place_smart_item`, `attach_script`, `set_scene_settings`, `launch_preview`, …), read-before-write workflow, placing catalog items and custom models, and how to connect an external agent (Claude Code, Cursor, Codex) to it. The preferred way to change entities whenever the scene is open in the Creator Hub — instead of editing `main.composite`.
+**Skill: `creator-hub-mcp`** — Editing the scene open in the Creator Hub through its MCP server (preferred over editing `main.composite`), placing catalog items and custom models, and connecting an external agent to it.
 
 ### Testing in the Explorer (MCP)
 
-**Skill: `unity-explorer-mcp`** — Driving a running Decentraland Explorer through its MCP automation server: launch, camera and player movement, screenshots, logs, performance stats. Inside the Creator Hub the same tools arrive through the Creator Hub MCP's `launch_preview` / `explorer_*`.
+**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world: camera and player movement, logs, performance stats. Inside the Creator Hub the same tools arrive through the Creator Hub MCP's `launch_preview` / `explorer_*`. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up: either just means the Explorer is not running yet.
 
 ### Async, HTTP, WebSocket, Timers
 
@@ -212,11 +220,9 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 **Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
 
-**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up at all — either just means the Explorer is not running yet.
-
 ### Deployment
 
-- **Skill: `deploy-scene`** — Genesis City deployment, `dcl deploy`, troubleshooting.
+- **Skill: `deploy-scene`** — Genesis City (LAND) deployment with `npx @dcl/sdk-commands deploy`: pre-deploy checklist, thumbnail spec, `.dclignore`, post-publish conversion, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
 ### Wearables & Smart Wearables
@@ -250,7 +256,7 @@ Older names still circulate in tutorials, forum posts, and model-generated answe
 | **SDK6** | the previous SDK; its code does not run on current Decentraland | **SDK7** (to port an old scene, see the `migrate-sdk6-to-sdk7` skill) |
 | **`dclcontext` folder** | downloaded AI context files inside scene projects | **SDK Skills** (these skills) |
 
-Current names: Creator Hub, Scene Editor, SDK7, SDK Skills. Verified against docs glossary commit `4b6733c`.
+Current names: Creator Hub, Scene Editor, SDK7, SDK Skills.
 
 ## Shared References
 
@@ -268,10 +274,15 @@ Rules for validating entity component combinations — which components require 
 
 ### Free Asset Catalogs
 
-- **3D Models (8,800+ models):** `{baseDir}/../add-3d-models/references/model-catalog.md` — optimized 3D models with descriptions, dimensions, animations, and download URLs
+- **3D Models (8,800+ models):** `{baseDir}/../add-3d-models/references/model-catalog.md` — grep it by keyword, never read it whole; optimized 3D models with descriptions, dimensions, animations, and download URLs
 - **Creator Hub asset packs (420 models + 7 Smart Items, latest additions):** `{baseDir}/../add-3d-models/references/asset-pack-catalog.md` — Genesis City buildings/street/furniture/nature, Halloween, sci-fi lab kit, scripted buttons/doors/platform/water; multi-file download helper in `model-patterns.md`
 - **Avatar animations (32 built-in emotes + 45 downloadable clips):** `{baseDir}/../avatar-animations/references/animation-catalog.md` — check before authoring any emote
 - **Audio (50 sounds):** `{baseDir}/../audio-video/references/audio-catalog.md` — Music, Ambient, SFX, Game Mechanics, UI sounds
+
+### Mobile Parity
+
+**Reference: `{baseDir}/references/mobile-parity.md`**
+What the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, colliders, movement). Read it before designing anything a mobile player depends on.
 
 ### Composites
 
@@ -290,4 +301,4 @@ The `.composite` JSON format for declaring initial scene entities. Includes `get
 1. Identify the topic from the user's request
 2. Load the corresponding skill — it contains the full API, code patterns, and rules
 3. For broad requests spanning multiple topics, load each relevant skill
-4. For asset discovery, load the relevant catalog and suggest specific assets before fetching any
+4. For asset discovery, read the relevant catalog's header first (the animation catalog's holds the `triggerEmote` vs `triggerSceneEmote` split and the emote permission), then grep the model and asset-pack catalogs by keyword rather than reading them whole (the model catalog is ~5,800 lines); suggest specific assets before fetching any

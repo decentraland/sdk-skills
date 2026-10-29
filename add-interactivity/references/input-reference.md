@@ -2,23 +2,7 @@
 
 ## All Input Actions
 
-| Action            | Key Binding       | Constant                   |
-| ----------------- | ----------------- | -------------------------- |
-| Left mouse button | Mouse click / tap | `InputAction.IA_POINTER`   |
-| Primary action    | E key             | `InputAction.IA_PRIMARY`   |
-| Secondary action  | F key             | `InputAction.IA_SECONDARY` |
-| Action 3          | 1 key             | `InputAction.IA_ACTION_3`  |
-| Action 4          | 2 key             | `InputAction.IA_ACTION_4`  |
-| Action 5          | 3 key             | `InputAction.IA_ACTION_5`  |
-| Action 6          | 4 key             | `InputAction.IA_ACTION_6`  |
-| Jump              | Space key         | `InputAction.IA_JUMP`      |
-| Forward           | W key             | `InputAction.IA_FORWARD`   |
-| Backward          | S key             | `InputAction.IA_BACKWARD`  |
-| Left              | A key             | `InputAction.IA_LEFT`      |
-| Right             | D key             | `InputAction.IA_RIGHT`     |
-| Walk              | Control key       | `InputAction.IA_WALK`      |
-| Run               | Shift key         | `InputAction.IA_MODIFIER`  |
-| Any (wildcard)    | Any of the above  | `InputAction.IA_ANY`       |
+Key map for every `InputAction` (including `IA_ANY`): **advanced-input** → *All InputAction Values*.
 
 **Notes:**
 
@@ -352,15 +336,7 @@ AvatarModifierArea.create(entity, {
 
 ## Cursor State
 
-```typescript
-// Check if cursor is locked (pointer lock mode)
-const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked;
-
-// Get cursor position and world ray
-const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity);
-console.log("Cursor screen position:", pointerInfo.screenCoordinates);
-console.log("World ray direction:", pointerInfo.worldRayDirection);
-```
+Pointer lock and the cursor's position and world ray: **advanced-input** → *Pointer Lock State* and *Cursor Position and World Ray*.
 
 ## Trigger Area Callback Fields
 

@@ -103,13 +103,6 @@ While the player is gliding (glider open), forces behave differently:
 
 ## Mobile does not move exactly like desktop
 
-Mobile app **v1.15.0** (Oct 2026) landed a **first** Unity-parity pass — capsule size, step height, jump arc and gravity, run speed and air control — and fixed downward player raycasts, which now report the correct `hitDistance` on sloped geometry. It is a first pass, not parity: the following are still open with no ETA (docs commit `5f212e3`).
-
-- **Slopes, edges, walls, landing and moving platforms** still behave differently from Unity, as does **glide** behavior (fixes in review).
-- **Scene colliders thinner than 1 cm only collide from above.** A 0.5 cm wall, a thin invisible floor plate or a paper-thin ramp is walk-through from the side on mobile. **Give every collider at least 1 cm of thickness** — cheap insurance, and the single most actionable rule here.
-- **Invisible blockers and some SDK collision layers do not block the player at all** on mobile. Do not fence a play area, a kill boundary or a "stay inside" rule with an invisible collider alone; back it with a `TriggerArea` + `movePlayerTo`, or with geometry the player can see.
-- **Spawn, landing and jump animations and movement blending are missing** — the avatar reads as stiffer; do not time a mechanic to an animation beat the mobile client never plays.
-
-A step, kerb or ledge height tuned until it "just barely" works on desktop may still be unclimbable — or climbable when it shouldn't be — on a phone, and landing position after an impulse or knockback can differ. Give traversal geometry a **margin** rather than tuning to the exact threshold, keep a forgiving landing area on any forced-movement mechanic, and verify on a device before shipping precision platforming. Also note **`TweenSequence` does not animate on mobile** (**animations-tweens**) — a moving platform built on one is a dead platform on a phone. Mobile parity list: **advanced-input** → *Mobile considerations*.
+Mobile app 1.15.0 aligned capsule size, step height, jump arc, gravity, run speed and air control with desktop in a first pass; older mobile apps differ more. Physics-relevant rules on mobile: give every collider at least 1 cm of thickness (thinner ones collide only from above); never fence a play area or kill boundary with an invisible collider alone (invisible blockers may not block), back it with a `TriggerArea` + `movePlayerTo` or visible geometry; leave a margin on step and ledge heights and on landing zones after an impulse or knockback, and verify precision platforming on a device. Full list of movement and collision differences (including `TweenSequence` moving platforms, which do not move on mobile): `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 For full code examples (launch pad, wind tunnel, repulsion field, coordinate conversion), see `{baseDir}/references/physics-patterns.md`.

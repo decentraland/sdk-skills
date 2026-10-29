@@ -126,7 +126,7 @@ export function resetGem(entity: Entity, val: number, x: number, y: number) {
 - Containers: `Schemas.Array(s)`, `.Map({...})`, `.Optional(s)`, `.OneOf({...})`
 - Enums: `Schemas.EnumString(enumObj, defaultValue)` / `Schemas.EnumNumber(enumObj, defaultValue)` — the default (second arg) is required. There is no bare `Schemas.Enum`.
 
-[UNVERIFIED] `Schemas.Vector2` — confirm by checking the `@dcl/sdk/ecs` Schemas export before using. The safe pattern is to flatten Vector2 fields into two `Schemas.Number` fields (e.g. `posX`, `posY`).
+There is no `Schemas.Vector2`: flatten Vector2 fields into two `Schemas.Number` fields (e.g. `posX`, `posY`), or use `Schemas.Map({ x: Schemas.Number, y: Schemas.Number })`.
 
 ## Systems
 
@@ -170,12 +170,12 @@ engine.addSystem(moveGemsSystem)
 | `new Vector3(x, y, z)` | `Vector3.create(x, y, z)` |
 | `Vector3.Zero()` / `.One()` / `.Up()` / `.Forward()` | Same names — `Vector3.Zero()`, `.One()`, `.Up()`, `.Forward()` (still PascalCase factories) |
 | `Vector3.Lerp(a, b, t)` | `Vector3.lerp(a, b, t)` (lowercase `l`) |
-| `Vector3.GetAngleBetweenVectors(a, b, up)` | [UNVERIFIED — confirm name in `@dcl/sdk/math`. Common replacement: compute via `Vector3.angle` or manual dot product.] |
+| `Vector3.GetAngleBetweenVectors(a, b, up)` | `Vector3.getAngleBetweenVectors(a, b, normal)` (lowercase `g`) |
 | `Quaternion.Euler(x, y, z)` | `Quaternion.fromEulerDegrees(x, y, z)` |
 | `Quaternion.Identity` | `Quaternion.Identity()` |
 | `Scalar.Lerp(a, b, t)` | `Scalar.lerp(a, b, t)` |
 | `Color3.Blue()` / `.Red()` / `.Green()` / `.White()` / `.Black()` | `Color4.Blue()` / `.Red()` / etc. (most component fields use Color4) — `Color3.X()` still exists in `@dcl/sdk/math` for the few that need it |
-| `RAD2DEG` constant | [UNVERIFIED] — compute as `180 / Math.PI` if needed |
+| `RAD2DEG` constant | `RAD2DEG` (and `DEG2RAD`) from `@dcl/sdk/math` |
 
 ## Primitive shapes
 
@@ -241,7 +241,7 @@ Material.setBasicMaterial(plane, {
 | `ts.fontSize = 1` | Field on the create payload: `TextShape.create(e, { fontSize: 1, ... })` |
 | `ts.color = Color3.White()` | `textColor: Color4.White()` (note rename: `color` → `textColor`) |
 | `ts.shadowColor = Color3.Gray()` / `ts.shadowOffsetX/Y` | Same fields exist on SDK7 `TextShape`: `shadowColor` (`Color3`), `shadowBlur`, `shadowOffsetX`, `shadowOffsetY`. (`outlineWidth` / `outlineColor` are often preferred for legibility.) |
-| `ts.font` (string name) | `font: Font.F_SANS_SERIF` (enum). Only `F_SANS_SERIF` / `F_SERIF` / `F_MONOSPACE` exist. For an SDK6 custom font, ship its `.ttf` in the scene and set `fontSrc` (first SDK release after 7.30.1), keeping the closest `Font` as the fallback. See **fonts**. |
+| `ts.font` (string name) | `font: Font.F_SANS_SERIF` (enum). Only `F_SANS_SERIF` / `F_SERIF` / `F_MONOSPACE` exist. For an SDK6 custom font, ship its `.ttf` in the scene and set `fontSrc` (`@dcl/sdk` 7.31.0+), keeping the closest `Font` as the fallback. See **fonts**. |
 
 ## Animations (model clips)
 
@@ -634,5 +634,3 @@ The mappings above are derived from:
 - Decentraland SDK7 components reference (`sdk-scenes/references/components-reference.md`)
 - The Migrated-2048 example scene (verified working SDK7 port of an SDK6 scene)
 - Cross-checked against [[add-interactivity]], [[animations-tweens]], [[add-3d-models]], [[advanced-input]] skill documents
-
-Items marked `[UNVERIFIED]` were not directly confirmed from the SDK source and should be re-checked before being used as-is.

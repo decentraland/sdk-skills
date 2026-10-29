@@ -404,46 +404,14 @@ raycastSystem.registerGlobalDirectionRaycast(
 ---
 
 ## Global Input Handling
-```typescript
-import { inputSystem, InputAction, PointerEventType } from '@dcl/sdk/ecs'
 
-engine.addSystem(() => {
-  // Check if E key was just pressed this frame
-  if (inputSystem.isTriggered(InputAction.IA_PRIMARY, PointerEventType.PET_DOWN)) {
-    console.log('E key pressed!')
-  }
-
-  // Check if a key is currently held down
-  if (inputSystem.isPressed(InputAction.IA_SECONDARY)) {
-    console.log('F key is held!')
-  }
-
-  // Entity-specific input via system
-  const clickData = inputSystem.getInputCommand(
-    InputAction.IA_POINTER,
-    PointerEventType.PET_DOWN,
-    myEntity
-  )
-  if (clickData) {
-    console.log('Entity clicked via system:', clickData.hit.entityId)
-  }
-})
-```
+Key presses read from a system, and why an entity-less `isTriggered` also fires on entity clicks: **advanced-input** → *Input Polling with inputSystem*.
 
 ---
 
 ## Cursor State
-```typescript
-import { PointerLock, PrimaryPointerInfo } from '@dcl/sdk/ecs'
 
-// Check if cursor is locked
-const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked
-
-// Get cursor position and world ray
-const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity)
-console.log('Cursor position:', pointerInfo.screenCoordinates)
-console.log('World ray direction:', pointerInfo.worldRayDirection)
-```
+Pointer lock and the cursor's position and world ray: **advanced-input** → *Pointer Lock State* and *Cursor Position and World Ray*.
 
 ---
 

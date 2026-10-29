@@ -95,23 +95,13 @@ function proximityCheck() {
 engine.addSystem(proximityCheck)
 ```
 
-### GOTCHA: remote players' Transforms are in WORLD coordinates
+### Remote players' positions are scene-relative
 
-`Transform.get(engine.PlayerEntity).position` for the **local** player is **scene-local** (relative to the scene's base parcel). Another player's entity — the one you get from `engine.getEntitiesWith(PlayerIdentityData)` — reports its position in **world** coordinates. Mixing them silently puts remote players hundreds of metres away.
+Another player's `Transform` (entities from `engine.getEntitiesWith(PlayerIdentityData)`), `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players are **scene-relative**: the same frame as `Transform.get(engine.PlayerEntity)`, on desktop and on mobile app 1.15.0+. The client converts before writing the Transform (unity-explorer `WritePlayerTransformSystem`); `getPlayer` passes it through unchanged.
 
-Convert by subtracting the base parcel times 16:
+**Mobile apps older than 1.15.0 report them in world coordinates.** Handle both the way `33,20-spectate-mode` does: subtract the base parcel × 16 **only** when a position falls outside the scene's bounds, never unconditionally. Read the base parcel from `scene.json` rather than hardcoding it.
 
-```typescript
-import { Vector3 } from '@dcl/sdk/math'
-
-// scene.json base parcel 33,20
-const SCENE_ORIGIN = Vector3.create(33 * 16, 0, 20 * 16)
-const sceneLocal = Vector3.subtract(worldPosition, SCENE_ORIGIN)
-```
-
-`33,20-spectate-mode` applies the subtraction **conditionally** — only when the position falls outside the scene's AABB — which is how it handles the local and remote players through one code path without needing to know which is which. If you always know the entity is a remote player, subtract unconditionally.
-
-Read the base parcel from `scene.json` rather than hardcoding it, or the conversion breaks the moment the scene is redeployed elsewhere.
+Derive anything safety-critical from the local player's own position on each client, not from a remote one.
 
 ## Player Profile Data
 
@@ -134,9 +124,6 @@ function main() {
 - `isGuest` — `true` if the player hasn't connected a wallet
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
-
-**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile — same frame as the local player's — only since mobile app **v1.15.0** (docs commit `5f212e3`, Oct 2026). On an older mobile build those values are in a different frame, so proximity checks and leaderboards keyed on another player's position mis-fire there. Anything safety-critical should be derived from the local player's own position on each client rather than from a remote one.
-
 ## Profile Data for Off-Scene Users (Catalyst)
 
 `getPlayer(userId)` only returns data for users **currently connected to this scene**. For any other address (parcel owner, NFT holder, leaderboard entry, off-scene claimant), fetch from the catalyst:
@@ -330,6 +317,8 @@ triggerEmote({ predefinedEmote: 'wave' })
 triggerEmote({ predefinedEmote: 'clap' })
 ```
 
+Other built-in names include `'dance'`, `'fistpump'` and `'raiseHand'`; every built-in emote with a preview is in `{baseDir}/../avatar-animations/references/animation-catalog.md`.
+
 ### Custom Scene Emotes
 
 **Need a clip?** Before authoring one, check `{baseDir}/../avatar-animations/references/animation-catalog.md`: animated previews of every built-in emote, and 45 ready-made `_emote.glb` files from the Creator Hub's Avatar Animations pack (sitting on stools/puffs/bean bags, chess, fishing, carry, drink, dance…) with their download and the exact `src` path to play them.
@@ -375,7 +364,7 @@ stopEmote({}).then(({ success }) => {
 
 If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
-**Mobile:** `stopEmote` is supported from mobile app **v1.15.0** (docs commit `5f212e3`). The same release also made scene-started **upper-body** emotes pause when the player leaves the scene, resume on return, and stop on scene unload — and made them read as upper-body to *other* mobile players. On older mobile builds a looping scene emote could not be stopped from the scene, so do not design a mechanic whose only exit is `stopEmote`; give the player an action that also restores the pose some other way.
+**Mobile:** `stopEmote` needs app 1.15.0+, as does the handling of scene-started **upper-body** emotes: they pause when the player leaves the scene, resume on return, and stop on scene unload. On older mobile apps a looping scene emote cannot be stopped from the scene, so never make `stopEmote` the only way out of a mechanic; give the player an action that also restores the pose.
 
 ### Detecting when an emote finishes
 
@@ -399,7 +388,6 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 
 - `state` is an **optional** protocol field: always default it to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) rather than assuming it is present.
 - **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation. A scene that needs to know when a masked clip ends must time it itself from the clip duration.
-- Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
 
 ### Emote masks (upper-body only)
 
@@ -416,10 +404,10 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
-- **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
-- **Mobile support:** Avatar Masks (upper-body-only emotes) are **available on mobile since v1.13.0** — no longer a parity gap — and since **v1.15.0** a masked emote is also seen as upper-body by *other* mobile players rather than as full-body. Older mobile clients play masked emotes as full-body, so keep the full-body fallback visually acceptable. Still open: emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile at all. Verified against docs commit `5f212e3` (Oct 2026, mobile v1.15.0).
+- **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
+- **Mobile:** masked emotes work from app 1.13.0, and from 1.15.0 other mobile players see them as upper-body too. Older mobile apps play them full-body, so keep the full-body fallback acceptable. Emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
-- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
+- Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
 
@@ -472,7 +460,7 @@ for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
 - **Don't rewrite the component every tick.** Compare against `AvatarNametag.getOrNull(entity)` before writing, or the scene emits a CRDT message per player per frame.
 - **`label` is a single line.** Long labels truncate with an ellipsis; there is no wrapping. For a bare colored plate with no text, use a spaces-only label (`label: '    '`; more spaces = wider plate). Setting `labelColor` equal to `backgroundColor` does **not** hide the text — the rendered text color is not an exact match to the plate, so the word stays faintly visible.
 - **Colors have no alpha.** `Color3` only; there is no opacity field.
-- **Not implemented on mobile** (no ETA as of the Oct 2026 parity refresh). Mobile players see no plate at all, so never make it the only carrier of information — mirror rank/role in a `TextShape`, a HUD list, or a color the avatar already wears.
+- **Not implemented on mobile.** Mobile players see no plate at all, so never make it the only carrier of information — mirror rank/role in a `TextShape`, a HUD list, or a color the avatar already wears.
 - Plates are hidden along with the native nametag inside an `AvatarModifierArea` using `AMT_HIDE_NAMETAGS` or `AMT_HIDE_AVATARS` (see below). There is no way to keep the plate while hiding the native tag.
 
 ## Avatar Modifier Areas
@@ -524,7 +512,7 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 
 Regression coverage: [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) (`src/areaScaleDrift.ts`), which scales a 2x2x2 `CameraModeArea` entity to 2.5 and asserts the camera still releases 2 m from the centre. It scales the entity itself only; the parent case follows from the code (inverse `lossyScale`), not from a test.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now.
 
 ## Avatar Locomotion Settings
 
@@ -549,33 +537,11 @@ Fields (all `float`, optional) with client defaults — verified against unity-e
 - **Scene bounds only.** The component affects the player solely while they are inside the scene's bounds, and only the local player — to change another avatar's locomotion, the code must run on *their* client.
 - **Enforcing the defaults is a real use case:** a parkour or racing scene can write the default values explicitly so a smart wearable can't give its owner an advantage.
 
-**Creator Hub / Inspector support:** a **"Locomotion Settings"** smart item (`utils` category, id `f0fdd9ac-5451-4d84-9964-ea437b11b211`) ships in the Smart Items pack. It is a `asset-packs::Script` item (`locomotion-settings.ts`, class `LocomotionSettings`) whose nine params are `Slider` fields seeded with the SDK defaults above, so a no-code user gets the same component without writing TypeScript. `start()` calls `AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {...})`; it exposes two `@action`s — **Apply** (re-write the configured values) and **Restore Defaults** (`AvatarLocomotionSettings.deleteFrom(engine.PlayerEntity)`), so other smart items can trigger a speed boost and undo it. Its placeholder is an editor-only cube (`asset-packs::Placeholder`), invisible in-world. Prefer it over hand-built entities when the scene is open in the Creator Hub (see **creator-hub-mcp** `place_smart_item`). Verified against creator-hub commit `cb097fff`.
+**Creator Hub / Inspector support:** a **"Locomotion Settings"** smart item (`utils` category, id `f0fdd9ac-5451-4d84-9964-ea437b11b211`) ships in the Smart Items pack. It is a `asset-packs::Script` item (`locomotion-settings.ts`, class `LocomotionSettings`) whose nine params are `Slider` fields seeded with the SDK defaults above, so a no-code user gets the same component without writing TypeScript. `start()` calls `AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {...})`; it exposes two `@action`s — **Apply** (re-write the configured values) and **Restore Defaults** (`AvatarLocomotionSettings.deleteFrom(engine.PlayerEntity)`), so other smart items can trigger a speed boost and undo it. Its placeholder is an editor-only cube (`asset-packs::Placeholder`), invisible in-world. Prefer it over hand-built entities when the scene is open in the Creator Hub (see **creator-hub-mcp** `place_smart_item`).
 
 ## Restrict Locomotion (InputModifier)
 
-Use `InputModifier` on `engine.PlayerEntity` to freeze or selectively restrict the player's movement — useful for cutscenes, locked interactions, or controlled game mechanics.
-
-```typescript
-import { InputModifier, engine } from '@dcl/sdk/ecs'
-
-// Freeze all movement
-InputModifier.create(engine.PlayerEntity, {
-	mode: InputModifier.Mode.Standard({ disableAll: true }),
-})
-
-// Remove restrictions
-InputModifier.deleteFrom(engine.PlayerEntity)
-```
-
-**Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, restrictions lift automatically when the player leaves scene bounds.
-
-**Standard-mode flags** (all optional booleans, on `InputModifier.Mode.Standard({...})`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding` — all eight are in the SDK type (`input_modifier.gen.d.ts`) and documented, not protocol-only. Note `disableJog` is separate from `disableWalk`/`disableRun` — jog is the default movement speed, so disabling only walk+run still lets the player jog.
-
-The `mode` can be built two equivalent ways — the `InputModifier.Mode.Standard({...})` helper, or the raw discriminated union `{ $case: 'standard', standard: {...} }`.
-
-**Tip:** Combine with `triggerSceneEmote` — freeze the player during an animation, then remove InputModifier when it ends.
-
-For the cutscene pattern, see the **advanced-input** skill.
+To freeze or restrict the player's movement (cutscenes, locked interactions, an emote the player must not interrupt), put an `InputModifier` on `engine.PlayerEntity`: flags, behavior while frozen and the cutscene pattern are in **advanced-input** → *InputModifier (Movement Restriction)*. The teleport-lock example below shows it paired with `movePlayerTo`.
 
 ## Teleporting the Player
 
@@ -596,6 +562,7 @@ For the cutscene pattern, see the **advanced-input** skill.
 - Requires the `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` permission in `scene.json` `requiredPermissions`
 - All fields except `newRelativePosition` are optional — `cameraTarget` and `avatarTarget` may each be omitted or used independently
 - The target Y may be elevated (e.g. `y: 12`) to place the player on a raised platform, not just ground level
+- To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons)
 
 ### Instant teleport
 

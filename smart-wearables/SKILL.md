@@ -89,7 +89,7 @@ Validating locally with Ajv: the schema uses `$data` references in `representati
 `npm run start` / Creator Hub **Play** runs the code as a **regular scene on the parcels in `scene.json`**, not as a portable experience (Explorer `LoadSmartWearablePreviewSceneSystem`). Consequences:
 
 - Everything that requires "the scene the player is in" — physics impulses, input — **stops working when the player walks off those parcels**. Published, it works everywhere. Add a few parcels to `scene.json` if you need room to test.
-- The wearable model may not be shown on your avatar in preview [UNVERIFIED].
+- The wearable model is **not** equipped on your avatar in preview: the Explorer reads your profile from the real catalyst, which never sees the preview server's wearable ID.
 - To test it equipped, for real: upload to the Builder, add to a collection, click **See in Decentraland** (opens on Sepolia; equip it from the backpack). No minting or publishing needed.
 - The preview is still the fast loop for gameplay tuning (impulse feel, emote pose, UI). Confirm once via See in Decentraland.
 

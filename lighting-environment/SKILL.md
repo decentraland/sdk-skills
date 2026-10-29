@@ -288,10 +288,8 @@ Constraints:
 ## Platform Support
 
 - **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows). One owner test (2026-10-09, point + two spots at default intensity) showed only the point light; not reproduced, and the spots may have been pitched up (see Spot Lights) — run the sanity test under Light Limits before calling it a client defect.
-- **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) is **available since v1.13.0** — no longer a parity gap. Budgeted at runtime, see below.
+- **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) works from app 1.13.0, budgeted at runtime (see below). Older mobile apps draw no scene lights, so the scene must read without them, as for the zero-light profiles above.
 - **Bevy explorer:** Full support (point lights, spot lights, shadows).
-
-Verified against docs commits `b4d4c88` (mobile parity tracker) and `8139a7f` (mobile limits), Oct 2026.
 
 ### Mobile light budget
 

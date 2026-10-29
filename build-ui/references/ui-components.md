@@ -62,7 +62,7 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` �
     // Border (also valid on Button / Input / Dropdown uiTransform)
     borderWidth: 2,
     borderColor: Color4.White(),
-    borderRadius: 8              // unsupported on mobile
+    borderRadius: 8              // pixels: mobile 1.10.1+ ignores %, older mobile apps draw square corners
   }}
 
   uiBackground={{
@@ -113,7 +113,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
-**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. Needs the first SDK release after 7.30.1. See the **fonts** skill for the explorer support matrix and testing.
+**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, explorer support matrix and testing: the **fonts** skill.
 
 `value` supports simple markup like `<b>`.
 
@@ -157,7 +157,7 @@ Alternatively, a plain `UiEntity` with a `Label` child (or `uiText` in coded UI)
 
 - Halves the alpha of the button's text and background colors (visual dimming only).
 - Sets `onMouseDown` and `onMouseUp` to `undefined`. **`onMouseEnter` / `onMouseLeave` still pass through** — a disabled Button can still run hover handlers, so guard them yourself if that matters.
-- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.28.1+, see **add-interactivity**), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
+- Combined with the pointer-entry removal fix (`@dcl/sdk` 7.29.0+, see **add-interactivity**), a disabled Button ends up with **no `PET_DOWN` `PointerEvents` entry at all**, so the renderer stops advertising the interaction.
 - If your code clones palette colors before passing them to a `Button` purely to survive the dimming, that workaround is no longer needed on 7.28.0+. It is still needed if you are pinned below it.
 
 ## Input
@@ -181,7 +181,7 @@ Alternatively, a plain `UiEntity` with a `Label` child (or `uiText` in coded UI)
 - **Not a React controlled component.** `onChange` / `onSubmit` fire with the current value, but the field does not re-read the `value` prop every frame. To clear it programmatically, set `value` to a non-empty sentinel (`' '`) for one frame, then back to `''` (`coded-ui.md` → clear trick). Read typed text from `onChange`, not from a bound `value`.
 - **Known issue (client-side, open):** a controlled `Input` **does not follow a programmatic reset.** It displays a value the scene writes, but when the scene later clears it the box keeps showing the old string while the scene's own state is correctly empty — so a form can submit `""` from boxes that still look populated. Follow-on: re-writing the *same* string after such a reset fires **no `onChange` at all**, because the client still believes the box holds it. Verified in `149,149-synthetic-input-showcase` (station S9). Trust your scene state, never the rendered field, and label the read-back value separately if the player needs to see it.
 - **`onChange` vs `onSubmit`.** `onChange` fires on edits; `onSubmit` fires on Enter. A submit **commits and clears the field** (as pressing Enter does) — correct behavior, not a bug; a plain edit leaves the text visible. On submit the client emits **`onSubmit` first, then `onChange`** — the reverse of the intuitive order — so a submit also bumps any change counter. A `disabled` `Input` accepts no writes and fires neither callback.
-- **Removing an `Input` while it still has keyboard focus is supported.** Deleting the element inside its own `onSubmit` / `onChange` handler (a self-destroying field, a form that closes on submit) is legal: the explorer restores the Player / Camera / Shortcuts input maps that the focus had blocked, so WASD movement and Enter-to-chat come back. Covered by `80,-3-ui`'s `SelfDeletingInputExample` (sdk7-test-scenes `07ba611`). No need to blur or disable first.
+- **Removing an `Input` while it still has keyboard focus is supported.** Deleting the element inside its own `onSubmit` / `onChange` handler (a self-destroying field, a form that closes on submit) is legal: the explorer restores the Player / Camera / Shortcuts input maps that the focus had blocked, so WASD movement and Enter-to-chat come back. Covered by `80,-3-ui`'s `SelfDeletingInputExample` (sdk7-test-scenes). No need to blur or disable first.
 
 ## Dropdown
 
@@ -218,7 +218,7 @@ import { InputAction } from '@dcl/sdk/ecs'
 />
 ```
 
-While the element is held down, `InputAction.IA_JUMP` fires as if the player were pressing the spacebar. Multiple actions can be bound to one element. The underlying ECS component is `PBUiInputBinding { actions: InputAction[] }`. Verified against js-sdk-toolchain commit `82368ee4`.
+While the element is held down, `InputAction.IA_JUMP` fires as if the player were pressing the spacebar. Multiple actions can be bound to one element. The underlying ECS component is `PBUiInputBinding { actions: InputAction[] }`.
 
 Combine with `TouchScreenControls` (**advanced-input**) for full mobile control customization: hide the native on-screen buttons, then bind the same actions to your own UI. In a scene that uses the UI Designer's MobileHUD panel, the `TouchScreenControls` config belongs to the panel (`SKILL.md` → **MobileHUD**).
 
@@ -370,7 +370,7 @@ Wraps children so they stay inside the renderer-reported **interactable area** �
 
 **For a whole coded UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area. In the editable aggregator it is the wrapper for roots whose Scene Inset is `interactable`.
 
-⚠️ **Client support.** Either form needs an explorer that reports the area. It works on desktop, and on mobile from client version `1.12.1` onwards — older mobile clients report no margins, so the area falls back to the whole screen and the inset silently does nothing. `1.12.1` is also the release that normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
+**Client support.** Either form needs an explorer that reports the area: desktop does, and mobile from app 1.12.1. Older mobile apps report no margins, so the area falls back to the whole screen and the inset silently does nothing. 1.12.1 also normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'

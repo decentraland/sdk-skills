@@ -31,7 +31,7 @@ executeTask(async () => {
 
 ## Restricted Actions — extended
 
-The full list, the player-interaction rule, and canonical examples (`movePlayerTo`, `teleportTo`, `triggerEmote`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md. Details below extend those.
+The full list, which actions need a player gesture (`openExplorerUi` only) or a confirmation, and canonical examples (`teleportTo`, `openExternalUrl`, `openNftDialog`, `copyToClipboard`, `changeRealm`) are in SKILL.md → *Restricted Actions*. `movePlayerTo` and emotes live in **player-avatar**. Details below extend those.
 
 ### teleportTo — signature
 
@@ -41,29 +41,9 @@ teleportTo({ worldCoordinates?: Vector2, realm?: string }): Promise<TeleportToRe
 
 Both fields optional (`@dcl/js-runtime` 7.28.0+). `realm` = World name (`foo.dcl.eth`) or realm URL; setting it shows the player a confirmation prompt (default text, not customizable), and on acceptance forces a full reconnect, then lands on the parcel. `realm` with no `worldCoordinates` = that realm's default spawn. `changeRealm` is `[DEPRECATED]` in favor of this — see SKILL.md for the race condition it fixes.
 
-### movePlayerTo — rotate avatar in place
+### movePlayerTo, triggerEmote, triggerSceneEmote
 
-Params are documented in SKILL.md. To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (see the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons).
-
-### triggerEmote — predefined emote names
-
-`predefinedEmote` accepts: `'wave'`, `'dance'`, `'clap'`, `'robot'`, `'fistpump'`, `'raiseHand'`, etc.
-
-### triggerSceneEmote — custom emote from .glb
-
-Play a custom emote from a `.glb` file (imported in SKILL.md but not detailed there):
-
-```typescript
-import { triggerSceneEmote } from '~system/RestrictedActions'
-triggerSceneEmote({ src: 'assets/animations/custom_emote.glb', loop: false })
-```
-
-`src` is the path from the **project root, exactly as the file sits on disk** (an exact content lookup — no search by name or suffix). A wrong path resolves `false` with no error logged and nothing plays. See **player-avatar** → "Custom Scene Emotes".
-
-> ⚠️ **The file MUST end with `_emote.glb`** (case-insensitive). This is a hard runtime requirement — files without this suffix often work in `npm run start` preview but **silently fail in production** once the scene is deployed. Rename the file on disk, not just the string passed to `src`.
-
-Valid filenames: `wave_emote.glb`, `Snowball_Throw_emote.glb`, `dance_EMOTE.GLB`
-Invalid: `wave.glb`, `emote_wave.glb`, `wave_emote_v2.glb`
+Player movement and emotes, including the `_emote.glb` naming rule and the `src` path rule: **player-avatar** → *Teleporting the Player* and *Triggering Emotes*.
 
 ### setCommunicationsAdapter — custom comms
 
