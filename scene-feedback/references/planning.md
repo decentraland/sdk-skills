@@ -8,6 +8,13 @@ and constraints directly. When the creator asks to define the focus together, en
 For question wording and candidate sets, read relevant sections of the [question guide][guide]
 and [question bank][bank]. Adapt candidates to the scene, creating questions when needed.
 
+What the module ships: 20 implemented questions in `lib/bank.ts`, grouped into `coreMechanic`,
+`coreLoop`, `social`, `motivation`, `world` and `technical`, each with a rating scale, suggested
+timing and what the answer can tell you; 14 five-label rating scales in `lib/shared/scales.ts`,
+usable as-is or as templates; and a 113-question candidate bank in `QUESTION_BANK.md` with
+ready-made sets by playtest goal. Entries marked **In bank.ts** start from the implemented
+question; others are defined in `questions.ts` with a suggested or custom scale.
+
 ## Offer a starting plan
 
 For an unsure creator, deliver one compact starter proposal:

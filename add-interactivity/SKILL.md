@@ -215,7 +215,7 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 })
 ```
 
-**Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale`. The scale is the sphere's **diameter**: the Explorer spawns a unit sphere collider (radius 0.5) and lets the Transform scale it, so `scale 6` gives a 3 m radius (`SDKEntityTriggerAreaComponent.cs`). With non-uniform scale Unity uses the largest axis.
+**Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale`. The scale is the sphere's **diameter**: the Explorer spawns a unit sphere collider (radius 0.5) and lets the Transform scale it, so `scale 6` gives a 3 m radius (`SDKEntityTriggerAreaComponent.cs`). Keep the scale uniform; the Explorer does not define what a non-uniform scale does to the sphere.
 
 **Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (bitwise-OR them, e.g. `CL_PLAYER | CL_CUSTOM4`) to react to physics or custom layers.
 
