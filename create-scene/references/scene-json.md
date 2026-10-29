@@ -18,7 +18,7 @@ All valid `scene.json` fields:
 | `scene.parcels`           | Yes          | Array of `"x,y"` coordinate strings                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `scene.base`              | Yes          | The origin parcel (usually southwest corner)                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `spawnPoints`             | Optional     | Where players appear when entering (see below)                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `requiredPermissions`     | Optional     | Array of permissions (e.g., `"USE_FETCH"`); see Required Permissions below |
+| `requiredPermissions`     | Optional     | Smart wearables only; no effect on scenes or portable experiences (see Required Permissions below) |
 | `allowedMediaHostnames`   | Optional     | `[LEGACY]` whitelisted domains for external media; not required (see Required Permissions) |
 | `skyboxConfig`            | Optional     | Root-level `{ "fixedTime": number }`: fixed time of day (see Skybox fixed time below) |
 | `featureToggles`          | Optional     | Enable/disable SDK features                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -43,28 +43,22 @@ Rules:
 
 ## Required Permissions
 
-Add to `requiredPermissions` when your scene uses these features:
+`requiredPermissions` applies **only to smart wearables**. Scenes (Genesis City and Worlds) and portable experiences run with every permission granted: leave the field out of a scene's `scene.json`; adding it changes nothing. Verified in unity-explorer: every scene loads with `AllowEverythingJsApiPermissionsProvider`; only `LoadSmartWearableSceneSystem` builds a `RestrictedJsApiPermissionsProvider` from the list.
 
-These are the exact 7 permission strings the runtime recognizes (the protocol enum names drop the `PI_` prefix):
+For a smart wearable, four permissions gate an API; an undeclared one makes the call fail and logs `Fetch API: permission denied` (or `Web Sockets API`, `Web3 API`, `Open External URL`):
 
-| Permission                          | When needed                                                 |
-| ----------------------------------- | ----------------------------------------------------------- |
-| `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` | `movePlayerTo` (move player within the scene)               |
-| `ALLOW_TO_TRIGGER_AVATAR_EMOTE`     | `triggerEmote` and `triggerSceneEmote`                      |
-| `ALLOW_MEDIA_HOSTNAMES` `[LEGACY]`  | External video/audio streams — **not required** (see below) |
-| `USE_WEB3_API`                      | Blockchain interactions                                     |
-| `USE_FETCH`                         | HTTP requests (`fetch` / `signedFetch`)                     |
-| `USE_WEBSOCKET`                     | WebSocket connections                                       |
-| `OPEN_EXTERNAL_LINK`                | `openExternalUrl` (open URLs in the browser)                |
+| Permission           | Gates                                         |
+| -------------------- | --------------------------------------------- |
+| `USE_FETCH`          | `fetch` / `signedFetch`                       |
+| `USE_WEBSOCKET`      | WebSocket connections                         |
+| `USE_WEB3_API`       | Wallet transactions and message signing       |
+| `OPEN_EXTERNAL_LINK` | `openExternalUrl`                             |
 
-> **Grounded caveat (from the engine test scenes):** enforcement is uneven, so declare the correct permission for _intent_ rather than relying on it being blocked. The `80,-4-restricted-actions` scene declares only `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` + `ALLOW_TO_TRIGGER_AVATAR_EMOTE`, yet successfully runs `openExternalUrl`, `openNftDialog`, `teleportTo`, and `changeRealm` without `OPEN_EXTERNAL_LINK`. The [`66,6-signed-fetch`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch) scene calls `signedFetch` with an empty `requiredPermissions`. `movePlayerTo` and emotes are the two whose permissions the engine team consistently declares. `teleportTo` (jump to other Genesis City coords) needs no permission — and that stays true for the newer `teleportTo({ realm })` form, which subsumes `[DEPRECATED]` `changeRealm` (see `scene-runtime`); neither has a permission of its own.
+Equip-time prompt, preview behaviour and the rest: **smart-wearables** → Permissions.
 
-`[LEGACY]` `ALLOW_MEDIA_HOSTNAMES` and `allowedMediaHostnames` are **not required** — do not add them for new scenes. The permission string still exists in `@dcl/schemas`, but no current client enforces it: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, which is set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all. Only the retired web client enforced it. Current clients play external media without it. If a legacy scene still declares it, whitelist the domains as follows:
+The protocol also lists `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE`, `ALLOW_TO_TRIGGER_AVATAR_EMOTE` and `ALLOW_MEDIA_HOSTNAMES`. The Explorer ignores all three: moving the player (`movePlayerTo`), playing emotes (`triggerEmote`, `triggerSceneEmote`), physics forces and external media need no permission anywhere. Remove them when you meet them in an existing `scene.json`.
 
-```json
-"requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
-"allowedMediaHostnames": ["youtube.com", "www.youtube.com", "player.vimeo.com", "twitch.tv"]
-```
+`[LEGACY]` `allowedMediaHostnames` goes with `ALLOW_MEDIA_HOSTNAMES` and can be removed too: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all.
 
 ## Feature Toggles
 

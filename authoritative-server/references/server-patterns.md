@@ -357,27 +357,51 @@ function settleIdle(save: PlayerSave, now = Date.now()): boolean {
 
 Call it on join and before any action that reads or spends the progressed value (harvest, buy). When it returns `true`, mark the save dirty and persist it at the next checkpoint like any other state. Scene-wide variants (a shop restock shared by everyone) store the timestamp under a scene key instead.
 
-### Append-only logs: rolling CSV parts in Storage
+### Append-only logs: write-once versioned keys in Storage
 
-Storage holds **JSON values keyed by name** (here, CSV text), with no append operation and **no compare-and-set** — so an append is read-modify-write, and a growing log must be split across keys before it hits the per-value ceiling. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, server side in `src/scene-feedback/lib/server/`) is the reference implementation of this pattern; reuse its shape for any server-side event log (playtest answers, round results, telemetry).
+Storage holds **JSON values keyed by name** (here, CSV text), with no append and **no compare-and-set**. Read-modify-write of one key loses data: rewriting a part in place lost rows on a live World (a CSV shrank from 8183 B to 7852 B between two flushes) through any of three paths — two server instances flushing at once (an old and a new deploy overlap), a read that comes back behind the last write, or a read that misses a key that exists. The Scene Feedback module (`sdk7-test-scenes/scenes/0,-1-scene-feedback`, `src/scene-feedback/lib/server/parts.ts`) is the reference implementation; reuse its shape for any server-side event log (playtest answers, round results, telemetry).
 
-Shape:
+**Rule: never rewrite a key that more than one writer, or a stale read, can touch.** Write each snapshot to a new, unique, time-sortable key, and delete only write-once keys you have read and merged.
 
-| Piece | How it works |
-| --- | --- |
-| **Part keys** | `scene-feedback-1.csv`, `-2.csv`, … Each part is capped at **400 KB**; when the next batch would exceed it, the batch opens the next part. |
-| **Head key** | `scene-feedback-csv-head` holds the number of the part being written. Internal bookkeeping — deleting or editing it corrupts the sequence. |
-| **Buffer + flush** | Rows accumulate in memory and are flushed periodically; the server **acknowledges a response once it is buffered**, before the Storage write. |
-| **Dedup** | Every row carries a client-generated `id` so a retried submission is not counted twice. |
+Flush, per part:
 
-Limits and failure modes this pattern inherits (all of them **design** constraints, not bugs):
+1. **List** the part's versions by prefix (`scene-feedback-<part>-`), oldest first.
+2. **Merge** their rows by row `id`, first seen wins.
+3. **Append** only the batch rows whose `id` is not already there.
+4. **Write a new version** `scene-feedback-<part>-<YYYYMMDD-HHMMSS UTC>-<4 random base36>.csv`. `Storage.set` returning `false` → throw (the batch stays buffered).
+5. **Read it back.** Identical → delete exactly the versions read in step 1. Different → delete nothing; the next flush merges them all again.
 
-- **A crash or redeploy loses up to a minute of acknowledged rows** (more if Storage writes are failing and the buffer keeps growing), and they are never resent — the client already got an ack. Never use this for anything that must not be lost (payments, prize state); checkpoint those synchronously and check the boolean.
-- **No compare-and-set, so overlapping server instances can still lose rows.** Each flush re-reads the current part and merges by id right before writing (`server.ts` `flush()`), which narrows the window but cannot close it: during the moments an old and a new deploy are both alive, two flushes landing on the same part can still silently drop a batch.
+A race or a missed read leaves an extra version, never a lost row: a row is always in at least one key, and the next flush merges the versions back into one. Versions left by a race are merged before a full part rolls over; more than **3** versions of one part is logged (new versions keep failing to read back). The head key `scene-feedback-csv-head` is only a hint for the open part — a lost update makes the next flush walk forward again.
+
+Storage on the auth-server SDK, as this pattern uses it (verified on the `auth-server` branch of js-sdk-toolchain):
+
+```typescript
+// reads bypass the SDK's read cache; paging until the reported total
+const get = <T>(key: string) => Storage.get<T>(key, { fresh: true })
+async function list(prefix: string) {
+  const entries: { key: string; value: unknown }[] = []
+  for (;;) {
+    const page = await Storage.getValues({ prefix, offset: entries.length }) // also takes limit
+    entries.push(...page.data)
+    if (page.data.length === 0 || entries.length >= page.pagination.total) return entries
+  }
+}
+```
+
+**`{ fresh: true }` is not a freshness guarantee.** It skips the SDK's own cache only. The Storage service itself served an old value of a key for an hour or more on a live World, `fresh` or not, across a server restart. Write-once keys are immune (an old read of a key written once is the same value); a key that is still rewritten is not. So a key from before the switch to versions (`scene-feedback-N.csv` here) is merged at every flush and **never deleted by the server** — an instance still on the old code may append to it, and no read proves the merge holds all its rows. The owner deletes it by hand once no server runs the old code and the newest version holds all its ids.
+
+Readers download **every** file of a part (the old-format file plus all versions) and dedupe by `id`; duplicates across files are expected.
+
+Test it against a fake Storage that can lag, miss a read once, get stuck on an old value, and interleave two flushes (every fake method starts with `await Promise.resolve()`); assert both that no row is **lost** and that no file **repeats** an id — a loss-only check passes a broken merge. The module's `test/flush.test.ts` (vitest) does this.
+
+Limits and failure modes this pattern still has (all **design** constraints, not bugs):
+
+- **A crash or redeploy loses up to a minute of acknowledged rows** (more if Storage writes are failing and the buffer keeps growing), and they are never resent — the server **acknowledges a response once it is buffered**, before the write. Never use this for anything that must not be lost (payments, prize state); checkpoint those synchronously and check the boolean.
+- **Dedup on a client-generated `id`** so a retried submission is not counted twice.
 - **Per-writer rate cap**: the module allows one address at most **100 rows / 10 min**; beyond that it drops. Add an equivalent cap to any append log you expose to clients — otherwise one client can fill a World's storage budget.
 - **Bounded buffer**: 2000 rows. Past that the server **stops acknowledging**, and the client retries every 3 s for up to 30 s before giving up.
 - **Escape on write**: flatten text to one line, and prefix a leading `= + - @` with `'` so a spreadsheet does not execute a submitted cell as a formula. Player-submitted text in a CSV is untrusted input.
-- **Storage ceilings** (per the module's README): **512 KB per value**, **10 MB per World**, shared by every scene in that World. The 400 KB part size leaves headroom inside the per-value ceiling for one more batch.
+- **Storage ceilings**: **512 KB per value**, **10 MB per World**, shared by every scene in that World. Parts close at **400 KB** (`PART_MAX_BYTES`), and one flush writes at most 200 KB of new rows, so a version fits inside the per-value ceiling. Every extra version also counts against the 10 MB until the next flush deletes it.
 
 ## Server Resource Limits
 

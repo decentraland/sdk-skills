@@ -137,8 +137,10 @@ Preview flags (`--web`, `--mcp`, `--multi-instance`, `--asset-bundles`, deep-lin
 
 ## Example scenes
 
+A clean project to compare against: [sdk7-scene-template](https://github.com/decentraland/sdk7-scene-template) (what `init` scaffolds from). Worked examples by mechanic, including 20 published games: `{baseDir}/../sdk-scenes/references/example-scenes.md`.
+
 Engine-team test scenes illustrating `scene.json` configuration:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,90-scene-bounds-check — multi-parcel, non-rectangular parcel layout (`["5,90","5,89","6,89","6,88"]`); moves many entity types across the parcel/height boundary to show what the engine hides out of bounds.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `requiredPermissions` for `movePlayerTo` + emotes.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — every restricted action (`movePlayerTo`, emotes, `openExternalUrl`, `teleportTo`…). Its `requiredPermissions` entries are ignored: scenes run with every permission granted (`{baseDir}/references/scene-json.md` → Required Permissions).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,8-portable-experience — `featureToggles.portableExperiences: "enabled"` (see also the `disabled` and `hideUi` sibling scenes).

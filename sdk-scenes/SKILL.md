@@ -262,5 +262,6 @@ Current names: Creator Hub, Scene Editor, SDK7, SDK Skills.
 
 - **Components:** `{baseDir}/references/components-reference.md` — key fields, types and defaults of common SDK7 components. A component's complete field list lives in its topic skill or the SDK typings.
 - **Mobile parity:** `{baseDir}/references/mobile-parity.md` — what the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, colliders, movement). Read it before designing anything a mobile player depends on.
+- **Example scenes:** `{baseDir}/references/example-scenes.md` — the docs' machine-readable catalog of 45 worked examples (20 published community games plus Decentraland references), with commit-pinned code highlights and licence status. Read it before designing a mechanic from scratch or when the user asks for an example or template.
 - **Entity validation** (component combinations that require or exclude each other, for composite and TypeScript entities): **create-scene**.
 - **Asset catalogs:** see Agent Behavioral Guidelines, item 2.

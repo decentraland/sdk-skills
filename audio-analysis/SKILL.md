@@ -142,7 +142,7 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 ## Permissions
 
-No special scene permission is needed beyond what the underlying `AudioSource` / `AudioStream` / `VideoPlayer` already requires. Streamed audio needs no hostname whitelist on current clients: `ALLOW_MEDIA_HOSTNAMES` / `allowedMediaHostnames` are legacy and not required (`{baseDir}/../create-scene/references/scene-json.md` → Fields).
+No scene permission or hostname whitelist is needed: `ALLOW_MEDIA_HOSTNAMES` / `allowedMediaHostnames` are legacy and ignored (`{baseDir}/../create-scene/references/scene-json.md` → Required Permissions).
 
 ## Example scenes
 

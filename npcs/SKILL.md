@@ -219,3 +219,5 @@ Engine-team test scenes for the `AvatarShape` approach (exercised against the re
 - [4,22-avatar-shape-scene-emotes](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,22-avatar-shape-scene-emotes) — play custom scene emotes on an NPC by setting `expressionTriggerId` to an `_emote.glb` path.
 
 These are `AvatarShape`-only scenes; they do not use `dcl-npc-toolkit`.
+
+For dialogue flow, the docs example catalog (`{baseDir}/../sdk-scenes/references/example-scenes.md`) lists the NPC Toolkit and **The Fortune Teller**, a published game that models a conversation as an explicit state machine (`tryTransition` with allowed steps) and frames it with a pivot-mounted `VirtualCamera`.
