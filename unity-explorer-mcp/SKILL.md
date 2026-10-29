@@ -73,16 +73,9 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    This serves the scene at `http://127.0.0.1:8000`, launches the installed Decentraland client against it with the MCP server on port 8123, and hot-reloads the scene whenever a source file changes. Port overrides, the other launch flags, and the two launch errors (`--mcp` rejected as an unknown option; "Please download & install the Decentraland Desktop Client") are under "Launch flags and errors" in [`reference/setup.md`](reference/setup.md).
 
-2. **Register the MCP server, then confirm its tools are actually bound.** Registration and binding are two different things — you need both. Every client takes the same connection details:
+2. **Register the MCP server, then confirm its tools are actually bound** (Streamable HTTP at `http://127.0.0.1:8123/unity-explorer-mcp`, no auth, server name `explorer`). Registration and binding are two different things — you need both.
 
-   | Field | Value |
-   |---|---|
-   | Transport | Streamable HTTP (**not** stdio — nothing to spawn; the server is embedded in the running Explorer) |
-   | URL | `http://127.0.0.1:8123/unity-explorer-mcp` (`--mcp-port <port>` changes the port) |
-   | Auth | none |
-   | Name | `explorer` |
-
-   **Claude Code** (terminal CLI or VS Code extension):
+   **Claude Code** (terminal CLI, VS Code extension, or the Creator Hub's embedded chat):
 
    ```bash
    timeout 15 claude mcp add --transport http --scope user explorer http://127.0.0.1:8123/unity-explorer-mcp
@@ -90,7 +83,7 @@ This skill fires on its own — the mere presence of an `mcp__explorer__*` tool 
 
    "already exists in local config" means a previous session registered it — registration is persistent config, nothing to do. In non-terminal harnesses (the VS Code extension among them) the command can hang with no output: read a hang as *probably already registered* and move on to the bind gate without retrying — the step 1 probe already confirmed the endpoint.
 
-   **Codex, Cursor, Gemini CLI, VS Code with Copilot, or any other client**: the config for each is under "Registering in other clients" in [`reference/setup.md`](reference/setup.md). Check the client's config first; an `explorer` entry from an earlier session means there is nothing to add.
+   **Codex, Cursor, Gemini CLI, VS Code with Copilot, or any other client**: the full connection details and the config for each are under "Registering in other clients" in [`reference/setup.md`](reference/setup.md). Check the client's config first; an `explorer` entry from an earlier session means there is nothing to add.
 
    **MANDATORY — bind gate: if you launched the Explorer yourself in this session, STOP here as soon as the readiness probe answers, and do NOT start the iteration loop over curl.** MCP clients (Claude Code, Codex, Cursor, Gemini CLI among them) connect to their configured servers when the session starts, and this server lives *inside* the Explorer process — so a session that started before the Explorer was up has already failed its connection attempt, and the `explorer` tools will not appear on their own. Mid-session, only a reconnect the user triggers re-binds them; alternatively, a fresh session started while the Explorer keeps running binds them at its startup. Both are user actions: there is nothing you can run instead, so ask rather than trying to engineer around it.
 

@@ -46,7 +46,14 @@ On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud -
 
 ## Registering in other clients
 
-Claude Code registers with the command in SKILL.md Setup step 2. Every other client takes the connection details from that step (Streamable HTTP, `http://127.0.0.1:8123/unity-explorer-mcp`, no auth, name `explorer`) in its own config format. After registering, reload or restart the client, or start a new session, so it connects. The Explorer must already be running at that point (see the bind gate).
+Claude Code registers with the command in SKILL.md Setup step 2. Every other client takes these connection details in its own config format. After registering, reload or restart the client, or start a new session, so it connects. The Explorer must already be running at that point (see the bind gate).
+
+| Field | Value |
+|---|---|
+| Transport | Streamable HTTP (**not** stdio — nothing to spawn; the server is embedded in the running Explorer) |
+| URL | `http://127.0.0.1:8123/unity-explorer-mcp` (`--mcp-port <port>` changes the port) |
+| Auth | none |
+| Name | `explorer` |
 
 **Codex CLI** (≥ 0.148 speaks HTTP MCP natively):
 
