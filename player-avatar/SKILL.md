@@ -364,7 +364,7 @@ stopEmote({}).then(({ success }) => {
 
 If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
-**Mobile:** `stopEmote` works. Scene-started **upper-body** emotes pause when the player leaves the scene, resume on return, and stop on scene unload.
+**Mobile:** `stopEmote` needs app 1.15.0+, as does the handling of scene-started **upper-body** emotes: they pause when the player leaves the scene, resume on return, and stop on scene unload. On older mobile apps a looping scene emote cannot be stopped from the scene, so never make `stopEmote` the only way out of a mechanic; give the player an action that also restores the pose.
 
 ### Detecting when an emote finishes
 
@@ -405,7 +405,7 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
-- **Mobile:** masked emotes work and read as upper-body to other mobile players. Emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+- **Mobile:** masked emotes work from app 1.13.0, and from 1.15.0 other mobile players see them as upper-body too. Older mobile apps play them full-body, so keep the full-body fallback acceptable. Emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 - Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 

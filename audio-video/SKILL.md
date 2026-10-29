@@ -86,7 +86,7 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. `AudioEvent` works on mobile too.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. On mobile, `AudioEvent` needs app 1.14.0+; older mobile apps emit no audio events (the timeout fallback covers that case) and mix volume and spatial attenuation audibly differently from desktop.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 

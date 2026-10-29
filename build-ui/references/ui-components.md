@@ -370,7 +370,7 @@ Wraps children so they stay inside the renderer-reported **interactable area** â
 
 **For a whole coded UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area. In the editable aggregator it is the wrapper for roots whose Scene Inset is `interactable`.
 
-**Client support.** Either form needs an explorer that reports the area; the desktop and mobile clients both do.
+**Client support.** Either form needs an explorer that reports the area: desktop does, and mobile from app 1.12.1. Older mobile apps report no margins, so the area falls back to the whole screen and the inset silently does nothing. 1.12.1 also normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'

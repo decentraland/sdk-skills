@@ -18,7 +18,7 @@ Values are derived from live audio frames. If the source is paused, muted, or no
 ## RULE: Not implemented everywhere — always design a silent fallback
 
 - **Unity (desktop):** implemented.
-- **Mobile (Godot):** `AudioSource` only. `AudioStream` and `VideoPlayer` read `0`: their audio is decoded by native platform players and never reaches the analyser. Band values differ from desktop by a constant factor (and band edges differ, since mobile downmixes to mono first), so tune thresholds and gains on both clients.
+- **Mobile (Godot):** app 1.14.0+, `AudioSource` only; older mobile apps write no analysis. `AudioStream` and `VideoPlayer` read `0`: their audio is decoded by native platform players and never reaches the analyser. Band values differ from desktop by a constant factor (and band edges differ, since mobile downmixes to mono first), so tune thresholds and gains on both clients.
 - **Bevy:** ignores the component (no analysis written).
 
 Where it is unimplemented (including a stream or video on mobile) the values simply stay at `0` — same shape as silence — so the scene never errors, it just goes still. Always design a fallback that does not depend on `amplitude` (e.g. a base scale, a looping tween) so the scene still reads on every client.
