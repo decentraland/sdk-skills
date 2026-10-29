@@ -7,8 +7,12 @@ answers, scale meaning, comparability, and limits of conclusions.
 Use the supplied goal; clarify only context that changes interpretation. Without a specific
 goal, begin with an overview of recurring experiences and questions to investigate.
 
-- Obtain relevant CSV parts, note coverage, and deduplicate repeated exports by response `id`.
-  If exports are missing, use [Review][review] to explain retrieval.
+- Obtain relevant CSV parts, note coverage, and deduplicate by response `id`. One part can be
+  several files: write-once versions `scene-feedback-<part>-<UTC time>-<random>.csv` (more
+  than one after a redeploy overlap or a missed read) plus, on older installs, an old-format
+  `scene-feedback-<part>.csv` the server never deletes. Load every file of each part; the same
+  `id` across files is expected, not a double answer. If exports are missing, use [Review][review]
+  to explain retrieval.
 - When execution tools are available, use a CSV parser to compute data-record counts
   (excluding the header), unique IDs, retained cohorts, and distinct respondents. Reconcile
   exclusions against parsed records, not text lines. Label counts that could not be computed
