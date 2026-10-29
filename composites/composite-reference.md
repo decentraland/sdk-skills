@@ -809,7 +809,7 @@ export async function spawnBarrel(position: Vector3) {
 - `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
 - **`rootEntity: engine.RootEntity` needs `@dcl/sdk` 7.28.0+.** On an older pin the composite's top-level entities hang off an invisible, component-less entity instead of the scene root; instance into a normal entity you created yourself.
 - **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
-- JSON `.composite` decoding uses `TextDecoder`. `TextDecoder` is built in (a UTF-8 codec ships with `@dcl/sdk`), so no extra import is needed.
+- JSON `.composite` decoding uses `TextDecoder`. `TextDecoder` is built in (a UTF-8 codec ships with `@dcl/sdk`), so no extra import is needed. The older helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required; legacy scene code that imports it can drop the call.
 - Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
 
 ## Example scenes

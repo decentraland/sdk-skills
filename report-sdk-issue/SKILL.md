@@ -101,7 +101,7 @@ In a shell without heredocs (e.g. PowerShell), write the JSON to a temporary fil
 | `invalid: …` | Fix the listed fields and submit again. |
 | `consent:…` | You skipped step 2; go back to it. |
 
-`submit` returns as soon as the report is saved: a background process sends it, so don't wait for it or check on it. Go straight to the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it. If `consent` itself fails (for example, the scene folder is read-only), don't ask the user again during this session.
+`submit` returns as soon as the report is saved: a background process sends it, so don't wait for it or check on it. A report that could not be sent stays queued and is retried in the background on later `check` and `submit` runs, never duplicated; one the service keeps failing on is given up after a few tries, after which the same issue can be reported again. Go straight to the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it. If `consent` itself fails (for example, the scene folder is read-only), don't ask the user again during this session.
 
 ## Reference
 

@@ -12,7 +12,9 @@ Read this before inspecting, extending or copying a catalog Smart Item. Most cat
 
 ## Items that are not Script-based
 
-These still use `Actions`/`Triggers` and/or the `inspector::Config` panel: `click_area`, `audio_stream`, the lights, the screen/media family, `camera` (Actions + Config, no Triggers), `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`). `video_player` is **`[DEPRECATED]`** (in the `deprecated` category); use one of the video screen items instead.
+- **Still on `Actions`/`Triggers`:** `click_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers).
+- **Still have an `inspector::Config` panel:** the lights, the screen/media family, `camera`, `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family. Do not state that Config was removed everywhere; it was removed only from the migrated items.
+- `video_player` is **`[DEPRECATED]`** (in the `deprecated` category); use one of the video screen items instead.
 
 ## Item behaviors worth knowing
 

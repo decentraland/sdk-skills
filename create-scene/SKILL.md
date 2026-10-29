@@ -132,6 +132,7 @@ Preview flags (`--web`, `--mcp`, `--multi-instance`, `--asset-bundles`, deep-lin
 - Parcel limits and production-quality local preview (`--asset-bundles`): **optimize-scene**.
 - Targeting mobile: flat mobile limits in **optimize-scene** → *Mobile Scene Limits*; feature gaps that rule out common mechanics in `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Check both before writing code.
 - Planning a game: **game-design**.
+- Scenes edited in the Creator Hub: prefer the Script-component-first workflow (a Script component on the entity with `start()` / `update(dt)`) over free-standing systems: **script-components**.
 - Component combinations that require or exclude each other: `{baseDir}/references/entity-validation-rules.md`.
 
 ## Example scenes

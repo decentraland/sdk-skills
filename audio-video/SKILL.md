@@ -31,7 +31,7 @@ Before referencing any audio file path in code, check `{baseDir}/references/audi
 
 Catalog lacks the sound (e.g. environmental machinery: drips, motors, fans, hum)? Source real recordings: `{baseDir}/references/audio-catalog.md` → *Beyond the catalog*.
 
-Folder: default `assets/Audio/`; reuse an existing legacy or asset-pack folder if the scene has one (**create-scene** step 3). Reference Creator Hub asset paths (`assets/asset-packs/`, `assets/custom/`) as-is.
+Folder: default `assets/Audio/`; reuse an existing legacy (`assets/scene/Audio/`) or asset-pack folder if the scene has one rather than creating a parallel `assets/Audio/` (**create-scene** step 3). Reference Creator Hub asset paths (`assets/asset-packs/`, `assets/custom/`) as-is.
 
 ## AudioSource (Sound Effects & Music)
 

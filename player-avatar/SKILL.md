@@ -186,7 +186,7 @@ GltfContainer.create(padlock, { src: 'assets/Models/padlock.glb' })
 Transform.create(padlock, { parent: anchor, position: Vector3.create(0.15, -0.1, 0.12) }) // offset from the hip
 ```
 
-**Measure a seat offset; don't tune it by eye.** Eyeballed seat offsets took six owner corrections in one scene (2026-10). During `sittingChair` the hip sat about 0.37 m behind the avatar root, but that value comes from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP` and play the sitting emote. Then read its `Transform` (`Transform.get` in scene code, or the Explorer MCP's `get_entity_details`, **unity-explorer-mcp**). By the write-back rule above, its `position` is the hip's offset from the player root in world axes, so turn it into the chair's frame using the player's facing. Then place the player root so the hip lands on the seat.
+**Measure a seat offset; don't tune it by eye.** Eyeballed seat offsets took six owner corrections in one scene (2026-10). During `sittingChair` the hip sat about 0.37 m behind the avatar root and the seat offset that worked was 0.38 m, but those values come from one body and one emote. Measure your own: attach an empty entity to `AAPT_HIP` and play the sitting emote. Then read its `Transform` (`Transform.get` in scene code, or the Explorer MCP's `get_entity_details`, **unity-explorer-mcp**). By the write-back rule above, its `position` is the hip's offset from the player root in world axes, so turn it into the chair's frame using the player's facing. Then place the player root so the hip lands on the seat.
 
 ### Held items vs cosmetic items — `AvatarAttach` vs parenting to `engine.CameraEntity` / `engine.PlayerEntity`
 
