@@ -28,7 +28,7 @@ When the user wants to keep the already-running scene server and its Explorer un
 npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
-From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name (e.g. `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`; the tools then surface as `mcp__explorer2__*`).
+From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
 
 ## Launching a specific Explorer build manually
 
@@ -44,25 +44,51 @@ open /path/to/Decentraland.app --args \
 
 On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
-## Registering in a client other than Claude Code
+## Registering in other clients
 
-For a genuinely different MCP client (Cursor, Cline, a custom SDK harness — the Claude Code VS Code extension and the Creator Hub's embedded chat are Claude Code and take SKILL.md step 2), register the server the way that client documents, using these connection details, then reload/restart the client so it picks the server up:
+Claude Code registers with the command in SKILL.md Setup step 2. Every other client takes these connection details in its own config format. After registering, reload or restart the client, or start a new session, so it connects. The Explorer must already be running at that point (see the bind gate).
 
 | Field | Value |
 |---|---|
-| Transport | Streamable HTTP (**not** stdio; no command to spawn — the server is embedded in the already-running Explorer) |
+| Transport | Streamable HTTP (**not** stdio — nothing to spawn; the server is embedded in the running Explorer) |
 | URL | `http://127.0.0.1:8123/unity-explorer-mcp` (`--mcp-port <port>` changes the port) |
 | Auth | none |
-| Suggested name | `explorer` (tool prefix follows your client's convention) |
+| Name | `explorer` |
 
-A common JSON shape, for clients that configure servers in a file (`.cursor/mcp.json`, `mcp.json`, etc. — key names vary, check your client's docs):
+**Codex CLI** (≥ 0.148 speaks HTTP MCP natively):
+
+```toml
+# ~/.codex/config.toml
+[mcp_servers.explorer]
+url = "http://127.0.0.1:8123/unity-explorer-mcp"
+```
+
+**Cursor**, in `.cursor/mcp.json` at the scene root (project) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
   "mcpServers": {
+    "explorer": { "url": "http://127.0.0.1:8123/unity-explorer-mcp" }
+  }
+}
+```
+
+**Gemini CLI**, in `.gemini/settings.json` at the scene root or `~/.gemini/settings.json`. The key is `httpUrl`, not `url`:
+
+```json
+{ "mcpServers": { "explorer": { "httpUrl": "http://127.0.0.1:8123/unity-explorer-mcp" } } }
+```
+
+**VS Code with GitHub Copilot**, in `.vscode/mcp.json`. The top-level key is `servers`, not `mcpServers`:
+
+```json
+{
+  "servers": {
     "explorer": { "type": "http", "url": "http://127.0.0.1:8123/unity-explorer-mcp" }
   }
 }
 ```
+
+**Any other client** (Cline, Windsurf, a custom SDK harness): most take the common `mcpServers` shape above, sometimes with `"type": "http"` or a client-specific transport name. Check the client's docs for the exact keys.
 
 If the client cannot do Streamable HTTP at all, skip registration and drive the endpoint over HTTP instead — see [`curl-fallback.md`](curl-fallback.md).
