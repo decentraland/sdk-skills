@@ -95,23 +95,13 @@ function proximityCheck() {
 engine.addSystem(proximityCheck)
 ```
 
-### GOTCHA: remote players' Transforms are in WORLD coordinates
+### Remote players' positions are scene-relative
 
-`Transform.get(engine.PlayerEntity).position` for the **local** player is **scene-local** (relative to the scene's base parcel). Another player's entity — the one you get from `engine.getEntitiesWith(PlayerIdentityData)` — reports its position in **world** coordinates. Mixing them silently puts remote players hundreds of metres away.
+Another player's `Transform` (entities from `engine.getEntitiesWith(PlayerIdentityData)`), `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players are **scene-relative**: the same frame as `Transform.get(engine.PlayerEntity)`, on desktop and mobile. The client converts before writing the Transform (unity-explorer `WritePlayerTransformSystem`); `getPlayer` passes it through unchanged. Compare local and remote positions directly.
 
-Convert by subtracting the base parcel times 16:
+For code that must also survive a client reporting world coordinates, do what `33,20-spectate-mode` does: subtract the base parcel × 16 **only** when a position falls outside the scene's bounds, never unconditionally. Read the base parcel from `scene.json` rather than hardcoding it.
 
-```typescript
-import { Vector3 } from '@dcl/sdk/math'
-
-// scene.json base parcel 33,20
-const SCENE_ORIGIN = Vector3.create(33 * 16, 0, 20 * 16)
-const sceneLocal = Vector3.subtract(worldPosition, SCENE_ORIGIN)
-```
-
-`33,20-spectate-mode` applies the subtraction **conditionally** — only when the position falls outside the scene's AABB — which is how it handles the local and remote players through one code path without needing to know which is which. If you always know the entity is a remote player, subtract unconditionally.
-
-Read the base parcel from `scene.json` rather than hardcoding it, or the conversion breaks the moment the scene is redeployed elsewhere.
+Derive anything safety-critical from the local player's own position on each client, not from a remote one.
 
 ## Player Profile Data
 
@@ -134,9 +124,6 @@ function main() {
 - `isGuest` — `true` if the player hasn't connected a wallet
 
 Check `isGuest` before attempting any wallet-dependent feature (guests have no on-chain identity).
-
-**Mobile, other players' positions:** `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players report **scene-relative** coordinates on mobile too, the same frame as the local player's. Derive anything safety-critical from the local player's own position on each client, not from a remote one.
-
 ## Profile Data for Off-Scene Users (Catalyst)
 
 `getPlayer(userId)` only returns data for users **currently connected to this scene**. For any other address (parcel owner, NFT holder, leaderboard entry, off-scene claimant), fetch from the catalyst:

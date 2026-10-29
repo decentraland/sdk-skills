@@ -31,6 +31,8 @@ No mechanic the player needs may depend on a gap below. A moving platform that i
 - **Input:** touch only, with no hover states, keyboard shortcuts or right-click (**advanced-input** → *Mobile considerations*).
 - **UI:** the jump / E / F / pointer buttons are drawn over the bottom-right of the interactable area, and taps there go to the client. Keep interactive UI out of that corner and hide the controls behind full-screen panels (**build-ui** → *Placement*).
 - **`AudioAnalysis` reads `AudioSource` only.** On an `AudioStream` or `VideoPlayer` it stays at 0, so a stream or video visualizer goes still on a phone. Band values differ from desktop by a constant factor; tune thresholds on both (**audio-analysis**).
+- **UI borders:** `borderRadius` and `borderWidth` accept pixels only; percentage values have no effect (desktop accepts both).
+- **`InputModifier`:** works, but `disableAll` leaves the touch joystick and buttons on screen; hide them with `TouchScreenControls` (**advanced-input**).
 
 ## Supported (no special handling)
 

@@ -62,7 +62,7 @@ The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` â€
     // Border (also valid on Button / Input / Dropdown uiTransform)
     borderWidth: 2,
     borderColor: Color4.White(),
-    borderRadius: 8              // unsupported on mobile
+    borderRadius: 8              // pixels: percentages have no effect on mobile
   }}
 
   uiBackground={{

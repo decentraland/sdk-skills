@@ -315,7 +315,7 @@ Verified in-world with side-by-side screenshots: a 720-px dialog whose two label
 - Touch targets ≥ ~48 px on the virtual canvas; body text `fontSize` ≥ 16, ≥ 20 for anything read while moving; `textWrap="wrap"` plus an explicit width on any label that can grow.
 - **No emoji or decorative Unicode in any text value** (`Label` / `Button` `value`, `uiText.value`, `Input` `placeholder`, `Dropdown` options, bound strings). Glyph coverage comes from the fonts each explorer bundles, not the SDK, and the Unity explorer ships no emoji glyphs — verified in-world: `value="✨ Particles"` lost its sparkle. Use a small `UiEntity` with `uiBackground={{ texture: { src: 'images/icon.png' } }}` beside the label, or an atlas sprite via `uvs`; `texture.src` is a binding, so the icon stays editable. Stick to ASCII plus the accented letters the copy needs.
 - Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `src/`.
-- `borderRadius` is unsupported on mobile. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
+- On mobile, `borderRadius` and `borderWidth` accept pixels only; percentages have no effect. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
 
 ## Placement: never anchor to the top-left; keep mobile UI off the action buttons
 

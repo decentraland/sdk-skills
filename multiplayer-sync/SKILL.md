@@ -351,9 +351,9 @@ onLeaveScene((userId) => {
 
 The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above.
 
-## GOTCHA: remote players' Transforms are world coordinates
+## Remote players' Transforms are scene-relative
 
-The local player's `Transform` is scene-local; **another player's entity reports world coordinates**. Subtract `basePos * 16` to compare them (see `player-avatar` > "remote players' Transforms are in WORLD coordinates"). This bites any distance check, leaderboard-by-proximity, or follow camera that iterates `PlayerIdentityData`.
+Another player's `Transform` is in the same scene-relative frame as the local player's, so distance checks, proximity leaderboards and follow cameras that iterate `PlayerIdentityData` compare positions directly. Defensive handling and the safety-critical rule: **player-avatar** → *Remote players' positions are scene-relative*.
 
 ## Per-player visuals are NOT automatically shared
 
