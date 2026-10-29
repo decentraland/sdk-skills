@@ -1,6 +1,6 @@
 # Install or change an integration
 
-**MUST complete the [required decision checkpoint](../SKILL.md#required-checkpoint-before-changes)
+**MUST pass the [approved-plan gate](../SKILL.md#required-gate-approved-plan)
 before changing receiving-scene files.**
 
 Inspect the receiving scene before choosing work: existing Scene Feedback source/assets,
@@ -8,6 +8,25 @@ questions and Intro configuration, startup imports, server/permission setup, and
 Reuse the installed module and approved choices. Distinguish a missing installation from a
 configuration change or requested update; copying a new module version is a separate change.
 Preserve creator-owned questions and existing event wiring unless the task changes them.
+
+## Prerequisites and shape of an installation
+
+- **Requires an authoritative Multiplayer Server.** The scene must be on `@dcl/sdk@auth-server`
+  with `"authoritativeMultiplayer": true` in `scene.json`, and `USE_FETCH` in
+  `requiredPermissions`. Server setup and the append-only CSV-in-Storage pattern the module
+  relies on: **authoritative-server**.
+- **Install = copy two folders.** Copy `src/scene-feedback/` and `assets/scene-feedback/`
+  from the module into the scene, then configure `questions.ts` (question bank, scales,
+  Intro). Keep the demo game code out.
+- **API is a namespace**, `import { feedback } from './scene-feedback'`:
+  `feedback.intro()` asks consent before the first question; `feedback.ask()` fires a
+  game-triggered question; `feedback.leaveFeedback()` opens a player-initiated form behind a
+  button, kiosk or trigger area.
+- **Timing rule:** ask one or two questions tied to the playtest goal at a natural pause
+  (after a round, after a purchase), never mid-action. Questions wait for a clear screen and
+  show once per trigger per visit.
+- Responses land as CSV in the scene's Storage, downloadable from the Creator Hub
+  (**Manage → World ⋮ → View Storage**).
 
 ## Apply the requested scope
 

@@ -207,7 +207,7 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Gotchas
 
-- **Texture path** — textures go in `assets/Images/` (folder conventions: **add-3d-models** → Asset folder conventions).
+- **Texture path** — textures go in `assets/Images/` (folder conventions: **add-3d-models** → Asset folder conventions). Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/`; that still works, so reference those paths as-is.
 - **Quaternion rotation fields** — `rotationOverTime` is interpreted as per-axis angular velocity (quaternion → Euler XYZ). `Quaternion.fromEulerDegrees(0, 90, 0)` = spin 90°/s on Y. Identity = no spin.
 - **`additionalForce` is world-space** even when `simulationSpace = PSS_LOCAL`. Wind/drift directions stay constant regardless of emitter rotation.
 - **`limitVelocity.dampen = 1`** = hard clamp (particles never exceed `speed`). Lower values let velocity exceed cap briefly then decay.

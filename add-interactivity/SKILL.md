@@ -152,7 +152,7 @@ For the system-based approach (combining pointer + proximity on the same entity)
 
 Native ECS component for detecting when an entity enters a region. Prefer this over hand-rolled "check player position every frame" systems and over the older `@dcl-sdk/utils` `triggers.addTrigger()` helper — they exist as fallbacks but `TriggerArea` is the standard SDK7 primitive ([ADR-258](https://github.com/decentraland/adr/blob/2b30a5e2b4f359a7c22a68fb827db282f6e5f887/content/ADR-258-trigger-areas.md)).
 
-**The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
+**The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or a unit sphere, so the radius is **half** the scale: `scale 6` → radius 3) at the entity's pose, respecting any parent chain.
 
 **Scene open in the Creator Hub?** Place the `utils` **Trigger Area** Smart Item instead of hand-building the entity; it arrives with the shape param, collider filter and Reactions wiring (see **creator-hub-mcp**).
 
@@ -215,7 +215,7 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 })
 ```
 
-**Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale` (radius taken from `scale.x`).
+**Sphere variant:** `TriggerArea.setSphere(entity, ColliderLayer.CL_PLAYER)` — use uniform `Transform.scale`. The scale is the sphere's **diameter**: the Explorer spawns a unit sphere collider (radius 0.5) and lets the Transform scale it, so `scale 6` gives a 3 m radius (`SDKEntityTriggerAreaComponent.cs`). With non-uniform scale Unity uses the largest axis.
 
 **Collision mask:** Default is `CL_PLAYER`. Pass other `ColliderLayer` values (bitwise-OR them, e.g. `CL_PLAYER | CL_CUSTOM4`) to react to physics or custom layers.
 

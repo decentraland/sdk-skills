@@ -370,7 +370,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 
 ### core::AudioStream
 
-Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. No hostname whitelist is needed on current clients: `allowedMediaHostnames` / `ALLOW_MEDIA_HOSTNAMES` are legacy and not required (**create-scene** `references/scene-json.md` → Fields); the block below shows them only for legacy scenes that still declare them.
 
 ```json
 {

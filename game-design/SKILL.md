@@ -37,7 +37,7 @@ Verified: Explorer modules `Chat`, `VoiceChat`, `Friends`, `EmotesWheel`, `NameT
 
 Most limits scale with parcel count `n` (triangles, entities, bodies linear; materials, textures logarithmic). Height is a flat 330 m for every scene; content above ~200 m may suffer multiplayer sync issues. Rule of thumb for scoping: **10,000 triangles and 200 entities per parcel**.
 
-- **Mobile adds a flat budget that constrains design**: 8 light sources (2 shadow-casting) and 8 VFX emitters per scene, and low mobile profiles light no scene source at all. Budget lights and VFX as accents over a baseline that reads with no scene light (**lighting-environment** → *Light Limits*).
+- **Mobile adds a flat budget that constrains design**: 8 light sources (2 shadow-casting) and 8 VFX emitters per scene, and low mobile profiles light no scene source at all. Budget lights and VFX as accents over a baseline that reads with no scene light (**lighting-environment** → *Mobile light budget*).
 - Limits table, texture sizes, pooling, LOD, draw calls, system throttling, colliders, `AssetLoad` preloading: **optimize-scene**.
 - **Single-scene World with a self-contained aesthetic** (open water, space, void): set `landscapeTerrain: false` to remove the surrounding landscape (`{baseDir}/../create-scene/references/scene-json.md` → Fields).
 

@@ -105,7 +105,7 @@ Derive anything safety-critical from the local player's own position on each cli
 
 ## Player Profile Data
 
-Get the player's name, wallet address, and guest status:
+Get the player's name, wallet address, and guest status. `player.wearables` and `player.emotes` are copies, not the frozen component arrays, so mutating them changes nothing on the avatar:
 
 ```typescript
 import { getPlayer } from '@dcl/sdk/src/players'
@@ -339,6 +339,7 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 ```
 
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
+- Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
 - **Mobile:** masked emotes work from app 1.13.0, and from 1.15.0 other mobile players see them as upper-body too. Older mobile apps play them full-body, so keep the full-body fallback acceptable. Other mobile gaps, including emotes from other clients: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
@@ -348,7 +349,7 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
 
-**A lookalike of the player** (a queue of "you", a posed clone, a mirror double): **npcs** → "Copies of the player". When feeding an `AvatarShape` from `getPlayer().avatar`, the field names differ: `eyesColor` → `eyeColor`, `bodyShapeUrn` → `bodyShape`. Avatars ignore `VisibilityComponent`.
+**A lookalike of the player** (a queue of "you", a posed clone, a mirror double): **npcs** → "Copies of the player". When feeding an `AvatarShape` from `getPlayer().avatar`, the field names differ: `eyesColor` → `eyeColor`, `bodyShapeUrn` → `bodyShape`. `VisibilityComponent` on an `AvatarShape` is untested; hide one by scaling it to near zero.
 
 ## Custom Nametag Plates (`AvatarNametag`)
 

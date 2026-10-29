@@ -168,7 +168,7 @@ For each `new Entity()` block, replace with `engine.addEntity()` and a series of
 
 ### 8. Port input/pointer handlers
 
-- Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`, registered once at setup (inside a system it re-registers every frame). Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`: SDK7 GLBs collide only on their `_collider` meshes by default). See **add-interactivity**.
+- Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`, registered once at setup (inside a system it re-registers every frame). Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`: SDK7 GLBs collide only on their `_collider` meshes by default). A rigged/skinned NPC GLB does not become clickable through the visible-mesh mask; give it a box collider instead (**add-interactivity** → *Skinned-mesh exception*). See **add-interactivity**.
 - Global key subscriptions (`Input.instance.subscribe`, including `BUTTON_DOWN` / `BUTTON_UP`) → `inputSystem.isTriggered(InputAction.IA_X, PointerEventType.PET_DOWN)` inside a system. See **advanced-input**.
 - SDK6 "intercepting tool" items (a key or magnet acting on whatever is clicked) have no global hit subscriber in SDK7: `{baseDir}/references/api-mapping.md` → Click interception across entities.
 

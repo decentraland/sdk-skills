@@ -422,7 +422,7 @@ triggerAreaEventsSystem.onTriggerExit(area, (result) => {
 |-------------------------------------------------------------------------------------|---------------|
 | `import * as utils from '@dcl/ecs-scene-utils'`                                     | `import { TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'` |
 | `new utils.TriggerBoxShape(size, offset)`                                           | `TriggerArea.setBox(entity)` — size driven by `Transform.scale`; offset by `Transform.position` |
-| `new utils.TriggerSphereShape(radius, offset)`                                      | `TriggerArea.setSphere(entity)` — radius driven by `Transform.scale` |
+| `new utils.TriggerSphereShape(radius, offset)`                                      | `TriggerArea.setSphere(entity)` — `Transform.scale` is the **diameter**, so set it to `2 × radius` |
 | `new utils.TriggerComponent(shape, { onCameraEnter, onCameraExit })`                | `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` + `.onTriggerExit(entity, cb)` |
 | (no continuous "while inside" callback — had to add a per-frame system)             | `triggerAreaEventsSystem.onTriggerStay(entity, cb)` — fires every frame an entity is inside |
 | Custom per-frame system polling `Camera.instance.position` against the region       | Delete it; the native component handles detection. |

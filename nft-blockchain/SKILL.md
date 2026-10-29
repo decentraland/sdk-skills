@@ -48,7 +48,7 @@ Use `sendAsync` from `~system/EthereumController` for low-level Ethereum RPC cal
 
 ## Testing with Sepolia
 
-Develop against Sepolia; contract addresses differ between mainnet and Sepolia.
+Develop against the Sepolia testnet: set MetaMask to Sepolia, get test ETH from a faucet, and deploy contracts to Sepolia. Contract addresses differ between mainnet and Sepolia.
 
 ## dcl-crypto-toolkit (Higher-Level API)
 

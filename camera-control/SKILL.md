@@ -227,7 +227,7 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 - **Camera-Triggered Events** — use camera position/proximity to trigger actions when the player looks at an area.
 - **Following an NPC (camera-follows-NPC)** — track an NPC by driving a VirtualCamera's Transform each frame (guardrail on why this works lives in the VirtualCamera section above).
 - **Mouselook Camera (FPS-style)** — `PrimaryPointerInfo.screenDelta` drives a VirtualCamera's yaw/pitch; desktop only. Sign convention: **advanced-input** → Cursor Position and World Ray. See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
-- **Spectate Mode (observer / director / replay camera)** — toggle the player from avatar movement into a free-roaming or player-following camera: two-entity yaw/pitch rig, WASD/E/F/1/2 controls, `onEnterScene`/`onLeaveScene` player roster, InputModifier freeze, and parcel-bounds clamping (the engine disables VirtualCameras outside parcel bounds). See `{baseDir}/references/camera-patterns.md` → "Spectate Mode".
+- **Spectate Mode (observer / director / replay camera)** — toggle the player from avatar movement into a free-roaming or player-following camera: two-entity yaw/pitch rig, WASD/E/F/1/2 controls, `onEnterScene`/`onLeaveScene` player roster, InputModifier freeze, and parcel-bounds clamping (the engine disables VirtualCameras outside parcel bounds). To restrict who can enter spectate mode, gate it with a server-verified admin check (**authoritative-server**). See `{baseDir}/references/camera-patterns.md` → "Spectate Mode".
 
 ## Example scenes
 

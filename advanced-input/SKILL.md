@@ -252,7 +252,7 @@ onPlayerLanguageChanged.add(({ language }) => {
 
 - **`getPlayerLanguage(): string`** — a BCP-47 tag (`'es'`, `'pt-BR'`). Sourced from `getExplorerInformation().configurations['locale']`, with `_` normalized to `-` (`pt_BR` → `pt-BR`) and surrounding whitespace trimmed. A value that does not match `^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$` falls back to `'en'`.
 - **GOTCHA — it is synchronous and returns `'en'` until the explorer has answered.** Unlike `getPlatform()`, which returns `null` while unknown, there is no "not yet" value here: calling it in `main()` reliably gives you `'en'` on every client. Either read it inside a system after the first frames, or re-read it from `onPlayerLanguageChanged`.
-- **`onPlayerLanguageChanged: Observable<{ language: string }>`** fires only on a *real* change (setting the same tag twice notifies once).
+- **`onPlayerLanguageChanged: Observable<{ language: string }>`** fires only on a *real* change (setting the same tag twice notifies once). Older clients never emit it.
 - Returns `'en'` when the client reports no locale, when `configurations` is missing, and when the `getExplorerInformation` RPC rejects. Region subtags are passed through verbatim — match on the full tag first, then fall back to the primary subtag, then to `'en'`.
 - Under the hood this adds a `localeChanged: { locale: string }` scene event to `IEvents`; **importing `@dcl/sdk/platform` subscribes to it for you**, so there is nothing to wire up.
 

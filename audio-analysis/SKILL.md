@@ -49,6 +49,8 @@ import { Vector3 } from "@dcl/sdk/math";
 
 ## Component fields
 
+Component ID is `1212`.
+
 Output (filled by the renderer; read in your systems):
 
 | Field       | Type     | Range               | Notes                                                         |
@@ -140,7 +142,7 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 ## Permissions
 
-No special scene permission is needed beyond what the underlying `AudioSource` / `AudioStream` / `VideoPlayer` already requires. Streamed audio still needs `ALLOW_MEDIA_HOSTNAMES` in `scene.json` for its hostname (see `audio-video` skill).
+No special scene permission is needed beyond what the underlying `AudioSource` / `AudioStream` / `VideoPlayer` already requires. Streamed audio needs no hostname whitelist on current clients: `ALLOW_MEDIA_HOSTNAMES` / `allowedMediaHostnames` are legacy and not required (`{baseDir}/../create-scene/references/scene-json.md` → Fields).
 
 ## Example scenes
 

@@ -82,7 +82,8 @@ LightSource.create(spotlight, {
 - `innerAngle` — full-brightness cone angle (degrees). Default `21.8`. Min `0`, max `179`.
 - `outerAngle` — outer fade angle (degrees). Default `30`. Max `179`.
 - `innerAngle` cannot exceed `outerAngle` — if it does, the engine clamps them to the same value.
-- The cone shines along the entity's local **+Z** (its forward). **Pitch `+90` about X points it straight down; `-90` points it at the sky** (`Quaternion.fromEulerDegrees(90, 0, 0)` rotates `Vector3.Forward()` to `(0, -1, 0)`). A ceiling spot that seems to do nothing may be lighting the roof; check the cone once with the sanity test under Light Limits.
+- `Spot({...})` accepts only `innerAngle?` and `outerAngle?`.
+- The cone shines along the entity's local **+Z** (its forward). **Pitch `+90` about X points it straight down; `-90` points it at the sky** (`Quaternion.fromEulerDegrees(90, 0, 0)` rotates `Vector3.Forward()` to `(0, -1, 0)`). The SDK docs' spot example writes `-90` for "downward", so a ceiling spot copied from there that seems to do nothing may be lighting the roof; check the cone once with the sanity test under Light Limits.
 - `type` is a discriminated union. To read/mutate spot params at runtime, narrow first:
   `if (comp.type?.$case === 'spot') { comp.type.spot.innerAngle = 30 }`
 

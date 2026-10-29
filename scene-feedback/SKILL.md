@@ -33,7 +33,9 @@ and implemented facts; implementation itself does not establish approval.
 
 ## Creator-facing review
 
-Show question wording, rating label meaning and player moments, with any bank, scale or event
+Use ordinary language matched to how familiar the creator is with the tools, and explain a
+technical term through its purpose the first time it appears (an invitation asking players
+whether to give feedback: the Intro). Show question wording, rating label meaning and player moments, with any bank, scale or event
 ID beside its meaning. Keep exact IDs in code and configuration.
 
 ## Choose the route

@@ -25,7 +25,7 @@ Before referencing any audio file path in code, check `{baseDir}/references/audi
 
 1. If the catalog has fitting clips, suggest them to the user — name the clip and what it would be used for.
 2. **Ask** how they want to proceed: some creators want catalog clips downloaded, others prefer placeholder paths so they can drop in their own files.
-3. Catalog clips, once the user confirms: download with any HTTP download, e.g. `curl -o assets/Audio/<name>.mp3 "<URL>"`.
+3. Catalog clips, once the user confirms: download with any HTTP download, e.g. `curl -o assets/Audio/<name>.mp3 "<URL>"`. Do not tell the user you cannot download audio: `curl` works on the catalog URLs.
 4. Placeholders: use a clear path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
 5. Reference the resulting local path in `AudioSource.audioClipUrl`.
 
@@ -89,7 +89,7 @@ A sound started at scene startup plays **behind the Explorer's loading screen**,
 
 ## AudioStream (Streaming)
 
-Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
+Stream audio from a URL (radio, live streams). If the user did not supply the URL, confirm the source with them before adding one. Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
 Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`. For callback-style state changes instead of polling, `audioEventsSystem.registerAudioEventsEntity` works on AudioStream entities too (see the AudioSource finish-detection note above).
 
@@ -135,7 +135,7 @@ Monitor playback with `videoEventsSystem`:
 
 States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
 
-**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change.
+**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same holds for `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity`: re-registering keeps the count of already-reported events, so callbacks are not duplicated.
 
 Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 

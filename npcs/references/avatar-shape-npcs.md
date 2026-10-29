@@ -14,7 +14,7 @@ Writing the `AvatarShape`'s `Transform.position`, or running a `Tween` on it, wh
 
 ## Hiding an `AvatarShape`
 
-Moving it out of sight (e.g. 60 m underground) makes it *walk* there, visibly, because the Explorer interpolates AvatarShape movement. Set `Transform.scale` to near zero (`0.001`) and restore it afterwards. `VisibilityComponent` does not hide an `AvatarShape`: avatars ignore it. Primitives, GLBs, `AvatarShape`, nametags, lights and colliders each hide differently: check the recipe per kind.
+Moving it out of sight (e.g. 60 m underground) makes it *walk* there, visibly, because the Explorer interpolates AvatarShape movement. Set `Transform.scale` to near zero (`0.001`) and restore it afterwards. `VisibilityComponent` on an `AvatarShape` has not been tested; do not rely on it until it has. Primitives, GLBs, `AvatarShape`, nametags, lights and colliders each hide differently: check the recipe per kind.
 
 ## No masked emotes on NPCs
 

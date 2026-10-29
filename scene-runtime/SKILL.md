@@ -337,7 +337,7 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ### engine.removeEntity(entity): boolean
 
-Removes all components from an entity and releases its id for reuse. Returns `boolean` (`@dcl/sdk` 7.27.0+; earlier SDKs return `void`):
+Removes all components from an entity and releases its id for reuse. Returns `boolean` (`@dcl/sdk` 7.27.0+; earlier SDKs return `void` and can purge a live remote avatar's components):
 - `true` — entity accepted; components purged, id released for recycling.
 - `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
 
