@@ -1,6 +1,6 @@
 ---
 name: report-sdk-issue
-description: Report a Decentraland SDK bug, engine/Explorer runtime limitation, or docs gap to the SDK team BEFORE applying a workaround for it. Use whenever you or the user find that an SDK7 API, component, the Explorer, the Creator Hub, or the `@dcl/sdk` toolchain doesn't behave as documented, is missing something a scene reasonably needs, or forces a workaround — even when the workaround is easy. Asks the user for consent once per scene, then reports automatically and never sends the same issue twice. Do NOT use for bugs in the user's own scene code, for questions about how an API works, or for issues a skill already documents as a known limitation.
+description: Report a Decentraland SDK bug, engine/Explorer runtime limitation, or docs gap to the SDK team BEFORE applying a workaround for it. Use whenever you or the user find that an SDK7 API, component, the Explorer, the Creator Hub, or the `@dcl/sdk` toolchain doesn't behave as documented, is missing something a scene reasonably needs, or forces a workaround — even when the workaround is easy. Do NOT use for bugs in the user's own scene code, for questions about how an API works, or for issues a skill already documents as a known limitation.
 ---
 
 # Reporting SDK Issues
@@ -10,6 +10,8 @@ When a scene hits an SDK, engine, or Explorer defect and you are about to work a
 Everything goes through one script, `{baseDir}/scripts/report.mjs` (Node ≥ 18, no dependencies). The first line of its output is always the result token; read that line. Run the script; don't open it or `scripts/redaction.mjs` to read them. This page has everything you need, and reading them only costs time.
 
 ## 1. Decide whether it's reportable
+
+Before calling it a platform issue, check in this order: the owning topic skill, the installed typings under `node_modules/@dcl/ecs`, a minimal reproduction, the running client and SDK versions, and known fixes in the Explorer and SDK changelogs **matched to the running version** (an older source checkout proves nothing about the client in front of you). Distinguish scene error, engine defect and unsupported capability. Failing to recall an API is not evidence it is missing.
 
 Report it when **all** of these hold:
 
@@ -80,8 +82,8 @@ The script adds the SDK version, OS, and Node version itself. Send the JSON on s
 node {baseDir}/scripts/report.mjs submit <<'EOF'
 {
   "title": "Controlled Input does not clear when its value is reset to an empty string",
-  "description": "Expected: setting the state bound to Input.value to '' clears the field.\nActual: the old text stays visible until the Input is remounted.\n\nRepro:\nconst [text, setText] = ReactEcs.useState('')\n<Input value={text} onChange={setText} onSubmit={() => setText('')} />\n\nSeen in the Explorer preview.",
-  "workaround": "Give the Input a key that changes on submit so it remounts.",
+  "description": "Expected: setting the module-level state bound to Input.value to '' clears the field.\nActual: the old text stays visible while the scene state is empty.\n\nRepro:\nlet text = 'hello'\n<Input value={text} onChange={(v) => { text = v }} />\n// later, from a button: text = ''\n\nSeen in the Explorer preview.",
+  "workaround": "Set value to ' ' for one frame, then to ''.",
   "kind": "bug",
   "fingerprint": "ui-input-controlled-reset",
   "skill": "build-ui",
@@ -101,11 +103,9 @@ In a shell without heredocs (e.g. PowerShell), write the JSON to a temporary fil
 
 `submit` returns as soon as the report is saved: a background process sends it, so don't wait for it or check on it. Go straight to the workaround. **Reporting never blocks the work.** If the script errors out, carry on without it. If `consent` itself fails (for example, the scene folder is read-only), don't ask the user again during this session.
 
-A report that couldn't be sent stays queued and is retried in the background on later `check` and `submit` runs, never duplicated. A report the service keeps failing on is given up after a few tries, and then the same issue can be reported again.
-
 ## Reference
 
-- Request and response contract for the reporting service: `{baseDir}/references/api.md`
+- Service contract, for maintainers changing the script: `{baseDir}/references/api.md`
 - `node {baseDir}/scripts/report.mjs status` shows the consent, the endpoint, and how many reports were sent, are pending, were rejected, or were given up after repeated failures.
 - `node {baseDir}/scripts/report.mjs flush` sends queued reports right away and waits for the result. Only for troubleshooting; normal use never needs it.
 - To disable reporting on a machine or in CI, set `DCL_SDK_ISSUE_REPORTS=off`. This always wins over a stored consent.

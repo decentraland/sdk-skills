@@ -1,9 +1,22 @@
 ---
 name: add-3d-models
-description: Add 3D models (.glb/.gltf) to a Decentraland scene using GltfContainer — 8,800+ free assets from the OpenDCL catalog and the Creator Hub asset packs (Genesis City, Halloween, Sci-fi, Fantasy, Smart Items — the latest additions are catalogued offline), plus authoring and editing custom models by driving Blender (headless CLI or Blender MCP). Use when the user wants to add models, import GLB files, find free 3D assets, set up model colliders, or create/edit/retexture/optimize a model in Blender — also whenever an `mcp__blender__*` tool is available and the task touches 3D models. Do NOT use for SDK materials/textures (see advanced-rendering), model animations (see animations-tweens), or avatar emotes (see avatar-animations).
+description: "Add 3D models (.glb/.gltf) to a Decentraland scene with GltfContainer: find free models in the OpenDCL and Creator Hub catalogs, set colliders and placement, or create/edit/optimize a model in Blender (CLI or Blender MCP). Use when adding, importing or finding models, fixing model colliders or placement, or when Blender MCP tools are present for model work. Materials → advanced-rendering; clips → animations-tweens; emotes → avatar-animations."
 ---
 
 # Adding 3D Models to Decentraland Scenes
+
+## Adding a model
+
+1. **Choose the source** with the user: a free catalog model or a custom Blender model (RULE: New models — offer the catalog AND custom authoring in Blender).
+2. **Get the file** into the project: grep the catalogs and download (Free 3D Models — two catalogs), or export from Blender into `assets/Models/`.
+3. **Audit its bounding box** in DCL axes and compute the safe placement zone (RULE: Check bounding boxes before placing models).
+4. **Set the collider masks** from whether the GLB has `_collider` meshes (RULE: Always check for built-in colliders).
+5. **Decide what its clips do**: add an `Animator` if the GLB has clips you want to control (RULE: Always check for animations).
+6. **Place it**: through the Creator Hub MCP when the scene is open there, otherwise in `main.composite` for scene-load models or in code for runtime spawns (RULE: Use composite for initial models).
+
+**Done when** you have reported the model's native dimensions, the chosen scale and position, and its resulting world-space bounding box against the scene bounds (RULE: Swapping a model `src`, step 5).
+
+The RULE sections below are the reference for each step.
 
 ## RULE: Check bounding boxes before placing models
 
@@ -17,19 +30,7 @@ Then compute the safe placement zone **in DCL axes**: `safeMinX = -dclMinX + edg
 
 ## RULE: Geometry baked in world coordinates — check the bounds in DCL axes, and probe the axes first
 
-The bounding-box rule above assumes a model built around its own origin and positioned by `Transform`. The moment you **bake world-space placement into the mesh** — merged floor/wall chunks for a whole zone, a kitbashed layout exported as one GLB, anything placed by a script in Blender rather than by an entity `Transform` — the model's placement depends on the **axis convention of the exporter**, and a wrong guess puts the geometry outside the scene while every number you can read still looks right.
-
-**Failure mode, observed 2026-10-08 (cost ~1.5 h):** rendering is clipped at the scene boundary, so **only the portions of a mesh that fall outside the parcels disappear — the rest of the model stays visible**. That is what makes a bad axis guess so confusing: when the whole baked mesh lands outside (e.g. mirrored in X), **all** of it is clipped, with no error, even though the entity's own `Transform.position` is inside the scene. Both the Explorer and the Creator Hub editor clip it the same way, and the Creator Hub's `get_scene_metrics.entitiesOutOfBoundaries` did **not** list it — under the Bevy renderer that list is a hardcoded empty array (verified in the inspector's `BevyRenderer`), so it can never warn you; under Babylon it is bounds-based and would. The tell is a contradiction between two reads:
-
-- `explorer_get_scene_content_stats` counts the model's triangles — so the GLB loaded fine;
-- `explorer_get_scene_content_breakdown` shows the source with N `renderers` and **`visibleRenderers: 0` from every viewpoint**;
-- scene logs are clean.
-
-Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendered normally in the same scene.
-
-**So, before baking the real thing, export a cheap asymmetric probe and look at it.** A symmetric box tells you nothing — mirror and rotation errors are invisible on it. Use a model with one obviously distinguishable side: a short bar along +X plus a different-length bar along +Z, or any asset with one open end. Place it at a known position, then confirm in-world (**unity-explorer-mcp**): screenshot from a known camera pose, walk into it and read the blocked position from `explorer_get_player_state`, or both. Only then bake the full set. One throwaway export is far cheaper than re-baking a kit.
-
-**Axis mapping and a `place()` helper for Blender → DCL are in `{baseDir}/references/blender-authoring.md`.**
+When placement is **baked into the mesh** (merged floor/wall chunks, a kitbashed layout exported as one GLB, anything positioned in Blender rather than by a `Transform`), a wrong axis guess puts the geometry outside the scene, where it is clipped silently while the entity's `Transform.position` still looks legal. Before baking the real thing, export an asymmetric probe and check it in-world. Symptom, probe workflow and the Blender → DCL mapping: `{baseDir}/references/blender-authoring.md` → Blender ↔ Decentraland axes.
 
 ## RULE: Account for model depth before neighboring entities
 
@@ -76,7 +77,7 @@ Decentraland uses a **Y-up** coordinate system — test model orientation after 
 
 ## RULE: Text labels must be in open air — no occlusion by geometry
 
-`TextShape` labels are rendered in world space and can be occluded by solid geometry. Place labels with no solid model within 2 m horizontally, ensure height clearance, use `Billboard` with `billboardMode: 2` for readable labels, and prefer open-area placement. Exception: labels mounted on a wall without Billboard.
+Keep labels near models clear of solid geometry: **advanced-rendering** → *TextShape (3D Text)*.
 
 ## RULE: Use composite for initial models
 
@@ -104,13 +105,13 @@ This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...
 
 Hand-editing a composite that already contains `inspector::Nodes` (only without the MCP, with the scene closed): every new model needs an `inspector::Nodes` entry, a `core-schema::Name` and an `inspector::TransformConfig`, or it renders in-world but is invisible in the Creator Hub entity tree. Procedure: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode).
 
-## RULE: Parenting a model to the player — pick by item type
+## RULE: Parenting a model to the player
 
-To make a model follow the player (held gun, reticle, torch, backpack, halo), pick the mechanism by intent: aim-sensitive held item → parent to `engine.CameraEntity`; body-fixed, yaw-only item → parent to `engine.PlayerEntity`; cosmetic item → `AvatarAttach` (bone anchors animate, so never for aim). Comparison table and a worked gun example: **player-avatar** → *Held items vs cosmetic items*.
+To make a model follow the player (held gun, torch, backpack), see **player-avatar** → Held items vs cosmetic items.
 
 ## RULE: Always check for animations
 
-Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has animations**, decide what should play: with no `Animator` the renderer autoplays and loops the file's first clip, which code cannot stop or switch. Add an `Animator` to pick another clip, start still, or switch clips at runtime (**animations-tweens**). **If no animations**, omit `Animator`.
+Before finalizing any entity with `GltfContainer`, check if the GLB contains animations. **If it has clips**, add an `Animator` naming the clip to play; without one the renderer autoplays a clip of its own choosing (**animations-tweens** → Which clip plays). **If no animations**, omit `Animator`.
 
 ## RULE: Always check for built-in colliders
 
@@ -137,23 +138,23 @@ Choose the mask based on role:
 
 **Entities entirely outside scene parcels are not rendered** — no error shown; a model that straddles the boundary still renders the part that is inside. Each parcel is **16x16 m**. Valid range: `0 <= x <= 16 * parcelsWide`, `0 <= z <= 16 * parcelsDeep`, `y >= 0`.
 
-**The clipping applies to the geometry, not to the entity's position.** A `Transform` sitting at a legal position does not save geometry that reaches outside the parcels — the portions outside are clipped silently, and the rest of the model stays visible. A mesh baked wholly outside therefore disappears completely. Do not rely on the Creator Hub's `entitiesOutOfBoundaries` to catch it: it is an empty stub under the Bevy renderer. See the world-coordinate rule above for the symptom and the probe workflow.
+**The clipping applies to the geometry, not to the entity's position.** A `Transform` sitting at a legal position does not save geometry that reaches outside the parcels — the portions outside are clipped silently, and the rest of the model stays visible. A mesh baked wholly outside therefore disappears completely. The Creator Hub's `entitiesOutOfBoundaries` misses it under the Bevy renderer (always empty there). See the world-coordinate rule above.
 
 ## Loading a 3D Model in TypeScript (dynamic entities only)
 
 Use `GltfContainer.create(entity, { src: 'assets/Models/myModel.glb' })` for runtime-spawned entities. Place files in `assets/Models/`.
 
-**Omit `Transform` fields you do not set — never pass an explicit `undefined`.** `Transform.create(e, { position, rotation: maybeUndefined })` keeps the `undefined`: the schema's `extend` spreads your object over the defaults (`...value`, `Transform.ts` in `@dcl/ecs`), so the default rotation is replaced by nothing and the next serialization reads `value.rotation.x` and throws — inside the engine update, not at the `create` call, so the stack points nowhere useful. Build the object conditionally: `...(rot ? { rotation: rot } : {})`.
+**Omit `Transform` fields you do not set** (`...(rot ? { rotation: rot } : {})`): an explicit `undefined` replaces the default and crashes the next serialization, far from the `create` call. Mechanism: `{baseDir}/../migrate-sdk6-to-sdk7/references/api-mapping.md` → Transforms & math.
 
 ### Asset folder conventions
 
 - **Default** for models you download yourself: `assets/Models/`.
 - **Legacy scenes** may already have models under `assets/scene/Models/` — that path still works; reuse it for any new models in those scenes instead of creating a parallel `assets/Models/` folder.
-- **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
+- **Creator Hub assets**: models imported directly through the Creator Hub UI land in `assets/Models/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is, where they are.
 
 Always check the scene's existing folders before deciding where to put a new model.
 
-**Dragging from the Local Assets tab onto the viewport is the user's fastest path** when the scene is open in the Creator Hub. `.glb` / `.gltf` drop as a plain model; **media files drop as catalog Smart Items instead of bare components**: `.png` / `.jpg` / `.jpeg` spawn the **Image** item with the `Material` PBR texture `src` repointed and the plane lifted `+0.5 m` so it stands on the ground, and `.mp3` / `.mp4` spawn their matching items (see **audio-video**). Offer the drag for a flat image rather than hand-assembling a plane + `Material`; full table and asset ids in **creator-hub-mcp**.
+In a scene open in the Creator Hub, the user can also drag a `.glb` from the Local Assets tab onto the viewport to place it as a plain model (media files: **creator-hub-mcp**).
 
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 
@@ -198,9 +199,9 @@ Always say which path you're on; never let the user believe the MCP did work the
 
 Always check the scene's local asset folder first. Before fetching any model, confirm with the user. Search **both** catalogs with one grep — `grep -i "keyword" {baseDir}/references/asset-pack-catalog.md {baseDir}/references/model-catalog.md` — and try synonyms if nothing matches. Browse categories with `grep "^##"` on either file. Every row has a `preview:` image URL; fetch it to check the look before importing. The Creator Hub packs' names, tags and captions are generated and can be wrong — the `decorations` item **Human** (tags `man, person, figure…`, caption "Human figure in mid-action") is the word *HUMAN* in 3D letters — so for a pack item not in `asset-pack-catalog.md`, open its `thumbnail.png` in the pack before placing it (**creator-hub-mcp** → `search_catalog`).
 
-**OpenDCL catalog (8,800+ models)** — `{baseDir}/references/model-catalog.md`. Single-file GLBs. Workflow: search → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add `Animator` if the model has animations.
+**OpenDCL catalog (8,800+ models)** — `{baseDir}/references/model-catalog.md` (5.8k lines: grep it, never read it whole). Single-file GLBs. Workflow: search → review dimensions/triangles/animations → download with curl into `assets/Models/` → reference in code → add `Animator` if the model has animations.
 
-**Creator Hub asset packs** — `{baseDir}/references/asset-pack-catalog.md`: the 420 models + 7 Smart Items most recently added (Genesis Plaza and template-scene imports: buildings, street furniture, office/café furniture, nature, Halloween, a sci-fi lab kit, a chess set, and scripted buttons, doors, a piston platform and water). Each item is a GLB **plus external textures**, so download with the `dl-asset.mjs` helper in `{baseDir}/references/model-patterns.md` (not a bare curl) into `assets/asset-packs/<folder>/`; rows give the final `glb:` path, the `col:` flag for the collider mask, and the `id:` that `place_smart_item` takes when the scene is open in the Creator Hub (then prefer the MCP route). The packs' older items are not catalogued offline: search them live with `search_catalog` (**creator-hub-mcp**).
+**Creator Hub asset packs** — `{baseDir}/references/asset-pack-catalog.md` (grep it): the 420 models + 7 Smart Items most recently added (Genesis Plaza and template-scene imports: buildings, street furniture, office/café furniture, nature, Halloween, a sci-fi lab kit, a chess set, and scripted buttons, doors, a piston platform and water). Each item is a GLB **plus external textures**, so download with the `dl-asset.mjs` helper in `{baseDir}/references/model-patterns.md` (not a bare curl) into `assets/asset-packs/<folder>/`; rows give the final `glb:` path, the `col:` flag for the collider mask, and the `id:` that `place_smart_item` takes when the scene is open in the Creator Hub (then prefer the MCP route). The packs' older items are not catalogued offline: search them live with `search_catalog` (**creator-hub-mcp**).
 
 > **Important**: `GltfContainer` only works with **local files**. Always download first (`assets/Models/` for OpenDCL, `assets/asset-packs/<folder>/` for pack items). Never `cd` into the models directory — run curl / the helper from the project root.
 
@@ -215,8 +216,8 @@ Always check the scene's local asset folder first. Before fetching any model, co
 | Model loads but looks wrong | Y-up vs Z-up mismatch          | Re-export from Blender with "Y Up"                           |
 | Triangles counted, 0 visible renderers from every viewpoint | Mesh baked wholly outside the parcels (entity position can still be inside) | Check the GLB's bounds in **DCL** axes; see the world-coordinate rule above |
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
-| Clicking does nothing       | CL_POINTER not set             | Set `visibleMeshesCollisionMask: 3` if no `_collider` meshes |
-| Click through walls         | CL_POINTER not on visible mesh | Set `visibleMeshesCollisionMask: 3` (or at minimum `1`)      |
+| Clicking does nothing       | CL_POINTER not set             | Set the masks per RULE: Always check for built-in colliders  |
+| Click through walls         | CL_POINTER not on visible mesh | Same rule: put `CL_POINTER` on the mesh players click         |
 | Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
 
 ## RULE: 3D model light fixtures do not emit real light
@@ -233,7 +234,7 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
 - ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local, Creator Hub or QR mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed (`npx @gltf-transform/cli optimize in.glb out.glb --compress false`) and reduce triangles/texture size instead; quantization, texture compression and mesh decimation are unaffected. Skip `meshopt` compression too: the mobile app has no meshopt decoder (its optimized-asset step decompresses only Draco), and desktop loads it only from published asset bundles, not in local preview. The `54,-55-Testing-3d-models` engine scene below includes a Draco variant: it is a desktop capability test, not a cross-platform recommendation.
 
-For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`. For the asset catalogs, see `{baseDir}/references/model-catalog.md` (8,800+ OpenDCL models) and `{baseDir}/references/asset-pack-catalog.md` (Creator Hub asset packs, latest additions).
+For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`.
 
 ## Example scenes
 

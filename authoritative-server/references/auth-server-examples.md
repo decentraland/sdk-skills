@@ -270,7 +270,7 @@ engine.addSystem(joinActionRetrySystem)
 
 ## Schema Types Reference
 
-The full schema-type list, with the verified `Schemas.Boolean` (not `Schemas.Bool`) and `Schemas.Int64`-for-timestamps notes, is in `{baseDir}/SKILL.md` → Schema Types Reference.
+Schema types: **multiplayer-sync** → *Schema Types* (`Schemas.Boolean`; `Schemas.Int64` for `Date.now()`).
 
 ## Server Reading Player Positions
 

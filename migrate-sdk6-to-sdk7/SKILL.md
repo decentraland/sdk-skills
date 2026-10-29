@@ -5,8 +5,6 @@ description: Migrate a legacy Decentraland SDK6 scene to SDK7. Use when the user
 
 # Migrate a Decentraland SDK6 Scene to SDK7
 
-> **This is a porting skill, not a scaffolding skill.** It assumes an existing SDK6 project on disk. For a brand-new SDK7 scene, use [[create-scene]].
-
 ## RULE: Verify it really is SDK6 before doing anything
 
 Inspect these files in this order. **ALL of the SDK6 signals must be present** before treating the project as SDK6 — partial matches usually mean a half-migrated project that needs a different approach.
@@ -19,9 +17,9 @@ Inspect these files in this order. **ALL of the SDK6 signals must be present** b
 | Source code imports         | No explicit `@dcl/sdk/ecs` import — symbols (`Entity`, `Transform`, `Vector3`, `engine`) are globals                                           | Most things imported from `@dcl/sdk/ecs` and `@dcl/sdk/math`                                                                               |
 | Source code patterns        | `new Entity()`, `entity.addComponent(...)`, `@Component('name')`, `class X implements ISystem`, `OnPointerDown`, `GLTFShape`, `Input.instance` | `engine.addEntity()`, `Transform.create(entity, ...)`, `engine.defineComponent(...)`, `pointerEventsSystem.onPointerDown`, `GltfContainer` |
 
-## RULE: Do NOT change `scene.json`'s `main` field
+## RULE: Keep `scene.json`'s `main` field as it is
 
-Keep the `main` value the SDK6 project already had (typically `"bin/game.js"`). The SDK7 default for new scenes is `bin/index.js`, but `sdk-commands build` writes the bundle to whatever path `scene.json` `main` names (verified: `sdk-commands` `bundle.ts` sets the output file from `sceneJson.main`) — so an existing `bin/game.js` keeps working with no changes. **Do NOT rename it to `bin/index.js` unless the user explicitly asks.**
+Keep the `main` value the SDK6 project already had (typically `"bin/game.js"`). The SDK7 default for new scenes is `bin/index.js`, but `sdk-commands build` writes the bundle to whatever path `scene.json` `main` names, so an existing `bin/game.js` keeps working. Rename it only if the user asks.
 
 You SHOULD add `"runtimeVersion": "7"` to `scene.json` (and remove anything ECS6-specific). Full scene.json schema: `{baseDir}/../create-scene/references/scene-json.md`.
 
@@ -36,23 +34,18 @@ Order of operations:
 
 ## The Conceptual Shift — read this before writing any code
 
-SDK6 modeled entities as **objects with components attached to them**. SDK7 is a true ECS where entities are just opaque IDs and components are pure data.
+SDK6 modeled entities as **objects with components attached to them**. SDK7 is a true ECS where entities are just opaque IDs and components are pure data. Symbol-level conversions are in the quick reference below.
 
 | Concept                             | SDK6                                                                                             | SDK7                                                                                                                                                |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Entity creation                     | `const e = new Entity()` then `engine.addEntity(e)`                                              | `const e = engine.addEntity()` (returns the ID)                                                                                                     |
 | Entity type                         | `IEntity` / `Entity` class with methods (`addComponent`, `getComponent`, `setParent`, `alive`)   | `Entity` = opaque integer ID, NO methods                                                                                                            |
 | Adding a component                  | `entity.addComponent(new Transform({...}))` — entry point is the entity                          | `Transform.create(entity, {...})` — entry point is the component type                                                                               |
 | Defining a component                | `@Component('name') class GemData { val: number; constructor(...) {...} }`                       | `export const GemData = engine.defineComponent('gemData', { val: Schemas.Number }, { val: 2 })` — schema + defaults, NO methods                     |
 | Component methods (`reset()`, etc.) | Allowed (class methods)                                                                          | Forbidden — components are data only. Move methods into free functions or systems                                                                   |
 | Reading component data              | `entity.getComponent(GemData).val` (always mutable)                                              | `GemData.get(entity).val` (immutable, fast) OR `GemData.getMutable(entity).val = X` (only when writing)                                             |
 | Modifying component data            | Mutate the returned reference                                                                    | MUST use `getMutable()` — `.get()` returns a read-only reference. Using `.get()` and mutating it silently fails                                     |
-| Parenting                           | `child.setParent(parent)`                                                                        | Set `parent` field of child's Transform: `Transform.create(child, { parent: parentEntity })` or `Transform.getMutable(child).parent = parentEntity` |
 | Defining a system                   | `class MoveGems implements ISystem { update(dt) {...} }` then `engine.addSystem(new MoveGems())` | `export function moveGemsSystem(dt: number) { ... }` then `engine.addSystem(moveGemsSystem)`                                                        |
-| Querying entities                   | `const group = engine.getComponentGroup(Transform, GemData)` then `group.entities`               | `for (const [entity, gemData, transform] of engine.getEntitiesWith(GemData, Transform)) { ... }`                                                    |
-| Removing an entity                  | `engine.removeEntity(entity)`                                                                    | `engine.removeEntity(entity)` (same API)                                                                                                            |
 | Event callbacks on components       | `entity.addComponent(new OnPointerDown((e) => {...}))`                                           | `pointerEventsSystem.onPointerDown({entity, opts}, () => {...})` — separated from the component                                                     |
-| Static "scene-level" objects        | `Camera.instance`, `Input.instance` (singletons)                                                 | `engine.PlayerEntity`, `engine.CameraEntity`, `engine.RootEntity` + component reads (`Transform.get(engine.PlayerEntity)`)                          |
 
 **Mutability is a performance contract**, not just style. Always prefer `.get()` (read) over `.getMutable()` (write). Using `.getMutable()` when you only read causes a CRDT delta to be sent every frame.
 
@@ -71,7 +64,7 @@ See `{baseDir}/references/api-mapping.md` for the full table. The most common co
 | `entity.hasComponent(Transform)`                                                    | `Transform.has(entity)`                                                                                                                                                                          |
 | `entity.removeComponent(Transform)`                                                 | `Transform.deleteFrom(entity)`                                                                                                                                                                   |
 | `child.setParent(parent)`                                                           | `Transform.getMutable(child).parent = parent` (or pass `parent` in `create`)                                                                                                                     |
-| `new GLTFShape('models/x.glb')` + `entity.addComponent(shape)`                      | `GltfContainer.create(entity, { src: 'models/x.glb' })`                                                                                                                                          |
+| `new GLTFShape('models/x.glb')` + `entity.addComponent(shape)`                      | `GltfContainer.create(entity, { src: 'assets/Models/x.glb' })`                                                                                                                                          |
 | `new BoxShape()` / `new PlaneShape()` / `new SphereShape()` / `new CylinderShape()` | `MeshRenderer.setBox(entity)` / `setPlane(entity)` / `setSphere(entity)` / `setCylinder(entity)` (add `MeshCollider.setBox(entity)` etc. for collision)                                          |
 | `new Material()` + `m.albedoColor = Color3.Blue()` + `entity.addComponent(m)`       | `Material.setPbrMaterial(entity, { albedoColor: Color4.Blue() })` (note: Color4 in SDK7)                                                                                                         |
 | `new BasicMaterial()` + `m.texture = new Texture(...)`                              | `Material.setBasicMaterial(entity, { texture: Material.Texture.Common({ src }) })`                                                                                                               |
@@ -92,7 +85,7 @@ See `{baseDir}/references/api-mapping.md` for the full table. The most common co
 | `log(...)`                                                                          | `console.log(...)`                                                                                                                                                                               |
 | `entity.addComponent(new utils.Delay(ms, cb))` (from `decentraland-ecs-utils` / `@dcl-sdk/utils`) | `timers.setTimeout(cb, ms)` (`import { timers } from '@dcl/sdk/ecs'`, argument order is `(callback, ms)`)                                                                              |
 | `entity.addComponent(new utils.Interval(ms, cb))`                                   | `timers.setInterval(cb, ms)` (`import { timers } from '@dcl/sdk/ecs'`)                                                                                                                           |
-| Custom per-frame `timerSystem` accumulating `dt`                                    | Delete it — use `timers.setTimeout` / `timers.setInterval` instead                                                                                                                               |
+| Per-frame `timerSystem` accumulating `dt` to fire callbacks                                  | Delete it — use `timers.setTimeout` / `timers.setInterval` instead                                                                                                                               |
 
 ## Migration Workflow
 
@@ -116,20 +109,22 @@ This list is the completion checklist for steps 5–10 — each of those steps i
 - Replace `decentraland-ecs` with `@dcl/sdk` (latest).
 - Replace `build-ecs` / `dcl start` scripts with `sdk-commands start` / `sdk-commands build`.
 - Replace the old `tsconfig.json` with the standard SDK7 one (`target: ES2020`, `module: ESNext`, `jsx: react-jsx`, `strict: true`).
-- Add `"runtimeVersion": "7"` to `scene.json`. **Do NOT modify `main`** unless the user asks.
+- Add `"runtimeVersion": "7"` to `scene.json`. Keep `main` as it is.
+
+**Done when:** `npm install` succeeds and `grep -n decentraland-ecs package.json` returns nothing.
 
 ### 3. Reorganize asset folders under `assets/`
 
 SDK6 scenes commonly kept assets in **top-level folders at the project root**: `models/`, `images/`, `audio/` (or `sounds/`), `textures/`, `videos/`. SDK7 + Creator Hub expects assets under a top-level **`assets/`** folder so the visual editor can index them. Do this move as a discrete step BEFORE porting any code — that way the path rewrites in later steps can target the final locations directly.
 
 1. **Identify** every top-level asset folder in the SDK6 project. Common SDK6 names: `models/`, `images/`, `audio/`, `sounds/`, `textures/`, `videos/`.
-2. **Create** the new structure under `assets/` using the **capitalized category** convention used elsewhere in these skills (see [[create-scene]], [[add-3d-models]], [[audio-video]]):
+2. **Create** the new structure under `assets/` using the **capitalized category** convention (**add-3d-models** → Asset folder conventions):
    - `models/` → `assets/Models/`
    - `images/` → `assets/Images/`
    - `audio/` or `sounds/` → `assets/Audio/`
    - `videos/` → `assets/Videos/`
    - `textures/` → `assets/Images/` (textures are images; consolidate unless the user wants a separate folder)
-3. **Move** files into the new structure. Do NOT leave duplicate copies — delete the old top-level folders once the move is complete. Dual copies cause Creator Hub to index stale paths and roughly double scene size on deploy (both copies get bundled).
+3. **Move** files into the new structure, then delete the old top-level folders, so each file exists once. Dual copies cause Creator Hub to index stale paths and roughly double scene size on deploy (both copies get bundled).
 4. **Rewrite every code reference** to the moved paths. Grep the entire source tree for the old folder names and update each hit:
    - `GltfContainer.create(e, { src: 'models/chair.glb' })` → `... { src: 'assets/Models/chair.glb' }`
    - `AudioSource.create(e, { audioClipUrl: 'sounds/click.mp3' })` → `... 'assets/Audio/click.mp3'`
@@ -138,7 +133,7 @@ SDK6 scenes commonly kept assets in **top-level folders at the project root**: `
    - Any string literal mentioning the old folder name anywhere in code, JSON, or `.composite` files.
 5. **Done when:** grepping the project for the old folder names returns zero remaining references, and opening the scene in Creator Hub shows the asset tree populated from `assets/`.
 
-**Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these for asset-pack items and custom items), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type — don't fragment.
+**Exception — reuse existing layout if present.** If the project already contains `assets/scene/Models/` (the legacy Creator Hub layout) or `assets/asset-packs/` / `assets/custom/` (Creator Hub adds these for asset-pack items and custom items), reuse those paths instead of creating a parallel `assets/Models/`. The rule is: one canonical location per asset type.
 
 ### 4. Create `src/index.ts` with an exported `main()`
 
@@ -151,9 +146,11 @@ export function main() {
 }
 ```
 
+**Done when:** `src/index.ts` exports `main()`.
+
 ### 5. Port components first
 
-Convert each `@Component` class to `engine.defineComponent(name, schema, defaults)`. **Flatten nested types** — `Schemas` does not support arbitrary classes, but does support `Schemas.Vector3`, `Schemas.Quaternion`, primitives, arrays, and nested `Schemas.Map(...)`. A `Vector2` field in SDK6 typically becomes two scalar fields (`posX`, `posY`) in SDK7 — see the 2048 example in `{baseDir}/references/migration-example.md`.
+Convert each `@Component` class to `engine.defineComponent(name, schema, defaults)`; every component needs a schema (untyped SDK6 class fields cannot be inferred). Move class methods and constructor logic (`reset()`, etc.) into free functions or systems: components are pure data. **Flatten nested types** — `Schemas` does not support arbitrary classes, but does support `Schemas.Vector3`, `Schemas.Quaternion`, primitives, arrays, and nested `Schemas.Map(...)`. There is no `Schemas.Vector2`: a `Vector2` field becomes two `Schemas.Number` fields (`posX`, `posY`) or `Schemas.Map({ x: Schemas.Number, y: Schemas.Number })` — see the 2048 example in `{baseDir}/references/migration-example.md`.
 
 **Done when:** `grep -rn "@Component(" src/` returns zero hits and every component on the step-1 audit list has a corresponding `engine.defineComponent` call.
 
@@ -165,26 +162,27 @@ Each `class X implements ISystem { update(dt) {...} }` becomes a free function. 
 
 ### 7. Port the entity/component setup (the bulk of `game.ts`)
 
-For each `new Entity()` block, replace with `engine.addEntity()` and a series of `Component.create(entity, ...)` calls. Convert `setParent` to a `parent` field on the Transform. Use the new `assets/Models/...`, `assets/Audio/...`, `assets/Images/...` paths established in step 3 for every `src` / `audioClipUrl` / `texture.src`.
+For each `new Entity()` block, replace with `engine.addEntity()` and a series of `Component.create(entity, ...)` calls. Convert `setParent` to a `parent` field on the Transform. Primitives need `MeshRenderer` **and** `MeshCollider` for clicks or physics (an SDK6 `BoxShape` did both). Materials live on one entity each: `Material.setPbrMaterial(entity, props)`, no shared instance. Most color fields take `Color4`. Use the new `assets/Models/...`, `assets/Audio/...`, `assets/Images/...` paths established in step 3 for every `src` / `audioClipUrl` / `texture.src`.
 
 **Done when:** `grep -rnE "new Entity\(|\.addComponent\(|\.setParent\(" src/` returns zero hits, and no `src` / `audioClipUrl` / texture path still references a pre-step-3 folder.
 
 ### 8. Port input/pointer handlers
 
-- Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`. Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`). See [[add-interactivity]].
-- Global key subscriptions (`Input.instance.subscribe`) → use `inputSystem.isTriggered(InputAction.IA_X, PointerEventType.PET_DOWN)` inside a system. See [[advanced-input]].
+- Per-entity click handlers (`new OnPointerDown(...)`) → `pointerEventsSystem.onPointerDown({ entity, opts }, handler)`, registered once at setup (inside a system it re-registers every frame). Add a collider if the entity doesn't already have one (`MeshCollider.setBox(entity)` or `visibleMeshesCollisionMask: 1` on `GltfContainer`: SDK7 GLBs collide only on their `_collider` meshes by default). See **add-interactivity**.
+- Global key subscriptions (`Input.instance.subscribe`, including `BUTTON_DOWN` / `BUTTON_UP`) → `inputSystem.isTriggered(InputAction.IA_X, PointerEventType.PET_DOWN)` inside a system. See **advanced-input**.
+- SDK6 "intercepting tool" items (a key or magnet acting on whatever is clicked) have no global hit subscriber in SDK7: `{baseDir}/references/api-mapping.md` → Click interception across entities.
 
 **Done when:** `grep -rnE "OnPointerDown|OnPointerUp|Input\.instance|ActionButton\." src/` returns zero hits and every handler on the step-1 audit list has a `pointerEventsSystem` or `inputSystem` counterpart.
 
 ### 9. Port animations
 
-`new Animator()` + `new AnimationState('clip')` + `animator.addClip(...)` becomes a single `Animator.create(entity, { states: [{ clip, playing, loop }] })`. Play with `Animator.playSingleAnimation(entity, 'clip')`. Stop all with `Animator.stopAllAnimations(entity)`. See [[animations-tweens]].
+`new Animator()` + `new AnimationState('clip')` + `animator.addClip(...)` becomes a single `Animator.create(entity, { states: [{ clip, playing, loop }] })`. Play with `Animator.playSingleAnimation(entity, 'clip')`. Stop all with `Animator.stopAllAnimations(entity)`. SDK6's `getClip(name)` created clips on first use; in SDK7 `playSingleAnimation` silently ignores a clip missing from `states[]`. A model with clips and no `Animator` autoplays a clip on its own, where SDK6 stayed in bind pose. Rules, the lazy-registering `playAnim` wrapper and per-frame helper overhead: **animations-tweens** → Which clip plays.
 
-**Done when:** `grep -rnE "new Animator|AnimationState|addClip|getClip" src/` returns zero hits, and every clip name that appears in an SDK6 `playAnimation` / `getClip` call is listed in some `states[]` array — clips missing from `states[]` fail silently (see the `playSingleAnimation` pitfall in **Common Pitfalls**).
+**Done when:** `grep -rnE "new Animator|AnimationState|addClip|getClip" src/` returns zero hits, every clip name that appears in an SDK6 `playAnimation` / `getClip` call is listed in some `states[]` array, and every animated model that should rest or play a specific clip has an `Animator`.
 
 ### 10. Port sounds
 
-`new AudioClip(url)` + `entity.addComponent(new AudioSource(clip))` becomes `AudioSource.create(entity, { audioClipUrl: url, playing: false, ... })`. Play by toggling `AudioSource.getMutable(entity).playing = true`. See [[audio-video]].
+`new AudioClip(url)` + `entity.addComponent(new AudioSource(clip))` becomes `AudioSource.create(entity, { audioClipUrl: url, playing: false, ... })`. Play by toggling `AudioSource.getMutable(entity).playing = true`. See **audio-video**.
 
 **Done when:** `grep -rnE "new AudioClip|new AudioSource\(" src/` returns zero hits.
 
@@ -197,44 +195,20 @@ Run `npm install` to fetch the new SDK, then `sdk-commands start` (or `npm start
 3. The preview loads with no errors in the console.
 4. The visible layout (positions/rotations) matches the SDK6 scene.
 
-If any check fails, return to the step that owns that symbol category — do NOT report the migration as done.
+If any check fails, return to the step that owns that symbol category; the migration is done only when all four hold.
 
 ## Common Pitfalls
 
-- **Mutating a `.get()` result**: `Transform.get(entity).position.x = 5` is silently a no-op. Use `Transform.getMutable(entity).position.x = 5`.
-- **Passing explicit `rotation: undefined` / `scale: undefined` to `Transform.create` crashes the serializer**: symptom is `"Cannot read properties of undefined (reading 'x')"` at serialization. Why (verified — `@dcl/ecs/dist/components/manual/Transform.js`): `Transform.create` runs the value through `TransformSchema.extend`, which spreads `...value` AFTER its defaults, so an explicit `undefined` field overrides the default identity rotation / unit scale and is stored as `undefined`; the binary `serialize` then reads `value.rotation.x` and throws. This bites when a port builds a Transform from a partial object that may carry `undefined` fields (e.g. `Transform.create(e, { position, rotation: maybeRot, scale: maybeScale })`). **Fix — omit the field entirely instead of passing `undefined`** so the schema applies its default:
-  ```typescript
-  const out: Partial<TransformType> = { position }
-  if (rotation) out.rotation = rotation
-  if (scale) out.scale = scale
-  if (parent !== undefined) out.parent = parent
-  Transform.create(entity, out)
-  ```
-- **Forgetting the schema**: `engine.defineComponent` REQUIRES a schema. SDK6 class fields with no type cannot be auto-inferred.
-- **Component methods**: SDK6 components frequently had a `reset()` or constructor logic. These MUST be moved to free functions in SDK7 — components are pure data.
-- **Vector2 fields**: `Schemas` does NOT have `Schemas.Vector2`. Flatten to two `Schemas.Number` fields, or use `Schemas.Map({ x: Schemas.Number, y: Schemas.Number })`.
-- **`setParent` on the entity object**: Entities are integers in SDK7 — there is no method. Set the `parent` field on the child's `Transform`.
-- **Color3 vs Color4**: Most SDK7 component fields take `Color4` (with alpha). Replace `Color3.X()` calls with `Color4.X()` unless the field is documented as Color3.
-- **Materials are not entities or objects**: There is no `new Material()` instance you keep a reference to. `Material.setPbrMaterial(entity, props)` is the only way to set it — a material lives on one entity, not as a shared object.
-- **Shape entities (BoxShape, PlaneShape, etc.) need MeshRenderer AND MeshCollider**: In SDK6 a single `BoxShape` did both render and collide (with a flag). In SDK7 these are two separate components — add both if you need clicks/physics on a primitive.
-- **GLTFShape had its visible mesh clickable by default with `withCollisions: true`**: In SDK7, `GltfContainer` by default only has collisions on the invisible \_collider mesh. Some models may not be ready for that. If an entity is no longer clickable from a lack of collider, it may need explicit `visibleMeshesCollisionMask` set to a value including `CL_POINTER` (1) for clicks, or `CL_PHYSICS` (2) for player collision, or `3` for both. See [[add-3d-models]].
-- **`OnPointerDown` callbacks no longer fire inside a `forEach` over a component group**: In SDK6 they were event-driven; in SDK7 you register the handler once with `pointerEventsSystem.onPointerDown(...)` — don't put that call inside a system's update loop or you'll register a new handler every frame.
-- **`Animator.playSingleAnimation` silently no-ops on clips not in `Animator.states` (porters who built the Animator in code)**: this applies specifically to the SDK6-port path where you author the `Animator` yourself in TypeScript and call `Animator.playSingleAnimation(entity, clipName)` programmatically. In that case, `playSingleAnimation` returns `false` and does nothing if `clipName` isn't already present in the entity's `states` array (verified — `@dcl/ecs/dist-cjs/components/extended/Animator.js` lines 35-46). No warning. SDK6 hid this — `Animator.getClip(name)` auto-created the clip on first use, so SDK6 scenes routinely call `playAnimation('Appear')` without declaring `'Appear'` upfront. A naive port that maps `entity.getComponent(Animator).getClip(name).play()` → `Animator.playSingleAnimation(entity, name)` ends up calling it against clip names the porter never added to `states[]`, and those calls silently fail. Fix: walk every `playAnimation` / `getClip` call in the SDK6 source, collect the full set of clip names per entity, and list them all in the `states` array at `Animator.create` time. For a quick port-friendly shim that restores SDK6's "play any clip, no setup" ergonomics with a lazy `states.push`, see the wrapper in [[animations-tweens]] (PITFALL section). **This rule does not apply** to scenes whose Animator was written by the Creator Hub Inspector (which pre-populates `states[]` with every GLB clip) or by asset packs / smart items (which ship with `states` populated), nor to models with no `Animator` at all — those rely on the autoplay path in the next bullet.
-- **Unnecessary serialization overhead when porting `anim.stop(); anim.play()` to a hand-rolled SDK7 helper called every frame**: applies when you replace SDK6's `anim.stop(); anim.play()` with a custom SDK7 helper that directly mutates `Animator.states` (`s.playing`, `s.shouldReset`) AND that helper is invoked from a per-frame caller — a system update, or an input/raycast callback that fires every tick the input is held. The animation will NOT freeze (the CRDT unchanged-mutable suppression layer in `@dcl/ecs` detects identical writes and silently drops them), but calling `getMutableOrNull()` every tick incurs unnecessary serialization + byte-comparison overhead each frame. **Fix**: track the last-applied clip per entity and short-circuit the helper when unchanged; on a `noLoop + revertToIdle` re-call with the same clip, only refresh the revert timer instead of re-mutating states; clear the tracked clip before re-applying the idle clip from the revert callback. **Does NOT apply** when the helper is called only on a state transition (one-shot `onPointerDown`, edge-triggered state machine), nor when you use `Animator.playSingleAnimation` from a transition rather than a per-frame caller. See the "Short-circuit clip-switch helpers" best practice in [[animations-tweens]] for the full helper pattern.
-- **`GltfContainer` autoplays one clip from a multi-animation .glb when no `Animator` is attached**: SDK6 models stayed in their bind pose by default; SDK7 picks one clip from the .glb and plays it. This is the same mechanism that lets clip-less Inspector scenes work without registration — it's the *complement* to the previous bullet, not a contradiction. When the entity has no `Animator`, the renderer autoplays; when the entity has an `Animator` and you call `playSingleAnimation`, the clip must be in `states[]`. The renderer autoplays and loops the file's first clip (index 0), so which clip that is depends on the export order — small ghosts with no `Animator` autoplayed `die` straight from the GLB. **Fix when you want a different default**: attach an `Animator.create(entity, { states: [{ clip: '<intended-default>', playing: true, loop: true }] })` to take control. **Fix when you also want to switch clips at runtime via `playSingleAnimation`**: list every clip you'll switch to in `states[]` (see previous bullet).
-- **`Input.instance.subscribe` with `BUTTON_DOWN` / `BUTTON_UP`**: there is no direct callback equivalent. Use `inputSystem.isTriggered()` inside a system for "just pressed this frame".
-- **`@dcl/ecs-scene-utils` trigger areas (the "Utils library") AND hand-rolled per-frame AABB checks**: do NOT port the custom per-frame position-checking system, and do NOT recreate it from scratch in SDK7. SDK6 had no native trigger area, so the community Utils library (and many scenes' bespoke code) polled `Camera.instance.position` against a box/sphere region every frame and fired `onCameraEnter` / `onCameraExit`. SDK7 has a **native** `TriggerArea` component (`@dcl/sdk/ecs`) — replace the entire pattern with `TriggerArea.setBox(entity)` (or `.setSphere`) + `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` / `.onTriggerExit` / `.onTriggerStay`. Size comes from `Transform.scale`, position from `Transform.position`, and the parent chain is respected — so triggers parented to a rotated/offset scene root Just Work without manual coordinate transforms. **Behavior parity**: the Utils library only ever fired for the local player; native `TriggerArea` defaults to `ColliderLayer.CL_PLAYER`, which fires for ANY player on that layer. The correct guard for local-player-only behavior is `if (result.trigger?.entity !== engine.PlayerEntity) return` (NOT `result.triggeredEntity` — despite the confusing name, `triggeredEntity` is the trigger area's own entity, so comparing it to the player is always true and the guard never fires). See the "Trigger areas" section of `{baseDir}/references/api-mapping.md` and [[add-interactivity]] for the full component reference.
-- **`utils.Delay` / `utils.ExpireIn` from `decentraland-ecs-utils` (later `@dcl-sdk/utils`) AND hand-rolled per-frame timer systems**: do NOT port the community `Delay` component, do NOT recreate it in SDK7, and do NOT write a custom `setSceneTimeout` helper backed by a `timerSystem` that accumulates `dt`. Use the **`timers` named export from `@dcl/sdk/ecs`** (`import { timers } from '@dcl/sdk/ecs'`) — it provides `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` bound to the scene engine. Replace `entity.addComponent(new utils.Delay(2000, cb))` with `timers.setTimeout(cb, 2000)` and delete the "timer entity" the SDK6 scene created just to host the Delay component. **Argument order is `(callback, ms)`**, NOT `(ms, callback)` — the SDK6 `Delay(ms, cb)` order is the opposite of the JS standard, and custom helpers written with the SDK6 order are a known footgun that compounds the original mistake of writing the helper in the first place. **Do NOT use the native JS `setTimeout` / `setInterval` globals** — although QuickJS exposes them, they are not bound to the scene engine and can introduce subtle problems; always go through `timers`. See [[scene-runtime]] (Timers section) for the full reference.
-- **SDK6 "intercepting tool" smart-items** (keys, magnets, inventory items that act on a clicked target via `Input.instance.subscribe('BUTTON_DOWN', ActionButton.POINTER, true, …)` + entity-hierarchy walking) have no direct SDK7 equivalent. `pointerEventsSystem.onPointerDown` is per-entity only — there is no global hit-result subscriber. The migration pattern is a small registry keyed by target entity name; the target's own `pointerEventsSystem.onPointerDown` consults the registry before falling back to its default behavior. See `{baseDir}/references/api-mapping.md#click-interception-across-entities-keytool-acting-on-a-target`.
-- **`Vector3.GetAngleBetweenVectors`, `Vector3.Up()` etc.**: many SDK6 Vector3 helpers existed as static methods. SDK7 keeps most under `@dcl/sdk/math` but capitalization changed (e.g. `Vector3.Lerp` → `Vector3.lerp`). Grep for `Vector3.` after migration and verify each call against the math module.
-- **`log()` is not exported in SDK7**: replace with `console.log()`.
-- **`Attachable.FIRST_PERSON_CAMERA` / `Attachable.AVATAR` on held items (guns, aiming reticles, flashlights, fixed-position tools)**: map by intent, not to a bone anchor (a gun on `AAPT_RIGHT_HAND` jitters with the animation): `FIRST_PERSON_CAMERA` → `Transform.parent = engine.CameraEntity` (yaw and pitch, the default for aimed items); `engine.PlayerEntity` only for body-fixed items (yaw only, no pitch); `AvatarAttach` only for cosmetics. Mapping table: `{baseDir}/references/api-mapping.md` → Attaching items to the player; decision table and gun example: **player-avatar** → *Held items vs cosmetic items*.
-- **Billboarded models face AWAY from the camera after porting**: a model that displayed its front face under SDK6's `new Billboard(false, true, false)` (Y-axis billboard) shows its **back** to the camera under SDK7's `Billboard.create(e, { billboardMode: BillboardMode.BM_Y })` with the same parent/child setup. SDK6's renderer pointed a billboarded model's +Z at the camera; SDK7 points −Z at it (text billboards already used −Z under SDK6, so they keep their facing). **The SDK7 `PBBillboard` interface has no `oppositeDirection` flag** — the only field is `billboardMode` (verified against `@dcl/ecs` `billboard.gen.d.ts`), so the fix is in the model's Transform, not the Billboard component. **Rotate the displayed model 180° on Y** (`Quaternion.fromEulerDegrees(0, 180, 0)`). If the entity is a parent (`Billboard`'d) + a child model, apply the 180° rotation to the **child**'s `Transform.rotation` — the parent entity's rotation is owned by the Billboard component and overwriting it on the billboarded entity has no effect. The change is an undocumented renderer difference, so apply the 180° fix to every ported billboarded model. See [[advanced-rendering]] (Billboard) for the SDK7 component reference.
-- **UI pixel sizes do NOT carry over 1:1**: SDK6 UI (`UICanvas` / `UIImage` / `UIText`) was authored in raw pixels against a fixed screen size, so positions and sizes like `width = 200` or `positionX = -350` were absolute. SDK7 React-ECS scales pixel values against a **virtual canvas**, and on SDK 7.26.0+ it applies a per-platform default when you don't pick one (`1920x1080`, or `1600x720` on mobile) — a guess that is very likely not the grid the SDK6 UI was drawn on. Below 7.26.0 there is no default, and not picking one means no scaling at all, so the layout drifts with every display. Set the virtual canvas explicitly on `ReactEcsRenderer.setUiRenderer` so the engine treats your pixel values as coordinates inside the space they were authored in. Before porting UI, check the SDK6 source (the legacy ECS lives at https://github.com/decentraland/ecs) to see what pixel grid the original UI was designed against, and pass that as the virtual size:
-  ```ts
-  ReactEcsRenderer.setUiRenderer(uiRoot, { virtualWidth: 1920, virtualHeight: 1080 })
-  ```
-  `1920x1080` is a reasonable default to show, but the correct virtualWidth/virtualHeight depends on the resolution the SDK6 UI was authored against — if the SDK6 scene assumed a different reference resolution (e.g. `1280x720`), use those numbers instead so existing pixel coordinates land in the same place. On 7.26.0+ two behaviors can move the grid out from under you: a 16:9 size is overridden to `1600x720` when the scene runs on mobile, and any value `<= 0` disables scaling entirely. See [[build-ui]] for the full React-ECS rewrite and its SDK version gate.
+Topic pitfalls live in the step that owns them (components: step 5; primitives, materials, colors: step 7; clicks and colliders: step 8; animations: step 9). Detail for each line below is in `{baseDir}/references/api-mapping.md`.
+
+- **Write through `getMutable()`.** `Transform.get(entity).position.x = 5` is silently a no-op; use `Transform.getMutable(entity).position.x = 5`.
+- **Omit optional Transform fields instead of passing `undefined`.** `Transform.create(e, { position, rotation: undefined })` stores `undefined` over the default and crashes serialization with `Cannot read properties of undefined (reading 'x')`; build the object with only the fields you have — api-mapping → Transforms & math.
+- **Replace Utils trigger areas and hand-rolled AABB polling with native `TriggerArea` + `triggerAreaEventsSystem`.** Guard local-player-only behaviour with `result.trigger?.entity === engine.PlayerEntity` (`triggeredEntity` is the area itself) — api-mapping → Trigger areas.
+- **Replace `utils.Delay` / `Interval` / `ExpireIn` and any dt-accumulating timer system with `timers.setTimeout(cb, ms)` / `timers.setInterval` from `@dcl/sdk/ecs`** (callback first, the reverse of SDK6's `Delay(ms, cb)`) — api-mapping → Timers / delays.
+- **Map held items by intent:** `Attachable.FIRST_PERSON_CAMERA` → parent to `engine.CameraEntity`; `Attachable.AVATAR` → `engine.PlayerEntity`; `AvatarAttach` only for cosmetics. Decision table: **player-avatar** → Held items vs cosmetic items.
+- **Rotate ported billboarded models 180° on Y.** SDK6 pointed a billboarded model's +Z at the camera, SDK7 points −Z, and `Billboard` has no flip flag; apply the rotation to the child model when a parent carries the `Billboard` — api-mapping → Billboards.
+- **Check Vector3 helper names against `@dcl/sdk/math`** after the port (`Vector3.Lerp` → `Vector3.lerp`).
+- **Set a virtual canvas for ported UI:** `ReactEcsRenderer.setUiRenderer(uiRoot, { virtualWidth, virtualHeight })` with the pixel grid the SDK6 UI was authored against, because SDK6 UI pixels were absolute — api-mapping → UI sizing — virtual canvas.
 
 ## What is genuinely hard to migrate
 
@@ -243,22 +217,22 @@ These don't have a clean 1:1 mapping and need redesign:
 - **Components with methods or constructors that do work** (e.g. `GemData.reset(val, x, y)`): split the data into the new component, move the logic into a free function that takes `(entity: Entity, val: number, ...)` and calls `Component.getMutable(entity)`.
 - **Component groups that the user holds a reference to and iterates many times**: SDK7 `engine.getEntitiesWith(...)` is recomputed each call. For hot loops over the same set, cache it inside the system or accept the cost.
 - **Object pools that rely on `entity.alive`**: SDK7 entities don't have an `alive` flag. Pools must track liveness with a custom component or by checking `Component.has(entity)`. The Migrated-2048 example simplified this to "always add a new entity" — that's acceptable for low-throughput cases, but a real pool needs explicit state.
-- **UI built with the SDK6 `UICanvas` / `UIImage` / `UIText` / `UIClickable`**: not API-compatible with SDK7. SDK7 UI is React-ECS (JSX). See [[build-ui]] — this often requires a from-scratch rewrite. When porting, also set a virtual canvas size on `ReactEcsRenderer.setUiRenderer` so the SDK6 pixel coordinates scale predictably across screens — see the UI pixel sizing pitfall in **Common Pitfalls** above.
+- **UI built with the SDK6 `UICanvas` / `UIImage` / `UIText` / `UIClickable`**: not API-compatible with SDK7. SDK7 UI is React-ECS (JSX). See **build-ui** — this often requires a from-scratch rewrite. Set a virtual canvas size too (**Common Pitfalls**).
 - **`@Component('name')` decorator metadata**: SDK7 component IDs are strings supplied to `engine.defineComponent('name', ...)`. Use the **same name** as the SDK6 decorator if other tools (composites, multiplayer sync) reference it by name. Otherwise pick a consistent naming scheme.
 
 ## Cross-References
 
 - **create-scene** — scaffolding a fresh SDK7 project; scene.json schema in `{baseDir}/../create-scene/references/scene-json.md`
-- [[composites]] — `.composite` file format for the optional second pass that moves static entities out of TypeScript
-- [[add-3d-models]] — `GltfContainer`, collider masks for clickability
-- [[add-interactivity]] — `pointerEventsSystem` (replaces SDK6 `OnPointerDown`)
-- [[advanced-input]] — `inputSystem` polling (replaces SDK6 `Input.instance.subscribe`)
-- [[scene-runtime]] — `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` (replaces SDK6 community `decentraland-ecs-utils` `Delay` / `Interval`), `executeTask`, `fetch`, realm/scene info
-- [[animations-tweens]] — `Animator` and `Tween` (replaces SDK6 `Animator`/`AnimationState`)
-- [[audio-video]] — `AudioSource` and `VideoPlayer`
-- [[build-ui]] — React-ECS UI (replaces SDK6 `UICanvas` UI system)
-- [[advanced-rendering]] — PBR materials, TextShape, Billboard
-- [[multiplayer-sync]] — `syncEntity` for multiplayer (replaces SDK6 `MessageBus` / sync libraries)
+- **composites** — `.composite` file format for the optional second pass that moves static entities out of TypeScript
+- **add-3d-models** — `GltfContainer`, collider masks for clickability
+- **add-interactivity** — `pointerEventsSystem` (replaces SDK6 `OnPointerDown`)
+- **advanced-input** — `inputSystem` polling (replaces SDK6 `Input.instance.subscribe`)
+- **scene-runtime** — `timers.setTimeout` / `timers.setInterval` from `@dcl/sdk/ecs` (replaces SDK6 community `decentraland-ecs-utils` `Delay` / `Interval`), `executeTask`, `fetch`, realm/scene info
+- **animations-tweens** — `Animator` and `Tween` (replaces SDK6 `Animator`/`AnimationState`)
+- **audio-video** — `AudioSource` and `VideoPlayer`
+- **build-ui** — React-ECS UI (replaces SDK6 `UICanvas` UI system)
+- **advanced-rendering** — PBR materials, TextShape, Billboard
+- **multiplayer-sync** — `syncEntity` for multiplayer (replaces SDK6 `MessageBus` / sync libraries)
 
 ## References
 

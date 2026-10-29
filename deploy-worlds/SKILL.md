@@ -1,6 +1,6 @@
 ---
 name: deploy-worlds
-description: Deploy a Decentraland scene to a World (personal 3D space using a DCL NAME or ENS domain). Use when the user wants to deploy to a World or use a DCL NAME/ENS domain. Do NOT use for Genesis City LAND deployment (see deploy-scene).
+description: Deploy a scene to a Decentraland World (DCL NAME or ENS domain). Use for World publishing, the World storage budget or "scene too large", multi-scene Worlds and collaborators, or a World name or description not updating on Places. For Genesis City LAND see deploy-scene.
 ---
 
 # Deploying to Decentraland Worlds
@@ -61,12 +61,7 @@ All Worlds are automatically listed on the [Places page](https://places.decentra
 
 ### Discovery metadata
 
-Worlds are listed on Places unless opted out, so the same metadata that drives discovery in Genesis City applies here. Before publishing, verify all four are set — fill in what you can infer from the scene, ask the user only for the rest:
-
-- `display.title` — the World's name
-- `display.description` — one or two sentences on what it is
-- `tags` — root-level array, 1-3 Places-dApp categories from the predefined list: `"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
-- `display.navmapThumbnail` — `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; keep essential content inside the central 1080x1080 square, which is what square crops of the thumbnail show. Verify the file exists and check its size with `sips -g pixelWidth -g pixelHeight <path>` (macOS) or `magick identify -format "%wx%h\n" <path>`. Then crop the central square and look at the crop, not the full frame: text that runs edge to edge looks fine in the full frame (crop commands in **deploy-scene**'s pre-deploy checklist). Capture it yourself with the unity-explorer MCP rather than asking the user — full spec and procedure in the **deploy-scene** skill ("Thumbnail image")
+A World is listed on Places unless opted out, so before publishing run **deploy-scene**'s metadata checks (title, description, `tags`, thumbnail; pre-deployment checklist and *Thumbnail image*). Fill in what you can infer from the scene and ask the user only for the rest. Category list: `{baseDir}/../create-scene/references/scene-json.md` → Tags.
 
 ## 2. Deploy
 
@@ -76,7 +71,7 @@ Deploy with the CLI. `--target-content` is required: with `worldConfiguration` s
 npx @dcl/sdk-commands deploy --target-content https://worlds-content-server.decentraland.org
 ```
 
-This will prompt the user to sign the deployment with their wallet. Validations run automatically to allow or reject the scene.
+This prompts the user to sign the deployment with their wallet; validations then accept or reject the scene. Done when the deploy exits 0 and `https://decentraland.org/jump?realm=NAME.dcl.eth` shows the new version (fully restart the client first if you loaded the World this session: a scene reload keeps the cached version).
 
 Files matched by `.dclignore` (at the project root) are excluded from the upload — keep working files like Blender sources, concept art, and markdown docs listed there so the World stays light. See the `.dclignore` section in the **deploy-scene** skill.
 
@@ -97,9 +92,7 @@ A successful deploy prints `Content uploaded successfully` with a `play.decentra
 https://decentraland.org/jump?realm=NAME.dcl.eth
 ```
 
-This is the canonical path. Generate `/jump` URLs; the `/play/world/NAME.dcl.eth` form only redirects to it. For a Genesis City scene the equivalent is `https://decentraland.org/jump?position=x,y`. The Creator Hub's post-publish panel shows and copies exactly this link, and its **Jump In** button opens the desktop client separately via `decentraland://?realm=NAME.dcl.eth&dclenv=<env>` — prefer the web link in anything you write for players, and the deeplink only when the target is known to have the client.
-
-Also available: `https://decentraland.zone/bevy-web?realm=NAME.dcl.eth` for the browser (Bevy) client.
+Generate `/jump` links, never `/play/...`. Desktop deeplinks and the Genesis City form: **deploy-scene** → *The link to share after publishing*. Browser (Bevy) client: `https://decentraland.zone/bevy-web?realm=NAME.dcl.eth`.
 
 From inside Decentraland, use the chatbox command:
 ```
@@ -115,7 +108,7 @@ From inside Decentraland, use the chatbox command:
   "display": {
     "title": "My World",
     "description": "A personal 3D space",
-    "navmapThumbnail": "images/thumbnail.png"
+    "navmapThumbnail": "assets/Images/thumbnail.png"
   },
   "tags": ["social"],
   "scene": {
@@ -131,37 +124,7 @@ From inside Decentraland, use the chatbox command:
 
 ## World Configuration Options
 
-Beyond `name` and `placesConfig`, `worldConfiguration` supports skybox and minimap customization:
-
-```json
-"worldConfiguration": {
-  "name": "my-name.dcl.eth",
-  "skyboxConfig": {
-    "fixedTime": 43200
-  },
-  "placesConfig": {
-    "optOut": false
-  }
-}
-```
-
-- `skyboxConfig.fixedTime`, `skyboxConfig.textures` (`string[]`) and `miniMapConfig` (`visible` / `dataImage` / `estateImage`) are fields of the `@dcl/schemas` `WorldConfiguration` type; the legacy `skybox` and `minimapVisible` fields are deprecated in favour of them.
-
-**`skyboxConfig.fixedTime` values:**
-
-Values are seconds since midnight; a full day is `86400`.
-
-| Value | Time of day |
-|-------|------------|
-| `0` | Midnight |
-| `21600` | 6 AM (sunrise) |
-| `43200` | Noon |
-| `64800` | 6 PM (sunset) |
-| `86400` | Full day (maximum) |
-
-Any value above `86400` is interpreted as midnight. Omit `fixedTime` for a dynamic day/night cycle.
-
-`worldConfiguration.skyboxConfig.fixedTime` is verified working in the engine test scenes, and takes precedence over a top-level `skyboxConfig.fixedTime` if both are present. See the **lighting-environment** skill for runtime control (the `SkyboxTime` component, which overrides either JSON value).
+Beyond `name` and `placesConfig`, `worldConfiguration` takes `skyboxConfig` (fixed time of day, skybox textures) and `miniMapConfig`. Fields, `fixedTime` values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *worldConfiguration* and *Skybox fixed time*. Runtime control (`SkyboxTime`): **lighting-environment**.
 
 ## Multi-Scene Worlds
 
@@ -186,9 +149,7 @@ To deploy as a collaborator, use the normal `deploy` process — the publishing 
 
 ## Post-Publish Conversion
 
-Worlds go through the same asset bundle conversion as Genesis City scenes — 3D models are compressed server-side after each publish. **Conversion usually takes seconds** (longer for very large scenes or busy servers); the **Jump In** button appears as soon as the scene is playable. A conversion still running after a couple of minutes is a failure signal, not normal queuing. For conversion status endpoints and the `/detectabs` chat command, see the **deploy-scene** skill ("Post-Publish: Asset Bundle Conversion"). Use **Compress Assets** (Creator Hub Play Options > Desktop Client) or `--asset-bundles` in preview to catch conversion issues before publishing.
-
-**Anyone who already loaded the World this session keeps seeing the cached version** until they fully close and re-enter Decentraland — a scene reload is not enough.
+Worlds go through the same asset bundle conversion as Genesis City scenes: **deploy-scene** → *Post-Publish: Asset Bundle Conversion*.
 
 ## World metadata vs scene metadata
 
@@ -220,12 +181,3 @@ How they interact depends on how many scenes the World holds:
 ## Example scenes
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — a World scene setting a fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime`, and reading it back with `getSceneInformation`.
-
-> **Deploying to Genesis City instead?** See the **deploy-scene** skill.
-
-## Key Differences from Genesis City
-
-- **No parcel limitations** — Worlds are not constrained by LAND ownership
-- **NAME/ENS required** — must own a Decentraland NAME or ENS domain instead of LAND
-- **Different deploy target** — uses `--target-content https://worlds-content-server.decentraland.org`
-- **Auto-listed on Places** — unless opted out via `placesConfig.optOut`

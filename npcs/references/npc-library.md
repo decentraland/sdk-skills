@@ -1,4 +1,4 @@
-# dcl-npc-toolkit Context7 Reference
+# dcl-npc-toolkit reference
 
 ## Installation & Import
 
@@ -191,18 +191,17 @@ pointerEventsSystem.onPointerDown(
 // Use SDK7 TriggerArea directly (no @dcl-sdk/utils)
 import { TriggerArea, triggerAreaEventsSystem, ColliderLayer } from '@dcl/sdk/ecs'
 
-// Add a spherical trigger around the NPC
-TriggerArea.setSphere(npcEntity, ColliderLayer.CL_PLAYER)
-Transform.createOrReplace(npcEntity, {
-  position: Transform.get(npcEntity).position,
-  scale: Vector3.create(3, 3, 3) // radius ~3
-})
+// Spherical trigger on a child entity: the area's size is its Transform.scale
+// (sphere radius = scale / 2), so scaling the NPC entity itself would scale the model
+const zone = engine.addEntity()
+Transform.create(zone, { parent: npcEntity, scale: Vector3.create(6, 6, 6) }) // radius 3
+TriggerArea.setSphere(zone, ColliderLayer.CL_PLAYER)
 
 // Listen for player entering/leaving
-triggerAreaEventsSystem.onTriggerEnter(npcEntity, () => {
+triggerAreaEventsSystem.onTriggerEnter(zone, () => {
   showNPCDialogue(npcEntity)
 })
-triggerAreaEventsSystem.onTriggerExit(npcEntity, () => {
+triggerAreaEventsSystem.onTriggerExit(zone, () => {
   hideNPCDialogue()
 })
 ```
@@ -373,6 +372,26 @@ When opening dialogs on an EXISTING entity (not created via `npc.create`), the t
 Common symptoms and fixes:
 - Error: "Cannot set properties of undefined (setting 'script')" in bubble.js → Missing `createDialogBubble(npc)` before `talkBubble`.
 - Error in `<NpcUtilsUi>` caused by `getTheme`/`displayDialog` → Missing `npcDataComponent` for that entity; call `addDialog` and ensure a minimal `npcDataComponent.set(...)` exists before `openDialogWindow`.
+
+### Standalone windows from `createDialogWindow()`
+
+`createDialogWindow(portrait, sound)` only calls `addDialog(...)` (sets `npcDialogComponent`), not `npcDataComponent`. When the window opens, `getTheme()` reads `npcDataComponent.get(activeNPC).theme` and the UI crashes with `"Cannot read properties of undefined (reading 'theme')"`. NPCs built with `create()` / `createNPC` have `npcDataComponent` set and never hit this. After `createDialogWindow`, set it with a valid theme:
+
+```typescript
+import { createDialogWindow } from 'dcl-npc-toolkit'
+import { npcDataComponent } from 'dcl-npc-toolkit/dist/npc'
+import { lightTheme } from 'dcl-npc-toolkit/dist/ui'
+
+const window = createDialogWindow(portrait, sound)
+npcDataComponent.set(window, {
+  introduced: false, inCooldown: false, coolDownDuration: 5,
+  faceUser: undefined, walkingSpeed: 2, walkingAnim: undefined,
+  pathData: undefined, currentPathData: [], manualStop: false,
+  pathIndex: 0, state: 'standing', idleAnim: 'Idle', hasBubble: false,
+  turnSpeed: 2, theme: lightTheme, bubbleXOffset: 0, bubbleYOffset: 0,
+  lastPlayedAnim: 'Idle', volume: 0.5,
+})
+```
 
 ## NPC Movement & Behavior
 

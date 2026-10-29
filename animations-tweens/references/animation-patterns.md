@@ -9,7 +9,7 @@ import { Vector3 } from '@dcl/sdk/math'
 
 const character = engine.addEntity()
 Transform.create(character, { position: Vector3.create(8, 0, 8) })
-GltfContainer.create(character, { src: 'models/character.glb' })
+GltfContainer.create(character, { src: 'assets/Models/character.glb' })
 
 Animator.create(character, {
   states: [
@@ -49,6 +49,64 @@ const anim = Animator.getMutable(entity)
 anim.states[0].weight = 0.5
 anim.states[1].weight = 0.5
 ```
+
+### Clip-switch helper for SDK6 ports
+
+**Scope:** this applies when you write your own clip-switch helper that mutates `Animator.states` directly (`s.playing`, `s.loop`, `s.shouldReset`) and that helper is invoked from a per-frame caller (an `engine.addSystem` update, an `inputSystem`/raycast callback that fires every tick, or any code path that runs each frame). The most common reason to write such a helper is porting an SDK6 scene that used lazy clip registration or `noLoop + revertToIdle` semantics (**migrate-sdk6-to-sdk7**).
+
+**Why it matters.** A naive helper looks like this:
+
+```ts
+function playClip(entity: Entity, name: string, loop: boolean) {
+  const a = Animator.getMutableOrNull(entity);
+  if (!a) return;
+  for (const s of a.states) {
+    if (s.clip === name) {
+      s.playing = true;
+      s.loop = loop;
+      s.shouldReset = true; // <-- rewritten every tick if helper is called per-frame
+    } else {
+      s.playing = false;
+    }
+  }
+}
+```
+
+Called every frame, this calls `Animator.getMutableOrNull()` each tick, which marks the entity dirty in the CRDT layer. The ECS then serializes the component to bytes and compares against the last-sent snapshot. Since the values are identical frame-to-frame, the CRDT suppression layer silently drops the update — the animation will NOT freeze. However, the per-frame serialization and byte comparison is unnecessary overhead that should be avoided.
+
+**Note on `Animator.playSingleAnimation`.** `playSingleAnimation` is NOT idempotent — it writes `playing=false, shouldReset=true` on every state in a loop, then `playing=true, shouldReset=<arg>` on the target. Calling it per-frame triggers the same unnecessary serialization overhead. Prefer to call `playSingleAnimation` from one-shot transitions (`onPointerDown`, state-machine edges) rather than from a system tick.
+
+**Fix — track the last-applied clip and short-circuit:**
+
+```ts
+type Anim = { entity: Entity; lastClip?: string };
+
+function playClip(a: Anim, name: string, loop: boolean) {
+  if (a.lastClip === name) return; // already applied — skip redundant serialization
+  const an = Animator.getMutableOrNull(a.entity);
+  if (!an) return;
+  for (const s of an.states) {
+    if (s.clip === name) {
+      s.playing = true;
+      s.loop = loop;
+      s.shouldReset = true;
+    } else {
+      s.playing = false;
+    }
+  }
+  a.lastClip = name;
+}
+```
+
+The short-circuit avoids calling `getMutableOrNull()` on unchanged frames, eliminating the per-frame serialization overhead. The CRDT delta is only sent on actual clip transitions.
+
+**SDK6-port subtlety — `noLoop + revertToIdle`.** An SDK6-style helper that takes `(clipName, noLoop, durationSec)` and schedules a `timers.setTimeout` (from `@dcl/sdk/ecs`) to revert to an idle clip must:
+
+- On a same-clip re-call (e.g. the player holds the beam and "Hit" keeps being requested every frame), **only refresh the timer** (clear + reschedule) so the clip keeps replaying for as long as input is held. Leave `Animator.states` as it is.
+- When the revert-to-idle timer fires, **clear `lastClip` before re-calling the helper with the idle clip** — otherwise the short-circuit prevents the idle from being applied if `lastClip` already equals the idle name from a prior tick.
+
+**When to prefer `Animator.playSingleAnimation`.** It's the canonical write: pauses all other states in one pass and accepts a `resetCursor` argument (defaults to `true`). It's not idempotent — but it's the right call site when the trigger is a one-shot event. The custom-helper pattern only exists when porting SDK6 code that needs lazy clip registration (see the `playAnim` wrapper in SKILL.md) or `noLoop + revertToIdle` semantics.
+
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: add-interactivity
-description: Event-driven interactivity for Decentraland entities. Covers pointerEventsSystem, proximity events, trigger areas (enter/exit zones), raycasting, and one-shot key presses on entities. Use when the user wants clickable objects, hover highlights, proximity-based interactions, detecting when a player enters a zone, E/F key actions on an entity, or ray-hit detection. For system-level polling (held keys, WASD movement, cursor lock, InputModifier, action bar) see advanced-input. For screen-space UI buttons see build-ui.
+description: Event-driven interactivity on Decentraland entities - clicks and hover (pointerEventsSystem), E/F presses near an entity (proximity events), enter/exit zones (TriggerArea), raycasts. For per-frame key polling, cursor lock, InputModifier or the action bar see advanced-input; for screen buttons see build-ui.
 ---
 
 # Adding Interactivity to Decentraland Scenes
@@ -18,48 +18,52 @@ An entity defined in `assets/scene/main.composite` gets its handlers from code t
 | Click/hover on a specific entity                      | Pointer events   | `pointerEventsSystem.onPointerDown()`       |
 | Button press when player is nearby (no aiming needed) | Proximity events | `pointerEventsSystem.onProximityDown()`     |
 | Detect player entering an area                        | Trigger area     | `TriggerArea` + `triggerAreaEventsSystem`   |
-| Poll key state every frame                            | Global input     | `inputSystem.isTriggered()` / `isPressed()` |
+| Poll key state every frame                            | **advanced-input** | `inputSystem.isTriggered()` / `isPressed()` |
 | Detect objects in a direction                         | Raycasting       | `raycastSystem` or `Raycast` component      |
-| Read cursor position / lock state                     | Cursor state     | `PointerLock`, `PrimaryPointerInfo`         |
+| Read cursor position / lock state                     | **advanced-input** | `PointerLock`, `PrimaryPointerInfo`         |
 
 ---
 
 ## Pointer Events (Click / Hover)
 
-Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range — it is measured **from the avatar**, not the camera (see "Distance rules" below) — and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
+Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Also available: `.onPointerUp()`, `.onPointerHoverEnter()`, `.onPointerHoverLeave()`. Set `maxDistance` in the opts (8–16m typical) to bound the interaction range, and set `hoverText` so players know the outcome. Remove with `.removeOnPointerDown(entity)` etc. — clean up handlers when the entity is removed.
 
-**Register the handler on the entity that owns the collider.** Pointer events reach the entity whose collider the ray hits — a handler on a parent group, or on a child that has no collider of its own, never fires. When a model is an empty parent with the collider mesh on a child entity, register on the child (or give the parent its own `MeshCollider`). A headset the player could not click (2026-10-12) was a handler on the parent of the collider entity. Collider layers: **Colliders Required** below.
+### Colliders
+
+- Pointer events reach only an entity with a collider on `ColliderLayer.CL_POINTER`. Primitive or invisible hitbox: `MeshCollider.setBox(entity)`. GLB: set its collision masks per **add-3d-models** → *RULE: Always check for built-in colliders* (`visibleMeshesCollisionMask` defaults to `0`, so a GLB without `_collider` meshes is not clickable until you set it).
+- **Register the handler on the entity that owns the collider.** Pointer events reach the entity whose collider the ray hits — a handler on a parent group, or on a child that has no collider of its own, never fires. When a model is an empty parent with the collider mesh on a child entity, register on the child (or give the parent its own `MeshCollider`).
+- Skinned / armature-rigged GLB (NPCs, characters) with no `_collider` mesh: the visible-mesh mask does not make it clickable — see *Skinned-mesh exception* below.
+
+### Skinned-mesh exception
+
+A skinned/rigged GLB with no `_collider` mesh does not receive pointer events through `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` (observed renderer behavior; the exact rigging conditions are undocumented, so verify per model). Add an invisible box collider on `CL_POINTER`, parented to the entity so it tracks movement, and register the handler on the collider:
+
+```typescript
+import { engine, MeshCollider, ColliderLayer, pointerEventsSystem, InputAction, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+
+// `npc` is the rigged GLB entity (with GltfContainer + Animator).
+const clicker = engine.addEntity()
+// scale to the avatar bounds; parent so it follows the NPC as it moves
+Transform.create(clicker, { position: Vector3.create(0, 0.45, 0), scale: Vector3.create(2, 2.9, 2), parent: npc })
+MeshCollider.setBox(clicker, ColliderLayer.CL_POINTER)
+
+pointerEventsSystem.onPointerDown(
+  { entity: clicker, opts: { button: InputAction.IA_PRIMARY, hoverText: 'Talk', showFeedback: true } },
+  () => { /* handle click */ }
+)
+```
+
+The `GltfContainer` itself can keep `visibleMeshesCollisionMask: 0`. For an AvatarShape NPC (no mesh collider at all), the same child-collider approach applies — see **npcs** Option A.
 
 ### Distance rules (`maxDistance` / `maxCameraDistance` / `maxPlayerDistance`)
 
-**`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments call it a camera distance; they are wrong. Example: test scene `34,20-pointer-events-distances`.
+- `maxDistance` is the distance from the **avatar**, not the camera; default `10`. Older SDK/protocol comments calling it a camera distance are wrong.
+- `maxCameraDistance` (`@dcl/sdk` 7.28.0+, unset by default) measures from the active camera and combines with `maxDistance` as an **OR**. Use it only when the check belongs to the camera (e.g. a fixed `VirtualCamera`).
+- `maxPlayerDistance` is a `[DEPRECATED]` alias of `maxDistance`.
+- Proximity events ignore `maxCameraDistance`, and their range can be clamped to ~3 m (see *Proximity Events*).
 
-| Option | Measured from | Default |
-|---|---|---|
-| `maxDistance` | the avatar/player position | `10` |
-| `maxCameraDistance` | the active camera origin | none (unset) |
-| `maxPlayerDistance` | `[DEPRECATED]` alias of `maxDistance` (same meaning) | none |
-
-How the two live thresholds combine:
-
-| Set | Interaction allowed when |
-|---|---|
-| only `maxDistance` | player distance <= `maxDistance` |
-| only `maxCameraDistance` | camera distance <= `maxCameraDistance` |
-| both | player distance <= `maxDistance` **OR** camera distance <= `maxCameraDistance` (OR, not AND) |
-| neither | player distance <= 10 (the implicit default) |
-
-- If both `maxDistance` and `maxPlayerDistance` are set, **the larger of the two wins** as the player threshold.
-- Prefer `maxDistance`; use `maxCameraDistance` only when the check genuinely belongs to the camera (e.g. a fixed `VirtualCamera` looking at something the avatar never walks up to). The default third-person camera trails the avatar by ~7m, so a camera-only rule of 10m is much tighter in practice than it reads.
-- **Proximity events ignore `maxCameraDistance` entirely** — see the Proximity Events section.
-
-Requires `@dcl/sdk` **7.28.0+** for `maxCameraDistance` (`EventSystemOptions.maxCameraDistance`). The Unity and Bevy explorers both apply it.
-
-Measurement origins (matters when a threshold behaves ~1m off from what you computed):
-
-- Cursor player distance: avatar ROOT (feet, `Transform.get(engine.PlayerEntity).position`) to the raycast hit point on the collider surface.
-- Cursor camera distance: the ray length from the camera to the hit point (`hitInfo.distance`).
-- Proximity distance: from the capsule **center** (~1m above the feet), not the feet and not the hit point. Expect proximity and cursor readouts to differ by roughly that 1m even standing in the same spot.
+When a range or outline behaves differently from what you computed, read `{baseDir}/references/input-reference.md#distance-and-outline-rules` (combination table, measurement origins, what the hover outline draws).
 
 ### Feedback options: `showFeedback` gates `hoverText`
 
@@ -68,11 +72,7 @@ Verified via `30,20-pointer-events-feedback`:
 - `showFeedback` (default `true`) — enables the hover UI. **`hoverText` only appears when `showFeedback` is true.** With `showFeedback: false`, no hover text shows regardless of `hoverText`.
 - `showHighlight` (default `true`) — the entity edge/outline highlight on hover. Independent of the text; requires `showFeedback` to be on to be visible.
 - With `showFeedback: true` and no/empty `hoverText`, the explorer shows its default action prompt (e.g. the button glyph) rather than nothing.
-
-**What the outline draws:** the renderers of the entity that owns the hit collider (which must also carry `PointerEvents`) **plus all its descendants**, never its parent or siblings. Only `MeshRenderer` primitives and GLBs are outlined; `TextShape` never is (unity-explorer `InteractionHighlightSystem`, main 2026-10). So:
-
-- An invisible hitbox (collider + `PointerEvents`, no mesh) outlines nothing unless the visible parts are its **children**. A hitbox placed beside the model or as a child of it gives events and hover text but no outline.
-- A prop made of several entities, each with its own collider and handler, outlines one part at a time. Put one collider and the `PointerEvents` on a root, with the visible parts as children, or make the prop a single GLB.
+- The outline covers the hit entity and its **descendants** only, so an invisible hitbox beside a model outlines nothing; make the visible parts children of the hitbox (details in the reference above).
 
 ### PITFALL: never (re-)register a pointer handler from inside its own callback
 
@@ -95,45 +95,6 @@ function setHoverText(entity: Entity, hoverText: string) {
 ```
 
 Register the handler exactly once (e.g. at entity creation); never re-call it from a click/hover callback or from a per-frame system.
-
-**Important: Colliders Required** — Pointer events only work on entities with a collider using the `ColliderLayer.CL_POINTER` layer. Use `MeshCollider.setBox(entity)` for invisible colliders, or set `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` on `GltfContainer`.
-
-### GltfContainer clickability — which mask to use (and the skinned-mesh exception)
-
-`GltfContainer` defaults (verified — `@dcl/ecs` `gltf_container.gen.d.ts`):
-
-- `visibleMeshesCollisionMask` default: **`0`** (visible meshes are NOT clickable/collidable by default)
-- `invisibleMeshesCollisionMask` default: **`CL_POINTER | CL_PHYSICS`** (the GLB's `*_collider` meshes get both layers)
-
-Pick by how the model is authored:
-
-| Model | To make it clickable |
-|---|---|
-| Has a `_collider` mesh | Already on `CL_POINTER` via the invisible default. To split layers, set `invisibleMeshesCollisionMask` explicitly and keep `visibleMeshesCollisionMask: 0`. |
-| Static mesh, NO `_collider` | Set `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` — the visible mesh becomes the click target. |
-| **Skinned / armature-rigged** (NPCs, characters, ghosts), NO `_collider` | `visibleMeshesCollisionMask` does **not** make it clickable. Add an explicit invisible child collider (below). |
-
-**PITFALL: a skinned/rigged GLB is not made pointer-clickable by `visibleMeshesCollisionMask`.** Observed in an SDK7 scene: an NPC/ghost GLB with no `_collider` mesh and `visibleMeshesCollisionMask: ColliderLayer.CL_POINTER` did not receive pointer events. SDK6's `GLTFShape` made a visible mesh clickable regardless of rigging; in SDK7 the visible-mesh mask did not raycast the skinned/animated visible mesh for pointer events in this case. (This is observed renderer behavior — the exact rigging conditions are not documented in the protocol; verify per-model.)
-
-**Fix — add an invisible box collider on `CL_POINTER`, parented to the entity so it tracks movement, and register the handler on the collider:**
-
-```typescript
-import { engine, MeshCollider, ColliderLayer, pointerEventsSystem, InputAction, Transform } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
-
-// `npc` is the rigged GLB entity (with GltfContainer + Animator).
-const clicker = engine.addEntity()
-// scale to the avatar bounds; parent so it follows the NPC as it moves
-Transform.create(clicker, { position: Vector3.create(0, 0.45, 0), scale: Vector3.create(2, 2.9, 2), parent: npc })
-MeshCollider.setBox(clicker, ColliderLayer.CL_POINTER)
-
-pointerEventsSystem.onPointerDown(
-  { entity: clicker, opts: { button: InputAction.IA_PRIMARY, hoverText: 'Talk', showFeedback: true } },
-  () => { /* handle click */ }
-)
-```
-
-The `GltfContainer` itself can keep `visibleMeshesCollisionMask: 0`. For an AvatarShape NPC (no mesh collider at all), the same child-collider approach applies — see [[npcs]] Option A.
 
 ### Input actions
 
@@ -173,7 +134,7 @@ Three gates must all pass for a proximity event to fire (verified against `34,20
 
 If the player is both in proximity of an entity with a proximity interaction AND aiming at an entity with a pointer interaction, the **pointer interaction always takes priority**. Among multiple proximity entities in range, only the closest one (or highest priority) is activated.
 
-Use `pointerEventsSystem.onProximityDown()` and `.onProximityUp()` — same signature as pointer events. Range comes from `maxDistance` (avatar distance, default 10); `maxPlayerDistance` is a deprecated alias of it. Only one proximity registration per event type per entity. Do not call within a system loop.
+Use `pointerEventsSystem.onProximityDown()` and `.onProximityUp()` — same signature as pointer events. Range comes from `maxDistance` (avatar distance, default 10); `maxPlayerDistance` is a deprecated alias of it. Only one proximity registration per event type per entity. Register once at setup, outside any system.
 
 Use `.onProximityEnter()` and `.onProximityLeave()` for detecting when a player walks into/out of range — useful for sounds, animations, or UI hints.
 
@@ -181,16 +142,9 @@ Use the `priority` option (higher number wins) when multiple entities overlap. C
 
 ### Proximity Options
 
-- `button`: Which button to listen for (same as pointer events)
-- `maxDistance`: Max distance from the player's **avatar** to the entity (default `10`) — this is the proximity range
-- `maxPlayerDistance`: `[DEPRECATED]` alias of `maxDistance`; if both are set the **larger** wins
-- `maxCameraDistance`: **ignored on the proximity path.** Only the player threshold applies. Setting it on a proximity entry does nothing.
-- `hoverText`: Text shown when player is near
-- `showHighlight`: Edge highlight when in range (default: `true`)
-- `showFeedback`: Hover feedback around entity center (default: `true`)
-- `priority`: Resolves conflicts — higher values take precedence, closest wins on ties
+Same options as pointer events (`button`, `maxDistance`, `hoverText`, `showHighlight`, `showFeedback`, `priority`); `maxCameraDistance` is ignored on this path. Table: `{baseDir}/references/input-reference.md` → *Proximity Interactions* → *Options*. Full door example: `{baseDir}/references/interactivity-patterns.md` → *Proximity Door Example*.
 
-For the system-based approach (combining pointer + proximity on the same entity), use `InteractionType.PROXIMITY` with the `PointerEvents` component and `inputSystem.isTriggered()`.
+For the system-based approach (combining pointer + proximity on the same entity), use `InteractionType.PROXIMITY` with the `PointerEvents` component and `inputSystem.isTriggered()`: `{baseDir}/references/input-reference.md` → *System-Based Proximity*.
 
 ---
 
@@ -200,7 +154,7 @@ Native ECS component for detecting when an entity enters a region. Prefer this o
 
 **The volume's size, position, and rotation come from the entity's `Transform`.** `Transform.scale` defines a unit box (or sphere radius from `scale.x`) at the entity's pose, respecting any parent chain.
 
-**Scene open in the Creator Hub?** The `utils` catalog has a single **"Trigger Area"** Smart Item (`e9fa0eab-44de-4efe-af77-a71171a1a73f`) — an invisible box or sphere the user places and resizes, with a control that seeds the AI assistant's composer with a prompt for what should happen on enter/leave. Reach for it instead of hand-building the entity: it arrives with the shape param, the collider filter, and its Reactions wiring intact, and editing a param keeps those Reactions. See **creator-hub-mcp**.
+**Scene open in the Creator Hub?** Place the `utils` **Trigger Area** Smart Item instead of hand-building the entity; it arrives with the shape param, collider filter and Reactions wiring (see **creator-hub-mcp**).
 
 > **PITFALL — a thin trigger never fires.** A pressure plate or floor marker modelled as a ~0.1m slab has a trigger volume the avatar capsule **never overlaps** while standing on top of it, so the `TriggerArea` silently never fires. This looks like a broken component and is not.
 >
@@ -276,7 +230,7 @@ triggerAreaEventsSystem.onTriggerExit(zone, () => {
 - Detach with `removeOnTriggerEnter/Stay/Exit(entity)`
 
 **Callback shape — common gotcha:**
-The callback receives a `PBTriggerAreaResult`. `result.trigger?.entity` is the entity that entered (compare with `engine.PlayerEntity` to filter to the local player). `result.triggeredEntity` is the trigger area itself — comparing it to the player is always true and the guard never fires. The naming is genuinely counterintuitive — `triggeredEntity` sounds like "the entity that did the triggering" but actually means "the entity whose trigger area was activated". See `{baseDir}/references/input-reference.md#trigger-area-callback-fields`.
+The callback receives a `PBTriggerAreaResult`. `result.trigger?.entity` is the entity that entered (compare with `engine.PlayerEntity` to filter to the local player). `result.triggeredEntity` is the trigger area itself, despite its name — comparing it to the player is always true and the guard never fires. All fields: `{baseDir}/references/input-reference.md#trigger-area-callback-fields`.
 
 **Multiplayer note:** With `CL_PLAYER`, the trigger fires for every player that enters — remote players included. Always guard physics/UI side-effects with `if (result.trigger?.entity !== engine.PlayerEntity) return`.
 
@@ -333,4 +287,4 @@ Engine-team test scenes exercising these APIs (ground truth):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,0-cube-spawner — declarative `PointerEvents` read in a system via `inputSystem.isTriggered(IA_POINTER, PET_DOWN, entity)`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/77,-1-raycast-unit-tests — component-based `Raycast`/`RaycastResult` for all four direction modes, incl. origin under a transformed parent chain.
 
-For full code examples and implementation patterns, see `{baseDir}/references/interactivity-patterns.md`. For the declarative PointerEvents component, see `{baseDir}/references/input-reference.md`; for the input action table, **advanced-input** → *All InputAction Values*.
+Code for each section above (click, hover, removal, proximity, trigger areas, raycasts, toggle): `{baseDir}/references/interactivity-patterns.md`. Declarative `PointerEvents` component, proximity option table, raycast direction types: `{baseDir}/references/input-reference.md`.

@@ -88,7 +88,7 @@ import { AvatarAnchorPointType } from '@dcl/sdk/ecs'
 AvatarAnchorPointType.AAPT_NAME_TAG // Above the head
 AvatarAnchorPointType.AAPT_RIGHT_HAND // Right hand
 AvatarAnchorPointType.AAPT_LEFT_HAND // Left hand
-AvatarAnchorPointType.AAPT_POSITION // Avatar root position
+AvatarAnchorPointType.AAPT_POSITION // [DEPRECATED] root position with an arbitrary offset; parent to engine.PlayerEntity (body-fixed) or engine.CameraEntity (aim) instead
 AvatarAnchorPointType.AAPT_HEAD
 AvatarAnchorPointType.AAPT_NECK
 AvatarAnchorPointType.AAPT_SPINE
@@ -111,7 +111,6 @@ AvatarAnchorPointType.AAPT_RIGHT_UP_LEG
 AvatarAnchorPointType.AAPT_RIGHT_LEG
 AvatarAnchorPointType.AAPT_RIGHT_FOOT
 AvatarAnchorPointType.AAPT_RIGHT_TOE_BASE
-AvatarAnchorPointType.AAPT_NAME_TAG
 ```
 
 ## Built-in Emote Names
@@ -166,7 +165,8 @@ import {
 	EmoteState,
 } from '@dcl/sdk/ecs'
 
-// Emote lifecycle: each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
+// Written by the Explorer on every player entity (local and remote); read-only for the scene.
+// Each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
 // `state` is optional in the protocol; absent means STARTED — always apply the ?? default.
 // See SKILL.md "Detecting when an emote finishes".
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
@@ -184,15 +184,9 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 })
 ```
 
-## AvatarModifierType — All Values
+## AvatarModifierType
 
-```typescript
-AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in area
-AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking avatars for profiles
-AvatarModifierType.AMT_HIDE_NAMETAGS // Hide name tags above avatars in area
-```
-
-To disable jumping in an area, use the `InputModifier` component's `disableJump` flag (covered in the advanced-input skill), not an `AvatarModifierType`.
+All values, combinations and the sizing rule: `modifier-areas.md`.
 
 ## AvatarLocomotionSettings
 

@@ -22,13 +22,15 @@ Any modification to `scene.parcels` in scene.json changes the scene's coordinate
 
 > "To fit the scene you described, I'd need to expand from 1 parcel (16×16 m) to a 2×1 layout (32×16 m). This changes the coordinate bounds for every entity. Should I go ahead?"
 
-The rule is to **ask**, not to avoid the change. When the design needs more space than the parcels give, put the question to the user. Don't add parcels silently, and don't shrink the design to fit so you can skip the question. (2026-10: an agent stacked three escape rooms vertically in one parcel instead of asking; the owner: "How come you didn't realize you need to assign more parcels??")
+The rule is to **ask**, not to avoid the change. When the design needs more space than the parcels give, put the question to the user. Don't add parcels silently, and don't shrink the design to fit so you can skip the question: owners expect to be asked.
 
 ### 2. Fetching assets from external sources
 
 Downloading any file not already in the project — 3D models (.glb), images, audio, video. The user may have their own assets in mind, may not want new files added, or may be targeting a specific visual style. Confirm before downloading:
 
 > "I'd like to download a [description] model from [source] and add it to your scene. Should I go ahead?"
+
+Before proposing a download, check the free catalogs and suggest specific assets from them: models and asset packs (**add-3d-models**), sounds (**audio-video**), emotes (**avatar-animations**, read its catalog header for the `triggerEmote` vs `triggerSceneEmote` split). Grep the model and asset-pack catalogs by keyword; never read them whole (the model catalog is ~5,800 lines).
 
 For a font, also check that its licence allows redistributing it with the scene (**fonts**).
 
@@ -61,17 +63,15 @@ Ask:
 
 > "Your scene is open in the Creator Hub, so I can't safely add the room to the scene file — the editor would overwrite my changes. Three ways forward: (1) close the scene in the Creator Hub and I'll add everything to the scene file; (2) turn on Settings > AI > *Expose AI assistant MCP server* and connect me, so I place everything live in the editor; or (3) I build the room in code — it shows in the preview but not in the editor, so you can't select or move any of it there. Which do you prefer?"
 
-Option 3 is legitimate only as the user's explicit choice. Building static entities in `src/` without that decision is never acceptable — not as a greybox, a prototype or a "temporary" stand-in, and not because the session is non-interactive or autonomous (put the question in your final message). Do all the work that does not depend on the answer first (scripts, behaviour, asset files), then stop with the question. (2026-10-23: an agent refused to hand-edit the composite of an open scene, then built the whole room, a chair and ~60 props in code and mentioned it only in its summary; the creator: "NEVER do this without a warning … the user decides what to do.") This is the canonical statement; **composites** and **creator-hub-mcp** point here.
+Option 3 is legitimate only as the user's explicit choice. Building static entities in `src/` without that decision is never acceptable — not as a greybox, a prototype or a "temporary" stand-in, and not because the session is non-interactive or autonomous (put the question in your final message). Do all the work that does not depend on the answer first (scripts, behaviour, asset files), then stop with the question. Reporting code-built geometry in a summary after the fact is not asking. This is the canonical statement; **composites** and **creator-hub-mcp** point here.
 
 ### 6. Reporting an SDK bug before working around it
 
-When the SDK, the Explorer, or the Creator Hub doesn't behave as documented, or lacks something the scene needs, and you're about to work around it, report it first with the **report-sdk-issue** skill. The first time this happens in a scene, ask the user whether SDK issue reports may be sent. After that, report without asking, or never, depending on their answer. Tell the user in one line when a report goes out. Reporting never blocks the work.
-
-Before calling anything a platform limitation, check in this order: the owning topic skill, the installed typings under `node_modules/@dcl/ecs`, a minimal reproduction, the running client and SDK versions, and known fixes in the Explorer and SDK changelogs **matched to the running version** — an older source checkout proves nothing about the client in front of you (a session ruled out audio volume fades from an August checkout after the fix had already shipped). Distinguish scene error, engine defect and unsupported capability before designing an architectural workaround. Failing to recall an API is not evidence it is missing (`GltfNodeModifiers` in **advanced-rendering** changes GLB materials at runtime; number-key actions are `IA_ACTION_3`–`IA_ACTION_6` in **advanced-input** — read the enum, never infer members).
+Before working around an SDK, Explorer or Creator Hub defect, or a capability the scene needs that seems missing, run **report-sdk-issue**: its step 1 holds the platform-vs-scene diagnosis order, and it handles consent and deduplication. Failing to recall an API is not evidence it is missing (`GltfNodeModifiers` in **advanced-rendering** changes GLB materials at runtime; number-key actions are `IA_ACTION_3`–`IA_ACTION_6` in **advanced-input** — read the enum, never infer members).
 
 ### 7. Working without a runtime view
 
-If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone. Two sessions on one scene (2026-10) shipped every visual defect to the owner this way.
+If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone.
 
 When the Explorer MCP is **connected**, verify every change in-world before you report it done. Don't wait for the user to ask. "Unverified in-world" is not a finished state when you could have verified it. If the MCP was set up before but the Explorer isn't running, offer to launch it, going through **unity-explorer-mcp**'s gates. Don't launch it unasked.
 
@@ -89,18 +89,18 @@ All static entities (models, primitive walls and floors, lights, spawn points) M
 |---|---|
 | Every entity present at scene load: models, lights, primitives, text, audio | Dynamic behavior: systems, event handlers, state changes, UI |
 | Static and decorative objects, and anything the creator should see and edit in the Creator Hub | Entities spawned or despawned at runtime (projectiles, clones, NPCs that appear on demand), whose count depends on runtime state, or whose identity/structure cannot be known at author time |
-| Entities that get behavior later | Fetching those entities by name or tag (`getEntityOrNullByName`, `getEntitiesByTag`) inside `main()` or later, never re-creating them; patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code |
+| Entities that get behavior later | Fetching those entities by name or tag (`getEntityOrNullByName`, `getEntitiesByTag`) inside `main()` or later, never re-creating them; patterns: **composites** → `composite-reference.md` → Referencing Composite Entities from Code |
 
 Composite entities load faster, are editable in the Creator Hub, and keep the code focused on logic.
 
 ## CRITICAL RULE — Editing an existing composite
 
-**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0`, see **creator-hub-mcp**). Its tools edit the open scene live, with autosave, undo and the editor bookkeeping handled for you; tool list, connection and the decision ladder are in **creator-hub-mcp**. Editing the file while the scene is open in the Creator Hub loses your work silently, with no error: the inspector autosaves about 100 ms after any editor transaction and regenerates the whole `main.composite` from its in-memory engine, overwriting the file wholesale — it never re-reads it from disk (mechanism: `{baseDir}/../composites/composite-reference.md` → Editing an existing composite (edit mode)).
+**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0`, see **creator-hub-mcp**). Tools, connection and the decision ladder: **creator-hub-mcp**. A file edit made while the scene is open in the Creator Hub is lost silently: the inspector rewrites `main.composite` wholesale from memory on its next autosave and never re-reads the file (mechanism: **composites** → `composite-reference.md` → Editing an existing composite (edit mode)).
 
 Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
 
 - **The scene must NOT be open in the Creator Hub while you edit the file.** Ask the user to close the scene first, then reopen it when you are done; until then, item 5 applies.
-- Scan the file for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. See the "Editing an existing composite (edit mode)" section of `{baseDir}/../composites/composite-reference.md` for the exact procedure.
+- Scan the file for `inspector::Nodes`. If present, the user has opened the scene in the Creator Hub at least once and the file is in **edit mode**: every new entity you add MUST be registered in `inspector::Nodes`, or it will render in-world but be **invisible and un-selectable in the Creator Hub entity tree**. Procedure: **composites** → `composite-reference.md` → Editing an existing composite (edit mode).
 
 ---
 
@@ -126,15 +126,15 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Materials & Rendering
 
-**Skill: `advanced-rendering`** — PBR materials, `TextShape`, `Billboard`, `VisibilityComponent`, texture modes.
+**Skill: `advanced-rendering`** — PBR and emissive materials, `GltfNodeModifiers`, `TextShape`, `Billboard`, `VisibilityComponent`, texture modes and UVs.
 
 ### Lighting & Environment
 
-**Skill: `lighting-environment`** — Point/spot lights, shadows, `SkyboxTime` (day/night cycle), emissive materials.
+**Skill: `lighting-environment`** — `LightSource` point/spot lights, shadows, `SkyboxTime` (day/night cycle); glow that also lights its surroundings.
 
 ### Particle Systems
 
-**Skill: `particle-system`** — `ParticleSystem` component for fire, smoke, sparks, snow, rain, magic, fireworks. Emitter shapes (Point/Sphere/Cone/Box), continuous rate vs Burst emission, gravity, sprite-sheet animation, blend modes.
+**Skill: `particle-system`** — `ParticleSystem` effects: fire, smoke, sparks, snow, rain, magic, fireworks; emitter shapes, bursts, sprite sheets.
 
 ### Click & Proximity Interactivity
 
@@ -142,7 +142,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Advanced Input & Movement Control
 
-**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`, `TouchScreenControls` (mobile on-screen joystick/crosshair/buttons).
+**Skill: `advanced-input`** — `inputSystem` polling, WASD-controlled entities, `InputModifier`, `PointerLock`, `PrimaryPointerInfo`, `TouchScreenControls` (mobile on-screen joystick/crosshair/buttons), platform detection, player language / localization.
 
 ### Player & Avatar
 
@@ -166,15 +166,15 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Fonts
 
-**Skill: `fonts`** — Built-in faces (`font`) and custom `.ttf` fonts shipped with the scene (`fontSrc`) on `TextShape` and all UI text. Explorer support matrix, no support on mobile, limits, licensing, and why the desktop client shows custom fonts only from asset bundles.
+**Skill: `fonts`** — Built-in faces (`font`) and custom `.ttf` fonts (`fontSrc`) for 3D and UI text, including why a custom font isn't showing.
 
 ### Screen-Space UI
 
-**Skill: `build-ui`** — React ECS components for 2D screen-space UI overlays: layout, text, images, buttons, inputs, sliders. By default writes UI the Creator Hub's 2D UI editor (UI Designer) can read and edit — the `src/ui/` file-per-component layout, the `state`/`props` binding surface, `useInteraction` style layers, `@ui-action` handlers, and the driver pattern that keeps animation outside the editor's reach — and falls back to free-form coded React-ECS only for data-driven UI the editor cannot represent. Also covers adapting an existing coded UI for the editor.
+**Skill: `build-ui`** — 2D screen-space UI (HUDs, menus, dialogs, inputs, sliders) with React-ECS, editable in the Creator Hub UI Designer by default; adapting coded UI for the editor.
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-feedback`** — Help the creator choose a playtest focus, review adapted questions and timing, then integrate gameplay questions or a player-opened form. Also use to retrieve and analyze existing Scene Feedback CSV responses from World scene Storage.
+**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, integrate or debug the module, analyze exported CSV responses.
 
 ### Audio & Video
 
@@ -182,7 +182,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Audio Analysis (Reactive Visualizers)
 
-**Skill: `audio-analysis`** — `AudioAnalysis` component for real-time amplitude + 8-band frequency data from any `AudioSource`/`AudioStream`/`VideoPlayer`. Drive scale, color, lights, and particles from music. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor). Bevy leaves the values at 0.
+**Skill: `audio-analysis`** — `AudioAnalysis` amplitude and 8-band frequency data to drive scale, color, lights and particles from music. Desktop: all three media sources; mobile: `AudioSource` only.
 
 ### Blockchain & NFTs
 
@@ -190,7 +190,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Multiplayer (CRDT, no server)
 
-**Skill: `multiplayer-sync`** — `syncEntity` for peer-to-peer sync, `MessageBus`, parent-child sync.
+**Skill: `multiplayer-sync`** — `syncEntity` for peer-to-peer sync, `MessageBus`, parent-child sync, testing with two local players.
 
 ### Multiplayer Server
 
@@ -206,7 +206,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Testing in the Explorer (MCP)
 
-**Skill: `unity-explorer-mcp`** — Launch a Decentraland Explorer and drive it over MCP to see, walk, click, screenshot and debug the scene in-world: camera and player movement, logs, performance stats. Inside the Creator Hub the same tools arrive through the Creator Hub MCP's `launch_preview` / `explorer_*`. Also the answer when the `explorer` MCP server reports ConnectionRefused at session start, or was never set up: either just means the Explorer is not running yet.
+**Skill: `unity-explorer-mcp`** — Launch and drive an Explorer over MCP to see, walk, click, screenshot and debug the scene in-world. Also when the `explorer` MCP server reports ConnectionRefused or was never set up: the Explorer just isn't running yet.
 
 ### Async, HTTP, WebSocket, Timers
 
@@ -214,11 +214,11 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Scene Optimization
 
-**Skill: `optimize-scene`** — Scene limits, object pooling, LOD, texture optimization, system throttling.
+**Skill: `optimize-scene`** — Scene limits (including mobile), draw calls, reusing vs merging, object pooling, LOD, texture optimization, asset preloading, system throttling.
 
 ### Game Design
 
-**Skill: `game-design`** — DCL design philosophy, state management, UX guidelines, game loop archetypes, MVP planning.
+**Skill: `game-design`** — DCL design philosophy, platform-provided features, core loop and MVP, game archetypes, onboarding, playtests, spatial layout, engagement.
 
 ### Deployment
 
@@ -227,21 +227,21 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Wearables & Smart Wearables
 
-**Skill: `smart-wearables`** — Wearables that run SDK7 code while equipped (portable experiences): project layout, the Builder's strict `wearable.json` schema, the 3 MB uncompressed limit, how the preview differs from the published wearable, what other players can see (emote props and bone particles, not scene entities or sound), multiplayer limits (no `MessageBus` or Multiplayer Server; third-party server only), and pack/upload.
+**Skill: `smart-wearables`** — Wearables that run SDK7 code while equipped: `wearable.json` schema, 3 MB limit, what other players see, multiplayer limits, Builder upload errors.
 
-**Skill: `wearables`** — Making wearable files: official base meshes (male/female), category triangle/material/texture limits, skinning and rigid parts, texturing, glTF export and verification, thumbnail, representations per body shape, Builder upload.
+**Skill: `wearables`** — Making wearable 3D files: base meshes, category limits, skinning, texturing, glTF export, thumbnail, Builder upload.
 
 ### Reporting SDK Issues
 
-**Skill: `report-sdk-issue`** — Report SDK, engine, or Explorer bugs and limitations to the Decentraland team before working around them. Asks for consent once per scene, keeps a local ignored ledger so nothing is sent twice, and queues reports when offline.
+**Skill: `report-sdk-issue`** — Report SDK, Explorer or Creator Hub bugs and limitations to the Decentraland team before working around them.
 
 ### Scene Retrospectives
 
-**Skill: `scene-retro`** — When the user asks for a retro, retrospective or post-mortem of a scene or game ("make a retro report based on this game"), review the session history and turn real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only: saves a report and changes nothing else.
+**Skill: `scene-retro`** — Retro or post-mortem of a scene's build sessions: turns mistakes and owner corrections into evidence-backed skill fixes, saved as a report.
 
 ### SDK6 → SDK7 Migration
 
-**Skill: `migrate-sdk6-to-sdk7`** — Port legacy `decentraland-ecs` scenes to SDK7. Conceptual ECS shift (entities as IDs, data-only components, mutable/immutable access), full API mapping (`new Entity()` → `engine.addEntity()`, `GLTFShape` → `GltfContainer`, `OnPointerDown` → `pointerEventsSystem`, `ISystem` classes → free functions, `Input.instance` → `inputSystem`, etc.), and an annotated before/after example.
+**Skill: `migrate-sdk6-to-sdk7`** — Port legacy SDK6 (`decentraland-ecs`) scenes to SDK7.
 
 ---
 
@@ -260,45 +260,7 @@ Current names: Creator Hub, Scene Editor, SDK7, SDK Skills.
 
 ## Shared References
 
-These reference files are used across multiple skills. Load them when you need detailed component APIs, validation rules, or asset catalogs.
-
-### Components Reference
-
-**Reference: `{baseDir}/references/components-reference.md`**
-Quick-reference of key fields, types, and defaults for the SDK7 components you'll commonly use. For a component's complete field list, consult its dedicated skill or the SDK typings.
-
-### Entity Validation Rules
-
-**Reference: `{baseDir}/../create-scene/references/entity-validation-rules.md`**
-Rules for validating entity component combinations — which components require each other, mutual exclusions, and common misconfigurations. Apply to both composite and TypeScript entities.
-
-### Free Asset Catalogs
-
-- **3D Models (8,800+ models):** `{baseDir}/../add-3d-models/references/model-catalog.md` — grep it by keyword, never read it whole; optimized 3D models with descriptions, dimensions, animations, and download URLs
-- **Creator Hub asset packs (420 models + 7 Smart Items, latest additions):** `{baseDir}/../add-3d-models/references/asset-pack-catalog.md` — Genesis City buildings/street/furniture/nature, Halloween, sci-fi lab kit, scripted buttons/doors/platform/water; multi-file download helper in `model-patterns.md`
-- **Avatar animations (32 built-in emotes + 45 downloadable clips):** `{baseDir}/../avatar-animations/references/animation-catalog.md` — check before authoring any emote
-- **Audio (50 sounds):** `{baseDir}/../audio-video/references/audio-catalog.md` — Music, Ambient, SFX, Game Mechanics, UI sounds
-
-### Mobile Parity
-
-**Reference: `{baseDir}/references/mobile-parity.md`**
-What the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, colliders, movement). Read it before designing anything a mobile player depends on.
-
-### Composites
-
-**Reference: `{baseDir}/../composites/composite-reference.md`**
-The `.composite` JSON format for declaring initial scene entities. Includes `getEntityOrNullByName` and `getEntitiesByTag` patterns for fetching composite entities in TypeScript.
-
-### Library References
-
-- **NPC Toolkit:** `{baseDir}/../npcs/references/npc-library.mdc` — GLB-based NPCs with dialogue, movement, state machines
-- **Blockchain/NFT patterns:** `{baseDir}/../nft-blockchain/references/blockchain-patterns.md` — NFT display, wallet checks, MANA operations, currency/NFT transactions, marketplace integration (dcl-crypto-toolkit)
-
----
-
-## How to use
-
-1. Identify the topic from the user's request
-2. Load the corresponding skill — it contains the full API, code patterns, and rules
-3. For broad requests spanning multiple topics, load each relevant skill
-4. For asset discovery, read the relevant catalog's header first (the animation catalog's holds the `triggerEmote` vs `triggerSceneEmote` split and the emote permission), then grep the model and asset-pack catalogs by keyword rather than reading them whole (the model catalog is ~5,800 lines); suggest specific assets before fetching any
+- **Components:** `{baseDir}/references/components-reference.md` — key fields, types and defaults of common SDK7 components. A component's complete field list lives in its topic skill or the SDK typings.
+- **Mobile parity:** `{baseDir}/references/mobile-parity.md` — what the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, colliders, movement). Read it before designing anything a mobile player depends on.
+- **Entity validation** (component combinations that require or exclude each other, for composite and TypeScript entities): **create-scene**.
+- **Asset catalogs:** see Agent Behavioral Guidelines, item 2.

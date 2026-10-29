@@ -58,8 +58,8 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
-| `game-design` | Game design patterns, scene limits, performance budgets. |
-| `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
+| `game-design` | Game design patterns, MVP planning, playtests. |
+| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |

@@ -1,6 +1,6 @@
 ---
 name: nft-blockchain
-description: NFT display and blockchain interaction in Decentraland. Use when the user wants NFTs, blockchain, wallet, smart contracts, Web3, or token gating. Do NOT use for player avatar data or emotes (see player-avatar).
+description: "NFTs and Web3 in Decentraland scenes: NftShape picture frames, wallet and token-gating checks, MANA/ERC20/NFT payments and marketplace orders (dcl-crypto-toolkit), and smart-contract calls (eth-connect). Use for anything wallet, token or chain related."
 ---
 
 # NFT and Blockchain in Decentraland
@@ -14,74 +14,41 @@ Use `NftShape` to show an NFT in a decorative picture frame. Provide the NFT URN
 - `<chain>` supported values (forwarded verbatim to the OpenSea v2 API; unrecognized chains are rejected): `ethereum`, `matic`, `klaytn`, `bsc`, `arbitrum`, `arbitrum_nova`, `avalanche`, `optimism`, `solana`, `base`, `blast`, `zora`.
 - `<contractStandard>` is typically `erc721`. The image is served from the OpenSea response, so contracts OpenSea indexes as `erc1155` also resolve.
 
-### Available Frame Styles
-
-```typescript
-NftFrameType.NFT_CLASSIC            // Simple classic frame
-NftFrameType.NFT_BAROQUE_ORNAMENT   // Ornate baroque
-NftFrameType.NFT_DIAMOND_ORNAMENT   // Diamond pattern
-NftFrameType.NFT_MINIMAL_WIDE       // Minimal wide border
-NftFrameType.NFT_MINIMAL_GREY       // Minimal grey border
-NftFrameType.NFT_BLOCKY             // Pixelated/blocky
-NftFrameType.NFT_GOLD_EDGES         // Gold edge trim
-NftFrameType.NFT_GOLD_CARVED        // Carved gold
-NftFrameType.NFT_GOLD_WIDE          // Wide gold border
-NftFrameType.NFT_GOLD_ROUNDED       // Rounded gold
-NftFrameType.NFT_METAL_MEDIUM       // Medium metal
-NftFrameType.NFT_METAL_WIDE         // Wide metal
-NftFrameType.NFT_METAL_SLIM         // Slim metal
-NftFrameType.NFT_METAL_ROUNDED      // Rounded metal
-NftFrameType.NFT_PINS               // Pinned to wall
-NftFrameType.NFT_MINIMAL_BLACK      // Minimal black
-NftFrameType.NFT_MINIMAL_WHITE      // Minimal white
-NftFrameType.NFT_TAPE               // Taped to wall
-NftFrameType.NFT_WOOD_SLIM          // Slim wood
-NftFrameType.NFT_WOOD_WIDE          // Wide wood
-NftFrameType.NFT_WOOD_TWIGS         // Twig/branch wood
-NftFrameType.NFT_CANVAS             // Canvas style
-NftFrameType.NFT_NONE               // No frame
-```
+Frame styles: `NftFrameType.*` (classic, baroque, gold, metal, wood, minimal, pins, tape, canvas, none…). Code and the full enum: `{baseDir}/references/blockchain-patterns.md` → Display NFT.
 
 ## Check Player Wallet
 
-Use `getPlayer()` from `@dcl/sdk/src/players` to get the player's Ethereum address via `player.userId`. Always check `isGuest` before any blockchain interaction -- guest players don't have a connected wallet.
+Use `getPlayer()` from `@dcl/sdk/src/players` to get the player's Ethereum address via `player.userId`. Always check `isGuest` before any blockchain interaction -- guest players don't have a connected wallet. Code: `{baseDir}/references/blockchain-patterns.md` → Check Player Wallet.
 
 ## Signed Requests
 
-Use `signedFetch` from `~system/SignedFetch` to send authenticated requests to a backend. It automatically injects signed identity headers (ADR-44) that your backend verifies — you do not build or pass them yourself.
-
-- Signature: `signedFetch({ url, init: { method?, headers?, body? } })`.
-- Response is `{ ok, status, statusText, headers, body }`; **`body` is a string** — call `JSON.parse(response.body)` (there is no `.json()`).
-- It does **not** require prior player interaction.
-- Need only the signed headers for a library that does its own fetching? Use `getHeaders({ url, init? })` from the same module — it returns `{ headers }`.
+Authenticated backend calls: `signedFetch` / `getHeaders` (**scene-runtime** → HTTP). A POST-and-parse example: `{baseDir}/references/blockchain-patterns.md` → Signed Requests.
 
 ## Smart Contract Interaction
 
-For direct smart contract calls, use `eth-connect` with `createEthereumProvider` from `@dcl/sdk/ethereum-provider`. Store ABIs in separate files, create a contract instance via `ContractFactory`, then call read (no gas) or write (requires gas, prompts user to sign) functions.
+For direct smart contract calls, use `eth-connect` with `createEthereumProvider` from `@dcl/sdk/ethereum-provider`. Store ABIs in separate files, create a contract instance via `ContractFactory`, then call read (no gas) or write (requires gas, prompts user to sign) functions. Code: `{baseDir}/references/blockchain-patterns.md` → Smart Contracts (setup, write, read).
 
 ```bash
 npm install eth-connect
 ```
 
-Read operations (view/pure functions) don't require gas. Write operations prompt the player to sign and require gas.
-
-Wrap all async blockchain calls in `executeTask(async () => { ... })`. Handle errors gracefully — blockchain operations can fail (rejected by user, insufficient gas, network issues).
+Wrap all async blockchain calls in `executeTask(async () => { ... })` with a `try`/`catch`: the player can reject, gas can run short, the network can fail.
 
 ## Gas Price and Balance
 
-Use `requestManager.eth_gasPrice()` and `requestManager.eth_getBalance()` from `eth-connect` to check current gas prices and account ETH balances.
+Use `requestManager.eth_gasPrice()` and `requestManager.eth_getBalance()` from `eth-connect` to check current gas prices and account ETH balances (`{baseDir}/references/blockchain-patterns.md` → Gas Price and Balance).
 
 ## Custom RPC Calls
 
-Use `sendAsync` from `~system/EthereumController` for low-level Ethereum RPC calls not covered by eth-connect helpers.
+Use `sendAsync` from `~system/EthereumController` for low-level Ethereum RPC calls not covered by eth-connect helpers (`{baseDir}/references/blockchain-patterns.md` → Custom RPC Calls).
 
 ## Opening External URLs / NFT Dialogs
 
-Use `openExternalUrl` and `openNftDialog` from `~system/RestrictedActions` to open external links and NFT detail views.
+`openExternalUrl` and `openNftDialog` are restricted actions (**scene-runtime** → *Restricted Actions*).
 
 ## Testing with Sepolia
 
-For development, use the Sepolia testnet: set MetaMask to Sepolia, get test ETH from a faucet, deploy contracts to Sepolia. Contract addresses differ between mainnet and testnet.
+Develop against Sepolia; contract addresses differ between mainnet and Sepolia.
 
 ## dcl-crypto-toolkit (Higher-Level API)
 
@@ -93,16 +60,11 @@ npm install dcl-crypto-toolkit
 
 Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `mana`, `currency`, `nft`, `marketplace`, `services`, `wearable`, `contract`. There is NO top-level `crypto.signMessage`.
 
-**Capabilities:**
-- **MANA operations:** send, check balance (`crypto.mana.send` / `.myBalance` / `.balance`)
-- **ERC20 tokens:** send, check balance, check/set allowance (`crypto.currency.*`)
-- **ERC721/NFT:** check tokens held (token gating), transfer, approval management (`crypto.nft.*`)
-- **Marketplace:** buy (`executeOrder`), sell (`createOrder`), cancel (`cancelOrder`), check authorization (`crypto.marketplace.*`)
-- **Sign message:** sign EIP-712 typed data with player wallet (`crypto.ethereum.signMessageAdvanced()`)
+Code for every row below: `{baseDir}/references/blockchain-patterns.md` → dcl-crypto-toolkit Examples.
 
 ## Token Gating
 
-**By NFT ownership:** Use `crypto.nft.checkTokens(contractAddress, tokenIds?)` — returns whether the player holds tokens of that contract. Omit `tokenIds` to check any token of the contract. Grant or deny access on the result.
+**By NFT ownership:** Use `crypto.nft.checkTokens(contractAddress, tokenIds?)` — returns whether the player holds tokens of that contract. Omit `tokenIds` to check any token of the contract. Grant or deny access on the result. Code: `{baseDir}/references/blockchain-patterns.md` → Token Gating Patterns.
 
 **By MANA balance:** Check `crypto.mana.myBalance()` (or `crypto.currency.balance(contractAddress, address)` for other ERC20 tokens) to gate access based on holdings.
 
@@ -115,13 +77,16 @@ Import: `import * as crypto from 'dcl-crypto-toolkit'`. Modules: `ethereum`, `ma
 | Check any address's MANA balance | `crypto.mana.balance(address)` |
 | Send any ERC20 token | `crypto.currency.send()` |
 | Check ERC20 balance | `crypto.currency.balance(contract, address)` |
-| Transfer an NFT | `crypto.nft.transfer()` |
+| ERC20 allowance | `crypto.currency.*` (check / set allowance) |
+| Transfer an NFT, manage approvals | `crypto.nft.transfer()`, `crypto.nft.*` |
 | Check NFT ownership / token gating | `crypto.nft.checkTokens()` |
 | Buy from marketplace | `crypto.marketplace.executeOrder()` |
 | List NFT for sale | `crypto.marketplace.createOrder()` |
-| Sign a message | `crypto.ethereum.signMessageAdvanced()` |
+| Cancel a listing, check authorization | `crypto.marketplace.cancelOrder()`, `crypto.marketplace.*` |
+| Sign a message (EIP-712 typed data with the player's wallet) | `crypto.ethereum.signMessageAdvanced()` |
 | Custom smart contract | `eth-connect` (see above) |
-| Authenticated API call | `signedFetch` (see above) |
+| Authenticated API call | `signedFetch` (**scene-runtime**) |
+| Tip jar | `{baseDir}/references/blockchain-patterns.md` → Recipes |
 
 ## Example scenes
 
@@ -130,5 +95,3 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,90-scene-bounds-check — `NftShape.create()` with a live `urn:decentraland:ethereum:erc721:<contract>:<tokenId>` URN, mounted on a moving platform that carries it across the parcel boundary (so it also shows an NFT frame being culled out of bounds).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `openNftDialog({ urn })` and `openExternalUrl` driven from React-ECS buttons, alongside every other RestrictedAction. Note the scene declares neither `OPEN_EXTERNAL_LINK` nor an NFT permission in `requiredPermissions` and both still run.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body` and inspects the auto-added signature headers, with an empty `requiredPermissions`.
-
-For full code examples and implementation patterns, including the dcl-crypto-toolkit library API, see '{baseDir}/references/blockchain-patterns.md'.

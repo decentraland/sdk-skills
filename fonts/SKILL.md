@@ -1,6 +1,6 @@
 ---
 name: fonts
-description: Fonts for text in Decentraland SDK7 scenes — the three built-in faces and custom TTF fonts shipped with the scene (`fontSrc`) on TextShape, UiText, Label, Button, Input and Dropdown. Use when the user wants a custom, branded or themed typeface, wants to change the font of 3D or UI text, wants to ship a .ttf with a scene, or asks why a custom font is not showing. Do NOT use for text layout, sizing or UI structure (see build-ui) or placing 3D text in the world (see advanced-rendering).
+description: "Fonts for Decentraland SDK7 text: the three built-in faces and custom .ttf fonts shipped with the scene (fontSrc), for 3D and UI text. Use when the user wants a custom or branded typeface, wants to change a text's font, ships a .ttf, or asks why a custom font isn't showing. For text layout see build-ui; for placing 3D text see advanced-rendering."
 ---
 
 # Fonts in Decentraland

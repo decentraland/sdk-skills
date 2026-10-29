@@ -5,11 +5,9 @@ description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when t
 
 # Scene Runtime APIs
 
-Cross-cutting runtime APIs available in every Decentraland SDK7 scene.
-
 ## Async Tasks
 
-The scene runtime is single-threaded. Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
+Scenes run in a single-threaded QuickJS sandbox with no Node.js APIs (`fs`, `http`, `path`, `process`). Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
 
 ```typescript
 import { executeTask } from "@dcl/sdk/ecs";
@@ -158,15 +156,12 @@ engine.addSystem(function waitForSceneRevealed() {
 - The scene keeps ticking normally while `sceneHidden` is `true` — it is not paused, just not displayed. Don't use this flag to gate scene logic, only to time presentation.
 - Always guard with `getOrNull` — the component may not exist on the very first frames.
 - Remove the system (or set a `done` flag) after it fires; otherwise it re-runs every frame.
-- On Explorer builds that predate the field, `sceneHidden` stays at its proto default `false`, so this pattern degrades to "fire as soon as possible" rather than hanging.
 
 ## System Execution Order & Priority
 
 `engine.addSystem(fn, priority?, name?)` runs `fn(dt)` every frame. The `priority` parameter controls **when** in the frame it runs relative to other systems.
 
-**HIGHER priority number = runs EARLIER in the frame.** Systems are sorted **descending** by priority (`sort((a, b) => b.priority - a.priority)` in `@dcl/ecs`). The SDK's own JSDoc states: *"a number with the priority, big number are called before smaller ones."*
-
-> **WARNING — counter-intuitive:** This is the OPPOSITE of Unity/Godot/many engines where a lower number runs first. In Decentraland SDK7, "make this run first" means giving it a **large** priority number, NOT `1`. A system with priority `1` runs almost LAST.
+**HIGHER priority number = runs EARLIER in the frame** (systems sort descending), the opposite of Unity/Godot. "Make this run first" means a **large** number; a system with priority `1` runs almost last.
 
 Key numbers:
 
@@ -232,18 +227,7 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // c
 
 #### `changeRealm` is `[DEPRECATED]` — prefer `teleportTo({ realm })`
 
-The `realm` field is typed from `@dcl/js-runtime` **7.28.0**.
-
-- `TeleportToRequest` is now `{ worldCoordinates?: Vector2, realm?: string }` — **both optional**.
-- `realm` accepts a World name (`foo.dcl.eth`) or a realm URL. When set, the client first shows the player a confirmation prompt with the default text ("Are you sure you want to enter this World?"). If the player accepts, the client performs a full reconnect to that realm (even if it is the realm the player is already in), then lands on the parcel.
-- Omit `worldCoordinates` with a `realm` set to land on that realm's default spawn — exactly what `changeRealm` did.
-- Omit `realm` to teleport within the player's current realm (the pre-existing behavior).
-
-**Why it replaces `changeRealm`:** `changeRealm` resolves when the request is *accepted*, not when the new realm is *live*. A `changeRealm(...)` followed by a `teleportTo(coords)` therefore lands on the parcel in the **old** realm. One `teleportTo({ realm, worldCoordinates })` call has no such race.
-
-`changeRealm` still works and is kept for existing scenes. Both `changeRealm` and `teleportTo({ realm })` ask the player to confirm before switching realm; `changeRealm` is the only one that lets the scene set custom prompt text through `message`.
-
-The Unity explorer honors the `realm` field.
+`changeRealm` resolves when the request is *accepted*, not when the new realm is *live*, so `changeRealm(...)` followed by `teleportTo(coords)` lands on the parcel in the **old** realm. Use one `teleportTo({ realm, worldCoordinates })` call. `changeRealm` still works; it is the only one that sets custom prompt text (`message`). Signature: `{baseDir}/references/runtime-apis.md` → teleportTo.
 
 ### openExplorerUi -- Open Explorer Panels
 
@@ -301,7 +285,7 @@ Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (one
 
 ## Timers
 
-**Always use the engine-bound `timers` object from `@dcl/sdk/ecs`.** Do NOT use the native JS `setTimeout` / `setInterval` globals. Although the QuickJS runtime exposes JS-standard `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` as globals (declared in `@dcl/js-runtime/index.d.ts`), calling them in a Decentraland scene may appear to work but can introduce subtle problems — they are not bound to the scene's engine. Use `timers.setTimeout` instead.
+**Always use the engine-bound `timers` object from `@dcl/sdk/ecs`** (`timers.setTimeout`, `timers.setInterval`). QuickJS also exposes the JS-standard globals, but they are not bound to the scene's engine.
 
 ```typescript
 import { timers } from "@dcl/sdk/ecs";
@@ -322,7 +306,7 @@ timers.setInterval(callback: () => void, ms: number): number
 timers.clearInterval(timerId: number): void
 ```
 
-**Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+**Argument order is `(callback, ms)`**, as in standard JS.
 
 **Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers.
 
@@ -353,7 +337,7 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ### engine.removeEntity(entity): boolean
 
-Removes all components from an entity and releases its id for reuse. Returns `boolean` (7.27.0+; older SDKs return `void` and can purge a live remote avatar's components):
+Removes all components from an entity and releases its id for reuse. Returns `boolean` (`@dcl/sdk` 7.27.0+; earlier SDKs return `void`):
 - `true` — entity accepted; components purged, id released for recycling.
 - `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
 
@@ -373,85 +357,11 @@ removeEntityWithChildren(engine, parentEntity);
 
 ## Portable Experiences
 
-Scenes that persist across world navigation. Import from `~system/PortableExperiences`.
-
-```typescript
-import {
-  spawn,
-  kill,
-  exit,
-  getPortableExperiencesLoaded,
-} from "~system/PortableExperiences";
-
-// Spawn by ENS name (a deployed World) OR by pid. NOT by "urn".
-const result = await spawn({ ens: "boedo.dcl.eth" });
-// result: { pid, parentCid, name, ens }
-
-// Kill a running one by its pid (from the spawn response). NOT by urn.
-if (result.pid) await kill({ pid: result.pid });
-
-// List currently loaded portable experiences
-const { loaded } = await getPortableExperiencesLoaded({});
-
-// Exit self (only if THIS scene IS a portable experience)
-await exit({});
-```
-
-- `spawn({ ens?, pid? })` → `SpawnResponse { pid, parentCid, name, ens? }`. Field is `ens`/`pid`, **not `urn`**.
-- `kill({ pid })` returns `{ status: boolean }`; `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
-- To build a portable experience that runs while a wearable is equipped, see the **smart-wearables** skill.
-- The **host scene** must enable them in `scene.json`: `"featureToggles": { "portableExperiences": "enabled" }`. Values: `"enabled"` | `"disabled"` | `"hideUi"` (spawns PX but hides their UI). With `"disabled"`, `spawn()` is a no-op / rejected.
+Spawning, listing and killing portable experiences from a scene (`~system/PortableExperiences`, keyed by `ens` / `pid`, never `urn`), and the host scene's `featureToggles.portableExperiences`: `{baseDir}/references/runtime-apis.md` → Portable Experiences. Building one that runs while a wearable is equipped: **smart-wearables**.
 
 ## Testing Framework
 
-Scenes can ship unit tests using `@dcl/sdk/testing`. Tests are generators — yielding pauses until the next frame so you can observe engine state across ticks.
-
-```typescript
-import { test } from "@dcl/sdk/testing";
-import {
-  assertComponentValue,
-  assertEquals,
-} from "@dcl/sdk/testing/assert";
-import { engine, Transform, MeshRenderer } from "@dcl/sdk/ecs";
-import { Vector3, Quaternion } from "@dcl/sdk/math";
-
-test("transform is applied after one frame", function* () {
-  const entity = engine.addEntity();
-  Transform.create(entity, { position: Vector3.One() });
-
-  // Let the engine run for a frame before asserting
-  yield;
-
-  assertComponentValue(entity, Transform, {
-    position: Vector3.One(),
-    scale: Vector3.One(),
-    rotation: Quaternion.Identity(),
-    parent: 0 as any,
-  });
-});
-
-test("five meshes are present", function* () {
-  yield;
-  assertEquals(1 + 1, 2, "basic math");
-  // No count assertion exists — count via getEntitiesWith + Array.from
-  assertEquals(
-    Array.from(engine.getEntitiesWith(MeshRenderer)).length,
-    5,
-    "should have 5 meshes"
-  );
-});
-```
-
-**Available assertions** (`@dcl/sdk/testing/assert`) — exactly these four:
-
-- `assertEquals(actual, expected, message?)` — deep-equals check
-- `assert(condition, message?)` — truthiness check
-- `assertComponentValue(entity, Component, expected)` — full component value comparison
-- `deepCloseTo(actual, expected, options?)` — deep numeric comparison with tolerance (for floats)
-
-There is NO count assertion — count entities with `assertEquals(Array.from(engine.getEntitiesWith(Comp)).length, n)`.
-
-**Running tests**: there is no CLI test command (`npx @dcl/sdk-commands test` does not exist). Tests execute only when the hosting runtime exposes the `~system/Testing` module — CI test runners or test-enabled explorers. In a normal preview the test runner is a no-op that just logs, and it's guarded behind DEBUG in production builds. Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
+Writing scene tests with `@dcl/sdk/testing` (generator tests, the four assertions, where tests run): `{baseDir}/references/testing.md`.
 
 ## Logging
 

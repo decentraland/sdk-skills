@@ -21,11 +21,15 @@ Consequences worth writing code around:
 
 ## Widget presets
 
-The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` × `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper the editor will edit, use the same pair. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — `SKILL.md` → **Pointer blocking**.)
+The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` × `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper the editor will edit, use the same pair. The `100%`×`100%` literal form also parses; the generated aggregator root and the in-world-verified templates use it. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — `SKILL.md` → **Pointer blocking**.)
 
 ## Scene Inset
 
-A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**). The panel labels and the SDK values they write:
+A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**).
+
+**Double inset on mobile.** The renderer wraps the whole UI in its own `ScreenInsetArea` when `screenInset` is omitted, and the aggregator's wrapper **nests inside** it. Absolute positioning is relative to the parent box, so on a phone with non-zero insets a `device` root is inset twice, an `interactable` root gets device + interactable insets, and a `none` root still gets the single renderer-level device inset rather than the full canvas. Desktop insets are zero, so nothing changes there. This is read from `wrapWithScreenInset` in `@dcl/react-ecs` and the aggregator generator, not measured on a device. Leave `index.tsx` alone (it is regenerated); if exact safe-area placement on mobile matters, pick `none` for that root and measure.
+
+The panel labels and the SDK values they write:
 
 | Panel label | `screenInset` value written |
 | --- | --- |

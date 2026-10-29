@@ -53,7 +53,7 @@ Code-reference rewrites that must follow the move:
 | Any path literal in `.composite` files                          | Update to the new `assets/...` path                                           |
 
 **Rules**:
-- Use **capitalized** category folders (`Models`, `Images`, `Audio`, `Videos`) — matches the convention used by [[create-scene]], [[add-3d-models]], and [[audio-video]] for fresh SDK7 work.
+- Use **capitalized** category folders (`Models`, `Images`, `Audio`, `Videos`) — matches the convention used by **create-scene**, **add-3d-models**, and **audio-video** for fresh SDK7 work.
 - **Reuse existing layout if present.** If the project already has `assets/scene/Models/` (Creator Hub legacy layout) or `assets/asset-packs/` (Creator Hub asset packs) / `assets/custom/` (Creator Hub custom items), keep using those exact paths — don't create a parallel `assets/Models/`.
 - **Never leave dual copies.** Delete the old top-level folders once the move is done. Dual copies bloat deploy size and cause Creator Hub to index stale paths.
 - **Grep before declaring done.** Search the entire repo (including `.composite`, `.json`, `.ts`, `.tsx` files) for each old folder name (`models/`, `sounds/`, etc.) — there should be zero remaining references.
@@ -177,6 +177,16 @@ engine.addSystem(moveGemsSystem)
 | `Color3.Blue()` / `.Red()` / `.Green()` / `.White()` / `.Black()` | `Color4.Blue()` / `.Red()` / etc. (most component fields use Color4) — `Color3.X()` still exists in `@dcl/sdk/math` for the few that need it |
 | `RAD2DEG` constant | `RAD2DEG` (and `DEG2RAD`) from `@dcl/sdk/math` |
 
+**Omit optional Transform fields instead of passing `undefined`.** `Transform.create` spreads the value after its defaults, so an explicit `rotation: undefined` / `scale: undefined` overrides the identity rotation / unit scale and is stored as `undefined`; serialization then throws `Cannot read properties of undefined (reading 'x')`. This bites ports that build a Transform from a partial object:
+
+```typescript
+const out: Partial<TransformType> = { position }
+if (rotation) out.rotation = rotation
+if (scale) out.scale = scale
+if (parent !== undefined) out.parent = parent
+Transform.create(entity, out)
+```
+
 ## Primitive shapes
 
 | SDK6 | SDK7 |
@@ -193,11 +203,11 @@ engine.addSystem(moveGemsSystem)
 
 | SDK6 | SDK7 |
 |------|------|
-| `new GLTFShape('models/x.glb')` | `GltfContainer.create(e, { src: 'models/x.glb' })` |
-| `shape.withCollisions = true` | `visibleMeshesCollisionMask: 3` (clickable + physics) — see [[add-3d-models]] for the full mask table |
+| `new GLTFShape('models/x.glb')` | `GltfContainer.create(e, { src: 'assets/Models/x.glb' })` (path after the step-3 folder move) |
+| `shape.withCollisions = true` | `visibleMeshesCollisionMask: 3` (clickable + physics) — see **add-3d-models** for the full mask table |
 | `shape.isPointerBlocker = true` | `visibleMeshesCollisionMask: 1` (CL_POINTER only) |
 | `shape.visible = false` | `VisibilityComponent.create(e, { visible: false })` |
-| `entity.addComponentOrReplace(new GLTFShape('models/new.glb'))` | `GltfContainer.createOrReplace(e, { src: 'models/new.glb' })` — but re-verify Transform per the **swap rule** in [[add-3d-models]] |
+| `entity.addComponentOrReplace(new GLTFShape('models/new.glb'))` | `GltfContainer.createOrReplace(e, { src: 'assets/Models/new.glb' })` — but re-verify Transform per the **swap rule** in **add-3d-models** |
 
 ## Materials & textures
 
@@ -269,11 +279,9 @@ const open = Animator.getClip(entity, 'Open') // returns the state object
 // then mutate the Animator with getMutable to flip `playing`
 ```
 
-**A clip must be in `states[]` when calling `playSingleAnimation` programmatically.** Unlike SDK6's `Animator.getClip(name)`, which auto-created the clip on first use, `Animator.playSingleAnimation(entity, clipName)` returns `false` and does nothing if `clipName` is not already in `Animator.states` (verified — `@dcl/ecs/dist-cjs/components/extended/Animator.js` lines 35-46). This is the path porters typically hit, because they author the Animator in code. Walk every `playAnimation` / `getClip` call in the SDK6 source and collect the full set of clip names per entity before writing `states`. For a port-friendly shim that lazily pushes missing states, see the wrapper in [[animations-tweens]] (PITFALL section). This rule does **not** apply to Animators authored by the Creator Hub Inspector (whose composite already lists every GLB clip in `states[]`) or by asset packs / smart items (which ship populated).
+**Clip registration and autoplay differ from SDK6.** SDK6's `getClip(name)` created a clip on first use; SDK7's `playSingleAnimation` silently ignores a clip missing from `states[]`, so walk every `playAnimation` / `getClip` call in the SDK6 source and list each clip per entity. A model with clips and no `Animator` autoplays a clip on its own, where SDK6 stayed in bind pose. Rules, the lazy-registering wrapper and the SDK6-port clip-switch helper: **animations-tweens** → Which clip plays.
 
-Also: if a GLTF model has animation clips and the entity has **no** `Animator` component, `GltfContainer` autoplays one clip from the .glb on its own — this is the same mechanism that lets clip-less Inspector scenes animate without explicit registration. SDK6 stayed in bind pose by default, so porting an SDK6 scene that simply omitted `Animator` will produce models that spawn playing an arbitrary clip (observed: `die` autoplaying on ghosts with no Animator). If you want a specific default, attach an `Animator.create` with the intended clip set to `playing: true`. If you also want to switch clips at runtime via `playSingleAnimation`, list every clip you'll switch to in `states[]` per the rule above.
-
-See [[animations-tweens]] for full details. Note: `AnimationState` is gone — clips are configured inside `Animator.states[]`.
+Note: `AnimationState` is gone — clips are configured inside `Animator.states[]`.
 
 ## Pointer events / clicks
 
@@ -309,7 +317,7 @@ pointerEventsSystem.onPointerDown(
 | `ActionButton.WALK` | `InputAction.IA_WALK` |
 | `ActionButton.FORWARD/BACKWARD/LEFT/RIGHT` | `InputAction.IA_FORWARD/BACKWARD/LEFT/RIGHT` |
 
-**Critical**: SDK7 pointer events require the entity to have a `CL_POINTER` collider. For primitives add `MeshCollider.setBox(e)`. For GLTFs set `visibleMeshesCollisionMask: 1` (or `3` for clicks + physics). See [[add-interactivity]].
+**Critical**: SDK7 pointer events require the entity to have a `CL_POINTER` collider. For primitives add `MeshCollider.setBox(e)`. For GLTFs set `visibleMeshesCollisionMask: 1` (or `3` for clicks + physics). See **add-interactivity**.
 
 ## Global input (key down/up anywhere)
 
@@ -337,7 +345,7 @@ engine.addSystem(() => {
 | `Input.instance.isButtonPressed(btn)` | `inputSystem.isPressed(action)` |
 | Event `e.hit` / `e.origin` / `e.direction` | `inputSystem.getInputCommand(action, eventType)` returns the full event, or use `pointerEventsSystem.onPointerDown` with a per-entity handler whose callback receives `{ hit }` |
 
-See [[advanced-input]] for the full polling API.
+See **advanced-input** for the full polling API.
 
 ## Click interception across entities (key/tool acting on a target)
 
@@ -373,7 +381,7 @@ pointerEventsSystem.onPointerDown({ entity: door, opts: {...} }, () => {
 
 ## Trigger areas (player-entry regions)
 
-SDK6 had **no native trigger area component**. The community `@dcl/ecs-scene-utils` library ("the Utils library") provided this with a custom helper that ran a per-frame system checking the local player's position against a box/sphere region. SDK7 has a **native** `TriggerArea` component — do NOT port the Utils polling code; replace the pattern entirely.
+SDK6 had **no native trigger area component**. The community `@dcl/ecs-scene-utils` library ("the Utils library") provided this with a custom helper that ran a per-frame system checking the local player's position against a box/sphere region. SDK7 has a **native** `TriggerArea` component: replace the Utils polling pattern entirely with it.
 
 ```typescript
 // SDK6 — community Utils library (one common shape; varied between versions)
@@ -417,7 +425,7 @@ triggerAreaEventsSystem.onTriggerExit(area, (result) => {
 | `new utils.TriggerSphereShape(radius, offset)`                                      | `TriggerArea.setSphere(entity)` — radius driven by `Transform.scale` |
 | `new utils.TriggerComponent(shape, { onCameraEnter, onCameraExit })`                | `triggerAreaEventsSystem.onTriggerEnter(entity, cb)` + `.onTriggerExit(entity, cb)` |
 | (no continuous "while inside" callback — had to add a per-frame system)             | `triggerAreaEventsSystem.onTriggerStay(entity, cb)` — fires every frame an entity is inside |
-| Custom per-frame system polling `Camera.instance.position` against the region       | Replace entirely. Do NOT port the polling logic — the native component handles it. |
+| Custom per-frame system polling `Camera.instance.position` against the region       | Delete it; the native component handles detection. |
 | Utils library implicitly only ever detected the local player                        | Native `TriggerArea` defaults to `ColliderLayer.CL_PLAYER`. **Behavioral note below.** |
 
 **Behavior parity — local player only (important):**
@@ -432,11 +440,11 @@ if (result.trigger?.entity !== engine.PlayerEntity) return
 
 **Other gotchas when porting:**
 
-- The Utils library box/sphere shape took an explicit `size` and `offset`. In SDK7 the dimensions come from `Transform.scale` and the position from `Transform.position` on the same entity — don't pass dimensions to `setBox`/`setSphere`.
+- The Utils library box/sphere shape took an explicit `size` and `offset`. In SDK7 the dimensions come from `Transform.scale` and the position from `Transform.position` on the same entity; `setBox`/`setSphere` take no dimensions.
 - The second argument to `TriggerArea.setBox(entity, layerMask)` is a `ColliderLayer` bitmask, NOT a size. Leave it off to keep the default `CL_PLAYER` behavior.
-- `triggerAreaEventsSystem.onTriggerEnter` registers a handler once — register at scene setup, NOT inside a system update or you'll re-register every frame.
+- `triggerAreaEventsSystem.onTriggerEnter` registers a handler once: register at scene setup (inside a system update it re-registers every frame).
 
-See [[add-interactivity]] for the full TriggerArea reference and [[player-physics]] for examples of the `engine.PlayerEntity` guard in trigger callbacks.
+See **add-interactivity** for the full TriggerArea reference and **player-physics** for examples of the `engine.PlayerEntity` guard in trigger callbacks.
 
 ## Camera & Player
 
@@ -450,27 +458,19 @@ See [[add-interactivity]] for the full TriggerArea reference and [[player-physic
 
 ### Attaching items to the player
 
-SDK6 had two coarse "follow" options for items meant to ride along with the player. SDK7 splits these into three distinct paths, picked by **what kind of item** it is. Use the table to pick the right destination — bone-level `AvatarAttach` is **not** the universal SDK7 replacement for SDK6 `Attachable`, and `engine.PlayerEntity` is **not** the universal replacement for `Attachable.FIRST_PERSON_CAMERA` (it loses camera pitch — see anti-patterns below).
-
-| Parent / mechanism | Tracks | Use for | SDK6 origin |
-|--------------------|--------|---------|-------------|
-| `Transform.parent = engine.CameraEntity` (plus local `position` offset for "in front of and below" the camera) | Camera **yaw + pitch** (aim follows look direction) | **Aim-sensitive held items — recommended default for guns, aiming reticles, flashlights, anything the player should be able to point by looking around.** | Direct SDK7 equivalent of `entity.setParent(Attachable.FIRST_PERSON_CAMERA)`. |
-| `Transform.parent = engine.PlayerEntity` (plus local `position` offset for hand-height / forward distance) | Player root: feet + body **yaw only**, **no pitch**, no animation | **Body-fixed items that should stay level regardless of where the camera points** — held shield not used for aim, static carried torch, non-aimed inventory carried at hip-level. Wrong default for guns/aim items. | SDK7 equivalent of `entity.setParent(Attachable.AVATAR)`. |
-| `AvatarAttach.create(e, { anchorPointId: AAPT_RIGHT_HAND \| AAPT_HEAD \| AAPT_SPINE \| ... })` | The actual animated bone (idle bob, walk cycle, gestures all propagate) | **Cosmetic items** that should ride the avatar animation: hats, halos, backpacks, name plates, torches visible to other players. **NOT for gameplay aim.** | No SDK6 equivalent — bone-level attachment is new in SDK7. |
+Map by **what kind of item** it is, not to a bone anchor:
 
 | SDK6 | SDK7 (porting target) |
 |------|----------------------|
-| `entity.setParent(Attachable.FIRST_PERSON_CAMERA)` | `Transform.getMutable(e).parent = engine.CameraEntity` (or `parent` in `Transform.create`) + local `position` offset |
-| `entity.setParent(Attachable.AVATAR)` | `Transform.getMutable(e).parent = engine.PlayerEntity` + local `position` offset |
+| `entity.setParent(Attachable.FIRST_PERSON_CAMERA)` | `Transform.getMutable(e).parent = engine.CameraEntity` (or `parent` in `Transform.create`) + local `position` offset. Tracks camera yaw **and pitch**: the default for guns, reticles, flashlights |
+| `entity.setParent(Attachable.AVATAR)` | `Transform.getMutable(e).parent = engine.PlayerEntity` + local `position` offset. Yaw only, no pitch: for body-fixed items that stay level |
+| (no SDK6 equivalent) | `AvatarAttach` on a bone anchor: cosmetics only (hats, backpacks). The bone animates, so a held gun on `AAPT_RIGHT_HAND` jitters and cannot aim |
 
-**Anti-patterns (common SDK6 → SDK7 porting mistakes):**
+Decision table and a worked gun example: **player-avatar** → Held items vs cosmetic items. Camera-mode forcing when equipping a weapon: **camera-control**.
 
-- Replacing `Attachable.FIRST_PERSON_CAMERA` with `AvatarAttach({ anchorPointId: AAPT_RIGHT_HAND })`. The API name reads like the right SDK7 way to "put it in the avatar's hand", but `AAPT_RIGHT_HAND` is a bone on the animated skeleton — the attached entity inherits idle bob, walk cycle, and any active gesture animation, so a gun jitters every frame and is unaimable. Use parenting (`Transform.parent`) for held items; reserve `AvatarAttach` for cosmetics.
-- Replacing `Attachable.FIRST_PERSON_CAMERA` with `Transform.parent = engine.PlayerEntity`. This is the **most common subtle failure** when porting held gameplay items: it looks correct for hip-fire (the gun follows yaw with the body), but the moment the player tilts the camera up to aim at a high target the gun stays flat — `PlayerEntity` inherits body yaw only, not camera pitch. For any aim-sensitive item, parent to `engine.CameraEntity` instead. Reserve `PlayerEntity` for items that should explicitly stay level regardless of look direction.
+## Billboards
 
-See [[player-avatar]] for the full "Held items vs cosmetic items" comparison and a worked gun example, and [[camera-control]] for camera-mode forcing when equipping a held weapon.
-
-See [[camera-control]] and [[player-avatar]].
+SDK6's renderer pointed a billboarded model's +Z at the camera; SDK7 points −Z at it, so a model that faced the camera under `new Billboard(false, true, false)` shows its **back** under `Billboard.create(e, { billboardMode: BillboardMode.BM_Y })`. Text billboards already used −Z under SDK6 and keep their facing. `PBBillboard` has only `billboardMode` (no flip flag), so fix it in the Transform: **rotate the displayed model 180° on Y** (`Quaternion.fromEulerDegrees(0, 180, 0)`). With a `Billboard`'d parent and a child model, rotate the **child**: the billboarded entity's own rotation is owned by the component. Apply this to every ported billboarded model. Component reference: **advanced-rendering** (Billboard).
 
 ## Audio
 
@@ -501,7 +501,7 @@ AudioSource.getMutable(entity).playing = true
 | `source.loop` | Field on `AudioSource` |
 | Streaming via `AudioStream` (URL) | `AudioStream.create(e, { url, playing, volume })` |
 
-See [[audio-video]].
+See **audio-video**.
 
 ## Timers / delays
 
@@ -546,11 +546,11 @@ const id = timers.setTimeout(() => {
 | "Timer entity" created just to host a `Delay` component         | Delete the entity entirely — `timers.setTimeout` doesn't need an entity                 |
 | Custom per-frame `timerSystem` that accumulates `dt` to fire delayed callbacks | Delete the system — use `timers.setTimeout` / `timers.setInterval` directly      |
 
-**Critical migration rule — argument order**: SDK6 `Delay(ms, cb)` puts the duration first; JS-standard `timers.setTimeout(cb, ms)` puts the callback first. Do NOT write a custom `setSceneTimeout(ms, cb)` helper that preserves the SDK6 order — it's a known footgun.
+**Critical migration rule — argument order**: SDK6 `Delay(ms, cb)` puts the duration first; `timers.setTimeout(cb, ms)` puts the callback first. Call `timers` directly at each site; a wrapper that preserves the SDK6 order is a known footgun.
 
-**Do NOT use the native JS `setTimeout` / `setInterval` globals.** The QuickJS runtime exposes them (declared as globals in `@dcl/js-runtime/index.d.ts`), and they may appear to work, but they are not bound to the scene engine and can introduce subtle problems. Always go through the `timers` named export. For a custom engine instance, use `createTimers(engineInstance)` to get an engine-scoped `Timers` object.
+**Always go through the `timers` named export**, even though the QuickJS runtime also exposes global `setTimeout` / `setInterval`: the globals are not bound to the scene engine. For a custom engine instance, use `createTimers(engineInstance)` to get an engine-scoped `Timers` object.
 
-See [[scene-runtime]] (Timers section) for the full reference.
+See **scene-runtime** (Timers section) for the full reference.
 
 ## UI
 
@@ -571,7 +571,7 @@ const Hud = () => (
 ReactEcsRenderer.setUiRenderer(Hud, { virtualWidth: 1920, virtualHeight: 1080 })
 ```
 
-UI migrations almost always need a from-scratch rewrite. See [[build-ui]].
+UI migrations almost always need a from-scratch rewrite. See **build-ui**.
 
 ### UI sizing — virtual canvas (critical for ports)
 
@@ -590,10 +590,10 @@ Picking the right size:
 
 - Open the SDK6 source (the legacy ECS reference is https://github.com/decentraland/ecs) and read the `UICanvas`/`UIImage`/`UIText` setup to see what pixel grid the original UI was authored against.
 - Pass those numbers as `virtualWidth` / `virtualHeight`. `1920x1080` is a reasonable default and matches what most community examples assume, but if the SDK6 scene targeted a different resolution (e.g. `1280x720`), use those instead so existing pixel coordinates land in the same place.
-- Only one `setUiRenderer` call per scene — pass the virtual size there, not on individual elements. See [[build-ui]] for the full default-rule guidance.
+- Only one `setUiRenderer` call per scene — pass the virtual size there, not on individual elements. See **build-ui** for the full default-rule guidance.
 - On SDK 7.26.0+, beware two behaviors that can silently change the grid your coordinates land on: a **16:9 size is overridden to `1600x720` on mobile**, and a size with any value `<= 0` **disables** scaling entirely (raw canvas pixels). Neither is usually what a port wants.
 
-Signature reference — **SDK 7.26.0+** (verified against [[build-ui]] skill docs):
+Signature reference — **SDK 7.26.0+** (verified against **build-ui** skill docs):
 
 ```ts
 ReactEcsRenderer.setUiRenderer(ui: UiComponent, options?: UiRendererOptions): void
@@ -610,7 +610,7 @@ Below 7.26.0 both dimensions are required and there is no `screenInset` field:
 type UiRendererOptions = { virtualWidth: number; virtualHeight: number }
 ```
 
-Since a port targets whatever SDK the new project installs, a fresh `create-scene` puts you on the current version — but check `@dcl/sdk` in `package.json` before emitting `screenInset`. `screenInset` is unrelated to the pixel grid; it selects which screen area the UI sits in, and its `'device'` default keeps UI clear of a phone's notch and status bar (a no-op on desktop), so ports can leave it alone. See the version gate in [[build-ui]].
+Since a port targets whatever SDK the new project installs, a fresh `create-scene` puts you on the current version — but check `@dcl/sdk` in `package.json` before emitting `screenInset`. `screenInset` is unrelated to the pixel grid; it selects which screen area the UI sits in, and its `'device'` default keeps UI clear of a phone's notch and status bar (a no-op on desktop), so ports can leave it alone. See the version gate in **build-ui**.
 
 ## Logging
 
@@ -633,4 +633,4 @@ Since a port targets whatever SDK the new project installs, a fresh `create-scen
 The mappings above are derived from:
 - Decentraland SDK7 components reference (`sdk-scenes/references/components-reference.md`)
 - The Migrated-2048 example scene (verified working SDK7 port of an SDK6 scene)
-- Cross-checked against [[add-interactivity]], [[animations-tweens]], [[add-3d-models]], [[advanced-input]] skill documents
+- Cross-checked against **add-interactivity**, **animations-tweens**, **add-3d-models**, **advanced-input** skill documents

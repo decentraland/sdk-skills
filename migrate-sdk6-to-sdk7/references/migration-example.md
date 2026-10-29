@@ -363,7 +363,7 @@ Animator.stopAllAnimations(chest)
 - `clip.play()` → `Animator.playSingleAnimation(entity, 'clipName')`
 - `clip.stop()` → `Animator.stopAllAnimations(entity)` or mutate the specific state's `playing` field via `getMutable`
 
-See [[animations-tweens]] for the full Animator API.
+See **animations-tweens** for the full Animator API.
 
 ## Pointer events
 
@@ -388,7 +388,7 @@ pointerEventsSystem.onPointerDown(
 
 **Critical**: in SDK7 the entity must have a `CL_POINTER` collider. For `GltfContainer`, set `visibleMeshesCollisionMask: 1` (or `3` for click + physics). For primitives, add `MeshCollider.setBox(entity)`.
 
-See [[add-interactivity]] for the full pointer/proximity/trigger event surface.
+See **add-interactivity** for the full pointer/proximity/trigger event surface.
 
 ## Global input — swipe detection
 
@@ -503,10 +503,10 @@ SDK6 used `entity.alive` to track which pool entries were free. SDK7 has no `ali
 
 ## What this example does NOT cover
 
-- **UI migration** — 2048 has no SDK6 `UICanvas` UI. For scenes that do, expect a full rewrite using React-ECS. See [[build-ui]].
-- **Multiplayer sync** — 2048 is single-player. For SDK6 `MessageBus` or community sync libraries → SDK7 `syncEntity` / `MessageBus` from `@dcl/sdk/network`. See [[multiplayer-sync]].
+- **UI migration** — 2048 has no SDK6 `UICanvas` UI. For scenes that do, expect a full rewrite using React-ECS. See **build-ui**.
+- **Multiplayer sync** — 2048 is single-player. For SDK6 `MessageBus` or community sync libraries → SDK7 `syncEntity` / `MessageBus` from `@dcl/sdk/network`. See **multiplayer-sync**.
 - **Physics** — 2048 has no physics-driven entities.
-- **NFT display** — `NFTShape` → `NftShape` (lowercase 't'). See [[nft-blockchain]].
+- **NFT display** — `NFTShape` → `NftShape` (lowercase 't'). See **nft-blockchain**.
 - **Smart wearables / portable experiences** — different deployment path entirely.
 
 ## Verification checklist after porting

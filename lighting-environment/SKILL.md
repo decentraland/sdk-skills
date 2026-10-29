@@ -1,13 +1,13 @@
 ---
 name: lighting-environment
-description: Dynamic lighting and environment in Decentraland scenes. LightSource, shadows, SkyboxTime, realm detection, and emissive materials. Use when the user wants lights, shadows, skybox control, day-night cycle, or glowing materials. Do NOT use for PBR material properties like metallic/roughness (see advanced-rendering).
+description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, fixtures that glow and cast light. For emissive, metallic, roughness or transparent materials see advanced-rendering.
 ---
 
 # Lighting and Environment in Decentraland
 
 ## RULE: Use Smart Items for lights when the Creator Hub MCP is available
 
-When the user asks to add a light and the Creator Hub MCP tools are present (`mcp__creator-hub__*`), **always `search_catalog` first** before manually creating an entity with `LightSource`. The Creator Hub catalog includes ready-made light Smart Items:
+When the user asks to add a light and the Creator Hub MCP tools (`search_catalog`, `place_smart_item`) are available, **always `search_catalog` first** before manually creating an entity with `LightSource`. The Creator Hub catalog includes ready-made light Smart Items:
 
 - **Spotlight** (`87c829b3-8e8d-4fcb-9f43-85d3aa9084f6`, category `lights`) -- comes with a real GLB model (`assets/asset-packs/spotlight/spotlight.glb`), a pre-configured `core::LightSource`, built-in Turn On / Turn Off / Toggle actions, and proper `inspector::Config` for the Creator Hub UI.
 - **Point Light** (category `lights`) -- same pattern: GLB placeholder, pre-configured `core::LightSource` of type Point, built-in actions.
@@ -21,6 +21,8 @@ Use `place_smart_item` with the `assetId` and a `position`. It handles everythin
 - The user needs non-standard light parameters that a Smart Item does not expose.
 
 The manual `LightSource` component API documented below remains the authoritative reference for both paths -- Smart Items use the same underlying component.
+
+If you must set a light Smart Item's `asset-packs::Placeholder` by hand via `set_component`, use the real on-disk path (e.g. `assets/asset-packs/spotlight/spotlight.glb`), not the template variable `{assetPath}/spotlight.glb`, which leaves an invisible/broken gizmo. `place_smart_item` resolves it automatically.
 
 ## RULE: 3D model light fixtures do not emit light
 
@@ -80,23 +82,31 @@ LightSource.create(spotlight, {
 - `innerAngle` — full-brightness cone angle (degrees). Default `21.8`. Min `0`, max `179`.
 - `outerAngle` — outer fade angle (degrees). Default `30`. Max `179`.
 - `innerAngle` cannot exceed `outerAngle` — if it does, the engine clamps them to the same value.
-- The cone shines along the entity's local **+Z** (its forward): the Explorer parents the Unity `Light` under the entity's transform with an identity local pose (`LightSourceLifecycleSystem.cs`, unity-explorer main 2026-10). **Pitch `+90` about X points it straight down; `-90` points it at the sky** — `Quaternion.fromEulerDegrees(90, 0, 0)` rotates `Vector3.Forward()` to `(0, -1, 0)` and `-90` to `(0, 1, 0)`, computed with `@dcl/ecs-math` (2026-10-22). The SDK docs' spot example and an earlier version of this skill wrote `-90` for "downward", so a ceiling spot that seems to do nothing may be lighting the roof. Not yet re-confirmed in-world — check the cone once with the sanity test under Light Limits.
+- The cone shines along the entity's local **+Z** (its forward). **Pitch `+90` about X points it straight down; `-90` points it at the sky** (`Quaternion.fromEulerDegrees(90, 0, 0)` rotates `Vector3.Forward()` to `(0, -1, 0)`). A ceiling spot that seems to do nothing may be lighting the roof; check the cone once with the sanity test under Light Limits.
 - `type` is a discriminated union. To read/mutate spot params at runtime, narrow first:
   `if (comp.type?.$case === 'spot') { comp.type.spot.innerAngle = 30 }`
 
 ## Shadows
 
-Enable shadows on point or spot lights:
+`shadow` is a top-level optional boolean on the LightSource component (default `false`), not inside `Spot`/`Point`. There is no shadow-type enum — quality is automatic and distance-based.
 
 ```typescript
 LightSource.create(spotlight, {
   type: LightSource.Type.Spot({ innerAngle: 25, outerAngle: 45 }),
-  shadow: true,
+  shadow: true,  // top-level boolean
   intensity: 800
 })
 ```
 
-Note: shadows are only rendered for spot lights, not point lights. `shadow` is a top-level boolean on the component (not inside `Spot`/`Point`).
+- Shadows render only for **spot** lights; `shadow` on a point light has no effect.
+- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
+- Shadow quality/culling follows the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
+
+| Distance from player | Result |
+|----------------------|--------|
+| < 10 m | Soft shadows (high quality) |
+| 10–20 m | Hard shadows (low quality) |
+| > 20 m | No shadows rendered |
 
 ### Shadow Mask Textures (Gobos)
 
@@ -123,15 +133,16 @@ lightData.active = !lightData.active
 ## Light Limits
 
 - A scene may **create** many lights (the engine test scene spawns ~9 across 2 parcels); the renderer decides how many render.
-- The desktop quality preset caps scene lights: **Low = 0 (scene lights disabled entirely), Medium = 6, High = 10** (`QualityPresetLow/Medium/High.asset`, unity-explorer main 2026-10; the Settings slider can lower a preset's cap further). If the scene has more than the cap, only the closest lights to the player render.
+- The desktop quality preset caps scene lights: **Low = 0 (scene lights disabled entirely), Medium = 6, High = 10** (unity-explorer `QualityPreset*.asset`; the Settings slider can lower a preset's cap further). If the scene has more than the cap, only the closest lights to the player render.
 - **Troubleshoot "my light doesn't show" by checking the player's active preset first** — on Low a correctly authored `LightSource` renders nothing, and no amount of intensity, range, material or attachment-offset tuning changes that. State the supported minimum (Medium) rather than demanding High. A visible emissive flame is not proof the candle lights the room: keep the glowing mesh and the light cast onto surroundings as separate checks.
-- Up to ~3 shadow-casting lights render at once.
 - The renderer auto-culls lights based on quality settings and proximity.
 - Intensity is in **candela** (lumens/m² at 1m, i.e. lumens/4π). Default `16000`.
 - `range` default is `-1` → auto-computed as `intensity^0.25` (fourth root, in meters). Set an explicit `range` to override — this also limits a light's influence and saves performance.
 - Spread lights out so few are near the player at once (only the closest ones render).
-- **Keep the scene readable with no scene light at all.** Desktop *Low* and mobile *Very Low* render zero scene lights, and a desktop owner test (2026-10-09) saw a point light while two spots in the same room stayed dark (cause not established). Anything gameplay-critical — the path, the interactable, a "lights turn warm" story beat — must survive on emissive materials, textures and the skybox; `LightSource` is accent. This generalises the Mobile rule under Platform Support.
-- **One-minute sanity test before tuning anything:** at the default `intensity: 16000`, place one point light 2.5 m above the floor and one spot at the same height pitched `+90` (straight down), next to an emissive plane as a reference. Point visible, spot dark → aim or preset, not intensity. Neither visible → the preset is Low. Only then tune. Eight rounds of 8–60 cd guesses written in code (2026-10-08) preceded the one test that answered this; the catalog's Point Light / Spotlight Smart Items start at 16000 for a reason.
+- **Keep the scene readable with no scene light at all.** Desktop *Low*, mobile *Very Low* and older mobile apps render zero scene lights. Anything gameplay-critical — the path, the interactable, a "lights turn warm" story beat — must survive on emissive materials, textures and the skybox; `LightSource` is accent. Cast shadows are not guaranteed either, so never make a shadow the only cue for an object's position.
+- The **light itself keeps illuminating** at much larger distances — it is only disabled when the player is more than **160 m away (10 parcels)**. This makes LightSource suitable for large-scale setups like stage lighting at live events, where most of the audience is far from the fixtures.
+- Lights only render while the player is standing **inside** the scene; outside, they are not rendered.
+- **One-minute sanity test before tuning anything:** at the default `intensity: 16000`, place one point light 2.5 m above the floor and one spot at the same height pitched `+90` (straight down), next to an emissive plane as a reference. Point visible, spot dark → aim or preset, not intensity. Neither visible → the preset is Low. Only then tune. The catalog's Point Light / Spotlight Smart Items start at 16000 for a reason.
 
 ## SkyboxTime (Day/Night Cycle)
 
@@ -139,19 +150,7 @@ Use SkyboxTime for atmosphere — nighttime scenes with point lights create dram
 
 ### Fixed Time in scene.json
 
-Set a permanent time of day without code. Two valid locations:
-
-```json
-// Genesis City scene — top-level
-{ "skyboxConfig": { "fixedTime": 43200 } }
-
-// World — inside worldConfiguration
-{ "worldConfiguration": { "name": "my-name.dcl.eth", "skyboxConfig": { "fixedTime": 36000 } } }
-```
-
-Time values (seconds since midnight, full day = 86400): 0 = midnight, 21600 = 6 AM, 43200 = noon, 64800 = 6 PM (dusk), 86400 = full day.
-
-**Precedence** (verified against the engine test scenes): `worldConfiguration.skyboxConfig.fixedTime` wins over top-level `skyboxConfig.fixedTime`; either JSON value is in turn overridden at runtime by a `SkyboxTime` component on `engine.RootEntity`.
+A permanent time of day needs no code: `skyboxConfig.fixedTime` in `scene.json` (top-level, or inside `worldConfiguration` for a World). Locations, time values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *Skybox fixed time*. A `SkyboxTime` component on `engine.RootEntity` overrides either JSON value at runtime.
 
 ### Read Current World Time
 
@@ -201,38 +200,9 @@ function dayNightCycle(dt: number) {
 engine.addSystem(dayNightCycle)
 ```
 
-## Realm Info
+## Glow + Light
 
-Detect which realm (server) the player is connected to:
-
-```typescript
-import { getRealm } from '~system/Runtime'
-
-executeTask(async () => {
-  const realm = await getRealm({})
-  console.log('Realm:', realm.realmInfo?.realmName)
-  console.log('Network:', realm.realmInfo?.networkId)
-  console.log('Base URL:', realm.realmInfo?.baseUrl)
-})
-```
-
-## Emissive Materials (Glow Effects)
-
-For a visual glow without casting light on surroundings:
-
-```typescript
-import { engine, Material } from '@dcl/sdk/ecs'
-import { Color4, Color3 } from '@dcl/sdk/math'
-
-// Self-illuminated material (emissiveColor uses Color3, not Color4)
-Material.setPbrMaterial(entity, {
-  albedoColor: Color4.create(0, 0, 0, 1),
-  emissiveColor: Color3.create(0, 1, 0),  // Green glow
-  emissiveIntensity: 2.0
-})
-```
-
-Note: emissive materials don't illuminate other surrounding entities, they just have a glow effect on them.
+Emissive materials glow but do not illuminate surrounding entities; a `LightSource` illuminates but has no visible body. Emissive material fields (`emissiveColor` is `Color3`, `emissiveIntensity`, `emissiveTexture`): **advanced-rendering** → *Emissive (Glow Effects)*.
 
 ### Combining Emissive + LightSource
 
@@ -254,40 +224,9 @@ LightSource.create(bulb, {
 })
 ```
 
-### Shadow Quality
-
-`shadow` is a top-level optional boolean on the LightSource component (default `false`). There is no shadow-type enum — quality is automatic and distance-based. `Spot({...})` accepts only `innerAngle?` and `outerAngle?`.
-
-```typescript
-import { LightSource } from '@dcl/sdk/ecs'
-
-// Spot light with shadows enabled
-LightSource.create(spotEntity, {
-  type: LightSource.Type.Spot({ innerAngle: 25, outerAngle: 45 }),
-  shadow: true,  // top-level boolean
-  intensity: 800
-})
-```
-
-Constraints:
-- Shadows are only supported for **spot** lights; point lights do not cast shadows.
-- Max **3** shadow-casting lights rendered at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
-- Shadow quality/culling is automatic, based on the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
-
-| Distance from player | Result |
-|----------------------|--------|
-| < 10 m | Soft shadows (high quality) |
-| 10–20 m | Hard shadows (low quality) |
-| > 20 m | No shadows rendered |
-
-- The **light itself keeps illuminating** at much larger distances — it is only disabled when the player is more than **160 m away (10 parcels)**. This makes LightSource suitable for large-scale setups like stage lighting at live events, where most of the audience is far from the fixtures.
-- Lights only render while the player is standing **inside** the scene; outside, they are not rendered.
-
-> **Need advanced material effects?** See the **advanced-rendering** skill for metallic, roughness, transparency, texture maps, texture tweens, and texture modes.
-
 ## Platform Support
 
-- **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows). One owner test (2026-10-09, point + two spots at default intensity) showed only the point light; not reproduced, and the spots may have been pitched up (see Spot Lights) — run the sanity test under Light Limits before calling it a client defect.
+- **Desktop (Unity explorer):** Full support (point lights, spot lights, shadows), capped per quality preset (see Light Limits).
 - **Mobile (Godot explorer):** `LightSource` (scene dynamic lights) works from app 1.13.0, budgeted at runtime (see below). Older mobile apps draw no scene lights, so the scene must read without them, as for the zero-light profiles above.
 - **Bevy explorer:** Full support (point lights, spot lights, shadows).
 
@@ -297,20 +236,14 @@ Mobile enforces flat scene limits on **authored** lights: **8 soft / 16 hard** l
 
 On top of that, each mobile **graphics profile** only activates a budget of the **nearest** light sources — **0 on Very Low, up to 8 on High** — and lower profiles may disable shadows entirely. So:
 
-- Authoring 20 lights still costs the full scene budget even though at most 8 ever emit. Author to 8, do not lean on the runtime budget.
-- Never make gameplay-critical visibility depend on a specific light being lit: on Very Low **no** scene light is active. Keep a baseline readable with ambient/emissive materials and the skybox, and treat `LightSource` as accent.
-- Shadows are not guaranteed. Do not use a cast shadow as the only cue for an object's position.
+- Authoring 20 lights still costs the full scene budget even though at most 8 ever emit. Author to 8 rather than leaning on the runtime budget.
+- On Very Low **no** scene light is active: keep the no-light baseline from Light Limits.
 
 Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
 
 ## Gotchas
 
-- `range` left unset (`-1`) is auto-derived from intensity as `intensity^0.25` — small intensities give surprisingly short range. Set `range` explicitly for predictable falloff.
-- `shadow` only affects spot lights; setting it on a point light has no effect.
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
-- `SkyboxTime` on `RootEntity` overrides any scene.json `fixedTime`; `deleteFrom` reverts to it.
-- **Baked light geometry is inert.** GLB models with lamp/bulb meshes do not emit light -- add a `LightSource` component for real illumination. See the rule above.
-- **Smart Item `Placeholder` needs a resolved file path**, not a template variable. Setting `{assetPath}/spotlight.glb` as the `src` in an `asset-packs::Placeholder` results in an invisible/broken gizmo. `place_smart_item` resolves this automatically to e.g. `assets/asset-packs/spotlight/spotlight.glb`. If you must set `Placeholder` manually via `set_component`, use the real on-disk path.
 
 ## Example scenes
 

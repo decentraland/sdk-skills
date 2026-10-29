@@ -106,7 +106,7 @@ For anything deeper, point the user to the official docs: [blender.org/lab/mcp-s
 
 ## Blender ↔ Decentraland axes
 
-For a model built around its own origin this does not matter — the exporter's `+Y up` default lands it upright and the entity `Transform` places it. It matters the moment **placement is baked into the mesh** (world-space kit chunks, a scripted layout exported as one GLB, anything positioned in Blender rather than by a `Transform`). Get it wrong and the geometry lands outside the scene. Everything outside the parcels is clipped with no error, so a whole chunk that lands outside vanishes completely — see "RULE: Geometry baked in world coordinates" in the parent SKILL.md for the symptom.
+For a model built around its own origin this does not matter — the exporter's `+Y up` default lands it upright and the entity `Transform` places it. It matters the moment **placement is baked into the mesh** (world-space kit chunks, a scripted layout exported as one GLB, anything positioned in Blender rather than by a `Transform`). Get it wrong and the geometry lands outside the scene. Everything outside the parcels is clipped with no error, so a whole chunk that lands outside vanishes completely — see *Symptom* below.
 
 **Mapping** — observed in-world 2026-10-08 (two independent asymmetric checks in the Explorer: an aircraft cabin with one open end, and a desk with an off-centre monitor viewed with a 180° Y rotation), then confirmed in both renderers' source (see *Why* below). Blender Z-up, exported with the default glTF `+Y up`:
 
@@ -145,6 +145,18 @@ def place(objs, dcl_x, dcl_z, rot_deg=0.0, dcl_y=0.0):
 ```
 
 **Put the object origin at the world origin before exporting a world-baked chunk** (`scene.cursor.location = (0,0,0)` then `bpy.ops.object.origin_set(type='ORIGIN_CURSOR')`), so the exported node carries no translation and the mesh's local bounds equal its world bounds. Keeping local and world bounds identical means the bounding-box script's numbers are the numbers the scene boundary is checked against.
+
+### Symptom: a world-baked mesh that vanishes
+
+The parent SKILL.md's bounding-box rule assumes a model built around its own origin and positioned by `Transform`. The moment you **bake world-space placement into the mesh** — merged floor/wall chunks for a whole zone, a kitbashed layout exported as one GLB, anything placed by a script in Blender rather than by an entity `Transform` — the model's placement depends on the **axis convention of the exporter**, and a wrong guess puts the geometry outside the scene while every number you can read still looks right.
+
+**Failure mode (observed 2026-10-08):** rendering is clipped at the scene boundary, so **only the portions of a mesh that fall outside the parcels disappear — the rest of the model stays visible**. That is what makes a bad axis guess so confusing: when the whole baked mesh lands outside (e.g. mirrored in X), **all** of it is clipped, with no error, even though the entity's own `Transform.position` is inside the scene. Both the Explorer and the Creator Hub editor clip it the same way, and the Creator Hub's `get_scene_metrics.entitiesOutOfBoundaries` did **not** list it — under the Bevy renderer that list is always empty; under Babylon it is bounds-based and would. The tell is a contradiction between two reads:
+
+- `explorer_get_scene_content_stats` counts the model's triangles — so the GLB loaded fine;
+- `explorer_get_scene_content_breakdown` shows the source with N `renderers` and **`visibleRenderers: 0` from every viewpoint**;
+- scene logs are clean.
+
+Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendered normally in the same scene.
 
 ### RULE: probe the axes before baking the real thing
 
