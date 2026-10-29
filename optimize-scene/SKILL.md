@@ -1,6 +1,6 @@
 ---
 name: optimize-scene
-description: Optimize Decentraland scene performance. Scene limit formulas, object pooling, LOD patterns, texture optimization, system throttling, and asset preloading. Use when the user wants to optimize performance, fix lag, reduce load time, check limits, or reduce entity/triangle count. Do NOT use for deployment (see deploy-scene).
+description: Optimize Decentraland scene performance and fit scene limits — per-parcel and mobile limit tables, draw calls and materials, reuse vs merge of models, object pooling, LOD, textures, system throttling, asset preloading. Use when the user wants to fix lag or load time, check or reduce triangle/entity/material counts, or fit a scene to mobile.
 ---
 
 # Optimizing Decentraland Scenes
@@ -19,7 +19,7 @@ All limits below scale with parcel count `n`. Triangles, entities, and bodies sc
 
 **Height limit: 330 m for every scene, regardless of parcel count.** Entities whose world position exceeds it are hidden. ⚠️ Anything above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant and networked content below that height.
 
-**Read the Materials row with care.** The client instantiates a material per rendered object, so this number tracks how many objects a scene renders rather than how many distinct materials it authors — a scene that correctly reuses one model many times will pass this cap while doing the right thing. Treat it as a memory signal, and judge frame-time risk by `shaderVariants` instead (see *Repeated Models* below).
+**Read the Materials row as a memory signal**, not a count of authored materials (see *Repeated Models*).
 
 **File limits:** 15 MB per parcel, 300 MB max total, 200 files per parcel, 50 MB max per individual file.
 
@@ -55,7 +55,7 @@ A **separate**, flat set of limits applies when the scene runs on the mobile cli
 - Each mobile **graphics profile** activates only a budget of the **nearest** light sources — **0 on Very Low up to 8 on High** — and may disable shadows entirely. A scene that authors 20 lights still pays the full scene cost even though at most 8 ever emit. Author to the 8/16 limit; do not rely on the runtime budget to make an over-lit scene cheap. See **lighting-environment**.
 - Particles are additionally **clamped at runtime**: **5,000 per emitter, 50,000 per scene**. Anything authored above those caps is silently reduced, so exceeding them only wastes scene budget with no visual gain. See **particle-system**.
 
-Measure without a device: Creator Hub > Preview > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device.
+Measure without a device: Creator Hub **Play Options** > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device.
 
 ## Entity Count Optimization
 
@@ -114,7 +114,7 @@ For repeated content — lamp posts, chairs, trees, fences — **default to one 
 for (const position of lampPostPositions) {
 	const lampPost = engine.addEntity()
 	Transform.create(lampPost, { position })
-	GltfContainer.create(lampPost, { src: 'assets/scene/lampPost.glb' })
+	GltfContainer.create(lampPost, { src: 'assets/Models/lampPost.glb' })
 }
 
 // BAD: near-identical files — 20 downloads, 20 copies in memory
@@ -163,11 +163,11 @@ engine.addSystem(() => {
 
 	const gltf = GltfContainer.getMutable(myEntity)
 	if (distance > 30) {
-		gltf.src = 'models/building_lod2.glb' // Low poly
+		gltf.src = 'assets/Models/building_lod2.glb' // Low poly
 	} else if (distance > 15) {
-		gltf.src = 'models/building_lod1.glb' // Medium poly
+		gltf.src = 'assets/Models/building_lod1.glb' // Medium poly
 	} else {
-		gltf.src = 'models/building_lod0.glb' // High poly
+		gltf.src = 'assets/Models/building_lod0.glb' // High poly
 	}
 })
 ```
@@ -197,26 +197,14 @@ Audit before and after with the triangle-count and material-audit scripts in the
 ## Texture Optimization
 
 - **Dimensions must be power-of-two**: 256, 512, 1024
-- **Maximum is 1024x1024.** The asset-bundle-converter enforces `DESKTOP_MAX_TEXTURE_SIZE = 1024` (`AssetBundleConverter.cs` → `ReduceTextureSizeIfNeeded`): anything larger (e.g. 2048) is **downscaled to 1024 at conversion**, so authoring above 1024 wastes source size without visual benefit.
+- **Maximum is 1024x1024.** The asset-bundle conversion **downscales anything larger (e.g. 2048) to 1024**, so authoring above 1024 wastes source size without visual benefit.
 - **Recommended sizes**: 512x512 for most objects, 1024x1024 for hero pieces
 - Save at 72 DPI: a higher DPI adds file weight with no visual gain
 - Use `.png` for UI/sprites with transparency
 - Use `.jpg` for photos and textures without transparency
 - Prefer compressed formats (WebP) over raw PNG where possible
-- Use texture atlases (combine multiple textures into one image) to reduce draw calls and material count
-- Share texture references across materials — do not duplicate texture files
-- Reuse materials across entities:
-
-```typescript
-// GOOD: Define material once, apply to many
-Material.setPbrMaterial(entity1, {
-	texture: Material.Texture.Common({ src: 'images/wall.jpg' }),
-})
-Material.setPbrMaterial(entity2, {
-	texture: Material.Texture.Common({ src: 'images/wall.jpg' }),
-})
-// Same texture URL = shared in memory
-```
+- Use texture atlases (combine multiple textures into one image) to cut material slots per object and texture count
+- **Same texture URL = one texture in memory.** Point every material at one shared file (`Material.Texture.Common({ src: 'assets/Images/wall.jpg' })`) instead of duplicating texture files. It saves memory, not draw calls or the material count (see *Repeated Models*).
 
 ### Texture Size Guide by Use Case
 
@@ -278,42 +266,7 @@ engine.removeSystem(systemFn)
 
 ## Asset Preloading (AssetLoad Component)
 
-Use `AssetLoad` to pre-load assets into memory ahead of time so they display instantly when needed. `PBAssetLoad` has a single field: `assets: string[]` — the list of asset paths to load. Commonly created on `engine.RootEntity`, but any entity works.
-
-```typescript
-import {
-	engine,
-	AssetLoad,
-	assetLoadLoadingStateSystem,
-	LoadingState,
-} from '@dcl/sdk/ecs'
-
-// Queue assets to pre-load (any entity works — commonly a dedicated cube/root).
-// AssetLoad.getOrCreateMutable lets you also PUSH more paths later:
-//   AssetLoad.getOrCreateMutable(entity, { assets: [...] }).assets.push(morePath)
-AssetLoad.create(entity, { assets: ['models/big.glb', 'sounds/win.mp3'] })
-
-// React to loading state. The callback fires PER ASSET (once per path in the
-// list), receiving { asset, currentState } — NOT one batch-level event.
-assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
-	entity,
-	(state: { asset: string; currentState: LoadingState }) => {
-		if (state.currentState === LoadingState.FINISHED) {
-			// state.asset finished loading and is now cached
-		}
-	},
-)
-// Stop listening: assetLoadLoadingStateSystem.removeAssetLoadLoadingStateEntity(entity)
-```
-
-`LoadingState` enum members: `LOADING`, `FINISHED`, `FINISHED_WITH_ERROR` (asset found but failed to load), `NOT_FOUND` (path does not exist), `UNKNOWN` (initial/default state). A missing/typo'd `src` resolves to `NOT_FOUND`, not a thrown error.
-
-Caveats:
-
-- The state callback is **per-asset**, keyed by the `asset` path string — dispatch on `state.asset` to update the right entity. There is no single "all finished" event; track completion yourself by counting per-asset `FINISHED`/error states.
-- `AssetLoad` only **adds** assets to memory. Removing a path from the `assets` list does **not** free memory — there is no unload via `AssetLoad`.
-- Preloading a path does **not** create/render anything — you still `getOrCreateMutable` the real component (`GltfContainer`, `AudioSource`, `VideoPlayer`, `Material` texture) on an entity to use it; the preload just makes that later use instant.
-- If an asset is used immediately at scene startup, there is **no need** for `AssetLoad`. Only pre-load assets NOT required at startup — things that appear later or on player interaction.
+Preload assets needed later, not at startup (things that appear on interaction or in a spawn burst) with `AssetLoad`, so they display instantly. Assets used at startup need no preload. API, the per-asset loading-state callback, `LoadingState` values and caveats (no unload, preload renders nothing): `{baseDir}/references/asset-preloading.md`.
 
 ## Local Asset Bundle Preview
 
@@ -363,22 +316,15 @@ This pattern keeps the initial triangle and entity counts low and loads detail o
 
 ## Common Performance Pitfalls
 
+Pitfalls with no section of their own above (pooling, LOD, textures, throttling, repeated models and preloading each have one):
+
 | Pitfall                              | Symptom                          | Fix                                                      |
 | ------------------------------------ | -------------------------------- | -------------------------------------------------------- |
-| Too many unique materials            | Memory + texture budget (draw cost tracks shader variants, not materials) | Atlas textures, reuse models; check `shaderVariants` before blaming frame time |
-| Non-power-of-two textures            | Memory bloat, visual artifacts   | Resize all textures to 256/512/1024 (1024 max)          |
-| Creating/destroying entities rapidly | Frame stutters                   | Use entity pooling                                       |
-| Heavy computation every frame        | Consistent low FPS               | Add timer guards, reduce frequency                       |
 | Unused colliders on decorations      | Physics body limit exceeded      | Remove MeshCollider from non-interactive objects         |
-| Large uncompressed textures          | Slow loading, file size exceeded | Use WebP, reduce resolution, use atlases                 |
 | Working files uploaded on deploy     | "Scene too large" deploy error   | Add Blender/FBX sources, concept art, docs to `.dclignore` (see **deploy-scene**) |
 | Too many transparent materials       | Extra draw calls, sorting issues | Minimize transparency, use alpha cutoff instead of blend |
 | Adding entities/components in a system without guards | Entity count explodes | Systems run every frame — always check before creating  |
 | Unbounded entity queries             | CPU spike                        | Filter with specific components, cache results           |
-| All detail loaded at all distances   | Triangle budget blown            | Implement LOD system                                     |
-| Near-identical `.glb` per copy (`chair_01.glb`, `chair_02.glb`...) | Slow load, memory bloat, texture limit blown | One shared `.glb` referenced by many entities — the engine dedups by source |
-| One monolithic `.glb` for the whole scene | Load hiccup on appearance, nothing culls | Split into per-cluster models (a street block, a room) |
-| No asset preloading                  | Pop-in during gameplay           | Use AssetLoad to preload assets needed later (not startup assets) |
 
 ## Scene Statistics Monitoring
 
@@ -395,7 +341,7 @@ When running the scene locally with `npm run start`:
 - **FPS below 30**: Something is too expensive. Check draw calls and system execution time.
 - **Triangle count approaching limit**: Enable LOD, reduce model detail, remove hidden faces.
 - **Entity count climbing**: Likely a leak — entities being created but never destroyed. Implement pooling.
-- **Draw calls above 300 (1 parcel)**: Too many material slots being rendered. Atlas and reduce transparency to cut slots per object, and reduce the number of rendered objects. Note that draw count tracks *rendered objects × their material slots* — reusing one model across many entities does not reduce it (see **Repeated Models** above), and neither does packing many separate objects into a single `.glb`.
+- **Draw calls above 300 (1 parcel)**: draw count is *rendered objects × their material slots*. Atlas and reduce transparency to cut slots per object, and reduce the number of rendered objects (see *Repeated Models*).
 
 ## Recommended Optimization Tools
 
@@ -430,6 +376,6 @@ Engine-team stress-test scenes (treat as ground truth for API shape):
 
 - **deploy-scene** — post-publish asset bundle conversion timing, troubleshooting, `/detectabs` command
 - **add-3d-models** — model loading, colliders, file organization, and driving Blender to fix or author models (`references/blender-authoring.md`)
-- **game-design** — performance budgets, design patterns, and MVP planning
+- **game-design** — design patterns and MVP planning
 - **advanced-rendering** — texture modes, material reuse, and LOD with VisibilityComponent
 - **scene-runtime** — `EngineInfo.sceneHidden` to pause expensive systems when the scene is hidden behind fullscreen Explorer UI

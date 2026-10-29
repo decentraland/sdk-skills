@@ -76,7 +76,7 @@ You can use tweens to make a texture slide sideways or shrink or zoom in, this c
 ```typescript
 Material.setPbrMaterial(myEntity, {
 	texture: Material.Texture.Common({
-		src: 'materials/water.png',
+		src: 'assets/Images/water.png',
 		wrapMode: TextureWrapMode.TWM_REPEAT,
 	}),
 })
@@ -106,3 +106,11 @@ TweenSequence.create(plane, { sequence: [], loop: TweenLoop.TL_YOYO })
 
 To loop, pair the tween with `TweenSequence.create(entity, { sequence: [], loop: TweenLoop.TL_RESTART | TL_YOYO })`.
 
+## Fake Mirror
+
+SDK7 has no reflection probe, mirror or camera-to-texture component, so a mirror is faked:
+
+- **Duplicate the reflected geometry behind a tinted, slightly transparent glass plane** (mirror-image copy of the room in front of it).
+- Drive a double of anything that moves; the player double is in **npcs** → "Copies of the player".
+- **Budget the space:** the reflection needs as much depth behind the glass as the room in front of it, and content outside the parcels is clipped (**add-3d-models**), so a mirror on a parcel edge means adding a parcel.
+- Trim the reflected side walls, floor and ceiling where they meet the real ones; overlapping copies z-fight at the seam (observed 2026-10-12).

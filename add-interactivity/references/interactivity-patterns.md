@@ -72,7 +72,7 @@ MeshCollider.setBox(entity) // Invisible box collider
 For GLTF models:
 ```typescript
 GltfContainer.create(entity, {
-  src: 'models/button.glb',
+  src: 'assets/Models/button.glb',
   visibleMeshesCollisionMask: ColliderLayer.CL_POINTER
 })
 ```
@@ -160,7 +160,7 @@ const doorPivot = engine.addEntity()
 Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) })
 
 const door = engine.addEntity()
-GltfContainer.create(door, { src: 'assets/door.glb' })
+GltfContainer.create(door, { src: 'assets/Models/door.glb' })
 Transform.create(door, { position: Vector3.create(-1, 0, 0), parent: doorPivot })
 
 let isDoorOpen = false

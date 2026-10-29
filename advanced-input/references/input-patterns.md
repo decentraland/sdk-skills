@@ -35,6 +35,28 @@ function myInputSystem() {
 engine.addSystem(myInputSystem)
 ```
 
+## Root-Entity Input (timestamp watermark)
+
+Use when a scene must tell a press that hit no entity from a click on some entity (e.g. "press E anywhere except on a station"). The entity-less `isTriggered` / `getInputCommand` cannot: they read every entity's results, and `engine.RootEntity` (`0`, falsy) takes the same branch. Read the root's own result list instead. It grows across frames, so track the newest timestamp already handled:
+
+```typescript
+import { engine, PointerEventsResult, PointerEventType } from '@dcl/sdk/ecs'
+
+let lastRootTimestampSeen = 0
+engine.addSystem(() => {
+  let maxTimestamp = lastRootTimestampSeen
+  for (const cmd of PointerEventsResult.get(engine.RootEntity)) {
+    if (cmd.timestamp <= lastRootTimestampSeen) continue
+    if (cmd.timestamp > maxTimestamp) maxTimestamp = cmd.timestamp
+    if (cmd.state !== PointerEventType.PET_DOWN) continue
+    // ...handle the root-level press (cmd.button is the InputAction)...
+  }
+  lastRootTimestampSeen = maxTimestamp
+})
+```
+
+Ground truth: `149,149-synthetic-input-showcase` in sdk7-test-scenes.
+
 ## Cutscene Pattern (freeze player during a cinematic)
 
 Freeze the player during a cinematic sequence:

@@ -1,17 +1,15 @@
 ---
 name: composites
-description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Use when authoring a main.composite from scratch, when editing one by hand because the Creator Hub MCP is not available (see creator-hub-mcp — the MCP is always preferred for an existing scene), or when other skills point to the composite reference. For scaffolding a whole scene project see create-scene."
+description: "Reference for the Decentraland `.composite` JSON format that declares the initial entities of a scene in `assets/scene/main.composite`. Use when authoring a main.composite from scratch, or when editing one by hand because the Creator Hub MCP is not available (see creator-hub-mcp — the MCP is always preferred for an existing scene). For scaffolding a whole scene project see create-scene."
 ---
 
 # Composites
-
-This skill carries the shared composite format reference used by other Decentraland skills (`create-scene`, `add-3d-models`, `sdk-scenes`).
 
 The mandatory workflow below applies to EVERY composite you author or edit: check the Creator Hub MCP gate first, compute scene bounds (Step 0), consult the format catalog in the reference while writing entities, then run the validation gate at the end before finishing.
 
 ## Gate — use the Creator Hub MCP instead of editing the file (check FIRST)
 
-**Hand-editing `main.composite`, `main.crdt` or `scene.json` is the fallback, not the default.** If a Creator Hub is involved, pick your row of the decision ladder in **creator-hub-mcp** → *RULE — the MCP is the way to change the scene graph*; the rule behind it is **sdk-scenes** → *CRITICAL RULE — Editing an existing composite*, and a scene that is (or may be) open with no MCP connected is a stop-and-ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5). The file workflow below applies in full only with no Creator Hub in play (CLI-only project, CI, the app closed by choice), or after the user declines the MCP and closes the scene.
+**Hand-editing `main.composite`, `main.crdt` or `scene.json` is the fallback, not the default.** If a Creator Hub is involved, pick your row of the decision ladder in **creator-hub-mcp** → *RULE — the MCP is the way to change the scene graph* first. The file workflow below applies in full only on its "No Creator Hub in play" row (CLI-only project, CI, the app closed by choice), or after the user declines the MCP and closes the scene.
 
 When you do work through the MCP tools, this skill still applies in two ways: the format catalog in the reference is your guide to component shapes (`set_component` takes the same JSON the composite stores), and Step 0 (bounds) still applies.
 
@@ -39,48 +37,9 @@ maxZ = parcelsDeep * 16
 
 **A model's `Transform.position` is its local origin, NOT its visual extent.** Tree and vegetation models commonly extend 6–12 m _beyond_ their origin in one or more directions. Placing a tree at x=2 can cause it to render at x=–10, which is outside the scene bounds.
 
-**How to find a model's bounding box** — parse the GLB binary and apply node-level transforms. Raw accessor `min`/`max` values alone are **not reliable** because many GLB models have large scale factors or translations baked into the GLTF node hierarchy (e.g. a model whose accessors say 0.6 m but whose node scale is 24× giving an actual rendered size of 14 m).
+**How to find a model's bounding box:** run the bounding-box script in `{baseDir}/../add-3d-models/references/model-patterns.md` → *Bounding Box Calculation Script*. It applies node-level transforms (raw accessor `min`/`max` alone are not reliable: a model whose accessors say 0.6 m can carry a 24× node scale and render at 14 m), and its safe-zone formula converts the printed glTF extents to DCL axes (the engine mirrors glTF X).
 
-```js
-node -e "
-const buf = require('fs').readFileSync('assets/Models/MyModel.glb');
-const jsonLen = buf.readUInt32LE(12);
-const json = JSON.parse(buf.slice(20, 20+jsonLen));
-let minW=[Infinity,Infinity,Infinity], maxW=[-Infinity,-Infinity,-Infinity];
-json.nodes?.forEach(n => {
-  if (n.mesh === undefined) return;
-  const s = n.scale || [1,1,1];
-  const t = n.translation || [0,0,0];
-  for (const prim of json.meshes[n.mesh].primitives) {
-    const acc = json.accessors[prim.attributes.POSITION];
-    if (!acc.min || !acc.max) continue;
-    for (let i = 0; i < 3; i++) {
-      const lo = acc.min[i]*s[i]+t[i], hi = acc.max[i]*s[i]+t[i];
-      minW[i] = Math.min(minW[i], lo, hi);
-      maxW[i] = Math.max(maxW[i], lo, hi);
-    }
-  }
-});
-const w=maxW[0]-minW[0], h=maxW[1]-minW[1], d=maxW[2]-minW[2];
-console.log('Rendered size:', w.toFixed(2)+'m x', h.toFixed(2)+'m x', d.toFixed(2)+'m');
-console.log('World min:', minW.map(v=>v.toFixed(2)), 'max:', maxW.map(v=>v.toFixed(2)));
-"
-```
-
-**Measure per model — don't guess or hard-code.** Extents vary wildly: running the script above on a typical tree often reveals ~11 m of reach in one horizontal direction from the origin (safe minimum origin z≥12), while a column reaches under 1 m in every direction. Always compute the box for the specific GLB you're placing.
-
-**Rule:** For every GLB model, compute:
-
-```
-minSafeX = max(0, -bbox.minX) + margin      (≥1 m)
-minSafeZ = max(0, -bbox.minZ) + margin      (≥1 m)
-maxSafeX = maxX - (bbox.maxX + margin)
-maxSafeZ = maxZ - (bbox.maxZ + margin)
-```
-
-Only place the model if its Transform position satisfies all four bounds.
-
-For tree/vegetation models where the bounding box is unknown, assume a **12 m safe buffer** from all edges — i.e., place origins in `[12, maxX-12]` × `[12, maxZ-12]`.
+**Measure per model.** Extents vary widely: a typical tree can reach ~11 m from its origin in one horizontal direction, while a column reaches under 1 m in every direction. Place a model only where its whole box, plus a margin of at least 1 m, fits inside `[0, maxX]` × `[0, maxZ]`.
 
 **Placing architecture: budget for third-person scale, not realistic scale.** Oversized rooms change how much parcel area a floorplan needs, so size them at bounds time. The dimensions are in **add-3d-models** → "RULE: Scale interiors up for the third-person camera".
 
@@ -129,7 +88,7 @@ Before writing a fresh composite, verify:
 ### Edit-mode checklist (composite already contains `inspector::*`)
 
 - [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop here and use them: `create_entity` / `set_component` do every item below for you (see the Gate).
-- [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**: the owner can reopen it at any time, and its autosave reverts external edits (a parcel change was lost this way). Ask the user to close the scene before you write and to reopen it afterwards. Open, with no MCP: stop and ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
+- [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**: the owner can reopen it at any time, and its autosave reverts external edits. Ask the user to close the scene before you write and to reopen it afterwards. Open, with no MCP: stop and ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 
@@ -162,7 +121,7 @@ npx sdk-commands build
 
 The build must pass with zero errors. If it fails, the composite is invalid. Common errors:
 
-- `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older/released SDKs word this as `"X is not defined and there is no schema to define it"`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
+- `Composite references undefined component "X". Ensure provider.schemas was registered pre-seal via setCompositeProvider().` (older SDKs: `X is not defined and there is no schema to define it`) → missing `jsonSchema` on non-core component, or `inspector::*` component that shouldn't be there
 - TypeScript errors → fix generated scripts
-- An error naming a file you never meant to ship (`Composite 'art/.../before.composite' can't be read`, or a schema error from a backup) → the build globs **every** `*.composite` under the project (`sdk-commands` `logic/composite.ts`), including recovery copies. Store backups with another extension (`before-composite.json`) or outside the project, and check the `.composite:` list in the build's debug output; a deploy ignore rule does not hide a file from the build.
-- A schema error on an `inspector::*` component you added → never invent an inspector component (`inspector::TransformConfig` is not one); only write inspector components whose entry already exists in the file, copying its exact shape.
+- An error naming a file you never meant to ship (`Composite 'art/.../before.composite' can't be read`, or a schema error from a backup) → the build globs **every** `*.composite` under the project, including recovery copies. Store backups with another extension (`before-composite.json`) or outside the project, and check the `.composite:` list in the build's debug output; a deploy ignore rule does not hide a file from the build.
+- A schema error on an `inspector::*` component → you wrote an inspector component the file did not already have. Add entries only to inspector components already present (e.g. `inspector::TransformConfig`), copying their exact shape.

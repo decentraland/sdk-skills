@@ -257,7 +257,7 @@ function spawnGameState() {
 }
 ```
 
-**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (verified in `@dcl/ecs` engine `removeEntity`: it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
+**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
 
 ```typescript
 // Recreate on a later tick, not the same frame as removeEntity

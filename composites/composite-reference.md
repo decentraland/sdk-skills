@@ -48,7 +48,7 @@ The rules in this document have **two modes** that you must distinguish before t
 
 When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (see the Troubleshooting section for the exact wording, which differs between current and older SDK versions)
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (wording: **composites** SKILL.md → *Post-Write Validation*)
 - **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
@@ -71,7 +71,7 @@ The Creator Hub entity tree has a **search bar** that filters entities by name (
 
 **If you must edit the file and the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
 
-Why — verified in the inspector source (`packages/inspector/src/lib/data-layer/host/composite-provider.ts`):
+Why:
 
 - On save the inspector calls `dumpEngineToComposite(this.engine, 'json')` and then `compositeManager.save(...)`, which **regenerates the whole file from its in-memory engine and overwrites `main.composite` wholesale**. It is not a diff or a merge, and it never reads the on-disk file first — so anything you added that the in-memory engine does not know about is gone.
 - **Autosave is on by default** (`autosaveEnabled: true`). `onTransactionComplete` saves after *any* editor transaction, throttled only by `minSaveInterval = 100` ms. The user does not have to press save — nudging the camera or selecting an entity is enough to overwrite your work.
@@ -370,7 +370,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 
 ### core::AudioStream
 
-Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. No hostname whitelist is needed on current clients: `allowedMediaHostnames` / `ALLOW_MEDIA_HOSTNAMES` are legacy and not required (**create-scene** `references/scene-json.md` → Fields); the block below shows them only for legacy scenes that still declare them.
 
 ```json
 {
@@ -804,12 +804,12 @@ export async function spawnBarrel(position: Vector3) {
 }
 ```
 
-- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. ⚠ An earlier API named `engine.addEntityFromComposite(src)` does NOT exist on current SDK main (it was replaced by `Composite.instance`) — do not use it even if older docs mention it.
+- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. `engine.addEntityFromComposite(src)` from older docs does not exist; `Composite.instance` replaced it.
 - `getCompositeProvider()` returns the scene's standard provider (`@dcl/sdk` registers it via `setCompositeProvider(engine, compositeProvider)` at module load; returns `null` only if that never ran). The provider offers `loadComposite(src): Promise<Composite.Resource>` — reads + caches the file via `~system/Runtime.readFile`, accepting JSON `.composite` and binary `.composite.bin` — and `getCompositeOrNull(src)`, the synchronous cache lookup.
 - `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
 - **`rootEntity: engine.RootEntity` needs `@dcl/sdk` 7.28.0+.** On an older pin the composite's top-level entities hang off an invisible, component-less entity instead of the scene root; instance into a normal entity you created yourself.
 - **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
-- JSON `.composite` decoding uses `TextDecoder`. Since `@dcl/sdk` replaced the external text-encoding polyfill with a built-in UTF-8 codec, `TextDecoder` is available by default and no extra import (e.g. `@dcl/sdk/ethereum-provider`) is needed. The older polyfill helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required for composite loading.
+- JSON `.composite` decoding uses `TextDecoder`. `TextDecoder` is built in (a UTF-8 codec ships with `@dcl/sdk`), so no extra import is needed. The older helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required; legacy scene code that imports it can drop the call.
 - Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
 
 ## Example scenes

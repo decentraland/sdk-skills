@@ -1,6 +1,6 @@
 # scene.json reference
 
-Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file — except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0` (**creator-hub-mcp** → *Tool catalog*, Settings row; spawn points: *RULE — confirm a batch landed on disk*; thumbnail: *Gotchas*).
+Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file — except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0` (**creator-hub-mcp** → *Tool catalog*, Settings row; spawn points: *RULE — confirm a batch landed on disk*; thumbnail: *Gotchas*).
 
 ## Fields
 
@@ -13,16 +13,18 @@ All valid `scene.json` fields:
 | `main`                    | Yes          | Must be `"bin/index.js"` — the compiled output path                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `display.title`           | Recommended  | Scene name shown in the map and Places                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `display.description`     | Recommended  | Short description for discovery                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `display.navmapThumbnail` | Recommended  | Thumbnail shown in the map modal and teleport confirmation. `.png`/`.jpg`, **16:9**, 1920x1080 px recommended; square crops show only the central 1080x1080, so keep essential content there — see the **deploy-scene** skill for the spec and a capture procedure                                                                                                                                                                                                                                                                                         |
+| `display.navmapThumbnail` | Recommended  | Thumbnail shown in the map modal and teleport confirmation (`.png`/`.jpg`, 16:9). Spec, checks and capture procedure: **deploy-scene** → *Thumbnail image* |
 | `tags`                    | Recommended  | Root-level `string[]`. The scene's categories in the Places dApp. Max 3, values from the predefined list (see below)                                                                                                                                                                                                                                                                                                                                     |
 | `scene.parcels`           | Yes          | Array of `"x,y"` coordinate strings                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `scene.base`              | Yes          | The origin parcel (usually southwest corner)                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `spawnPoints`             | Optional     | Where players appear when entering (see below)                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `requiredPermissions`     | Optional     | Array of permissions (e.g., `"ALLOW_MEDIA_HOSTNAMES"`)                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `allowedMediaHostnames`   | Optional     | Whitelisted domains for external media                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `requiredPermissions`     | Optional     | Array of permissions (e.g., `"USE_FETCH"`); see Required Permissions below |
+| `allowedMediaHostnames`   | Optional     | `[LEGACY]` whitelisted domains for external media; not required (see Required Permissions) |
+| `skyboxConfig`            | Optional     | Root-level `{ "fixedTime": number }`: fixed time of day (see Skybox fixed time below) |
 | `featureToggles`          | Optional     | Enable/disable SDK features                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `worldConfiguration`      | Optional     | For Worlds deployment (see **deploy-worlds** skill)                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `worldConfiguration`      | Optional     | World settings: name, Places opt-out, skybox, minimap (see worldConfiguration below; deploying: **deploy-worlds**) |
 | `landscapeTerrain`        | Optional     | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
+| `creator`                 | Optional     | Root-level wallet address (`"0x…"`) that receives MANA tips. When set, visitors get a **piggy bank icon** at the top left that opens a MANA tip modal (showing the address's Decentraland NAME if it has one), and the creator gets an in-app notification per tip. Creator Hub: scene Settings → Details → **Creator wallet address** |
 
 ## Tags (scene categories)
 
@@ -96,6 +98,43 @@ Configure where and how players enter the scene:
 - `cameraTarget` orients the player's camera on spawn — point it at the scene's focal area
 - Fixed spawn: use single values on **all three** axes (e.g., `"position": { "x": 8, "y": 0, "z": 8 }`)
 - `position` is a whole-object union (`@dcl/schemas` `SinglePosition | MultiPosition`): all three axes are numbers, or all three are `[min, max]` arrays. A mix such as `"x": [1, 5], "y": 0` fails validation at build time, and the error does not say why.
+
+## Skybox fixed time
+
+A permanent time of day, no code needed. Two valid locations:
+
+```json
+// Genesis City scene — top-level
+{ "skyboxConfig": { "fixedTime": 43200 } }
+
+// World — inside worldConfiguration
+{ "worldConfiguration": { "name": "my-name.dcl.eth", "skyboxConfig": { "fixedTime": 36000 } } }
+```
+
+Values are seconds since midnight; a full day is `86400`:
+
+| Value | Time of day |
+|-------|------------|
+| `0` | Midnight |
+| `21600` | 6 AM (sunrise) |
+| `43200` | Noon |
+| `64800` | 6 PM (sunset) |
+| `86400` | Full day (maximum) |
+
+- Any value above `86400` is interpreted as midnight. Omit `fixedTime` for the dynamic day/night cycle.
+- **Precedence** (verified against the engine test scenes `2,0-skybox-scene-json` and `3,0-skybox-world-json`): `worldConfiguration.skyboxConfig.fixedTime` wins over top-level `skyboxConfig.fixedTime`; either JSON value is in turn overridden at runtime by a `SkyboxTime` component on `engine.RootEntity` (**lighting-environment**).
+
+## worldConfiguration
+
+Fields of the `@dcl/schemas` `WorldConfiguration` type:
+
+- `name` — the DCL NAME or ENS domain the World deploys to; must be owned by (or ACL-granted to) the deploying wallet.
+- `placesConfig.optOut` — `true` keeps the World off the Places listing.
+- `skyboxConfig.fixedTime` (see Skybox fixed time) and `skyboxConfig.textures` (`string[]`).
+- `miniMapConfig` — `visible` / `dataImage` / `estateImage`.
+- `[DEPRECATED]` `skybox` and `minimapVisible`; use `skyboxConfig.fixedTime` and `miniMapConfig.visible`.
+
+Deploy steps, multi-scene Worlds and the storage budget: **deploy-worlds**.
 
 ## Multi-Parcel Layouts
 

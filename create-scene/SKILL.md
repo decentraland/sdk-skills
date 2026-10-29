@@ -1,11 +1,9 @@
 ---
 name: create-scene
-description: Scaffold a new Decentraland SDK7 scene project, or edit an existing scene's scene.json (parcels, spawn points, permissions, tags, feature toggles). Use when the user wants to start a new scene or project, or change scene settings in scene.json. For publishing see deploy-scene or deploy-worlds.
+description: Scaffold a new Decentraland SDK7 scene project, edit an existing scene's scene.json (parcels, spawn points, permissions, tags, feature toggles, skybox time), or pick preview options (start flags, Creator Hub Play Options). For publishing see deploy-scene or deploy-worlds.
 ---
 
 # Create a New Decentraland SDK7 Scene
-
-> **Runtime constraint:** Decentraland runs in a QuickJS sandbox. No Node.js APIs (`fs`, `http`, `path`, `process`). Use the SDK's `executeTask()` + `fetch()` for async work. See the **scene-runtime** skill for details.
 
 When the user wants to create a new scene, follow these steps:
 
@@ -27,14 +25,12 @@ Generate scene.json, package.json and tsconfig.json with `init`, not by hand: th
 
 ## 3. Find Matching 3D Assets
 
-IMPORTANT: Only fetch models from the free catalogs below if the prompt explicitly asks to add new models. Confirm with the user always if they wish to add new models to their scene.
+If the user wants new models or sounds, search the free catalogs and suggest matches; download only after they confirm:
 
-Before writing scene code, check the asset catalog for free models that match the user's theme:
-
-1. Search `{baseDir}/../add-3d-models/references/model-catalog.md` (8,800+ models with descriptions, dimensions, animations, and download URLs)
+1. Grep `{baseDir}/../add-3d-models/references/model-catalog.md` (never read it whole; 8,800+ models with descriptions, dimensions, animations, and download URLs)
 2. Read `{baseDir}/../audio-video/references/audio-catalog.md` (50 free sounds — music, ambient, SFX, game mechanics, etc.)
 3. Suggest matching models and sounds to the user
-4. Download selected models into the scene's `assets/Models/` directory:
+4. Once confirmed, download the selected models into the scene's `assets/Models/` directory:
    ```bash
    mkdir -p assets/Models
    curl -o assets/Models/arcade_machine.glb "https://models.dclregenesislabs.xyz/blobs/bafybei..."
@@ -124,71 +120,20 @@ After customizing the files:
 
 1. Run `npx @dcl/sdk-commands start`. It serves the scene at http://localhost:8000 and opens it in the Desktop Explorer; add `--web` to open it in the Bevy Web browser client instead.
 
-### Preview CLI flags
-
-| Flag                         | Type        | Description                                                                                                                                                                                                                                                                                       |
-| ---------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--web` (alias `--bevy-web`) | boolean     | Open the preview in the Bevy Web browser client at `decentraland.org/bevy-web/` instead of the Desktop Explorer. Chromium 142+ requires Local Network Access permission for the page to reach the localhost preview server -- when the browser asks to access apps on your device, click "Allow". |
-| `--mcp`                      | boolean     | Enable the MCP server in the Explorer (forwarded as a deep-link parameter)                                                                                                                                                                                                                        |
-| `--mcp-port`                 | number      | Port for the MCP server in the Explorer                                                                                                                                                                                                                                                           |
-| `--multi-instance`           | boolean     | Allow running multiple Explorer instances simultaneously                                                                                                                                                                                                                                          |
-| `--no-client`                | boolean     | Suppress auto-launch (desktop deeplink, browser, mobile QR); the file watcher still notifies a desktop Explorer if it connects on its own                                                                                                                                                         |
-| `--asset-bundles`            | boolean     | Convert the scene's 3D models to optimized asset bundles locally in the Desktop Explorer, matching production rendering after asset-bundle conversion. First run may take several minutes on large scenes; converted models are cached. Forwarded into the deep link as `local-ab=true` -- `--local-ab` is the deep-link param, **not** a CLI flag. See **optimize-scene** ("Local Asset Bundle Preview").    |
-| `-- <args>`                  | passthrough | Arguments after a standalone `--` are forwarded verbatim into the Explorer deep link as query params (`--key=value`, `--key value`, bare `--key` = true)                                                                                                                                          |
-
-`--web3` and `--no-debug` (alias `-d`) are no-ops; leave them out.
-
-**Creator Hub play settings** (equivalent to the CLI flags above). The editor header's split button is labelled **Play** (play icon + "Play"); its dropdown arrow opens the **Play Options** popover:
-
-The popover lists two client rows, picked with a radio:
-
-- **Desktop Client** (default) -- the Unity Desktop Explorer. Hovering this row opens a side flyout with the desktop-only toggles below.
-- **Web (Bevy)** -- the Bevy web client; equivalent to `--web`. No toggles of its own.
-
-Desktop Client flyout toggles:
-
-- **Enable Landscape Terrains**: shows the surrounding landscape. Disabled (and forced off) when the scene's own `landscapeTerrain: false` hides it.
-- **Multi-Instance Preview**: equivalent to `--multi-instance`. Lets a second Explorer window run alongside the first. Only shown when the project is on **`@dcl/sdk` 7.20.4 or later**.
-- **Enable MCP Server**: launches with the MCP automation server -- equivalent to `--mcp`. Only shown when the project is on **`@dcl/sdk` 7.25.0 or later**. See the **unity-explorer-mcp** skill.
-- **Compress Assets**: previews with assets compressed the way they are in production -- equivalent to `--asset-bundles`. First run may be slow; results are cached. Hidden on Linux (no Unity desktop client ships there) and for scenes whose `@dcl/sdk-commands` predates 7.26.0 (update the SDK to get it).
-
-Below a divider, **Show QR Code for Mobile** is a button (not a checkbox) that opens the mobile preview QR.
-
-The debug console is on by default, with no checkbox in the popover. **Skip Auth Screen** is not in the popover either; it stays on unless `--multi-instance` forces a per-window login.
-
-**Bevy renderer in Creator Hub:** Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (experimental)"**; the toggle reads **"Enable Bevy Scene Renderer"**. It lives in **Settings > Experimental**, which contains only this toggle (the AI Assistant has its own Settings > AI tab; the UI Editor has no setting). The Bevy editor supports gizmos, multi-select, free-fly camera, spawn point visualization, drag-drop assets, animation clip dropdown, lock/hide entities, screenshots, and hot-reload. It also loads **custom items** and shows **hover hints** (the entity's `PointerEvents` `hoverText`, e.g. "Press E") in the viewport.
-
-Bevy editor limitations to know before recommending it:
-
-- **The Metrics tab is disabled** ("Scene metrics are only available with the Babylon renderer"). Run the scene preview to view the metrics.
-- **`editor_screenshot` (Creator Hub MCP) errors under Bevy.**
-- **Opening the UI Editor's 2D mode freezes the scene** (see **build-ui**).
+Preview flags (`--web`, `--mcp`, `--multi-instance`, `--asset-bundles`, deep-link passthrough), the Creator Hub **Play Options** equivalents and the Bevy editor renderer: `{baseDir}/references/preview-options.md`. Two clients for multiplayer testing: **multiplayer-sync** → *Multiplayer Testing*.
 
 **Keep `.dclignore` (project root) up to date.** It lists files and extensions that are NOT uploaded on deploy. Whenever the project contains working files — Blender/FBX sources, draft models, concept art, spreadsheets, markdown notes — add them (or their extensions) to `.dclignore` proactively so the deployed scene stays light. See the `.dclignore` section in the **deploy-scene** skill.
 
 **Done when:** the preview server responds at `http://localhost:8000` and the scene renders with no errors in the console.
 
-## Vibe Coding with AI
-
-AI assistants (Cursor, Claude Code, etc.) can build entire scenes from plain-language prompts. Install Decentraland SDK skills first so the AI knows SDK patterns:
-
-```bash
-npx skills add decentraland/sdk-skills --all
-```
-
-To update existing skills and download any new ones added since the last install, re-run the same command. Do NOT use `npx skills update` -- it only refreshes skills already on disk, silently skipping new ones.
-
-The Creator Hub also has a built-in **AI Assistant** (Settings > AI > _Enable AI Assistant_) that drives the user's own installed `claude`, `codex`, `cursor-agent` or `gemini` CLI with these skills pre-loaded and the editor's MCP server pre-wired, so it edits entities live in the open scene. It is **on by default**, and all four providers get the scene tools. The same MCP server can be exposed to an external tool (Claude Code, Cursor, Codex, Claude Desktop) from Settings > AI > _Expose AI assistant MCP server_. See the **creator-hub-mcp** skill.
-
-The official quickstart teaches a **Script-component-first** workflow: attach a Script component to an entity in the Creator Hub, write a class with `constructor(src, entity)`, `start()`, and `update(dt)`, and use `this.entity` to reference the holder entity. This keeps behavior self-contained and reusable across entities. See the **script-components** skill for full details.
-
 ## Cross-References
 
-- Ready to deploy? See the **deploy-scene** skill (Genesis City) or **deploy-worlds** skill (personal Worlds). Publishing to a World? A World has its **own** name/description/thumbnail separate from `scene.json` — in a single-scene World every publish overwrites the World's with the scene's; see **deploy-worlds** > "World metadata vs scene metadata". Publish at least **one hour** before a live event — asset bundle conversion itself usually takes seconds, but the margin covers anything unexpected
-- Need to optimize for parcel limits? See the **optimize-scene** skill. Enable **Compress Assets** (Play Options > Desktop Client) or `--asset-bundles` to preview with production-quality asset bundles before publishing
-- Targeting mobile? Check two things before writing code, since both shape the architecture: the flat mobile scene limits (**optimize-scene** → *Mobile Scene Limits*), and the feature gaps that rule out common mechanics such as `TweenSequence` platforms, Draco GLBs and invisible-collider fences (`{baseDir}/../sdk-scenes/references/mobile-parity.md`).
-- Planning a game? See the **game-design** skill for design patterns and performance budgets
-- Validate entity component combinations: see `{baseDir}/references/entity-validation-rules.md` for rules on which components require each other, mutual exclusions, and common misconfigurations
+- Publishing: **deploy-scene** (Genesis City) or **deploy-worlds** (Worlds; a World has its own metadata separate from `scene.json`). Publish timing before live events: **deploy-scene**.
+- Parcel limits and production-quality local preview (`--asset-bundles`): **optimize-scene**.
+- Targeting mobile: flat mobile limits in **optimize-scene** → *Mobile Scene Limits*; feature gaps that rule out common mechanics in `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Check both before writing code.
+- Planning a game: **game-design**.
+- Scenes edited in the Creator Hub: prefer the Script-component-first workflow (a Script component on the entity with `start()` / `update(dt)`) over free-standing systems: **script-components**.
+- Component combinations that require or exclude each other: `{baseDir}/references/entity-validation-rules.md`.
 
 ## Example scenes
 

@@ -6,7 +6,7 @@
 import { AudioSource } from '@dcl/sdk/ecs'
 
 AudioSource.create(entity, {
-  audioClipUrl: 'sounds/effect.mp3',  // Path to local audio file (required)
+  audioClipUrl: 'assets/Audio/effect.mp3',  // Path to local audio file (required)
   playing: false,                      // Start/stop playback
   loop: false,                         // Loop when finished
   volume: 1.0,                         // Volume 0.0 to 1.0 (default 1.0)
@@ -98,7 +98,7 @@ AudioStream is NOT spatial — it plays at the same volume regardless of player 
 import { VideoPlayer } from '@dcl/sdk/ecs'
 
 VideoPlayer.create(entity, {
-  src: 'videos/clip.mp4',    // Local file or external URL (required)
+  src: 'assets/Videos/clip.mp4',    // Local file or external URL (required)
   playing: true,              // Start/stop playback
   loop: false,                // Loop when finished
   volume: 1.0,                // Volume 0.0 to 1.0
@@ -176,7 +176,7 @@ const state = videoEventsSystem.getVideoState(entity)
 
 ```typescript
 // One VideoPlayer, shared across screens
-VideoPlayer.create(screen1, { src: 'videos/shared.mp4', playing: true })
+VideoPlayer.create(screen1, { src: 'assets/Videos/shared.mp4', playing: true })
 const tex = Material.Texture.Video({ videoPlayerEntity: screen1 })
 Material.setBasicMaterial(screen1, { texture: tex })
 Material.setBasicMaterial(screen2, { texture: tex })
@@ -189,17 +189,6 @@ Material.setBasicMaterial(screen2, { texture: tex })
 | Low | 1 |
 | Medium | 5 |
 | High | 10 |
-
-### Media Permissions in scene.json
-
-`[LEGACY]` External audio/video URLs do **not** require any permission on current clients — no current client enforces `ALLOW_MEDIA_HOSTNAMES` (unity-explorer gates it behind the unset `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define; bevy-explorer has no enforcement). Only the retired web client enforced it. For legacy scenes that still declare it, the syntax is:
-
-```json
-{
-  "requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
-  "allowedMediaHostnames": ["stream.example.com", "cdn.example.com"]
-}
-```
 
 ## AudioAnalysis (Advanced)
 

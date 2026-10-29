@@ -1,6 +1,6 @@
 ---
 name: scene-retro
-description: "Write a retrospective of a Decentraland scene's build sessions that turns real mistakes, failed first attempts, owner corrections and repeated investigations into evidence-backed improvements to the Decentraland SDK skills. Use when the user asks for a retro, retrospective, post-mortem, lessons learned or skills review of a scene, game or session: \"make a retro report based on this game\", \"what did the skills get wrong while we built this\", \"review our work for skill improvements\". Read-only apart from saving the report: it does not modify the scene's content, the skills or anything else. Do NOT use to plan playtests or analyze player feedback (scene-feedback), or to file a single SDK bug (report-sdk-issue)."
+description: "Retrospective of a Decentraland scene's build sessions: turn real mistakes, failed first attempts and owner corrections into evidence-backed fixes for the SDK skills, saved as a report. Use when the user asks for a retro, post-mortem or lessons learned on a scene, game or session. Not for playtest feedback (scene-feedback) or filing one SDK bug (report-sdk-issue)."
 ---
 
 # Scene Retrospective for the SDK Skills
@@ -51,9 +51,9 @@ Give every candidate one or more of these classes:
 - **SDK, Explorer or Creator Hub defect:** documented behavior failed because of an implementation bug.
 - **Unverified hypothesis:** the explanation or generalization still needs testing.
 
-Classes can overlap. An engine bug can justify a compatibility note without making the intended API contract wrong. An instruction the agent ignored is not missing guidance: grep the skills before calling anything "missing".
+Classes can overlap. An engine bug does not make the intended API contract wrong: propose a current-behaviour gotcha or an SDK issue report, not a client-version compatibility note. An instruction the agent ignored is not missing guidance: grep the skills before calling anything "missing".
 
-When the finding is about implementation behavior, distinguish the `@dcl/sdk` version in `package.json`/lockfile, the running Explorer and Creator Hub versions, the revision of any source checkout you read, and relevant graphics or platform settings. Source you inspect must match what actually ran. If known fixes exist, check their status: a closed issue is not proof of a fix, and a merged PR is not proof that the installed release contains it.
+When the finding is about implementation behavior, distinguish the `@dcl/sdk` version in `package.json`/lockfile, the running Explorer and Creator Hub versions, the revision of any source checkout you read, and relevant graphics or platform settings (step 5 checks that inspected source matches what ran). If known fixes exist, check their status: a closed issue is not proof of a fix, and a merged PR is not proof that the installed release contains it.
 
 ## 4. Write and save the report
 

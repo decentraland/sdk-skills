@@ -5,7 +5,7 @@ description: "Writing .ts script files for the Creator Hub Script component — 
 
 # Writing Script Components for Creator Hub
 
-This document explains how to write `.tsx` files that are used inside a **Script component** on an entity in a Creator Hub scene. These scripts run as self-contained classes attached to individual entities.
+This document explains how to write the `.ts` (or `.tsx`) file a **Script component** points at on an entity in a Creator Hub scene. These scripts run as self-contained classes attached to individual entities.
 
 ## Where script files must live
 
@@ -140,33 +140,9 @@ constructor(
 ) {}
 ```
 
-### The `layout` field — how params are stored and resolved at runtime
+### The `layout` field (setting `asset-packs::Script` by hand)
 
-The `asset-packs::Script` component value has the shape `{ value: [{ path: string, priority: number, layout?: string }] }`. The `layout` field is a JSON string:
-
-```json
-{"params":{"paramName":{"type":"string|number|boolean|action","value":<value>}}}
-```
-
-`layout` also carries `actions` (from `@action` methods) and `events` (from `@event` tags, see below), plus an `error` string when parsing failed. Only `params` feeds the constructor — but **preserve the other keys whenever you rewrite the layout**, or the editor features they drive disappear.
-
-At runtime, `@dcl/sdk-commands/dist/logic/runtime-script.js` resolves params like this:
-
-1. `JSON.parse(layout)` to get a `ScriptLayout` object.
-2. `Object.values(layout.params)` extracts param values **in insertion order**.
-3. The values are spread **positionally** into the constructor: `new ScriptClass(src, entity, ...params)`.
-
-**CRITICAL gotcha — params are positional, not named.** The key insertion order in the layout JSON MUST match the constructor parameter order (after `src` and `entity`). You cannot skip earlier params to set later ones — every param from `src`/`entity` onward must be present in order.
-
-Params with `type: "action"` have `value: {entity: Entity, action: string}` and are converted to `ActionCallback` functions via `createActionCallback` (which calls `getActionEvents(entity).emit(action, {})` when invoked).
-
-This is relevant for agents/MCP tools setting Script params programmatically via `set_component` on `asset-packs::Script` — the full ordered params object must be provided. (When the scene is open in the Creator Hub, prefer its MCP `attach_script` tool — write the script file, then call it with the path and it builds the component for you; see **creator-hub-mcp**.) Example layout for a script with 14 constructor params (after `src`/`entity`):
-
-```json
-{"params":{"colorA":{"type":"string","value":"#ff33e6"},"colorB":{"type":"string","value":"#33e6ff"},"rate":{"type":"number","value":35},"lifetime":{"type":"number","value":2.5},"sizeMin":{"type":"number","value":0.3},"sizeMax":{"type":"number","value":0.6},"speedMin":{"type":"number","value":2.5},"speedMax":{"type":"number","value":4},"gravity":{"type":"number","value":-0.3},"spin":{"type":"number","value":0},"shape":{"type":"string","value":"sphere"},"shapeSize":{"type":"number","value":0.4},"maxParticles":{"type":"number","value":150},"startPlaying":{"type":"boolean","value":true}}}
-```
-
-**Verified in:** `@dcl/sdk-commands/dist/logic/runtime-script.js` — `resolveScriptParams` uses `Object.values(params).map(...)` and the result is spread as `new ScriptClass(src, entity, ...params)`.
+When the scene is open in the Creator Hub, write the script file and call the MCP `attach_script` tool with its path; it builds the component (**creator-hub-mcp**). When you set `asset-packs::Script` by hand instead, its `layout` JSON string holds the params, and they reach the constructor **positionally**: the key order in `params` must match the constructor order after `src`/`entity`, every param up to the last one set must be present, and the `actions` / `events` keys must be carried through on every edit. Shape, resolution and a full example: `{baseDir}/references/script-layout.md`.
 
 ## Referencing assets with `this.src`
 
@@ -331,25 +307,7 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 
 ## Script-based Smart Items
 
-Most catalog Smart Items are **`asset-packs::Script` code with `@action`-tagged methods** rather than the Actions/Triggers no-code graph — the same mechanism this skill documents. What that means when you inspect or extend one:
-
-- **A migrated item carries no `asset-packs::Triggers`.** Do not look for a trigger graph; the behavior is in the `.ts` file the `Script` component points at (`Door.ts`, `Seat.ts`, `Button.ts`, `Lever.ts`, `Bell.ts`, `Teleport.ts`, `Sign.ts`, …).
-- **The `Actions` that remain are `call_script_method` pointers** that preserve the old public action names, so existing scenes that referenced "Open" / "Close" / "Open or Close" / "Sit Here" keep working. Their `jsonPayload` is `{"scriptPath": "{assetPath}/Door.ts", "methodName": "open", "params": {}}`.
-- **The Script's params ARE the configuration UI** — the `inspector::Config` panel was removed from the migrated items. It survives on the items that were *not* migrated: the lights, the screen/media family, `camera`, `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family. (Do not state that Config was removed everywhere — it was not.)
-- **"When X happens" hooks are optional `ActionCallback` params.** Real names in the shipped items: `onClick`, `onActivate` / `onDeactivate`, `onReachStart` / `onReachEnd` (the two most common, on the moving-platform family), `onRing` (bell), and `onOpen` / `onClose` (the open/closed sign — not the doors). Wire them the way this skill's ActionCallback section describes.
-- **State lives in a synced `asset-packs::States` component** listed in `core-schema::Sync-Components` (`{"componentIds": ["asset-packs::States"]}`). E.g. a door creates `States` with `value: ['Open','Closed'], defaultValue: 'Closed'` in `start()`; a chair carries `['Free','Taken']` per sit spot. Read and write state through `States`, not through script instance fields, or it will not replicate.
-
-**Not migrated** (still Actions/Triggers): `click_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers). `video_player` is **`[DEPRECATED]`** (moved to the `deprecated` category) — use one of the video screen items instead.
-
-**New items are written as Scripts from the start.** `locomotion_settings` ("Locomotion Settings", `utils`) is the current reference example and worth reading before writing your own: nine `Slider<Min,Max,Step>` params seeded with the SDK defaults and a `@param` tooltip each, a `start()` that writes a component onto `engine.PlayerEntity` (a **global** effect, not a per-entity one — the item has no in-world presence at all), two `@action` methods (`apply` re-writes the values, `restoreDefaults` calls `deleteFrom`), and an editor-only `asset-packs::Placeholder` cube so the thing can be selected in the viewport while being invisible in-world. It carries no `Actions`, no `Triggers`, no `Config`, and no `States`. See the **player-avatar** skill for what it configures.
-
-**Newer reference examples** (under `packs/smart_items/assets/`; behaviour below is from the items' change descriptions, not re-verified in-world): `floor_pressure_button/FloorButton.ts` — a **shared multiplayer button**: a trigger area the size of its disc; in the default `all players` mode the button stays down while *anyone* stands on it and its On Press / On Release actions run **once**, on the client of the player who caused the change (first on / last off), with a `press()`/`release()` *hold* synced through `asset-packs::States`; `my player` makes it a private per-player button. `water_plane/Water.ts` — builds the water out of five translucent `MeshRenderer` layers at runtime (the GLB is an editor-only `Placeholder`), refits its trigger area only when rescaled, and spawns splashes in scene coordinates. `lab_stair_platform/PistonPlatform.ts` — `startState` as a string-literal union (the editor turns it into an enum dropdown) and only `States` in Sync-Components, since `update()` replays `Animator`/`AudioSource` from the synced state on every client.
-
-**World teleports use `teleport`**: its `world` param, when non-empty, does a realm change; otherwise it teleports to `x`/`y` coordinates. There is no separate `world_teleport` item.
-
-**`Component asset-packs::Actions not found` in a running preview**, right after adding the scene's first smart item or `asset-packs::Script`, is a bundling defect on `@dcl/sdk` older than 7.30.1, not a component missing from the composite: restart the preview. On 7.30.1+ the next watch rebuild recovers on its own.
-
-**`trigger_area` is a Script item too.** The catalog's only trigger-area item is the script-based `trigger_area_prompt` (shown as **"Trigger Area"**, id `e9fa0eab-44de-4efe-af77-a71171a1a73f`). Read `TriggerArea.tsx` in that item before writing a detector of your own; it is the reference for the `@event` pattern below. See **add-interactivity** for the `TriggerArea` component itself.
+Most catalog Smart Items are `asset-packs::Script` code with `@action` methods, not an Actions/Triggers graph: their "When X" hooks are optional `ActionCallback` params, and their state is a synced `asset-packs::States` component. Before inspecting, extending or copying one (which items are Script-based, hook names, reference items, seat and teleport behavior, the first-item preview error): `{baseDir}/references/smart-items.md`.
 
 ## `@event` — declaring hooks for reaction scripts
 
@@ -363,7 +321,7 @@ A class (or `start()` function) JSDoc may carry `@event <name>` tags alongside `
 export class TriggerAreaDetector { /* … */ }
 ```
 
-- The inspector parses them (`ScriptInspector/parser.ts` → `extractEvents`) and stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded. **Use one of the nine recognised event names** so the button and the seeded sentence read naturally (`EVENT_LABEL` / `EVENT_CLAUSE` in `ScriptInspector.tsx`, verified at creator-hub `0.52.0`):
+- The inspector stores them as an `events: string[]` key in the Script's `layout` JSON, next to `params` and `actions`. A non-empty `events` is what makes the inspector show a **Reactions** section, with **one prompt button per event**; clicking one opens the AI assistant with a natural-language sentence already seeded. **Use one of the nine recognised event names** so the button and the seeded sentence read naturally:
 
 | `@event` name | Button label | Seeded clause |
 | --- | --- | --- |
@@ -379,8 +337,6 @@ An unrecognised name still works but falls back to the generic `When <event>…`
 - Tags are accepted on the **export statement, the class declaration, or the constructor** JSDoc — any of the three.
 - Names match `[A-Za-z0-9_-]+`; duplicates are collapsed.
 
-**The detector/reaction split this enables.** The SDK keeps only **one** callback per `(entity, event)` pair, so a second script calling `triggerAreaEventsSystem.onTriggerEnter` on the same entity silently replaces the first. The shipped pattern avoids that: one script owns the SDK callbacks and exposes `onEvent(name, fn)`; reaction scripts on the **same entity** find it with `getAllScriptInstances(entity)` from `~sdk/script-utils` and subscribe. A reaction must never touch `triggerAreaEventsSystem` itself. In `TriggerArea.tsx` the detector also replays `enter` to a late subscriber for anything already inside, and exposes `isInside()` for "while inside" logic.
+**The detector/reaction split this enables.** The SDK keeps only **one** callback per `(entity, event)` pair, so a second script calling `triggerAreaEventsSystem.onTriggerEnter` on the same entity silently replaces the first. The shipped pattern avoids that: one script owns the SDK callbacks and exposes `onEvent(name, fn)`; reaction scripts on the **same entity** find it with `getAllScriptInstances(entity)` from `~sdk/script-utils` and subscribe. A reaction must never touch `triggerAreaEventsSystem` itself. In the Trigger Area item's `TriggerArea.tsx` (`{baseDir}/references/smart-items.md`) the detector also replays `enter` to a late subscriber for anything already inside, and exposes `isInside()` for "while inside" logic.
 
 ⚠️ **When writing the `layout` JSON by hand, carry `events` through on every edit.** Rebuilding the layout from `params` alone drops it and the Reactions section is wiped for good. Spread the existing layout and overwrite only the one param you are changing.
-
-**Behavior changes worth knowing:** a seat frees itself when the sitter walks more than **1.5 m** away; `sit()` picks the **nearest free** spot; with no spot free the item shows its `takenMessage` (default **"Seat is taken"**). The avatar is moved *before* the sitting emote plays — reversing that order cancels the emote.

@@ -1,11 +1,11 @@
 ---
 name: avatar-animations
-description: Find or author avatar animations (scene emotes) for the player — first the built-in emotes, then the Creator Hub Avatar Animations pack (45 downloadable `_emote.glb` clips, catalogued with previews), and only then a custom clip authored in Blender on the official Decentraland avatar rig, exported as `_emote.glb`, verified and handed to the scene — including upper-body-only (masked) clips and clips with animated props or bone particles. Use when the user wants an avatar animation or emote of any kind, a custom emote, to animate the player/avatar, to make the avatar do something specific (sit, hold cards, carry a crate, throw, cheer), to work with the Blender avatar rig, or to produce a scene emote .glb. Do NOT use for playing animations baked into a model (see animations-tweens), for merely triggering an emote the scene already has (see player-avatar), or for NPC animation (see npcs).
+description: Find or author avatar animations (scene emotes) - built-in emotes, the Creator Hub Avatar Animations pack, or a custom `_emote.glb` made in Blender on the official Decentraland rig, including upper-body (masked) clips and clips with props or particles. Use when the player's avatar must perform a pose or motion, or for work on the avatar rig. To play an existing emote see player-avatar; for model or prop clips see animations-tweens; for NPCs see npcs.
 ---
 
 # Authoring Avatar Animations (Scene Emotes)
 
-This skill covers **making the animation file**: posing the official Decentraland avatar rig in Blender, exporting a clip as a `*_emote.glb`, verifying it, and handing it to the scene. The scene-side API that plays it — `triggerSceneEmote`, `stopEmote`, `AvatarEmoteCommand`, the `AvatarMask` enum, the permission — lives in **player-avatar**; this skill links there rather than repeating it.
+This skill covers **making the animation file**: posing the official Decentraland avatar rig in Blender, exporting a clip as a `*_emote.glb`, verifying it, and handing it to the scene.
 
 ## RULE: Look for an existing animation before authoring one
 
@@ -35,7 +35,7 @@ Say which of the three you picked and why. A built-in or pack clip usually reads
 3. **Author** — pose `CTRL_` bones only, in Pose mode, keyframing every bone you touch at every keyframe.
 4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet. If the clip poses the fingers, add hand close-ups and the fingertip decomposition.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
-6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB.
+6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB. Done when every row of *File requirements* below holds for the exported file.
 7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, add the permission, play it (see **player-avatar**).
 
 Ready-made `bpy` helpers for every step — the helper module, sign detection, render/contact-sheet setup, the export call, and the GLB verifier — are in `{baseDir}/references/blender-emote-patterns.md`.
@@ -204,18 +204,15 @@ Mechanically the renderer samples your clip each `LateUpdate`, then **restores t
 
 - **Hip/root motion in a masked clip has no effect.** `Avatar_Hips` is outside the mask, so the drop you authored with `CTRL_Avatar_UpperBody` to sit the avatar down is discarded; the legs show the locomotion state (idle, walk, run).
 - **A masked clip does NOT layer over another emote.** Verified in the Explorer's `SceneMaskedEmoteSystem`: starting a masked emote on the local player stops any full-body emote that is playing, and starting a full-body emote cancels the masked one. So a masked clip cannot run on top of a chair's sitting emote — the avatar stands up. It layers only over locomotion, which is what the mask is for: carrying, holding or cheering while the player walks, runs or idles.
-- **For a seated player, check `sittingChair1`/`sittingGround1` first** — they loop and hold the pose for free (see the embedded-emote note at the top of this skill). If you do author one, **have the owner look at the arms and hands before it ships**: observed 2026-10-12, the IK-feet + lowered-`UpperBody` recipe below produced a correct seat with awkward arms, which only a human eye caught.
-- **For a seated player, play the clip full body.** Author a seated lower body into every clip (hips lowered, FK legs bent), trigger it unmasked, and have the scene replay the sitting emote (`triggerEmote({ predefinedEmote: 'sittingChair1' })` or the chair's own) when the clip ends and no looping seated clip takes over. A one-shot that returns to the same seated pose as your looping idle clip chains into it without a pop; the only visible pop is the height difference against the built-in sitting emote, which you tune with the hip drop.
+- **Seated player:** check `sittingChair1`/`sittingGround1` first — they loop and hold the pose for free (`{baseDir}/references/embedded-emotes.md`). A masked clip cannot run over a sitting emote (above), so author seated clips **full body** (hips lowered with `CTRL_Avatar_UpperBody`, FK legs bent per *Seated poses*), trigger them unmasked, and have the scene replay the sitting emote (`triggerEmote({ predefinedEmote: 'sittingChair1' })` or the chair's own) when the clip ends and no looping seated clip takes over. A one-shot that returns to the same seated pose as your looping idle clip chains into it without a pop; tune the hip drop against the built-in sitting emote's height. Have the owner check the arms and hands before shipping: a correct seat with awkward arms was caught only by a human eye (observed 2026-10-12).
 - **Author the full body anyway, even for masked use.** A plausible lower body makes the same file usable unmasked. The mask is a trigger-time decision, not a property of the file.
 - **Masked emotes on the local player emit no `AvatarEmoteCommand` lifecycle events** (documented in **player-avatar**). The scene must therefore time them itself — store each clip's duration alongside its path in scene config, since you know it exactly from the frame count.
 
 Design notes for a seated holding pose that reads well: hips ≈ 0.6 m, hands at chest height, head tilted toward the hands.
 
-> The bone list and blending mechanism above were read from the Explorer source (`MaskedLegacyEmoteBlender`, `SceneMaskedEmoteSystem`, `CharacterEmoteSystem` on `main`, 2026-09); the "masked stops full-body" rule was confirmed in-world on a seated player. For the **enum values and call signatures**, trust **player-avatar**, which is verified against the shipped protocol.
-
 ## Props and particles
 
-A clip can carry an animated prop or bone-driven particles (`Armature_Prop` + a `*_Prop` clip of the same length, exported together with the avatar clip via NLA tracks). Other players see the prop with the animation. `triggerSceneEmote` plays no sound: Builder emotes ship audio as a separate file, and scene emotes never fetch one. Layout, limits, making a prop follow the body, particles as bones, the export call and gotchas: `{baseDir}/references/emote-props.md`.
+A clip can carry an animated prop or bone-driven particles (`Armature_Prop` + a `*_Prop` clip of the same length, exported together with the avatar clip via NLA tracks). Other players see the prop with the animation, which makes props the main effect of smart-wearable emotes (**smart-wearables**). `triggerSceneEmote` plays no sound: Builder emotes ship audio as a separate file, and scene emotes never fetch one. Layout, limits, making a prop follow the body, particles as bones, the export call and gotchas: `{baseDir}/references/emote-props.md`.
 
 ## File requirements
 
@@ -238,7 +235,7 @@ Conventional location in the scene: `assets/animations/`. The glTF animation's *
 
 Blender's glTF exporter UI equivalents, if the user is exporting by hand: **Include > Limit to > Visible Objects**, **Data > Armature > Export Deformation Bones Only**, **Animation > Sampling Animations**.
 
-The Decentraland Tools add-on's **Validate Emote** operator checks most of this (30 fps, ≤ 300 frames, exactly one armature action, first/last-frame keys on deform channels) before it will export, and warns — without blocking — when the COG moves more than 1 m horizontally or vertically. It does not check the 4 m bounding box.
+The Decentraland Tools add-on's **Validate Emote** operator checks most of this (30 fps, ≤ 300 frames, exactly one armature action, first/last-frame keys on deform channels) before it will export; its area check is limited (see *RULE: Stay inside the animation area*).
 
 ## Testing in the scene
 
@@ -257,9 +254,5 @@ Gate the whole harness behind a config flag and remove it before publishing.
 
 ## Cross-references
 
-- **player-avatar** — `triggerSceneEmote` / `stopEmote` / `AvatarEmoteCommand` / `AvatarMask`, the `_emote.glb` rule, the permission, and freezing the player with `InputModifier` during a full-body emote.
 - **add-3d-models** → `references/blender-authoring.md` — how to drive Blender at all (headless CLI vs MCP), plus general model export rules.
-- **animations-tweens** — animations baked into props and models, and procedural `Tween` motion.
-- **npcs** — animating `AvatarShape` NPCs and GLB NPCs.
-- **smart-wearables** — emotes played by a smart wearable, the main use of props: the only effects other players see.
 - Official docs: [props and sounds](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/props-and-sounds/) · [particles in emotes](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/particles-in-emotes/) · [creating emotes](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/creating-emotes/) · [rig features](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/rig-features/) · [avatar rig](https://docs.decentraland.org/creator/wearables-and-emotes/emotes/avatar-rig/)
