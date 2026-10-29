@@ -32,7 +32,7 @@ Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Als
 
 ### Distance rules (`maxDistance` / `maxCameraDistance` / `maxPlayerDistance`)
 
-**`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments called it a camera distance; that was wrong, and Unity/Godot always measured player distance. Verified: protocol `pointer_events.proto` (`0e82dcd`), `@dcl/ecs` `EventSystemOptions` (`6a98834a`), test scene `34,20-pointer-events-distances`.
+**`maxDistance` is the distance from the AVATAR, not the camera.** Older SDK/protocol comments call it a camera distance; they are wrong. Example: test scene `34,20-pointer-events-distances`.
 
 | Option | Measured from | Default |
 |---|---|---|

@@ -84,7 +84,7 @@ npx @dcl/sdk-commands deploy
 
 ### The link to share after publishing
 
-The success panel shows and copies a **web `/jump` link**, which works for players without the desktop client; its **Jump In** button opens the desktop client separately (creator-hub `4305bb17c`). Use the same forms in anything you write for players:
+The success panel shows and copies a **web `/jump` link**, which works for players without the desktop client; its **Jump In** button opens the desktop client separately. Use the same forms in anything you write for players:
 
 | Target | Share link |
 | --- | --- |

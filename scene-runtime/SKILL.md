@@ -136,7 +136,6 @@ engine.addSystem(() => {
 | `totalRuntime` | `number` | Total runtime of this scene in seconds |
 | `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
 
-Verified against protocol commit `0b3d285` (field 4 `bool scene_hidden` in `PBEngineInfo`, component id 1048) and js-sdk-toolchain commit `ffb26183` (exposed as `sceneHidden: boolean` on `PBEngineInfo`).
 
 ### Detecting when the loading screen fades out
 
@@ -233,7 +232,7 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // c
 
 #### `changeRealm` is `[DEPRECATED]` — prefer `teleportTo({ realm })`
 
-Protocol `e89d7fa`, SDK pin `6b7c3586`; the `realm` field is typed in `@dcl/js-runtime` **7.28.0**.
+The `realm` field is typed from `@dcl/js-runtime` **7.28.0**.
 
 - `TeleportToRequest` is now `{ worldCoordinates?: Vector2, realm?: string }` — **both optional**.
 - `realm` accepts a World name (`foo.dcl.eth`) or a realm URL. When set, the client first shows the player a confirmation prompt with the default text ("Are you sure you want to enter this World?"). If the player accepts, the client performs a full reconnect to that realm (even if it is the realm the player is already in), then lands on the parcel.
@@ -298,7 +297,7 @@ engine.addSystem(() => {
 });
 ```
 
-Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220. Verified against protocol commit `86c4613` and js-sdk-toolchain commit `fc8cfc65`.
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
 
 ## Timers
 
@@ -370,7 +369,7 @@ import { removeEntityWithChildren } from "@dcl/sdk/ecs";
 removeEntityWithChildren(engine, parentEntity);
 ```
 
-**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result. Verified against js-sdk-toolchain commit `e712ef71`.
+**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result.
 
 ## Portable Experiences
 

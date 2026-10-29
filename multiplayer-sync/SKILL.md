@@ -353,7 +353,7 @@ The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEn
 
 ## Remote players' Transforms are scene-relative
 
-Another player's `Transform` is in the same scene-relative frame as the local player's, so distance checks, proximity leaderboards and follow cameras that iterate `PlayerIdentityData` compare positions directly. Defensive handling and the safety-critical rule: **player-avatar** → *Remote players' positions are scene-relative*.
+Another player's `Transform` is in the same scene-relative frame as the local player's (desktop, and mobile app 1.15.0+), which is what distance checks, proximity leaderboards and follow cameras that iterate `PlayerIdentityData` rely on. Older mobile apps report world coordinates; the conditional conversion and the safety-critical rule are in **player-avatar** → *Remote players' positions are scene-relative*.
 
 ## Per-player visuals are NOT automatically shared
 

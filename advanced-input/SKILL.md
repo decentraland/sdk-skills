@@ -215,7 +215,7 @@ InputModifier.deleteFrom(engine.PlayerEntity)
 
 **Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, and the restrictions lift automatically when the player leaves the scene bounds. To lock input for an action, pair it with `triggerSceneEmote` or `movePlayerTo` (**player-avatar**) and remove the modifier when the action ends.
 
-**Clients:** works on desktop and mobile, including `disableDoubleJump` and `disableGliding`. On mobile, `disableAll` stops the touch joystick and buttons from moving the player but leaves them on screen; hide them with `TouchScreenControls` if they should disappear.
+**Clients:** works on desktop and on mobile app 0.50+ (`disableDoubleJump` and `disableGliding` need mobile 0.65+; older mobile apps ignore the modifier). On mobile, `disableAll` stops the touch joystick and buttons from moving the player but leaves them on screen; hide them with `TouchScreenControls` if they should disappear.
 
 ### Cutscene Pattern
 
@@ -360,7 +360,7 @@ For the button priority stack and the "+" overflow rules, custom icons, and full
 ## Mobile considerations
 
 - **Touch-only input** -- no mouse hover states, keyboard shortcuts, or right-click.
-- **`borderRadius` / `borderWidth` on mobile accept pixels only** -- percentage values have no effect there; use pixel values for rounded corners and borders.
+- **`borderRadius` / `borderWidth` on mobile (app 1.10.1+) accept pixels only** -- percentage values have no effect there; use pixel values. Older mobile apps draw square corners.
 - **On-screen controls ARE scene-configurable** on SDK 7.26.0+ via `TouchScreenControls` -- hide the joystick, the crosshair, or individual gamepad buttons, re-bind the central button, or swap a button glyph for a scene image. Their positions are still fixed. This supersedes older docs claiming the mobile HUD is static. See the `TouchScreenControls` section above.
 - **The old "~3x scaling for mobile" rule no longer applies as written.** On SDK 7.26.0+ pixel-sized UI is already ~2–3× larger on a phone than before (`devicePixelRatio` was removed from the UI scale factor), and the mobile virtual screen (`1600x720` vs desktop's `1920x1080`) adds ~1.2× more. Start from the desktop sizes, measure on a device, and scale up only what comes up short. See [[build-ui]].
 - **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].

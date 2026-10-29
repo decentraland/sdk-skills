@@ -90,7 +90,7 @@ export CREATOR_HUB_MCP_TOKEN=<TOKEN>
 
 ### Inside the Creator Hub's own assistant, all four providers now get the scene tools
 
-As of creator-hub `2cf0dc7e` the CH MCP scene tools are wired for **Claude, Codex, Cursor and Gemini** — the earlier Cursor/Gemini gap is closed. The app writes the config per provider and sets `CREATOR_HUB_MCP_TOKEN` on the child process: Claude via `--mcp-config`, Codex via `-c mcp_servers.creator-hub.bearer_token_env_var`, Gemini via `.gemini/settings.json` with a `$CREATOR_HUB_MCP_TOKEN` reference, and Cursor via a project `.cursor/mcp.json`. **Cursor's config format has no token indirection**, so the bearer token sits literally in `.cursor/mcp.json`; the Creator Hub writes it `0600` and adds it to the scene's `.gitignore`. If you are working in a scene folder and see `.cursor/mcp.json` or `.gemini/settings.json` appear, those are the Creator Hub's — do not commit them and do not hand-edit them.
+The CH MCP scene tools are wired for **Claude, Codex, Cursor and Gemini** — the earlier Cursor/Gemini gap is closed. The app writes the config per provider and sets `CREATOR_HUB_MCP_TOKEN` on the child process: Claude via `--mcp-config`, Codex via `-c mcp_servers.creator-hub.bearer_token_env_var`, Gemini via `.gemini/settings.json` with a `$CREATOR_HUB_MCP_TOKEN` reference, and Cursor via a project `.cursor/mcp.json`. **Cursor's config format has no token indirection**, so the bearer token sits literally in `.cursor/mcp.json`; the Creator Hub writes it `0600` and adds it to the scene's `.gitignore`. If you are working in a scene folder and see `.cursor/mcp.json` or `.gemini/settings.json` appear, those are the Creator Hub's — do not commit them and do not hand-edit them.
 
 ## Probe
 

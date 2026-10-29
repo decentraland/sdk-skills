@@ -1,6 +1,6 @@
 # How the Creator Hub UI editor behaves
 
-What the UI Designer writes into the scene and what its canvas shows, so hand-written code matches it. Verified against creator-hub `docs/UIDesigner.md` and the implementing commits (`35cd6fa7`, `33134497`, `30207181`, `abb88456`, `6753eda9`, `379aa27e`, `75ad6f5e`, `66758e1c`). The editor is stable and always on in Creator Hub 0.50.0+; the only gate is `@dcl/sdk` 7.26.0+ (`MIN_SDK_VERSION` in `UIDesigner/SdkUpgradeNotice`).
+What the UI Designer writes into the scene and what its canvas shows, so hand-written code matches it. The editor is stable and always on in Creator Hub 0.50.0+; the only gate is `@dcl/sdk` 7.26.0+ (`MIN_SDK_VERSION` in `UIDesigner/SdkUpgradeNotice`).
 
 ## Saving
 
@@ -30,7 +30,7 @@ A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<In
 | Panel label | `screenInset` value written |
 | --- | --- |
 | **Device Safe Area** | `device` — only offered on the mobile platform preset |
-| **Interactable Safe Area** | `interactable` — renamed from "Gameplay Safe Area" in creator-hub `fbca1dca` |
+| **Interactable Safe Area** | `interactable` — formerly "Gameplay Safe Area" |
 | **Full Screen** | `none` |
 
 The **values are unchanged** — a rename of the label only. Emit `screenInset: 'interactable'` regardless of which label the user quotes at you. The property panel's own help text (still using the old label): "Full Screen uses the entire renderable screen. Gameplay Safe Area excludes game-native UI such as chat, minimap and HUD indicators. Device Safe Area (mobile only) excludes physical constraints such as the notch, Dynamic Island and system bars. Requires @dcl/react-ecs 7.26.0+ in your scene."

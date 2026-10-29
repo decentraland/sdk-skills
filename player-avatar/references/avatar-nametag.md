@@ -155,6 +155,5 @@ call, so it never touches a stale entity id.
 ## Sources
 
 - Protocol: `proto/decentraland/sdk/components/avatar_nametag.proto` (`ecs_component_id 1221`).
-- SDK: `@dcl/sdk` 7.28.0 (released 2026-09-10). js-sdk-toolchain PR #1600 (merged 2026-09-07, commit `b8264fb`).
-- Renderer: unity-explorer `5cb52d6` — "feat: sdk | scene name tag (#9829)", 2026-09-04.
+- SDK: `@dcl/sdk` 7.28.0+.
 - Test scene: sdk7-test-scenes [`scenes/4,24-avatar-nametag`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag).

@@ -97,9 +97,9 @@ engine.addSystem(proximityCheck)
 
 ### Remote players' positions are scene-relative
 
-Another player's `Transform` (entities from `engine.getEntitiesWith(PlayerIdentityData)`), `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players are **scene-relative**: the same frame as `Transform.get(engine.PlayerEntity)`, on desktop and mobile. The client converts before writing the Transform (unity-explorer `WritePlayerTransformSystem`); `getPlayer` passes it through unchanged. Compare local and remote positions directly.
+Another player's `Transform` (entities from `engine.getEntitiesWith(PlayerIdentityData)`), `getPlayer({ userId }).position`, `onEnterScene` and items attached to other players are **scene-relative**: the same frame as `Transform.get(engine.PlayerEntity)`, on desktop and on mobile app 1.15.0+. The client converts before writing the Transform (unity-explorer `WritePlayerTransformSystem`); `getPlayer` passes it through unchanged.
 
-For code that must also survive a client reporting world coordinates, do what `33,20-spectate-mode` does: subtract the base parcel × 16 **only** when a position falls outside the scene's bounds, never unconditionally. Read the base parcel from `scene.json` rather than hardcoding it.
+**Mobile apps older than 1.15.0 report them in world coordinates.** Handle both the way `33,20-spectate-mode` does: subtract the base parcel × 16 **only** when a position falls outside the scene's bounds, never unconditionally. Read the base parcel from `scene.json` rather than hardcoding it.
 
 Derive anything safety-critical from the local player's own position on each client, not from a remote one.
 
@@ -388,7 +388,6 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 
 - `state` is an **optional** protocol field: always default it to `ES_STARTED` (`cmd.state ?? EmoteState.ES_STARTED`) rather than assuming it is present.
 - **Masked (partial-body) emotes on the local player report no lifecycle events** — known limitation. A scene that needs to know when a masked clip ends must time it itself from the clip duration.
-- Verified against protocol `avatar_emote_command.proto` (commit `215d09c`, field 5, optional) and js-sdk-toolchain (commit `f858f905`).
 
 ### Emote masks (upper-body only)
 
@@ -405,10 +404,10 @@ triggerSceneEmote({ src: 'animations/Carry_emote.glb', loop: true, mask: AvatarM
 
 - Only value: `AvatarMask.AM_UPPER_BODY` (= 0). Omitting `mask` plays the full-body animation (the default) — there is no `AM_FULL_BODY` value in the enum.
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
-- **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Verified against sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes` (commit `1c0f394`).
+- **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
 - **Mobile:** masked emotes work and read as upper-body to other mobile players. Emotes arriving from other clients (scene emotes from Bevy-Web players, Unity players' emotes over LiveKit) may not play on mobile. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
-- Verified against protocol `restricted_actions.proto` / `common/avatar_mask.proto` (pinned in `@dcl/sdk` via protocol `0010e70`) and sdk7-test-scenes `88,-13-avatar-masks` (2026-07-16). Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
+- Earlier speculative names `AvatarEmoteMask` / `AEM_UPPER_BODY` / `AEM_FULL_BODY` were never released — do not use them.
 
 ## NPC Avatars
 
@@ -513,7 +512,7 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 
 Regression coverage: [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) (`src/areaScaleDrift.ts`), which scales a 2x2x2 `CameraModeArea` entity to 2.5 and asserts the camera still releases 2 m from the centre. It scales the entity itself only; the parent case follows from the code (inverse `lossyScale`), not from a test.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now. Verified against creator-hub commit `a843390a`.
+**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `AvatarModifierArea` with a multi-select dropdown for modifiers (`Hide Avatars`, `Disable Passports`) and a wallet-address list editor for `excludeIds`. A "Avatar Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the modifier region. **That mirroring is an editor-time write, not a runtime binding** — once the scene runs, `area` stands alone (GOTCHA above). Note: the inspector panel exposes only `AMT_HIDE_AVATARS` and `AMT_DISABLE_PASSPORTS` in its dropdown; `AMT_HIDE_NAMETAGS` is SDK-only for now.
 
 ## Avatar Locomotion Settings
 
@@ -538,7 +537,7 @@ Fields (all `float`, optional) with client defaults — verified against unity-e
 - **Scene bounds only.** The component affects the player solely while they are inside the scene's bounds, and only the local player — to change another avatar's locomotion, the code must run on *their* client.
 - **Enforcing the defaults is a real use case:** a parkour or racing scene can write the default values explicitly so a smart wearable can't give its owner an advantage.
 
-**Creator Hub / Inspector support:** a **"Locomotion Settings"** smart item (`utils` category, id `f0fdd9ac-5451-4d84-9964-ea437b11b211`) ships in the Smart Items pack. It is a `asset-packs::Script` item (`locomotion-settings.ts`, class `LocomotionSettings`) whose nine params are `Slider` fields seeded with the SDK defaults above, so a no-code user gets the same component without writing TypeScript. `start()` calls `AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {...})`; it exposes two `@action`s — **Apply** (re-write the configured values) and **Restore Defaults** (`AvatarLocomotionSettings.deleteFrom(engine.PlayerEntity)`), so other smart items can trigger a speed boost and undo it. Its placeholder is an editor-only cube (`asset-packs::Placeholder`), invisible in-world. Prefer it over hand-built entities when the scene is open in the Creator Hub (see **creator-hub-mcp** `place_smart_item`). Verified against creator-hub commit `cb097fff`.
+**Creator Hub / Inspector support:** a **"Locomotion Settings"** smart item (`utils` category, id `f0fdd9ac-5451-4d84-9964-ea437b11b211`) ships in the Smart Items pack. It is a `asset-packs::Script` item (`locomotion-settings.ts`, class `LocomotionSettings`) whose nine params are `Slider` fields seeded with the SDK defaults above, so a no-code user gets the same component without writing TypeScript. `start()` calls `AvatarLocomotionSettings.createOrReplace(engine.PlayerEntity, {...})`; it exposes two `@action`s — **Apply** (re-write the configured values) and **Restore Defaults** (`AvatarLocomotionSettings.deleteFrom(engine.PlayerEntity)`), so other smart items can trigger a speed boost and undo it. Its placeholder is an editor-only cube (`asset-packs::Placeholder`), invisible in-world. Prefer it over hand-built entities when the scene is open in the Creator Hub (see **creator-hub-mcp** `place_smart_item`).
 
 ## Restrict Locomotion (InputModifier)
 

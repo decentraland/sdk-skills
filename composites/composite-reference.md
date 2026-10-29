@@ -684,7 +684,7 @@ All components that start with `asset-packs::` or `inspector::` are non-core. Th
 
 These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
-**Migrated Smart Items carry no `asset-packs::Triggers`.** Since creator-hub `658f4daf` most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
+**Migrated Smart Items carry no `asset-packs::Triggers`.** Most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 

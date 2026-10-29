@@ -256,7 +256,7 @@ Older names still circulate in tutorials, forum posts, and model-generated answe
 | **SDK6** | the previous SDK; its code does not run on current Decentraland | **SDK7** (to port an old scene, see the `migrate-sdk6-to-sdk7` skill) |
 | **`dclcontext` folder** | downloaded AI context files inside scene projects | **SDK Skills** (these skills) |
 
-Current names: Creator Hub, Scene Editor, SDK7, SDK Skills. Verified against docs glossary commit `4b6733c`.
+Current names: Creator Hub, Scene Editor, SDK7, SDK Skills.
 
 ## Shared References
 

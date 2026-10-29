@@ -120,7 +120,7 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 })
 ```
 
-**API** (verified against `@dcl/ecs`, commit `f858f905`):
+**API:**
 - `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
@@ -146,7 +146,7 @@ Monitor playback with `videoEventsSystem`:
 
 States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
 
-**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same behavior applies to `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity` — re-registering preserves the count of already-reported events, avoiding duplicate callbacks. Verified against js-sdk-toolchain commit `9055b4b4`.
+**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same behavior applies to `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity` — re-registering preserves the count of already-reported events, avoiding duplicate callbacks.
 
 Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 
