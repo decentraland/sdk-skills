@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game deck — replace with the owner's title</title>
+<style>
+  :root { color-scheme: light; --paper: #faf8f2; --ink: #203638; --accent: #216d65; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 1.1rem/1.55 system-ui, sans-serif; }
+  main, nav, footer { max-width: 72rem; margin: auto; padding: 1rem 2rem; }
+  .page { min-height: 70vh; padding: 1rem 0; overflow-wrap: anywhere; }
+  .page[hidden] { display: none; }
+  h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 1.1; }
+  h1:focus { outline: none; }
+  h1:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+  nav { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  nav[hidden] { display: none; }
+  button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: .5rem; padding: .6rem 1rem; cursor: pointer; }
+  button[aria-current="page"] { background: var(--accent); color: white; }
+  button:disabled { opacity: .4; cursor: default; }
+  footer { font-size: .85rem; }
+  @media (max-width: 40rem) { main, nav, footer { padding: 1rem; } .page { min-height: auto; } }
+  @media print {
+    nav { display: none !important; }
+    main { max-width: none; padding: 0; }
+    .page, .page[hidden] { display: block !important; min-height: 0; break-after: page; }
+    .page:last-child { break-after: auto; }
+    body { background: white; color: black; }
+    footer { padding: .5rem 0; }
+  }
+</style>
+<!-- Navigation shell only. Replace sample sections with source-grounded creative content.
+     Remove pages not yet discussed. data-title supplies the navigation label.
+     Keep uncertainty visible. Style and diagrams should convey this game's own atmosphere. -->
+<nav hidden aria-label="Deck pages">
+  <button id="previous" type="button" aria-label="Previous page" title="Previous page">←</button>
+  <span id="pages"></span>
+  <button id="next" type="button" aria-label="Next page" title="Next page">→</button>
+  <span id="position" role="status" aria-live="polite"></span>
+</nav>
+<main>
+  <section class="page" data-title="Core" aria-labelledby="core-title">
+    <h1 id="core-title" tabindex="-1">The owner's game</h1>
+    <p>Replace with the fantasy and a visual solo episode: action → response → choice → repeat.</p>
+    <p>Show why the first action and tenth repetition should feel good. Keep the untested question visible.</p>
+  </section>
+  <section class="page" data-title="Retention" aria-labelledby="retention-title">
+    <h1 id="retention-title" tabindex="-1">Another visit</h1>
+    <p>Keep this page only after discussing return reasons. Describe the chosen intent and open evidence.</p>
+  </section>
+  <section class="page" data-title="Social" aria-labelledby="social-title">
+    <h1 id="social-title" tabindex="-1">Better with friends</h1>
+    <p>Keep this page only after discussing Social. Show what another player adds and what remains fun alone.</p>
+  </section>
+</main>
+<footer>Rendered from design/gdd.md · vN · DATE · Presentation copy, not the submission.</footer>
+<script>
+(() => {
+  const pages = [...document.querySelectorAll('main > .page')];
+  const nav = document.querySelector('nav');
+  const previous = document.querySelector('#previous');
+  const next = document.querySelector('#next');
+  const position = document.querySelector('#position');
+  if (!pages.length) return;
+  let current = 0;
+  const buttons = pages.map((page, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = page.dataset.title;
+    button.addEventListener('click', () => show(index, true));
+    document.querySelector('#pages').append(button);
+    return button;
+  });
+  function show(index, focus = false) {
+    current = Math.max(0, Math.min(index, pages.length - 1));
+    pages.forEach((page, i) => { page.hidden = i !== current; });
+    buttons.forEach((button, i) => {
+      if (i === current) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    previous.disabled = current === 0;
+    next.disabled = current === pages.length - 1;
+    position.textContent = `${current + 1} / ${pages.length}`;
+    if (focus) {
+      pages[current].querySelector('h1').focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+  }
+  previous.addEventListener('click', () => show(current - 1, true));
+  next.addEventListener('click', () => show(current + 1, true));
+  show(0);
+  nav.hidden = pages.length === 1;
+})();
+</script>
+</html>
