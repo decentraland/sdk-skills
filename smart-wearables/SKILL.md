@@ -147,7 +147,7 @@ A published smart wearable runs with **restricted permissions**: `LoadSmartWeara
 "requiredPermissions": ["USE_FETCH", "USE_WEBSOCKET"]
 ```
 
-- **Equip-time prompt.** A non-empty list makes the Explorer show an authorization popup when the player equips the wearable (`SmartWearableAuthorizationPopupController`). If they decline, the code does not run. Declare only what the code uses, so players aren't asked for more than they need to grant.
+- **Authorization prompt.** Equipping from the backpack a wearable that declares any of the four permissions opens an authorization popup (`SmartWearableAuthorizationPopupController`). A player who logs in already wearing it is prompted only when it declares `USE_WEB3_API`; a scene change never prompts (`SmartWearableSystem.RunScenesForEquippedWearablesAsync`). Declining keeps the wearable equipped but its code does not run (the Explorer marks it in `KilledPortableExperiences`). Declare only what the code uses, so players aren't asked for more than they need to grant.
 - **The preview grants everything.** `LoadSmartWearablePreviewSceneSystem` loads the preview like a normal scene, with every permission; the gates apply only to the published wearable. A gated call that works in `npm run start` can still fail once published: test it through See in Decentraland.
 - `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE`, `ALLOW_TO_TRIGGER_AVATAR_EMOTE` and `ALLOW_MEDIA_HOSTNAMES` are ignored: moving the player, emotes, physics forces and external media need no permission. Remove them from older projects.
 - Enforcement above is the desktop Explorer's; a code search of the mobile client (godot-explorer) found no enforcement at all. Declare what the code uses regardless.
