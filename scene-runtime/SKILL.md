@@ -44,7 +44,7 @@ const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 
 `signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
 
-> **Permission**: the nominal permission for external HTTP is `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets), declared in `scene.json` `requiredPermissions`. In practice plain/signed `fetch` to non-media hosts is not hard-blocked in preview/Worlds even without it (the `66,6-signed-fetch` test scene calls `signedFetch` with an empty `requiredPermissions`). Declare `USE_FETCH` anyway for correctness and forward-compat. `fetch` and `signedFetch` need no prior player interaction.
+> **Permission**: a scene needs none — scenes and portable experiences run with every permission granted. Only a **smart wearable** must declare `"USE_FETCH"` for `fetch` (and `"USE_WEBSOCKET"` for sockets) in `requiredPermissions`, or the call fails with `Fetch API: permission denied`; `signedFetch` is gated by no permission (**smart-wearables** → Permissions). `fetch` and `signedFetch` need no prior player interaction.
 
 ## WebSocket
 

@@ -93,6 +93,8 @@ Ask: **What does the player DO?** The answer should be a single sentence:
 | **V1** first full loop | Can players progress unaided? Where do they get stuck or lose interest? | A mix of Decentraland players and people new to your game |
 | **V2+** | How does the game make players *feel*? Do they come back? Would they recommend it? | New players, including people from outside Decentraland |
 
+Pick one or two goals per round: onboarding, the core mechanic, the loop, difficulty, or **emotional response** (which moments excite, which bore — a V2+ question).
+
 ### Iterate with RITE (test → fix → test)
 
 Rapid Iterative Testing and Evaluation: 3-5 players per round, fix the clearest problem between rounds, run the next round with new players. Beats one big playtest with a long issue list. DCL-specific habits:
@@ -101,7 +103,8 @@ Rapid Iterative Testing and Evaluation: 3-5 players per round, fix the clearest 
 - **Keep the same questions across rounds**, or the ratings are not comparable. Add questions; do not reword the ones you track.
 - **"Clear" means**: you saw it happen, you can say what the player expected instead, and you know what to change. One player, cause unknown → carry it to the next round.
 - **Log every round**: build, who played, what you saw, what you changed.
-- **Finding testers**: the `#playtesters` channel on the Decentraland Discord; an event on [Decentraland Events](https://decentraland.org/events/) for a live session; or people from outside Decentraland when the thing under test is the first-time experience. A small thank-you (a wearable or emote you own can be gifted in-client by right-clicking the player) raises turnout — say plainly that you want criticism, not praise.
+- **Live or asynchronous**: a live session (everyone at once, observed, optionally listed on [Decentraland Events](https://decentraland.org/events/)), or a run over several days where testers come when they can and **scene-feedback** collects the answers while you are away.
+- **Finding testers**: the `#playtesters` channel on the Decentraland Discord, or people from outside Decentraland when the thing under test is the first-time experience. Newcomers enter through the web `/jump` link (works before the client is installed); log where they struggle *before* reaching the scene separately from feedback on the game. A small thank-you raises turnout — gift an owned wearable or emote in-client (right-click the player → **Gift**), transfer one from the Marketplace or mint one from the Builder to a wallet address — and say plainly that you want criticism, not praise.
 - **Close the loop**: post a "you said / we learned / we changed" update to the same thread. Testers who see their feedback land come back for the next round.
 
 To collect playtest answers in-scene, or feedback players submit while you are away → **scene-feedback**.
@@ -255,5 +258,6 @@ Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤
 | World storage budget | **deploy-worlds** | Planning file sizes for a World |
 | Performance budgets and techniques | **optimize-scene** | Scene over budget or slow |
 | Placeholder media during blockout | **creator-hub-mcp** | Greyboxing in the Creator Hub |
+| Worked examples: 20 published games + reference scenes, by mechanic | `{baseDir}/../sdk-scenes/references/example-scenes.md` | Before designing a loop or mechanic from scratch; pick the closest example to study |
 
 This skill focuses on the **design decisions** that shape implementations. For detailed code patterns, see the referenced skills.

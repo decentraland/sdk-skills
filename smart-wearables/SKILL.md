@@ -1,6 +1,6 @@
 ---
 name: smart-wearables
-description: Build a Decentraland smart wearable, a wearable that runs SDK7 code (a portable experience) while equipped. Covers the project layout, the strict `wearable.json` schema behind the Builder's "wearable config file is invalid" error, the 3 MB uncompressed limit and what silently blows it, how the preview differs from the published wearable, what other players see (emote props and bone particles yes; scene entities, ParticleSystem and sound no), multiplayer (no MessageBus or Multiplayer Server; third-party server only), wearer-only sound, preloading, and pack/upload. Use when the user wants a smart wearable or a wearable with abilities (jetpack, double jump, pet, glide), or hits Builder errors uploading `smart-wearable.zip`. Do NOT use for plain wearables without code, ordinary scenes (see create-scene), or spawning portable experiences from a scene (see scene-runtime).
+description: Build a Decentraland smart wearable, a wearable that runs SDK7 code (a portable experience) while equipped. Covers the project layout, the strict `wearable.json` schema behind the Builder's "wearable config file is invalid" error, the 3 MB uncompressed limit and what silently blows it, how the preview differs from the published wearable, what other players see (emote props and bone particles yes; scene entities, ParticleSystem and sound no), multiplayer (no MessageBus or Multiplayer Server; third-party server only), the four `requiredPermissions` gates (USE_FETCH, USE_WEBSOCKET, USE_WEB3_API, OPEN_EXTERNAL_LINK) and the equip-time prompt, wearer-only sound, preloading, and pack/upload. Use when the user wants a smart wearable or a wearable with abilities (jetpack, double jump, pet, glide), or hits Builder errors uploading `smart-wearable.zip`. Do NOT use for plain wearables without code, ordinary scenes (see create-scene), or spawning portable experiences from a scene (see scene-runtime).
 ---
 
 # Smart Wearables
@@ -21,7 +21,7 @@ Related skills — link, don't repeat:
 | HUD (fuel bars, cooldowns) | **build-ui** |
 | `AudioSource` | **audio-video** |
 | `AssetLoad` preloading | **optimize-scene** → "Asset Preloading" |
-| WebSocket / `fetch` to a third-party server (the only way to share state, see Multiplayer below) | **scene-runtime** |
+| WebSocket / `fetch` to a third-party server (the only way to share state, see Multiplayer below; declare the permission, see Permissions) | **scene-runtime** |
 
 Worked example (jetpack: F to thrust, fuel/overheat, masked emote with flame props, wearer-only sound, preloading): `{baseDir}/references/jetpack-example.md`.
 
@@ -132,6 +132,28 @@ Don't plan a feature on `MessageBus`, `syncEntity` or the Multiplayer Server for
 - **Host scenes win.** A scene can set `featureToggles.portableExperiences` to `"disabled"` (wearable code stops while the player is there) or `"hideUi"`. For `AvatarLocomotionSettings`, a scene's value beats the wearable's. Mention this to the user when designing movement abilities — parkour scenes are expected to block them.
 - Load order varies: if the player logs in already wearing it, the wearable's code may start before other players/scenes load. Don't assume nearby players exist at `main()`.
 
+## Permissions
+
+A published smart wearable runs with **restricted permissions**: `LoadSmartWearableSceneSystem` builds a `RestrictedJsApiPermissionsProvider` from `requiredPermissions` in `scene.json`, while scenes and other portable experiences get every permission. An undeclared call fails and logs `<API>: permission denied` (`Fetch API`, `Web Sockets API`, `Web3 API`, `Open External URL`).
+
+| `requiredPermissions` entry | Gates |
+| --- | --- |
+| `USE_FETCH` | `fetch` only. `signedFetch` is **not** gated (`SignedFetchWrap` has no permission check) |
+| `USE_WEBSOCKET` | WebSocket connections |
+| `USE_WEB3_API` | every Ethereum RPC through `sendAsync`, read-only calls such as `eth_call` included, and `signMessage`. `getUserAccount` is not gated |
+| `OPEN_EXTERNAL_LINK` | `openExternalUrl` |
+
+```json
+"requiredPermissions": ["USE_FETCH", "USE_WEBSOCKET"]
+```
+
+- **Authorization prompt.** Equipping from the backpack a wearable that declares any of the four permissions opens an authorization popup (`SmartWearableAuthorizationPopupController`). A player who logs in already wearing it is prompted only when it declares `USE_WEB3_API`; a scene change never prompts (`SmartWearableSystem.RunScenesForEquippedWearablesAsync`). Declining keeps the wearable equipped but its code does not run (the Explorer marks it in `KilledPortableExperiences`). Declare only what the code uses, so players aren't asked for more than they need to grant.
+- **The preview grants everything.** `LoadSmartWearablePreviewSceneSystem` loads the preview like a normal scene, with every permission; the gates apply only to the published wearable. A gated call that works in `npm run start` can still fail once published: test it through See in Decentraland.
+- `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE`, `ALLOW_TO_TRIGGER_AVATAR_EMOTE` and `ALLOW_MEDIA_HOSTNAMES` are ignored: moving the player, emotes, physics forces and external media need no permission. Remove them from older projects.
+- Enforcement above is the desktop Explorer's; a code search of the mobile client (godot-explorer) found no enforcement at all. Declare what the code uses regardless.
+
+Scene side of the same field: **create-scene** → `references/scene-json.md` → Required Permissions.
+
 ## Physics tuning numbers (for movement abilities)
 
 Measured from unity-explorer `main`: character mass is **1**, so an impulse magnitude **is** the velocity change in m/s. External velocity decays with drag **1.5 /s** and is capped at **50 m/s**. An upward impulse zeroes the current downward (gravity) velocity first, so a mid-fall thrust doesn't have to fight the fall. A launch kick of ~6 plus ~0.8 every 0.1 s while held gives a steady ~4–5 m/s climb. API details: **player-physics**.
@@ -156,9 +178,10 @@ Create one `AssetLoad` entity in `main()` listing the emote `.glb` and the sound
 - [ ] `thumbnail.png` 256 px square, transparent.
 - [ ] `.dclignore` covers `blender/`, `assets/Images`, `*.zip`; `navmapThumbnail` empty.
 - [ ] `unzip -l` total < 3 MB.
+- [ ] `requiredPermissions` lists exactly what the code uses (`fetch`, WebSocket, Web3, `openExternalUrl`); gated calls tested via See in Decentraland, not only the preview.
 - [ ] Effects meant for others live in the emote as props, not in `ParticleSystem`/entities; sound is wearer-only and the user knows it.
 - [ ] Tested beyond the preview parcels via See in Decentraland.
 
 ## Sources
 
-Verified 2026-10 against `main` of: builder-client (`WearableConfigSchema`, `MAX_SMART_WEARABLE_FILE_SIZE`), builder, js-sdk-toolchain (`pack-smart-wearable`, `MAX_WEARABLE_SIZE`), unity-explorer (`LoadSmartWearablePreviewSceneSystem`, `LoadSceneEmotesSystem`, `SDKExternalPhysicsSystems`, PX `SetIsCurrent`), creator-hub (autogenerated thumbnail), and a jetpack smart wearable built and uploaded end to end. Docs: [Smart wearables](https://docs.decentraland.org/creator/sdk7/projects/smart-wearables/) · [Uploading smart wearables](https://docs.decentraland.org/creator/wearables-and-emotes/manage-collections/uploading-smart-wearables/) · [Creating wearables](https://docs.decentraland.org/creator/wearables-and-emotes/wearables/creating-wearables/).
+Verified 2026-10 against `main` of: builder-client (`WearableConfigSchema`, `MAX_SMART_WEARABLE_FILE_SIZE`), builder, js-sdk-toolchain (`pack-smart-wearable`, `MAX_WEARABLE_SIZE`), unity-explorer (`LoadSmartWearablePreviewSceneSystem`, `LoadSmartWearableSceneSystem`, `RestrictedJsApiPermissionsProvider`, `SimpleFetchApiImplementation`, `SignedFetchWrap`, `RestrictedEthereumApi`, `SmartWearableAuthorizationPopupController`, `LoadSceneEmotesSystem`, `SDKExternalPhysicsSystems`, PX `SetIsCurrent`), creator-hub (autogenerated thumbnail), and a jetpack smart wearable built and uploaded end to end. Docs: [Smart wearables](https://docs.decentraland.org/creator/sdk7/projects/smart-wearables/) · [Uploading smart wearables](https://docs.decentraland.org/creator/wearables-and-emotes/manage-collections/uploading-smart-wearables/) · [Creating wearables](https://docs.decentraland.org/creator/wearables-and-emotes/wearables/creating-wearables/).

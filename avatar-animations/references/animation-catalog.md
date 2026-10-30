@@ -6,7 +6,7 @@ Ready-made avatar animations for the **player** (`triggerEmote` / `triggerSceneE
 2. **Avatar Animations pack file** (section 2) — 45 `_emote.glb` clips from the Creator Hub asset packs, available to every Creator Hub user. Download into the scene and play with `triggerSceneEmote`.
 3. **Custom clip** — only when neither fits: author it on the official rig (**avatar-animations** SKILL.md).
 
-Search: `grep -i "keyword" animation-catalog.md`. Every row ends with an animated `preview:` (looping .webp) — fetch it to look at the motion before choosing. Both kinds need `ALLOW_TO_TRIGGER_AVATAR_EMOTE` in `scene.json` `requiredPermissions`.
+Search: `grep -i "keyword" animation-catalog.md`. Every row ends with an animated `preview:` (looping .webp) — fetch it to look at the motion before choosing. Neither kind needs a `scene.json` permission.
 
 ## 1. Built-in emotes (play by name)
 

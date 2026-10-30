@@ -51,7 +51,7 @@ The Unity explorer supports nothing else. Every other value silently falls back 
 
 The protocol's doc comment, which shows up in editor tooltips, says a font family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Never write a family name or a URL in `fontSrc`.
 
-When the desktop client rejects a font it logs an `SDK_FONTS` warning in the console saying why (for a URL: `font_src "…" cannot be an external URL`). Check the console before anything else when a font falls back.
+When the desktop client rejects a `fontSrc` value it logs an `SDK_FONTS` line saying why: a warning for a URL (`font_src "…" cannot be an external URL`), a plain log line for anything that isn't a file of the scene, family names included (`font_src "…" is not a content file of the scene …`). Check the console, including non-warning lines, before anything else when a font falls back.
 
 ## Adding a font to a scene
 

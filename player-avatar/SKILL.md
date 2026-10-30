@@ -281,7 +281,7 @@ triggerSceneEmote({
 - **`src` is the path relative to the project root, exactly as the file sits on disk** — an exact content lookup (`SceneContent.TryGetHash(src)`), with no search by file name or `_emote` suffix. A wrong path makes `triggerSceneEmote` resolve `false` with no error logged, and nothing plays. A file at `assets/animations/sit_emote.glb` needs `'assets/animations/sit_emote.glb'`; a bare `'animations/...'` only works if that folder really is at the project root. Same rule for `AvatarShape.expressionTriggerId` — see **npcs**.
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
-- Both `triggerEmote` and `triggerSceneEmote` require the scene to declare the `ALLOW_TO_TRIGGER_AVATAR_EMOTE` permission in `scene.json` `requiredPermissions`.
+- Neither needs a `scene.json` permission; `ALLOW_TO_TRIGGER_AVATAR_EMOTE` is ignored (**create-scene** → `references/scene-json.md` → Required Permissions).
 - Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
 - To **create** the `.glb` (pose the official avatar rig in Blender, export, verify), see the **avatar-animations** skill.
 
@@ -449,7 +449,7 @@ To freeze or restrict the player's movement (cutscenes, locked interactions, an 
 - No player gesture needed: it can run from a timer (e.g. a respawn). Per-action gesture and confirmation rules: **scene-runtime** → *Restricted Actions*
 - The target position must also be within the scene's bounds
 - During the transition the avatar passes through colliders (verified: a `CL_PHYSICS` obstacle placed in the path is passed through)
-- Requires the `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` permission in `scene.json` `requiredPermissions`
+- Needs no `scene.json` permission; `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` is ignored
 - All fields except `newRelativePosition` are optional — `cameraTarget` and `avatarTarget` may each be omitted or used independently
 - The target Y may be elevated (e.g. `y: 12`) to place the player on a raised platform, not just ground level
 - To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons)

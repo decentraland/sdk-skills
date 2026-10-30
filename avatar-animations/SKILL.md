@@ -36,7 +36,7 @@ Say which of the three you picked and why. A built-in or pack clip usually reads
 4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet. If the clip poses the fingers, add hand close-ups and the fingertip decomposition.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
 6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB. Done when every row of *File requirements* below holds for the exported file.
-7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, add the permission, play it (see **player-avatar**).
+7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, play it (see **player-avatar**).
 
 Ready-made `bpy` helpers for every step — the helper module, sign detection, render/contact-sheet setup, the export call, and the GLB verifier — are in `{baseDir}/references/blender-emote-patterns.md`.
 
@@ -229,7 +229,6 @@ A clip can carry an animated prop or bone-driven particles (`Armature_Prop` + a 
 | Deform-bone keys | location + rotation + scale on the **first and last** frame, every bone | docs |
 | Animation area | root ≤ **1 m** in each horizontal direction (2 m across); **every mesh part and prop** inside the **4 × 4 × 4 m** `Animation_Area_Reference` box (see RULE above) | docs + measured |
 | **Filename** | must end **`_emote.glb`** (case-insensitive) | **player-avatar** |
-| Scene permission | `ALLOW_TO_TRIGGER_AVATAR_EMOTE` in `scene.json` `requiredPermissions` | **player-avatar** |
 
 Conventional location in the scene: `assets/animations/`. The glTF animation's *name* is irrelevant to the runtime — the file path is the identifier.
 

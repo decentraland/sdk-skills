@@ -93,5 +93,5 @@ Code for every row below: `{baseDir}/references/blockchain-patterns.md` → dcl-
 Engine-team test scenes exercising these APIs against the real runtime:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/5,90-scene-bounds-check — `NftShape.create()` with a live `urn:decentraland:ethereum:erc721:<contract>:<tokenId>` URN, mounted on a moving platform that carries it across the parcel boundary (so it also shows an NFT frame being culled out of bounds).
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `openNftDialog({ urn })` and `openExternalUrl` driven from React-ECS buttons, alongside every other RestrictedAction. Note the scene declares neither `OPEN_EXTERNAL_LINK` nor an NFT permission in `requiredPermissions` and both still run.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body` and inspects the auto-added signature headers, with an empty `requiredPermissions`.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions — `openNftDialog({ urn })` and `openExternalUrl` driven from React-ECS buttons, alongside every other RestrictedAction. Scenes need no `requiredPermissions` for either (that field only gates smart wearables).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/66,6-signed-fetch — `signedFetch` on click; reads `response.ok`/`.status`/`.body` and inspects the auto-added signature headers; no permission needed in a scene.

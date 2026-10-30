@@ -71,7 +71,7 @@ Deploy with the CLI. `--target-content` is required: with `worldConfiguration` s
 npx @dcl/sdk-commands deploy --target-content https://worlds-content-server.decentraland.org
 ```
 
-This prompts the user to sign the deployment with their wallet; validations then accept or reject the scene. Done when the deploy exits 0 and `https://decentraland.org/jump?realm=NAME.dcl.eth` shows the new version (fully restart the client first if you loaded the World this session: a scene reload keeps the cached version).
+This prompts the user to sign the deployment with their wallet; validations then accept or reject the scene. Large scenes upload in batches, with progress and a cancel option on the linker page (`{baseDir}/../deploy-scene/references/deploy-cli.md`). Done when the deploy exits 0 and `https://decentraland.org/jump?realm=NAME.dcl.eth` shows the new version (fully restart the client first if you loaded the World this session: a scene reload keeps the cached version).
 
 Files matched by `.dclignore` (at the project root) are excluded from the upload — keep working files like Blender sources, concept art, and markdown docs listed there so the World stays light. See the `.dclignore` section in the **deploy-scene** skill.
 
@@ -136,6 +136,8 @@ A World can host multiple independent scenes, each at different coordinates. The
 ```bash
 npm run deploy -- --multi-scene --target-content https://worlds-content-server.decentraland.org
 ```
+
+**Without `--multi-scene` the CLI deletes the World's other scenes first.** When the World has scenes on parcels this deploy doesn't cover, it lists them and asks `Continue? (y/N)`; `--yes` answers yes, so a scripted `deploy --yes` wipes them. Pass `--multi-scene` for every deploy to a multi-scene World. A deploy cancelled or failed after that removal leaves the World without them (`DEPLOY_CANCELLED_AFTER_UNDEPLOY` when cancelled): deploy again.
 
 After enabling, the World Owner can:
 - Publish additional scenes to different parcels of the same World

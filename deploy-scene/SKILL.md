@@ -1,6 +1,6 @@
 ---
 name: deploy-scene
-description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when the user wants to deploy or publish to parcels they own, or reduce the deployed scene size. Do NOT use for Worlds deployment (see deploy-worlds).
+description: Deploy a Decentraland scene to Genesis City (LAND-based). Use when the user wants to deploy or publish to parcels they own, reduce the deployed scene size, upload a large scene, script or cancel a deploy, or hits a DEPLOY_* error. Do NOT use for Worlds deployment (see deploy-worlds).
 ---
 
 # Deploying to Genesis City
@@ -66,6 +66,8 @@ npx @dcl/sdk-commands build
 # Deploy (will open browser for wallet connection)
 npx @dcl/sdk-commands deploy
 ```
+
+Scenes of **50 MiB or more** upload in 32 MiB batches (`@dcl/sdk-commands` 7.31.0+), printing `Uploaded X MB of Y MB (batch n/N)`; smaller ones go in one request. The linker page shows the upload progress and can cancel it. Batch rules, every flag, the `/api/deploy` API for scripting, following or cancelling a deploy, and the `DEPLOY_*` error codes: `{baseDir}/references/deploy-cli.md`.
 
 ### Using Creator Hub
 
@@ -246,6 +248,8 @@ You can also catch conversion issues **before** publishing by enabling local ass
 | Scene looks fine up close but broken from a distance | LOD generation (final publish stage) not done yet                    | Check the `lods` values in the conversion status endpoint; LODs don't block close-range testing                                                                                                                                                                                                    |
 | "Scene thumbnail '…' must be a file included in the deployment" (the file plainly exists) | Letter-case mismatch between `display.navmapThumbnail` and the folder on disk (e.g. `assets/images/` vs `assets/Images/`) | `ls assets` and make the path match the folder exactly — see **Thumbnail image** → Letter case |
 | "Invalid thumbnail: size … exceeds maximum of 1048576 bytes" | Thumbnail over 1 MB (a plain 1920x1080 PNG can be) | Export JPEG or shrink to 1344x756 — see **Thumbnail image** |
+| `DEPLOY_PARTIAL_NOT_SUPPORTED` | The server can't take batched uploads and the content it is missing is over 200 MB | Shrink the scene (`.dclignore`, texture sizes) or deploy to a server that supports batches — `{baseDir}/references/deploy-cli.md` |
+| `DEPLOY_CANCEL_OUTCOME_UNCERTAIN` | A cancel landed mid-upload and the CLI couldn't tell whether the server published it | Check the scene (conversion status URL above) before deploying again |
 
 ### Genesis City vs Worlds
 
