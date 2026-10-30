@@ -39,7 +39,7 @@ are not universal requirements for game design.
 - [references/playbook.md](playbook.md) — standing rules, platform fit, success
   criteria, voice. The **provenance of any number** is checked before quoting
   a benchmark at an owner — the retention canon is `retention.md#benchmarks`.
-- [platform capability map](platform/dcl-capability-links-2026-08.md) — game needs,
+- [platform capability map](platform/dcl-capability-links.md) — game needs,
   implementation candidates and platform services in the maintained reference bundle,
   with scoped evidence and primary sources. Reuse applicable findings; investigate remaining gaps
   through platform-fit rather than treating every dated entry as expired.

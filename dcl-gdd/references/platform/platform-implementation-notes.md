@@ -2,7 +2,7 @@
 
 Use the relevant section when implementing a service or checking a disputed condition. For the
 player possibility, design use and consequences, start with
-[services and publishing](dcl-platform-facts-2026-08.md). This is the technical evidence layer,
+[services and publishing](dcl-platform-facts.md). This is the technical evidence layer,
 not another platform survey to load during brainstorming.
 
 Evidence remains documentation
@@ -15,7 +15,7 @@ to separate established inputs from remaining questions or reproducible failures
 
 ## Persistence and authority
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#progress-between-visits-and-scenes).
+Design context: [services and publishing](dcl-platform-facts.md#progress-between-visits-and-scenes).
 
 The documented Multiplayer Server supplies persistent World Storage and Player Storage,
 with data surviving restarts and redeploys. Its current setup requires the SDK/runtime
@@ -40,7 +40,7 @@ old progress survives deployment and can reappear months later.
 
 ## External requests and authentication
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#external-services-and-live-data).
+Design context: [services and publishing](dcl-platform-facts.md#external-services-and-live-data).
 
 SDK code can use REST requests or WebSockets with an external backend, including one serving
 several scenes. Use asynchronous requests with loading/failure handling. Signed Fetch can
@@ -51,7 +51,7 @@ exposed data, access, rate limits and operating requirements. Source:
 
 ## Server availability and deployment versions
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#public-state-private-information-and-server-availability).
+Design context: [services and publishing](dcl-platform-facts.md#public-state-private-information-and-server-availability).
 
 The documented server starts
 when visitors arrive and sleeps after they leave; production startup differs from instant local
@@ -69,7 +69,7 @@ and overlapping writes still need a design. See [publishing new versions](https:
 
 ## Identity and reward delivery
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#identity-and-rewards).
+Design context: [services and publishing](dcl-platform-facts.md#identity-and-rewards).
 
 `getPlayer()`
 distinguishes a wallet address from a locally generated guest identifier; blockchain operations
@@ -93,7 +93,7 @@ See [campaign setup](https://github.com/decentraland/docs/blob/5a25e287f04404861
 
 ## World access and publishing
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#publishing-access-and-population).
+Design context: [services and publishing](dcl-platform-facts.md#publishing-access-and-population).
 
 Current Publishing documents multi-scene Worlds and a storage budget based on wallet holdings;
 ENS Worlds use a separate fixed budget. Refresh exact prices and quotas when they influence
@@ -130,7 +130,7 @@ on the intended client.
 
 ## Population and presence
 
-Design context: [groups and private sessions](dcl-capability-links-2026-08.md#groups-and-private-sessions).
+Design context: [groups and private sessions](dcl-capability-links.md#groups-and-private-sessions).
 
 **Scope/evidence:** the published
 [Archipelago overview](https://docs.decentraland.org/apis/apis/archipelago-workers/overview.md)
@@ -155,7 +155,7 @@ The conflicting World wording is in [Publishing Options](https://github.com/dece
 
 ## Events and social operations
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#discovery-and-reasons-to-return).
+Design context: [services and publishing](dcl-platform-facts.md#discovery-and-reasons-to-return).
 
 For a weekly tournament, the published [Events API](https://docs.decentraland.org/apis/apis/events/events.md)
 documents recurrence and community links, with wallet-authorized organizer operations and
@@ -191,7 +191,7 @@ endpoint and operator role rather than treating all social APIs as one scene int
 
 ## Runtime permissions
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#mobile-and-implementation-routing).
+Design context: [services and publishing](dcl-platform-facts.md#mobile-and-implementation-routing).
 
 Keep the application type with permission advice. The
 [scene metadata guide](https://github.com/decentraland/docs/blob/5a25e287f0440486196afa2bb3067608249547a8/creator/sdk7/projects/scene-metadata.md#permissions)
@@ -201,7 +201,7 @@ is available in the target client.
 
 ## Conditional incentive programs
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#discovery-and-reasons-to-return).
+Design context: [services and publishing](dcl-platform-facts.md#discovery-and-reasons-to-return).
 
 - **Marketplace Credits:** a purchase incentive has a concrete
   [Studio operator route](https://docs.decentraland.org/apis/apis/credits-server/studio-operators.md)
@@ -222,7 +222,7 @@ Design context: [services and publishing](dcl-platform-facts-2026-08.md#discover
 
 ## Private information
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#public-state-private-information-and-server-availability).
+Design context: [services and publishing](dcl-platform-facts.md#public-state-private-information-and-server-availability).
 
 **Hidden roles or private hands:** the authoritative-server route documents both broadcast
 synced components and messages addressed to specific players. A design candidate is to keep
@@ -234,7 +234,7 @@ handling and what reaches each client before promising secrecy. Source and imple
 
 ## Portable project types
 
-Design context: [services and publishing](dcl-platform-facts-2026-08.md#portable-experiences-and-smart-wearables).
+Design context: [services and publishing](dcl-platform-facts.md#portable-experiences-and-smart-wearables).
 
 **Design possibility, support unresolved:** a portable companion or an item-triggered side
 activity could accompany a player between places. The documented implementation route is an
@@ -253,4 +253,4 @@ This is a deployment option, not proof that the application works without an int
 Source: [SDK7 serverless multiplayer, single-player section](https://github.com/decentraland/docs/blob/5a25e287f0440486196afa2bb3067608249547a8/creator/sdk7/networking/serverless-multiplayer.md).
 The parent serverless guide was inspected 2026-10-25; the solo route was checked in the
 2026-10-26 source review. Exact installed SDK/client support was not tested here.
-Design context: [shared scene state](dcl-capability-links-2026-08.md#shared-scene-state).
+Design context: [shared scene state](dcl-capability-links.md#shared-scene-state).

@@ -1,6 +1,6 @@
 # Decentraland services and publishing — design reference
 
-**Integrated from the source review on 2026-10-26.** The filename is historical. Official docs
+**Integrated from the source review on 2026-10-26.** Official docs
 are pinned to [5a25e287](https://github.com/decentraland/docs/tree/5a25e287f0440486196afa2bb3067608249547a8);
 API pages below were inspected as published on that date and have no Git revision assigned here.
 These are documentation and code findings, not a client test or a complete compatibility check.
@@ -12,7 +12,7 @@ when that difference matters. Keep unresolved conflicts with the answer.
 For implementation or a disputed service condition, load the relevant section of
 [implementation notes](platform-implementation-notes.md); this page keeps the design consequences.
 For voice, shared game state and HTN, reuse the
-[capability reference](dcl-capability-links-2026-08.md). For input, avatar/camera control,
+[capability reference](dcl-capability-links.md). For input, avatar/camera control,
 media and mobile detail, use [scene capabilities](scene-capabilities.md).
 
 ## Progress between visits and scenes
@@ -146,7 +146,7 @@ have different capacity wording; neither establishes the target World's playable
 Choose party size from the activity, then check admission, shared-state scope, server load and
 client rendering separately. A group-only game can be intentional; group isolation remains a
 route to investigate, while a universal ready-made party-instance API has not been established.
-Use [groups and private sessions](dcl-capability-links-2026-08.md#groups-and-private-sessions) for the
+Use [groups and private sessions](dcl-capability-links.md#groups-and-private-sessions) for the
 design route and [population evidence](platform-implementation-notes.md#population-and-presence)
 for the source difference.
 

@@ -14,11 +14,9 @@ Creator Success supports early development, testing and validation of the studio
 and IP**, which it can continue developing and monetizing. It is not a commission or a
 client-services fee. Treat funding as a design and production constraint, not a commercial quote.
 
-Fixed milestone funding: **V0: $1,000 · V1: $3,100 · V2: $2,800**.
-These amounts and the ownership/scoping principle come from Bay Backner's *Funding and Scoping
-Principle*, supplied by the program owner in September 2026. Primary public program reference:
-[Creator Success onboarding](https://docs.decentraland.org/creator/studio-onboarding).
-Checked September 15, 2026: onboarding confirms V0/V1 amounts; V2 here comes from Bay’s principle.
+Fixed milestone funding: **V0: $1,000 · V1: $3,100 · V2: $2,800**, per the public
+[Creator Success onboarding](https://docs.decentraland.org/creator/studio-onboarding)
+(checked October 30, 2026). It names V3 without an amount; do not quote one.
 Do not infer payment timing, eligibility, later funding or guaranteed progression from this table.
 Product versions, document stages, experiment scopes and funding milestones have separate rules.
 Do not turn a skill's workflow constraints into funding requirements.

@@ -15,8 +15,8 @@ For real examples, verify the point and link the source; do not invent quotation
 or reasons a project obtained funding. An unbundled filename is not a usable source for a creator.
 
 - **Platform and SDK claims:** read the applicable bundled entry before recommending a
-  capability: [platform facts](platform/dcl-platform-facts-2026-08.md) for services/publishing,
-  [capabilities](platform/dcl-capability-links-2026-08.md) for client features, scene controls and
+  capability: [platform facts](platform/dcl-platform-facts.md) for services/publishing,
+  [capabilities](platform/dcl-capability-links.md) for client features, scene controls and
   reusable implementations. Apply [platform-fit's reuse rule](platform-fit.md#reuse-the-platform-answer-before-researching-it-again):
   reuse scoped evidence, refresh a changed or missing claim, and pass settled facts to researchers.
   For gaps, its [SDK knowledge route](platform-fit.md#use-existing-sdk-knowledge) points to

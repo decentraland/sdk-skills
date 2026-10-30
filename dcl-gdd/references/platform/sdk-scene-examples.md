@@ -107,7 +107,7 @@ fallback. Check the actual equipment/purchase condition separately. Keep a share
 clock independent of one player's panel. The event stream is not acquisition analytics by itself.
 
 For speech indicators, use the separately maintained
-[voice and communication finding](dcl-capability-links-2026-08.md#voice-and-communication).
+[voice and communication finding](dcl-capability-links.md#voice-and-communication).
 For native labels over avatars, see [labels above players](scene-capabilities.md#make-actions-and-outcomes-readable).
 Both have version/client scope; neither makes a multiplayer state system.
 
@@ -228,7 +228,7 @@ not identity privacy. Current SDK 7.28+ nametag scope and the mobile gap are rec
 hide behaviour where the old fixture disagrees. [Talking-state indicators](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/4,26-avatarbase-talking/src/index.ts)
 attach text to detected avatars and clean up on departure. That exact prerelease exposes three
 states: unknown, silent and talking; it is not microphone analysis. Use the maintained
-[voice finding](dcl-capability-links-2026-08.md#voice-and-communication) for support conditions.
+[voice finding](dcl-capability-links.md#voice-and-communication) for support conditions.
 
 **Materials, animated surfaces and light →** a selected tool, damaged machine, flowing conveyor
 texture or rotating searchlight. [Texture movement](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/0,3-texture-movement/src/index.ts)

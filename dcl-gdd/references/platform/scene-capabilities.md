@@ -9,8 +9,8 @@ finding's client and version scope; keep unresolved game-specific behaviour sepa
 for reusing established capabilities and diagnosing reproducible failures.
 
 For voice, shared state and HTN, use the maintained
-[capability findings](dcl-capability-links-2026-08.md). For publishing, identity and services, use
-[platform facts](dcl-platform-facts-2026-08.md). Their entries retain their own evidence dates.
+[capability findings](dcl-capability-links.md). For publishing, identity and services, use
+[platform facts](dcl-platform-facts.md). Their entries retain their own evidence dates.
 
 Choose a game task: [view and controls](#choose-a-view-and-control-the-action),
 [movement and contact](#move-players-move-objects-detect-contact),
@@ -71,7 +71,7 @@ bounce or collide with each other. For thrown plates, consider an authored traje
 simulation or an inspected physics library. Ownership, collision rules and network consistency
 remain game work. Source: [colliders](https://docs.decentraland.org/creator/scenes-sdk7/3d-content-essentials/colliders).
 Implementation: collision/model guidance and `player-physics`; shared effects also use the
-[shared-state finding](dcl-capability-links-2026-08.md#shared-scene-state).
+[shared-state finding](dcl-capability-links.md#shared-scene-state).
 
 For thrown plates or bouncing props, a scene-managed simulation is a concrete candidate;
 an authored throw may serve simpler rules. It still needs ownership, collision rules and a
@@ -159,7 +159,7 @@ customer or enemy logic. Player emotes, AvatarShape expressions and GLB Animator
 clips are different playback paths. The upstream NPC skill records limitations on custom looping
 and upper-body masks for AvatarShape; inspect them before choosing an animation-dependent design.
 Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: [npcs](https://github.com/decentraland/sdk-skills/blob/main/npcs/SKILL.md).
-For planned behavior, follow the [HTN finding](dcl-capability-links-2026-08.md#htn-bots-and-reusable-logic).
+For planned behavior, follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic).
 
 The [NPC patterns](https://github.com/decentraland/sdk-skills/blob/main/npcs/references/npc-library.mdc)
 include authored waypoint movement and direct following. Those are useful for a customer route
@@ -188,7 +188,7 @@ support can both produce zeros. Source and implementation:
 If play must also work without audio, provide a readable alternative. Official [docs change b4d4c88](https://github.com/decentraland/docs/commit/b4d4c88191f3d65fc2214f586c86dfb9447ce55e)
 records AudioAnalysis and AudioEvent support in mobile v1.14.0; an unqualified “desktop only”
 claim is outdated. For a speaking indicator rather than audio analysis, see the separate
-[voice activity finding](dcl-capability-links-2026-08.md#voice-and-communication).
+[voice activity finding](dcl-capability-links.md#voice-and-communication).
 
 ## UI journeys, typography and reusable scene routes
 

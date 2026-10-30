@@ -1,6 +1,6 @@
 ## Before you submit — self-check, delete before submitting
 
-*The criteria and thresholds below are the program's — you do not invent a measurement framework, and the [dashboard](https://decentraland.zone/creators-data/dashboard.html) already tracks return for you. Do not plan around custom in-game tracking.*
+*The criteria and thresholds below are the program's — you do not invent a measurement framework, and the program dashboard already tracks return for you. Do not plan around custom in-game tracking.*
 
 | Criterion | Decision rule |
 |---|---|

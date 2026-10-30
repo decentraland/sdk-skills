@@ -2,7 +2,7 @@
 
 This is the design-facing entry to the platform knowledge bundle. Read the section needed for
 the proposed action, not every file. Each answer keeps its evidence scope and remaining work.
-The historical filename does not set the freshness of all entries. Follow
+Entries keep their own evidence dates. Follow
 [platform-fit](../platform-fit.md#reuse-the-platform-answer-before-researching-it-again) for reuse,
 targeted checks and delegation; a broken link or missing entry is not evidence of absence.
 
@@ -12,11 +12,11 @@ targeted checks and delegation; a broken link or missing entry is not evidence o
 | Player labels, lighting, skybox, materials, particles, UI, animation, NPC presentation, sound/video/music analysis | [Scene presentation and client limits](scene-capabilities.md) |
 | Turn a spatial interaction, animated response or UI idea into a concrete SDK implementation candidate | [Source-inspected scene examples and adaptation routes](sdk-scene-examples.md) |
 | Player conversation, scene-readable voice activity, shared state, planning a bot's actions | The scoped findings below |
-| Saves, external data/APIs, private information, server availability, identity, rewards, publishing, discovery and return channels | [Platform services](dcl-platform-facts-2026-08.md) |
+| Saves, external data/APIs, private information, server availability, identity, rewards, publishing, discovery and return channels | [Platform services](dcl-platform-facts.md) |
 | Keeping a party together, separate matches, private sessions and crowd size | [Groups and private sessions](#groups-and-private-sessions) |
 | Riding a moving deck or lift, mobile follow support, other players on the platform | [Moving-platform findings and remaining checks](sdk-scene-examples.md#riding-moving-platforms) |
-| Hub and chapter Worlds, private club access, collaboration on separate areas | [Publishing and access](dcl-platform-facts-2026-08.md#publishing-access-and-population) |
-| Scheduled sessions, Communities, cosmetic souvenirs and approved incentive programs | [Discovery](dcl-platform-facts-2026-08.md#discovery-and-reasons-to-return) and [rewards](dcl-platform-facts-2026-08.md#identity-and-rewards) |
+| Hub and chapter Worlds, private club access, collaboration on separate areas | [Publishing and access](dcl-platform-facts.md#publishing-access-and-population) |
+| Scheduled sessions, Communities, cosmetic souvenirs and approved incentive programs | [Discovery](dcl-platform-facts.md#discovery-and-reasons-to-return) and [rewards](dcl-platform-facts.md#identity-and-rewards) |
 | Concrete implementation or a topic not covered | [Existing SDK knowledge](../platform-fit.md#use-existing-sdk-knowledge): official SDK skills and examples, then the specific unresolved source |
 
 **Evidence:** voice, shared-state and HTN findings began on 2026-10-25; voice activity,
@@ -88,7 +88,7 @@ only the separation it needs, rather than asking the creator to design a network
 | Find people to play with | Decide whether players arrive as a group, join an open lobby or need automatic matching. A link or event can bring people to a destination; it does not by itself form a party. Automatic matching needs an identified implementation. |
 | Each group has its own match | A game can assign groups and keep their orders, score and round rules separate through custom game state and validation. This is an implementation candidate, not an automatic result of several avatars being present. Decide what late arrival, leaving and rejoining mean. |
 | Other groups cannot see or hear this match | Separate game state does not establish separate avatar presence or voice. Identify a supported session/deployment/communication route and check it before promising a private instance. Hiding a model or HUD is not proof of privacy. |
-| Only invited people can enter | World access settings provide a documented creator-administered route for a closed destination. Check whose access is restricted and how invitees enter. One closed World does not by itself create a fresh private copy for every group. See [publishing and access](dcl-platform-facts-2026-08.md#publishing-access-and-population). |
+| Only invited people can enter | World access settings provide a documented creator-administered route for a closed destination. Check whose access is restricted and how invitees enter. One closed World does not by itself create a fresh private copy for every group. See [publishing and access](dcl-platform-facts.md#publishing-access-and-population). |
 
 The inspected sources do not establish a ready-made party-instance solution covering all four
 promises. This is a specific knowledge gap, not a ban on isolated group games. Keep the concept

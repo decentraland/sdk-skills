@@ -18,7 +18,7 @@ choice. Use Genesis City LAND when the creator chooses it or the concept benefit
 city location. A World still needs a way to reach players; plan the entry link and first playable
 moment rather than relying on neighbouring foot traffic. Self-contained does not mean solo or
 one scene, and does not remove SDK, hosting or client limits. Consult the
-[publishing reference](platform/dcl-platform-facts-2026-08.md#publishing-access-and-population)
+[publishing reference](platform/dcl-platform-facts.md#publishing-access-and-population)
 when access, footprint or deployment affects the design.
 
 ## Player mode
@@ -33,13 +33,13 @@ Several avatars being present does not establish shared gameplay or state. For s
 identify what others actually receive; local feedback is not shared state. Keep the first try's
 scope separate from the whole game's: a solo trial leaves future multiplayer untested, not cancelled.
 When the idea depends on private or separate group play, use
-[groups and private sessions](platform/dcl-capability-links-2026-08.md#groups-and-private-sessions)
+[groups and private sessions](platform/dcl-capability-links.md#groups-and-private-sessions)
 to distinguish finding a party, separate match rules, visibility/voice and control of entry.
 Only clarify the distinction that affects the current idea; this is not a four-question survey.
 
 ## Reuse the platform answer before researching it again
 
-Start with the game need in the bundled [capability map](platform/dcl-capability-links-2026-08.md).
+Start with the game need in the bundled [capability map](platform/dcl-capability-links.md).
 It routes to scene controls and presentation, inspected implementation examples, shared state,
 and publishing or platform services. Read the relevant section; use it to suggest useful play
 options as well as check feasibility. The map is a selected design reference, not a feature

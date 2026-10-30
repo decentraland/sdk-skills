@@ -123,11 +123,12 @@ evidence consistently; different people may experience the action differently.
 ### 2 — Build
 
 Greybox on the rung the brief chose: [references/greybox-build.md](references/greybox-build.md).
-For layout, camera clearance, navigation or spatial feel, read the relevant moves in the
+Spawn greybox geometry at runtime from code (or live through the Creator Hub MCP), not in
+`main.composite`; the build guidance says what to tell the owner. For layout, camera clearance, navigation or spatial feel, read the relevant moves in the
 [level-design playbook](references/level-design-playbook.md) before shaping the space.
 Use `sdk-skills` for SDK7 APIs and `sdk7-test-scenes` for mechanics, never memory. If neither is
-available and installation fails, report that and use official SDK7 docs via the
-[capability index](../dcl-gdd/references/platform/dcl-capability-links-2026-08.md). Mark the code
+available and installation is declined or fails (ask the owner before installing), report that and use official SDK7 docs via the
+[capability index](../dcl-gdd/references/platform/dcl-capability-links.md). Mark the code
 as built from docs with no verified reference.
 
 **Make the selected check observable.** A measured criterion needs its instrument; an owner-only

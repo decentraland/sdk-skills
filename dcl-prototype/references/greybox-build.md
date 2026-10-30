@@ -12,7 +12,11 @@ For a mood, light or sound question, choose a relevant [atmosphere trial](atmosp
    owner-feel pass needs perceivable feedback and notes, not an invented numeric proxy.
 2. **The interaction, real.** Input, timing, collision, camera and feedback; for a toy, connect
    the actions needed to play with it before tuning each part separately.
-3. **Everything else, faked.** In the crudest form that lets a tester keep playing.
+3. **Everything else, faked.** In the crudest form that lets a tester keep playing. Spawn greybox
+   geometry at runtime from code, not in `main.composite`; if the Creator Hub MCP is connected,
+   placing it live in the editor is fine too. This throwaway greybox is the exception to the
+   composite-first rule in `sdk-scenes`; tell the owner once that code-spawned geometry shows in
+   the preview but not in the Creator Hub editor.
 4. **Smoke-check the setup.** Confirm the action and observation work. For a registered test,
    check that its outcomes can be distinguished; smoke is not evidence of human enjoyment.
 
@@ -50,9 +54,9 @@ what this pass tests; a future external criterion may remain unmeasured in an ow
 
 **Never write SDK7 API from memory.** Two sources, in this order:
 
-- **`sdk-skills`** — the official skill set, `npx skills add decentraland/sdk-skills --all` (add `-g`
-  for user level). Composite-first rules and the component reference live there, and parts of the API
-  are newer than any model's training data.
+- **`sdk-skills`** — the official skill set, `npx skills add decentraland/sdk-skills --all`. If it
+  is missing, ask the owner before installing it, and at which scope (project or `-g` user level).
+  The component reference lives there, and parts of the API are newer than any model's training data.
 - **[`sdk7-test-scenes`](https://github.com/decentraland/sdk7-test-scenes)** — the greybox mechanics
   catalog. Small single-mechanic scenes named by parcel coordinate: trigger areas,
   tweens and moving platforms, proximity interactions, pointer-event feedback, modifier areas, input
@@ -60,9 +64,9 @@ what this pass tests; a future external criterion may remain unmeasured in an ow
   the folder before writing a mechanic from scratch** — an experiment that starts from a working
   reference scene starts a day earlier.
 
-**Neither source available and installing fails?** Say so to the owner — then work from the
+**Neither source available, and installing declined or failed?** Say so to the owner — then work from the
 official SDK7 docs, indexed in
-[dcl-capability-links-2026-08.md](../../dcl-gdd/references/platform/dcl-capability-links-2026-08.md),
+[dcl-capability-links.md](../../dcl-gdd/references/platform/dcl-capability-links.md),
 and mark every mechanic written that way as built from the docs, no verified reference behind it.
 The fallback replaces the source, never the rule — writing from memory stays off the table.
 

@@ -61,15 +61,12 @@ deeplink. One question, recommendation attached; never spawn servers or open cli
 
 **Driving the Explorer.** Two legitimate setups, in order of preference:
 
-- **sdk-skills installed in the scene** (`npx skills add decentraland/sdk-skills` → `.claude/skills/`
-  inside the scene repo): use its Explorer-MCP skill directly — it is callable, and it gives
-  screenshots, camera moves and scene state without leaving the session.
-- **No sdk-skills:** the unity-explorer repo's own `mcp-scene-iteration` skill is
-  `disable-model-invocation: true` — **you cannot invoke it; only the owner can**, as a slash
-  command. Ask the owner to run it, or read its reference material as knowledge and watch the owner
-  play. Do not write, imply, or plan around "the skill calls the other skill". (If `mcp__explorer__*`
-  tools are already present in the session, they are usable directly — that is a different thing
-  from invoking a skill.)
+- **sdk-skills installed:** use its `unity-explorer-mcp` skill — it sets up, launches and drives
+  the Explorer through its MCP server: screenshots, camera moves, logs and scene state without
+  leaving the session.
+- **No sdk-skills:** if `mcp__explorer__*` tools are already present in the session, use them
+  directly. Otherwise ask the owner before installing
+  (`npx skills add decentraland/sdk-skills --all`), or watch the owner play.
 
 ## Who tests — ask it in the Brief
 
