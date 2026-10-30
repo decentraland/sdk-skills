@@ -3,11 +3,15 @@
 # Frames are saved as files; only the caption (resolution + parcel) is printed. Read a frame file
 # only when you actually need to inspect it.
 #
+# A single frame is the `screenshot` tool. A burst (-n > 1) is the `capture_sequence` tool: the
+# Explorer captures the frames in-process at the true interval (down to 0.05 s) and writes them
+# under its own temporary cache; this script copies them into the output dir and prints the paths.
+#
 # Usage: screenshot.sh [options]
 #   -o, --out FILE        output file (single capture; extension follows quality; relative to cwd)
 #   -d, --dir DIR         output dir (default: $TMPDIR/mcp-shots, outside the scene folder; used for bursts and when -o is omitted)
-#   -n, --count N         number of frames to capture (default: 1)
-#   -i, --interval SEC    seconds between frames in a burst (default: 0.5; keep >= 0.2, captures are serialized)
+#   -n, --count N         number of frames to capture (default: 1; a burst runs in chunks of 20, the tool's maximum per call)
+#   -i, --interval SEC    seconds between frames in a burst (default: 0.5; min 0.05, max 2)
 #   -w, --max-width PX    maxWidth passed to the tool (default: 1280; use 640 for cheap sanity checks)
 #       --png             capture PNG instead of JPG
 #       --world-only      exclude UI overlays (worldOnly: true)
@@ -37,7 +41,7 @@ while [[ $# -gt 0 ]]; do
         --png) QUALITY=png; shift ;;
         --world-only) WORLD_ONLY=true; shift ;;
         -p|--port) PORT="$2"; shift 2 ;;
-        -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown argument: $1 (see --help)" >&2; exit 2 ;;
     esac
 done
@@ -109,13 +113,74 @@ if [[ -n "$OUT" && "$COUNT" -eq 1 ]]; then
     exit 0
 fi
 
+# Burst: one capture_sequence call per chunk of up to 20 frames. The frames land in the Explorer's
+# cache; each is copied to OUT_DIR as shot-<stamp>-NNN.<ext> and its new path printed.
+capture_burst() {
+    local chunk="$1" first_index="$2" stamp="$3"
+
+    local payload
+    payload=$(printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capture_sequence","arguments":{"count":%s,"intervalSec":%s,"maxWidth":%s,"quality":"%s","worldOnly":%s}}}' \
+        "$chunk" "$INTERVAL" "$MAX_WIDTH" "$QUALITY" "$WORLD_ONLY")
+
+    local response_file
+    response_file=$(mktemp)
+
+    # The call lasts count * interval plus the captures; 90 s covers the 20 * 2 s worst case with margin.
+    curl -sS --max-time 90 -X POST "http://127.0.0.1:${PORT}/unity-explorer-mcp" \
+        -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -o "$response_file" \
+        -d "$payload"
+
+    python3 - "$OUT_DIR" "$first_index" "$stamp" "$QUALITY" "$response_file" <<'PY'
+import json, shutil, sys, os
+
+out_dir, first_index, stamp, ext, response_file = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+
+with open(response_file, encoding="utf-8") as f:
+    raw = f.read()
+
+try:
+    response = json.loads(raw)
+except json.JSONDecodeError:
+    data_lines = [line[5:].strip() for line in raw.splitlines() if line.startswith("data:")]
+    response = json.loads("".join(data_lines))
+
+error = response.get("error")
+if error:
+    sys.exit(f"MCP error {error.get('code')}: {error.get('message')}")
+
+result = response.get("result") or {}
+text = next((item.get("text", "") for item in result.get("content", []) if item.get("type") == "text"), "")
+
+if result.get("isError"):
+    sys.exit(f"capture_sequence tool error: {text}")
+
+sequence = result.get("structuredContent") or json.loads(text)
+
+for frame in sequence.get("frames", []):
+    source = frame["path"]
+    target = os.path.join(out_dir, f"shot-{stamp}-{first_index + frame['index']:03d}.{ext}")
+    shutil.copyfile(source, target)
+    print(f"{target}  (frame {frame['index']} at t={frame['stamp']}s, {frame['width']}x{frame['height']})")
+
+late = sequence.get("late", 0)
+mean = sequence.get("meanIntervalSec")
+screen = sequence.get("screen") or {}
+print(f"burst: {sequence.get('count')} frames, mean interval {mean}s, {late} late (screen {screen.get('width')}x{screen.get('height')})")
+PY
+    local status=$?
+    rm -f "$response_file"
+    return $status
+}
+
 mkdir -p "$OUT_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 
-for ((frame = 1; frame <= COUNT; frame++)); do
-    capture_one "${OUT_DIR}/shot-${stamp}-$(printf '%03d' "$frame").${QUALITY}"
-
-    if (( frame < COUNT )); then
-        sleep "$INTERVAL"
-    fi
+captured=0
+while (( captured < COUNT )); do
+    chunk=$(( COUNT - captured ))
+    (( chunk > 20 )) && chunk=20
+    capture_burst "$chunk" "$(( captured + 1 ))" "$stamp"
+    captured=$(( captured + chunk ))
 done
