@@ -8,6 +8,14 @@ Two saves seconds apart can make the Explorer load a mid-write bundle → `Synta
 
 The milder version of the same cause — usage and import landing in separate saves — is a transient `SceneError: X is not defined`. Prevention is the **one write per change** rule in the iteration loop.
 
+## The scene reports `Running` but does not tick
+
+`get_scene_state` says `Running` / `isReady: true`, yet the scene's JS is not running: `get_performance_stats` → `sceneTick: null`, `get_crdt_traffic` → "The scene did not tick during the window", the last `get_scene_logs` line is minutes old, and gesture tools time out with "did not complete within Ns (is the simulation paused?)". Nothing on the state channel shows it — only the tick-based reads do, so read one of them when a first gesture times out. `reload_scene` recovers it (seen once at the start of an Editor-hosted session; it did not recur).
+
+## The Explorer is hosted by the Unity Editor
+
+When the client runs in Unity Editor play mode, the MCP server belongs to the `Unity` process: `pgrep -fl '[M]acOS/Explorer'` finds nothing, `lsof -nP -iTCP:8123 -sTCP:LISTEN` names `Unity`, and none of the kill/relaunch recipes in this file apply — the user owns the Editor; ask them to stop and re-enter play mode. Device-path tools (`ui_click device:true`, `ui_hover device:true`, `ui_drag path:device`) need the Game view focused there — see [`interaction.md`](interaction.md).
+
 ## Player ends up off-parcel after a hot reload
 
 The player can land outside the scene (e.g. parcel `0,-1`); `get_scene_state` then reports a null scene and `reload_scene` fails with "no scene at the current parcel". Check `get_player_state` → `parcel`, `move_to` back inside, and the scene loads again.

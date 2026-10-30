@@ -44,6 +44,10 @@ open /path/to/Decentraland.app --args \
 
 On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
+## The Explorer running inside the Unity Editor
+
+A developer may run the client in Unity Editor play mode (`--mcp` in `Main Scene Loader → Debug Settings → App Parameters`) instead of an installed build. The MCP endpoint is the same, but the server belongs to the `Unity` process: the Setup probe answers, `pgrep` for the Explorer app finds nothing, and launching, killing or relaunching is the user's — never run the recipes in [`recovery.md`](recovery.md) against the Editor. Two things differ in-session: the device-path tools (`ui_click device:true`, `ui_hover device:true`, `ui_drag path:device`) refuse while the Game view is unfocused, which it is whenever you type in a terminal — use the semantic path or ask the user to click into the Game view; and the OS cursor usually sits outside the Game view, so `get_reticle` reports `cursor.onScreen: false` and an unaimed `press_input` binds through that off-screen ray (see [`interaction.md`](interaction.md)).
+
 ## Registering in a client other than Claude Code
 
 For a genuinely different MCP client (Cursor, Cline, a custom SDK harness — the Claude Code VS Code extension and the Creator Hub's embedded chat are Claude Code and take SKILL.md step 2), register the server the way that client documents, using these connection details, then reload/restart the client so it picks the server up:

@@ -6,7 +6,7 @@ Collection is **on demand**: each tool sets its own request flag and the scene w
 
 ## `get_scene_content_stats` — is the scene within budget?
 
-No arguments. Returns the whole-scene counts — `entities`, `triangles`, `bodies` (renderers), `geometries` (unique meshes), `materials`, `textures`, `shaderVariants`, `colliders`, `videos` — with the documented per-parcel soft-limit cap alongside the four capped metrics (`entitiesCap`, `trianglesCap`, `bodiesCap`, `texturesCap`) scaled to `parcelCount`. `materials` is reported **without** a cap on purpose (see *Interpreting the counts*). `fresh: true` means a pass completed during the call; `false` means it timed out waiting and the values are from an earlier pass — treat those as stale and re-call. Start here; it tells you *which* budget is tight, then the breakdown tells you *who's* responsible.
+No arguments. Returns the whole-scene counts — `entities`, `triangles`, `bodies` (renderers), `geometries` (unique meshes), `materials`, `textures`, `uiTextures`, `shaderVariants`, `colliders`, `videos` — with the documented per-parcel soft-limit cap alongside the four capped metrics (`entitiesCap`, `trianglesCap`, `bodiesCap`, `texturesCap`) scaled to `parcelCount`. `materials` is reported **without** a cap on purpose (see *Interpreting the counts*). `textures` counts unique textures including the scene UI's backgrounds, and `uiTextures` names that share — the deploy-time limit counts texture files, UI ones included, so budget them together. `fresh: true` means a pass completed during the call; `false` means it timed out waiting and the values are from an earlier pass — treat those as stale and re-call. Start here; it tells you *which* budget is tight, then the breakdown tells you *who's* responsible.
 
 ## `get_scene_content_breakdown` — which assets to optimize
 
@@ -22,10 +22,15 @@ Groups rendered content by **source model**, ranked by `sortBy` (default `triang
 
 ## Interpreting the counts (say this to the user, don't just dump numbers)
 
+- **`materials` counts live instances, not authored materials — never reconcile it against the model files.** The client instantiates every GLTF renderer's materials, so a model authored with 11 materials spread over 7 renderers reports per-renderer slots (71 for 11 authored values has been measured), and sharing definitions in the source cannot lower it; only fewer renderers can. Read it as memory and instancing context, and judge frame time by `shaderVariants`.
 - **Materials ≠ draw-call cost.** URP's SRP Batcher bins draws by **shader variant** (shader + enabled keywords), not by material, and keeps each material's properties in a persistent GPU buffer — many materials sharing few variants render cheaply. Judge per-frame draw-call risk by `shaderVariants`, not `materials`. A high material count with few variants is a **memory / texture** concern and a lost GPU-instancing opportunity (instancing needs identical materials), *not* a frame-time concern. Check `shaderVariants` before ever recommending material dedup as a performance fix.
 - **`drawCallsEstimate` is pre-batching.** It counts material slots across renderers — an upper bound before the batcher and instancing collapse it. Use it to rank sources against each other, never as an absolute GPU cost.
 - **`shaderVariants` is a lower-bound proxy.** It counts distinct variant bins, not per-frame SetPass calls; the batcher only merges *consecutive* same-variant draws, so interleaving can cause more switches than the bin count. A low count reliably proves material dedup won't buy frame time; a high one flags shader churn worth consolidating.
 - **Caps are soft.** The documented per-parcel limits are warnings ("strong recommendations"), not enforced budgets — over a cap degrades performance but nothing is blocked.
+
+## `get_audio_state` — did the sound play?
+
+The one channel through which a sound cue can be judged at all: every audio emitter of the current scene — `AudioSource`, `AudioStream`, `VideoPlayer` — nearest to the player first, with `kind`, `source`, `state` (`not_created` while the scene has declared it but the client has not built the emitter yet, then `loading`/`ready`/`playing`/`paused`/`error`…), `playing`, `volume` (`authored` from the scene, `live` from the client — 0 while the scene is not current, and the `note` says so), `loop`, `pitch`, `spatial` with its `minDistance`/`maxDistance`, `currentTime`/`duration`, `position` and `distance`. `onlyPlaying: true` narrows it to what is sounding right now; `limit` defaults to 50. It is a snapshot of what the client runs this frame, not what the scene last asked for, so a cue fired for 0.3 s needs the read to land inside that window — or a log line beside it. A spatial emitter farther than its `maxDistance` is inaudible even while `playing`.
 
 ## Scene Stats panel (human-visible, no MCP needed)
 
