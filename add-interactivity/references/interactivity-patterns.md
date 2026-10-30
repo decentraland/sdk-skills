@@ -72,7 +72,7 @@ MeshCollider.setBox(entity) // Invisible box collider
 For GLTF models:
 ```typescript
 GltfContainer.create(entity, {
-  src: 'models/button.glb',
+  src: 'assets/Models/button.glb',
   visibleMeshesCollisionMask: ColliderLayer.CL_POINTER
 })
 ```
@@ -160,7 +160,7 @@ const doorPivot = engine.addEntity()
 Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) })
 
 const door = engine.addEntity()
-GltfContainer.create(door, { src: 'assets/door.glb' })
+GltfContainer.create(door, { src: 'assets/Models/door.glb' })
 Transform.create(door, { position: Vector3.create(-1, 0, 0), parent: doorPivot })
 
 let isDoorOpen = false
@@ -278,6 +278,50 @@ Transform.create(mover, { position: Vector3.create(8, 0, 8) })
 MeshCollider.setBox(mover, ColliderLayer.CL_CUSTOM1)
 ```
 
+### Collectible Pickup (spinning coin, delayed removal)
+
+```typescript
+import {
+  engine, Transform, MeshRenderer, Tween, TriggerArea, triggerAreaEventsSystem,
+  AudioSource, EasingFunction, timers
+} from '@dcl/sdk/ecs'
+import { Vector3, Quaternion } from '@dcl/sdk/math'
+
+// One shared SFX entity that outlives the coins (removing an entity silences its AudioSource)
+const sfx = engine.addEntity()
+Transform.create(sfx, { position: Vector3.create(8, 1, 8) })
+AudioSource.create(sfx, { audioClipUrl: 'assets/Audio/coin.mp3', playing: false })
+
+function spawnCoin(position: Vector3) {
+  const coin = engine.addEntity() // parent: position, trigger, spin around world Y
+  Transform.create(coin, { position })
+  Tween.setRotateContinuous(coin, Quaternion.fromEulerDegrees(0, 90, 0), 180) // 180°/s
+  TriggerArea.setBox(coin) // 1 m box from the parent's unit scale
+
+  const disc = engine.addEntity() // child: thin cylinder stood upright so its face shows
+  Transform.create(disc, {
+    parent: coin,
+    rotation: Quaternion.fromEulerDegrees(90, 0, 0),
+    scale: Vector3.create(0.6, 0.06, 0.6)
+  })
+  MeshRenderer.setCylinder(disc)
+
+  let collected = false
+  triggerAreaEventsSystem.onTriggerEnter(coin, (result) => {
+    if (collected || result.trigger?.entity !== engine.PlayerEntity) return
+    collected = true // gate repeats: enter can fire again before removal
+    Transform.getMutable(sfx).position = position
+    AudioSource.getMutable(sfx).pitch = 1 + (Math.random() * 2 - 1) * 0.06
+    AudioSource.playSound(sfx, 'assets/Audio/coin.mp3')
+    Tween.setScale(disc, Vector3.create(0.6, 0.06, 0.6), Vector3.Zero(), 120, EasingFunction.EF_EASEINBACK)
+    timers.setTimeout(() => {
+      triggerAreaEventsSystem.removeOnTriggerEnter(coin)
+      engine.removeEntityWithChildren(coin)
+    }, 120) // the scale-out covers the disappearance
+  })
+}
+```
+
 ---
 
 ## Raycasting
@@ -360,46 +404,14 @@ raycastSystem.registerGlobalDirectionRaycast(
 ---
 
 ## Global Input Handling
-```typescript
-import { inputSystem, InputAction, PointerEventType } from '@dcl/sdk/ecs'
 
-engine.addSystem(() => {
-  // Check if E key was just pressed this frame
-  if (inputSystem.isTriggered(InputAction.IA_PRIMARY, PointerEventType.PET_DOWN)) {
-    console.log('E key pressed!')
-  }
-
-  // Check if a key is currently held down
-  if (inputSystem.isPressed(InputAction.IA_SECONDARY)) {
-    console.log('F key is held!')
-  }
-
-  // Entity-specific input via system
-  const clickData = inputSystem.getInputCommand(
-    InputAction.IA_POINTER,
-    PointerEventType.PET_DOWN,
-    myEntity
-  )
-  if (clickData) {
-    console.log('Entity clicked via system:', clickData.hit.entityId)
-  }
-})
-```
+Key presses read from a system, and why an entity-less `isTriggered` also fires on entity clicks: **advanced-input** → *Input Polling with inputSystem*.
 
 ---
 
 ## Cursor State
-```typescript
-import { PointerLock, PrimaryPointerInfo } from '@dcl/sdk/ecs'
 
-// Check if cursor is locked
-const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked
-
-// Get cursor position and world ray
-const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity)
-console.log('Cursor position:', pointerInfo.screenCoordinates)
-console.log('World ray direction:', pointerInfo.worldRayDirection)
-```
+Pointer lock and the cursor's position and world ray: **advanced-input** → *Pointer Lock State* and *Cursor Position and World Ray*.
 
 ---
 

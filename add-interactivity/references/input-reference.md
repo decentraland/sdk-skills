@@ -2,30 +2,49 @@
 
 ## All Input Actions
 
-| Action            | Key Binding       | Constant                   |
-| ----------------- | ----------------- | -------------------------- |
-| Left mouse button | Mouse click / tap | `InputAction.IA_POINTER`   |
-| Primary action    | E key             | `InputAction.IA_PRIMARY`   |
-| Secondary action  | F key             | `InputAction.IA_SECONDARY` |
-| Action 3          | 1 key             | `InputAction.IA_ACTION_3`  |
-| Action 4          | 2 key             | `InputAction.IA_ACTION_4`  |
-| Action 5          | 3 key             | `InputAction.IA_ACTION_5`  |
-| Action 6          | 4 key             | `InputAction.IA_ACTION_6`  |
-| Jump              | Space key         | `InputAction.IA_JUMP`      |
-| Forward           | W key             | `InputAction.IA_FORWARD`   |
-| Backward          | S key             | `InputAction.IA_BACKWARD`  |
-| Left              | A key             | `InputAction.IA_LEFT`      |
-| Right             | D key             | `InputAction.IA_RIGHT`     |
-| Walk              | Control key       | `InputAction.IA_WALK`      |
-| Run               | Shift key         | `InputAction.IA_MODIFIER`  |
-| Any (wildcard)    | Any of the above  | `InputAction.IA_ANY`       |
+Key map for every `InputAction` (including `IA_ANY`): **advanced-input** → *All InputAction Values*.
 
 **Notes:**
 
 - Mouse wheel is **not available** as an input
 - Always design for both desktop and mobile — mobile has no keyboard, rely on pointer and on-screen buttons
-- Set `maxDistance` on pointer events (8-10 meters typical) to prevent interactions from across the scene (measured from the **avatar**, default 10)
 - Use `hoverText` to communicate what an interaction does before the player commits
+
+## Distance and outline rules
+
+Read when an interaction range or hover outline behaves differently from what you computed. Example scene: `34,20-pointer-events-distances`.
+
+| Option | Measured from | Default |
+|---|---|---|
+| `maxDistance` | the avatar/player position | `10` |
+| `maxCameraDistance` | the active camera origin (`@dcl/sdk` 7.28.0+; Unity and Bevy explorers both apply it) | none (unset) |
+| `maxPlayerDistance` | `[DEPRECATED]` alias of `maxDistance` (same meaning) | none |
+
+How the two live thresholds combine:
+
+| Set | Interaction allowed when |
+|---|---|
+| only `maxDistance` | player distance <= `maxDistance` |
+| only `maxCameraDistance` | camera distance <= `maxCameraDistance` |
+| both | player distance <= `maxDistance` **OR** camera distance <= `maxCameraDistance` (OR, not AND) |
+| neither | player distance <= 10 (the implicit default) |
+
+- If both `maxDistance` and `maxPlayerDistance` are set, **the larger of the two wins** as the player threshold.
+- The default third-person camera trails the avatar by ~7m, so a camera-only rule of 10m is much tighter in practice than it reads.
+- Proximity events ignore `maxCameraDistance` entirely.
+
+Measurement origins (matters when a threshold behaves ~1m off):
+
+- Cursor player distance: avatar ROOT (feet, `Transform.get(engine.PlayerEntity).position`) to the raycast hit point on the collider surface.
+- Cursor camera distance: the ray length from the camera to the hit point (`hitInfo.distance`).
+- Proximity distance: from the capsule **center** (~1m above the feet), not the feet and not the hit point. Expect proximity and cursor readouts to differ by roughly that 1m even standing in the same spot.
+
+### What the outline draws
+
+The renderers of the entity that owns the hit collider (which must also carry `PointerEvents`) **plus all its descendants**, never its parent or siblings. Only `MeshRenderer` primitives and GLBs are outlined; `TextShape` never is (unity-explorer `InteractionHighlightSystem`). So:
+
+- An invisible hitbox (collider + `PointerEvents`, no mesh) outlines nothing unless the visible parts are its **children**. A hitbox placed beside the model or as a child of it gives events and hover text but no outline.
+- A prop made of several entities, each with its own collider and handler, outlines one part at a time. Put one collider and the `PointerEvents` on a root, with the visible parts as children, or make the prop a single GLB.
 
 ## All Pointer Event Types
 
@@ -235,48 +254,7 @@ Then read results in a system using `inputSystem.getInputCommand()` with `Intera
 
 ### Example: Proximity Door
 
-Opens or closes a door when the player presses E while nearby, without needing to aim at it:
-
-```typescript
-import { engine, Transform, GltfContainer, Tween } from "@dcl/sdk/ecs";
-import { Vector3, Quaternion } from "@dcl/sdk/math";
-import { pointerEventsSystem, InputAction } from "@dcl/sdk/ecs";
-
-const doorPivot = engine.addEntity();
-Transform.create(doorPivot, { position: Vector3.create(3, 0, 4) });
-
-const door = engine.addEntity();
-GltfContainer.create(door, { src: "assets/door.glb" });
-Transform.create(door, {
-  position: Vector3.create(-1, 0, 0),
-  parent: doorPivot,
-});
-
-let isDoorOpen = false;
-const closedRot = Quaternion.fromEulerDegrees(0, 0, 0);
-const openRot = Quaternion.fromEulerDegrees(0, 90, 0);
-
-pointerEventsSystem.onProximityDown(
-  {
-    entity: door,
-    opts: {
-      button: InputAction.IA_PRIMARY,
-      hoverText: "Open / Close",
-      maxDistance: 5,
-      priority: 1,
-    },
-  },
-  function () {
-    if (isDoorOpen) {
-      Tween.setRotate(doorPivot, openRot, closedRot, 700);
-      isDoorOpen = false;
-    } else {
-      Tween.setRotate(doorPivot, closedRot, openRot, 700);
-      isDoorOpen = true;
-    }
-  }
-);
-```
+Full door example: `interactivity-patterns.md` → *Proximity Door Example*.
 
 ## Raycast Direction Types
 
@@ -352,15 +330,7 @@ AvatarModifierArea.create(entity, {
 
 ## Cursor State
 
-```typescript
-// Check if cursor is locked (pointer lock mode)
-const isLocked = PointerLock.get(engine.CameraEntity).isPointerLocked;
-
-// Get cursor position and world ray
-const pointerInfo = PrimaryPointerInfo.get(engine.RootEntity);
-console.log("Cursor screen position:", pointerInfo.screenCoordinates);
-console.log("World ray direction:", pointerInfo.worldRayDirection);
-```
+Pointer lock and the cursor's position and world ray: **advanced-input** → *Pointer Lock State* and *Cursor Position and World Ray*.
 
 ## Trigger Area Callback Fields
 

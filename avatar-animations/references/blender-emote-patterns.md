@@ -76,7 +76,11 @@ def move(n, dx=0, dy=0, dz=0):
     """Translate control bone `n` by world METRES (dx: avatar left, dy: back, dz: up)."""
     vl.update()
     pb = arm.pose.bones[n]
-    M = (arm.matrix_world @ pb.matrix).to_3x3().normalized()
+    # pose_bone.location lives in the bone's REST frame (parent pose x rest), NOT in its rotated
+    # frame: strip the bone's own basis, or a control that has been rotated (an IK hand, a yawed
+    # COG) translates the wrong way. `rw()` is different — a post-multiplied rotation does act in
+    # the rotated frame, so it keeps `pb.matrix` as is.
+    M = (arm.matrix_world @ pb.matrix @ pb.matrix_basis.inverted()).to_3x3().normalized()
     pb.location += (M.inverted() @ Vector((dx, dy, dz))) * 100.0   # armature scale is 0.01
 
 def setprop(n, key, value):
@@ -156,20 +160,65 @@ def auto_sign(bone, axis, metric, prep=None):
     reset_all()
     return 1 if after > before else -1
 
+def auto_sign_pm(pose_fn, metric, deg=50):
+    """+1 if pose_fn(+deg) scores higher on `metric` than pose_fn(-deg). Compares a bend each way
+    instead of before/after, so a joint that already sits bent in the idle cannot fool it."""
+    reset_all(); pose_fn(deg);  vl.update(); plus  = metric()
+    reset_all(); pose_fn(-deg); vl.update(); minus = metric()
+    reset_all()
+    return 1 if plus > minus else -1
+
+def hand_frame(full, rig=None):
+    """(fwd, palm, across) unit vectors of one hand in its CURRENT pose. palm = normal of the knuckle
+    plane pointing out of the palm (to the thumb's side); across = index knuckle -> pinky knuckle."""
+    rig = rig or arm
+    W = lambda b: rig.matrix_world @ rig.pose.bones['Avatar_%sHand%s' % (full, b)].head
+    h, i1, p1 = W(''), W('Index1'), W('Pinky1')
+    fwd, across = ((i1 + p1) / 2 - h).normalized(), (p1 - i1).normalized()
+    n = fwd.cross(across).normalized()
+    return fwd, (n if (W('Thumb1') - i1).dot(n) > 0 else -n), across
+
+FINGERS = ('Index', 'Middle', 'Ring', 'Pinky')
+capture_base()                       # reset_all() needs the idle snapshot
 S = {}
 for s, full in (('L', 'Left'), ('R', 'Right')):
     # elbow flexion: does the hand move forward (-Y in world) ?
     S['elbow' + s] = auto_sign('CTRL_FK_Avatar_ForeArm.' + s, 'X',
                                lambda: -wpos('Avatar_%sHand' % full).y)
-    # finger curl: does the fingertip get closer to the palm ?
-    S['curl' + s]  = auto_sign('CTRL_Avatar_HandIndex1.' + s, 'X',
-                               lambda: -(wpos('Avatar_%sHandIndex4' % full)
-                                         - wpos('Avatar_%sHand' % full)).length)
+    reset_all(); _, n, _ = hand_frame(full)
+    # finger curl = local Z: the tip must move to the PALM side. Not "closer to the wrist" -- a
+    # sideways swing (local X) shortens that distance too, and that test passed on the wrong axis.
+    S['curl' + s] = auto_sign_pm(
+        lambda d: [rl('CTRL_Avatar_HandIndex%d.%s' % (k, s), 'Z', d) for k in (1, 2, 3)],
+        lambda: wpos('Avatar_%sHandIndex4' % full).dot(n))
+    # thumb curl = local Z on Thumb2/3, same metric
+    S['thumbcurl' + s] = auto_sign_pm(
+        lambda d: [rl('CTRL_Avatar_HandThumb%d.%s' % (k, s), 'Z', d) for k in (2, 3)],
+        lambda: wpos('Avatar_%sHandThumb4' % full).dot(n), 35)
+    # thumb across the palm = local X on Thumb1 (sign differs per side): tip toward the pinky knuckle
+    S['thumbacross' + s] = auto_sign_pm(
+        lambda d: rl('CTRL_Avatar_HandThumb1.' + s, 'X', d),
+        lambda: -(wpos('Avatar_%sHandThumb4' % full) - wpos('Avatar_%sHandPinky1' % full)).length, 35)
+
+# head down: the top of the head tips forward (-Y); spine forward: the neck moves forward (-Y)
+S['headdown'] = auto_sign('CTRL_Avatar_Head', 'X', lambda: -wtail('Avatar_Head').y)
+S['spinefwd'] = auto_sign('CTRL_FK_Avatar_Spine', 'X', lambda: -wpos('Avatar_Neck').y)
 
 def elbow(s, deg): rl('CTRL_FK_Avatar_ForeArm.' + s, 'X', S['elbow' + s] * deg)
+
+def fist(s, k=1.0):
+    """Closed fist on side s; k scales it (0 = the idle hand). Values checked in hand close-ups."""
+    for f in FINGERS:
+        for j, deg in ((1, 60), (2, 70), (3, 45)):              # the middle joint bends most
+            rl('CTRL_Avatar_Hand%s%d.%s' % (f, j, s), 'Z', S['curl' + s] * deg * k)
+    rl('CTRL_Avatar_HandThumb1.' + s, 'X', S['thumbacross' + s] * 35 * k)
+    for j, deg in ((2, 30), (3, 45)):
+        rl('CTRL_Avatar_HandThumb%d.%s' % (j, s), 'Z', S['thumbcurl' + s] * deg * k)
 ```
 
-Elbows, knees, wrists and fingers hinge on their **local X** (Y/Z are locked on those controls). Upper arms: set the *direction* with `rw()` on world axes (local X is tilted and sweeps the arm across the chest), then **twist** with `rl(..., 'Y', deg)` — local Y is the bone axis and the only way to roll the arm — and fine-tune locally. See the RULE in the skill doc.
+Measured on `Avatar_File.blend`: +Z curls toward the palm on all four fingers and both sides, and +X on Thumb1 closes the thumb on `.L` but opens it on `.R`. Detect the signs anyway, since they come from the rig's bone rolls. The index sign is reused for the other three fingers.
+
+Which axis bends what, and the locks, are in the skill doc's RULE "Elbows and knees hinge on local X — fingers curl on local Z". Elbows and knees bend on **local X**; finger and thumb curls on **local Z**; Thumb1 crosses the palm on **local X**; the wrist has no locks. A script ignores the rig's rotation locks, so stay on those axes yourself. Upper arms: set the *direction* with `rw()` on world axes (local X is tilted and sweeps the arm across the chest), then **twist** with `rl(..., 'Y', deg)` — local Y is the bone axis and the only way to roll the arm — and fine-tune locally. See the RULE in the skill doc.
 
 ## Semantic pose vocabulary + a parametric default pose
 
@@ -179,7 +228,9 @@ Build named verbs on top of `rl`/`rw`/`move`, then express every keyframe as a d
 def arm_fwd(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'X', -d)                # pure forward raise
 def arm_out(s, d):  rw('CTRL_FK_Avatar_Arm.' + s, 'Z', d if s == 'L' else -d)
 def arm_twist(s, d): rl('CTRL_FK_Avatar_Arm.' + s, 'Y', d)                  # roll about the bone's own axis
+def arm_side(s, d): rw('CTRL_FK_Avatar_Arm.' + s, 'Y', -d if s == 'L' else d)   # world roll: + lifts a hanging arm sideways
 def head_down(d):   rl('CTRL_Avatar_Head', 'X', S['headdown'] * d)
+def spine_fwd(d):   rl('CTRL_FK_Avatar_Spine', 'X', S['spinefwd'] * d)
 def fk_legs():   # only for legs that leave the ground; feet on the floor → keep IK and move CTRL_IK_Foot.*
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg L', 0.0)
     setprop('CTRL_Avatar_UpperBody', 'FK > IK Leg R', 0.0)
@@ -203,6 +254,67 @@ for frame, kw in CLIP:
     pose(**kw)
     key_all(frame, deform=(frame == 1 or frame == last))
 ```
+
+**A world-axis verb is only "semantic" for the arm direction it was named on.** `arm_side` spreads *hanging* arms outward for positive values, but once the arm points overhead the same world roll closes the V — an overhead reach (yoga) needs **negative** `arm_side`. Likewise, at the default `IsoRot Arm  FK L/R` = `1.0` the FK arm turns *with* the torso: after an 80° `spine_fwd` (forward fold) a hanging arm points backward, and it is `arm_fwd(+90)` that brings it down to hang toward the floor. At `0.0` it keeps hanging down (measured 2026-10-28; `avatar-rig.md` → "Custom properties"). Read the `report()` numbers instead of trusting the verb's name when the pose is far from idle.
+
+**Standing clips: keep the legs in IK** (the rig's default) and step, lunge or crouch by moving the reverse-foot controls in world metres while lowering the COG — `move('CTRL_IK_Foot.R', dy=-0.30)` steps the right foot forward, `move('CTRL_Avatar_Knee.R', ...)` aims the knee, `move('CTRL_Avatar_UpperBody', dz=-0.30, dy=-0.12)` drops into the lunge. Switch to FK only for a leg that leaves the ground (see the FK/IK rule in SKILL.md).
+
+## Arm IK: exact hand placement and fingertip targets
+
+FK angles are fine for gestures; anything that must *touch* something (the face, a prop, the other hand) needs the arm IK. Switch `FK > IK Arm L/R` to `1`, put `CTRL_IK_Avatar_Hand.*` at a world position, orient it about world axes, and optionally place the elbow pole:
+
+```python
+def ik_hand(s, target, rot=(0, 0, 0), pole=None):
+    """Hand control to a WORLD position (metres), then rotated about world axes (degrees)."""
+    setprop('CTRL_Avatar_UpperBody', 'FK > IK Arm ' + s, 1.0)
+    vl.update()
+    ctrl = 'CTRL_IK_Avatar_Hand.' + s
+    d = Vector(target) - wpos(ctrl)
+    move(ctrl, dx=d.x, dy=d.y, dz=d.z)          # needs the REST-frame move() above
+    # rot: (x, y, z) applied in X, Y, Z order, or an ordered list such as [('Z', -90), ('X', 45)]
+    steps = rot if rot and isinstance(rot[0], (tuple, list)) else list(zip('XYZ', rot))
+    for axis, deg in steps:
+        if deg: rw(ctrl, axis, deg)
+    if pole is not None:
+        vl.update(); pc = 'CTRL_IK_Avatar_Elbow.' + s
+        d = Vector(pole) - wpos(pc); move(pc, dx=d.x, dy=d.y, dz=d.z)
+```
+
+The hand control sits at the **wrist**, so aiming it at a target puts the wrist there, not the finger. Solve for the fingertip instead: measure the deform tip bone's error and shift the hand control by it, a few passes:
+
+```python
+def solve_tip(s, target, finger='Index', passes=6, tol=0.01):
+    """Move the IK hand until the fingertip reaches `target`; returns the remaining miss in metres."""
+    full = 'Left' if s == 'L' else 'Right'
+    tip = 'Avatar_%sHand%s4' % (full, finger)
+    for _ in range(passes):
+        vl.update()
+        d = Vector(target) - wpos(tip)
+        if d.length < 0.001:
+            break
+        move('CTRL_IK_Avatar_Hand.' + s, dx=d.x, dy=d.y, dz=d.z)
+    vl.update()
+    miss = (Vector(target) - wpos(tip)).length
+    if miss > tol:
+        print('WARN solve_tip %s: fingertip %.3f m short of the target (out of reach?)' % (s, miss))
+    return miss
+```
+
+Assert the returned miss next to `report()` on every contact keyframe. A target out of the arm's reach still drags the hand control toward it, and the fingertip stops short with nothing else to show it.
+
+For face contact the target has to follow the head's *current* rotation. Measured on the shipped `ShapeA`/`ShapeB` head meshes, the nose tip is **0.19 m in front of and 0.06 m below** the head of the `Avatar_Head` bone — that bone starts **mid-face**, not at the skull base, so "head bone + a bit up" lands on the forehead (all face landmarks: `avatar-rig.md` → "Face geometry"):
+
+```python
+def nose_world():
+    vl.update()
+    M    = (arm.matrix_world @ arm.pose.bones['Avatar_Head'].matrix).to_3x3().normalized()
+    rest = (arm.matrix_world @ arm.pose.bones['Avatar_Head'].bone.matrix_local).to_3x3().normalized()
+    return wpos('Avatar_Head') + (M @ rest.inverted()) @ Vector((0, -0.19, -0.058))
+```
+
+It rotates the offset by the head's change from its **rest** orientation. That is safe because `Starting_Pose` leaves `Avatar_Head` within 1° of rest. Checked at frame 0: 3 mm from the `ShapeA` nose tip, 2 cm above the `ShapeB` one, whose nose sits lower. Add `(0, 0, -0.02)` to the offset for `ShapeB`.
+
+**Key the FK arm to roughly the IK pose on the frames where `FK > IK Arm` switches.** The property is interpolated between keys like any other channel, so between an FK keyframe and an IK keyframe the arm is a blend of both. If the FK arm is still hanging at the side while the IK hand is at the nose, the arm swings through the chest on its way in and out. `pose()` above is the *seated* example: it has no IK parameter, its `reset_all()` puts `FK > IK Arm` back to `0`, and it switches the legs to FK and drops the hips. On those keyframes build the body the same way as the rest of your clip (for a standing clip: `reset_all()` and keep the legs in IK), set the FK arm (`arm_fwd`, `elbow`, ...) close to the IK pose, then `ik_hand()` / `solve_tip()`, then key.
 
 ## Numeric verification of a pose
 
@@ -293,6 +405,69 @@ for i, f in enumerate(files):
 res = bpy.data.images.new('sheet', cols * tile, rows * tile, alpha=True)
 res.pixels = canvas.ravel().tolist()
 res.filepath_raw = out; res.file_format = 'PNG'; res.save()
+```
+
+## Hand and finger check
+
+Body-scale renders hide finger mistakes. A fist curled on the wrong axis (local X) folded the fingers sideways in the plane of the palm, and only the owner caught it in-world. Check hands with numbers and close-ups whenever a clip poses the fingers.
+
+**Numbers.** `finger_report` gives each tip's offset from its knuckle, in cm, in the hand's own frame (`hand_frame` above). A curl keeps **side ≈ 0**, pulls fwd down and keeps palm positive. Several cm of side is the wrong axis:
+
+```python
+def finger_report(full, rig=None):
+    """{finger: (fwd, palm, side)} in cm: fingertip minus knuckle, in the hand's current frame."""
+    rig = rig or arm
+    W = lambda b: rig.matrix_world @ rig.pose.bones['Avatar_%sHand%s' % (full, b)].head
+    fwd, n, across = hand_frame(full, rig)
+    return {f: tuple(round((W(f + '4') - W(f + '1')).dot(v) * 100, 1) for v in (fwd, n, across))
+            for f in FINGERS + ('Thumb',)}
+```
+
+| Hand | Index / Middle / Ring / Pinky (fwd, palm, side) |
+| --- | --- |
+| Idle (`Starting_Pose`) | fwd +4 to +10, palm +3 to +6, side ≈ 0 |
+| Fist curled on local Z (correct) | fwd ≈ −3, palm **+1 to +5**, side ≈ 0 |
+| Fist curled on local X (the bug) | fwd ≈ −2 to −3, palm **≤ 0**, side **3–7 cm** (sign varies) |
+
+**The exported GLB.** Run the same report on the file you ship, not only on the authoring `.blend`. Blender's glTF importer parks each clip on a **muted** NLA track with no active action. If you skip the assignment below, you measure the T-pose rest and the check passes on the wrong pose.
+
+```python
+# Blender --background --python check_hands.py -- clip_emote.glb [ActionName]
+# (paste hand_frame, FINGERS and finger_report above this line; the default arm=None is not used here)
+import bpy, sys
+argv = sys.argv[sys.argv.index('--') + 1:]
+bpy.ops.wm.read_factory_settings(use_empty=True)
+bpy.ops.import_scene.gltf(filepath=argv[0])
+rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and 'Avatar_Hips' in o.pose.bones)
+act = (bpy.data.actions[argv[1]] if len(argv) > 1 else
+       next(a for a in bpy.data.actions if not a.name.endswith('_Prop')))   # skip a prop clip
+ad = rig.animation_data or rig.animation_data_create()
+for t in list(ad.nla_tracks):
+    ad.nla_tracks.remove(t)
+ad.action, ad.action_slot = act, act.slots[0]
+f0, f1 = (int(x) for x in act.frame_range)
+for f in sorted({f0, (f0 + f1) // 2, f1}):
+    bpy.context.scene.frame_set(f)
+    for full in ('Left', 'Right'):
+        print('F%03d' % f, full, finger_report(full, rig))
+```
+
+**Close-ups.** Render only the hands mesh, with the camera placed from the hand's own frame. Use it after `setup_render()`. To render a test pose rather than the clip, clear the action after `capture_base()` (`arm.animation_data.action = None`) and do not call `frame_set` again, or `Starting_Pose` comes back and every variant renders identically.
+
+```python
+import os
+def hand_closeups(full, out_dir, dist=0.55):
+    for o in bpy.data.objects:
+        if o.type == 'MESH':
+            o.hide_render = o.name != 'ShapeB_Hands_BaseMesh'
+    vl.update()
+    fwd, n, across = hand_frame(full)
+    c = wpos('Avatar_%sHandMiddle1' % full)
+    scene.camera.data.lens = 85
+    for name, d in (('back', -n), ('palm', n), ('thumbside', -across), ('tips', fwd)):
+        aim(scene.camera, c + d * dist, c)
+        scene.render.filepath = os.path.join(out_dir, '%s_%s.png' % (full, name))
+        bpy.ops.render.render(write_still=True)
 ```
 
 ## Export — one clip per file

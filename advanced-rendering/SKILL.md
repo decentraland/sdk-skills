@@ -1,6 +1,6 @@
 ---
 name: advanced-rendering
-description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PBR materials, GltfNodeModifiers, and VisibilityComponent. Use when the user wants billboards, floating labels, 3D text, material effects, glow, transparency, or model node control. Do NOT use for screen-space UI (see build-ui) or loading 3D models (see add-3d-models).
+description: Materials, textures and 3D text in Decentraland scenes - PBR, emissive (glow) and transparent materials, texture modes and UVs, GltfNodeModifiers (recolor or retexture GLB nodes), TextShape, Billboard, VisibilityComponent, faked mirrors. For screen UI see build-ui; for light sources see lighting-environment; for loading models and collision masks see add-3d-models.
 ---
 
 # Advanced Rendering in Decentraland
@@ -14,6 +14,7 @@ description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PB
 | Custom material appearance | `Material.setPbrMaterial` | Metallic, rough, transparent, emissive surfaces |
 | Show/hide without removing | `VisibilityComponent` | LOD systems, toggling objects, conditional display |
 | Modify GLTF model nodes | `GltfNodeModifiers` | Override materials or shadow casting on specific mesh nodes |
+| Collision layers on a GLB | — | **add-3d-models** → *RULE: Always check for built-in colliders* |
 
 **Decision flow:**
 1. Need text on screen? → Use **build-ui** (React-ECS Label) instead
@@ -21,7 +22,7 @@ description: Advanced rendering in Decentraland scenes. Billboard, TextShape, PB
 3. Need glowing/transparent materials? → `Material.setPbrMaterial` with emissive/transparency
 4. Need to override material on a model node? → `GltfNodeModifiers` with `modifiers` array
 
-**Not available in SDK7: reflections, mirrors, render-to-texture.** There is no reflection probe, mirror or camera-to-texture component (`@dcl/ecs` component list, 7.30; `Material.reflectivityColor` is a specular tint, not a reflection). A mirror is faked by **duplicating the reflected geometry behind a tinted, slightly transparent glass plane** and driving a double of anything that moves (the player double is in **npcs** → "Copies of the player"). Budget the space: the reflection needs as much depth behind the glass as the room in front of it, and content outside the parcels is clipped (**add-3d-models**), so a mirror on a parcel edge means adding a parcel. Trim the reflected side walls, floor and ceiling where they meet the real ones — overlapping copies z-fight at the seam (observed 2026-10-12).
+**Not available in SDK7: reflections, mirrors, render-to-texture.** There is no reflection probe, mirror or camera-to-texture component (`Material.reflectivityColor` is a specular tint, not a reflection). To fake a mirror: `{baseDir}/references/rendering-patterns.md#fake-mirror`.
 
 ## Billboard (Face the Camera)
 
@@ -53,10 +54,9 @@ BillboardMode.BM_NONE   // No billboard rotation
 
 - Prefer `BM_Y` over `BM_ALL` for most use cases — it looks more natural and is cheaper to render.
 - `BM_ALL` is useful for particles or effects that should always directly face the camera.
-- **The entity's local `−Z` faces the camera.** The Explorer aims local **+Z away** from the viewer — `Quaternion.LookRotation(billboardPos − cameraPosition)` — so on a billboarded parent a child at local `+Z` sits **behind** it and a child at local `−Z` renders **in front**, from every viewpoint. Verified against unity-explorer `Explorer/Assets/DCL/SDKComponents/Billboard/System/BillboardSystem.cs`; a reference scene whose comment claims `+Z` faces the camera is wrong on Explorer `v0.186.0-alpha`.
+- **The entity's local `−Z` faces the camera.** The Explorer aims local **+Z away** from the viewer — `Quaternion.LookRotation(billboardPos − cameraPosition)` — so on a billboarded parent a child at local `+Z` sits **behind** it and a child at local `−Z` renders **in front**, from every viewpoint. Verified against unity-explorer `BillboardSystem.cs`; a scene comment claiming `+Z` faces the camera is wrong.
 - **By default a billboard faces the CAMERA, not the avatar** — the active virtual camera's world position, same file. In third person the camera and the player stand in different places and see different facings, so verify a hide-behind/peek-out trick from the player's own camera, never from a free-cam sweep. To face something else — the player's avatar (`targetEntity: engine.PlayerEntity`) or any other entity — set `targetEntity` (see **Face another entity — `targetEntity`** below).
 - **No `oppositeDirection` flag.** The SDK7 `Billboard` component exposes only `billboardMode` and `targetEntity` — there is no way to invert which model face points at the camera. If a model shows its back instead of its front, rotate the model 180° on Y (`Quaternion.fromEulerDegrees(0, 180, 0)`). On a parent-Billboard + child-model setup, apply the rotation to the **child** — the Billboard owns the parent's rotation.
-- **Porting note**: SDK6 → SDK7 ports occasionally show a billboarded model facing **away** from the camera that was correct under SDK6. The two SDKs appear to disagree on which face the billboard points at the camera. Same fix — rotate the displayed model 180° on Y. See [[migrate-sdk6-to-sdk7]] (Common Pitfalls) for context.
 
 ### Face another entity — `targetEntity`
 
@@ -73,7 +73,7 @@ Billboard.create(card, { targetEntity: target, billboardMode: BillboardMode.BM_Y
 Billboard.getMutable(card).targetEntity = otherEntity
 ```
 
-- **Unset (default)** → faces the main camera, exactly as before. `targetEntity` is fully backwards-compatible.
+- **Unset (default)** → faces the main camera.
 - Setting `targetEntity` to the **camera reserved entity** (`engine.CameraEntity`, id `2`) is equivalent to leaving it unset.
 - `billboardMode` still applies: `BM_Y` with a `targetEntity` yaws to face the target on the Y axis only.
 - **Gotcha:** if the referenced target entity does not exist or is deleted, billboard reorientation is **disabled** (the entity freezes at its last orientation) until the target exists again.
@@ -101,8 +101,9 @@ TextShape.create(label, {
 ```
 
 - **`fontSize` is in world units, not pixels: `10` makes the text about 1 m tall** (SDK docs; the Explorer passes it straight to a world-space TextMeshPro, `TMPProSdkExtensions.cs`), and the parent `Transform.scale` multiplies it. `16–32` is big signage read from across a parcel; a monitor, plaque or label needs about `1–4`, or a small size under a scaled parent. Text spilling out of a monitor model (2026-10-08) was this unit mismatch, not a layout bug.
-- Do not use `TextShape` (or a textured plane) as a rulebook: long paragraphs in-world are too small and too long to read, and players will not stop to squint. One idea per sign, ≤ 10 words, large type; move the rest into visuals and gameplay (see **game-design** → "Rules: show, don't tell").
+- One idea per sign, ≤ 10 words, large type: **game-design** → "Rules: show, don't tell".
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
+- **Free-standing labels go in open air:** solid geometry occludes world-space text, so keep no solid model within 2 m horizontally, leave height clearance, and add `Billboard` with `billboardMode: BillboardMode.BM_Y`. A sign mounted flat on a wall needs no Billboard.
 - For a custom typeface, set `fontSrc` to a `.ttf` in the scene, with `font` as the fallback. See **fonts** for the SDK version, explorer and mobile support, and previewing it.
 - **A TextShape faces its local -Z.** It reads correctly for a viewer standing on the entity's **-Z side**, so to label the **+Z face** of a model, parent the label to it at a small `+Z` offset and rotate it **180° about Y**. Observed in-world twice (SDK 7.30.1, 2026-10-12); get it wrong and the sign is mirrored or invisible from the side players approach.
 - **Spaces do not align columns — not even with `Font.F_MONOSPACE`.** Padding a row with spaces to build a table renders with collapsed gaps (observed in-world on a 3-column board, SDK 7.30.1, 2026-10-12). Use **one TextShape per column**, each positioned at its own x and aligned with `TAM_MIDDLE_LEFT` / `TAM_MIDDLE_RIGHT`, and keep the rows as `\n`-separated lines inside each column.
@@ -125,7 +126,7 @@ For the floating-label pattern (Billboard + TextShape combined into a camera-fac
 
 ### Fitting a screen or text onto a model's display
 
-A plane or `TextShape` dropped at a monitor model's origin sits in front of, behind or across the bezel (2026-10: a screen plane 6 cm proud of the bezel, then text twice the width of the display). Read the geometry first: dump the GLB's vertices with the bounding-box script in **add-3d-models** (filter to the faces whose normal points at the viewer) and take the rectangle of the recessed display and its depth — the monitor in that session had a 0.654 × 0.497 m display 1.6 cm behind the bezel face. Size the plane to that rectangle, put it 2–5 mm in front of the display surface (still behind the bezel face), and for text set `fontSize`, `width`/`height` and `textWrapping` to the same rectangle instead of guessing and asking the owner to look.
+A plane or `TextShape` dropped at a monitor model's origin sits in front of, behind or across the bezel. Read the geometry first: dump the GLB's vertices with the bounding-box script in **add-3d-models** (filter to the faces whose normal points at the viewer) and take the rectangle of the recessed display and its depth. Size the plane to that rectangle, put it 2–5 mm in front of the display surface (still behind the bezel face), and for text set `fontSize`, `width`/`height` and `textWrapping` to the same rectangle instead of guessing and asking the owner to look.
 
 ## Advanced PBR Materials
 
@@ -208,25 +209,38 @@ Both `setPbrMaterial` and `setBasicMaterial` accept `castShadows: boolean` (defa
 Material.setPbrMaterial(entity, { albedoColor: Color4.Green(), castShadows: false })
 ```
 
-For disabling shadows on a specific node inside a GLTF model, use `GltfNodeModifiers` with `castShadows: false` instead (see below).
+For disabling shadows on a specific node inside a GLTF model, use `GltfNodeModifiers` with `castShadows: false` instead (next section).
 
-## GltfContainer Collision Masks
+## GltfNodeModifiers (Per-Node Overrides)
 
-Use collision masks to control which collision layers respond to the different mesh layers in a GLTF model. GLTF models have two mesh layers: visible meshes (what players see rendered), and invisible layers (collider meshes, named internally with _collider):
+Override material or shadow casting on specific nodes within a GLTF model:
 
 ```typescript
-import { engine, Transform, GltfContainer, ColliderLayer } from '@dcl/sdk/ecs'
-import { Vector3 } from '@dcl/sdk/math'
+import { GltfNodeModifiers } from '@dcl/sdk/ecs'
 
-const model = engine.addEntity()
-Transform.create(model, { position: Vector3.create(4, 0, 4) })
-
-GltfContainer.create(model, {
-  src: 'models/myModel.glb',
-  visibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS | ColliderLayer.CL_POINTER,
-  invisibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS
+GltfNodeModifiers.create(entity, {
+  modifiers: [
+    {
+      path: 'RootNode/Armor',     // GLTF hierarchy path
+      castShadows: false           // Disable shadow casting for this node
+    }
+  ]
 })
 ```
+
+To override the material or shadow casting of the **entire** model (`path: ''`) — including the nested `material: { material: { $case: 'pbr' | 'unlit', ... } }` shape — see the **GltfNodeModifiers — Whole-Model Material Override** section in `{baseDir}/references/rendering-patterns.md`.
+
+**Modifier details** (from the `74,-8-gltfnodemodifier` test scene):
+
+- `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
+- `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
+- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
+- `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
+- One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
+- **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
+- Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
+
+Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
 
 ## VisibilityComponent
 
@@ -259,37 +273,7 @@ Rules (verified against the `1,0-visibility-comp-propagation` test scene):
 - A child that overrides an invisible parent to `visible: true` can itself set `propagateToChildren: true` to force its own subtree visible again — propagation re-evaluates at each node that carries a `VisibilityComponent`.
 - Propagation follows the live `Transform.parent` hierarchy: re-parenting an entity at runtime changes which ancestor's propagated visibility applies to it.
 
-### Per-Node Modifiers (GltfNodeModifiers)
-
-Override material or shadow casting on specific nodes within a GLTF model:
-
-```typescript
-import { GltfNodeModifiers } from '@dcl/sdk/ecs'
-
-GltfNodeModifiers.create(entity, {
-  modifiers: [
-    {
-      path: 'RootNode/Armor',     // GLTF hierarchy path
-      castShadows: false           // Disable shadow casting for this node
-    }
-  ]
-})
-```
-
-To override the material or shadow casting of the **entire** model (`path: ''`) — including the nested `material: { material: { $case: 'pbr' | 'unlit', ... } }` shape — see the **GltfNodeModifiers — Whole-Model Material Override** section in `{baseDir}/references/rendering-patterns.md`.
-
-**Modifier details** (from the `74,-8-gltfnodemodifier` test scene):
-
-- `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
-- `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
-- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
-- `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
-- One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
-- **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
-- Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
-
-Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
-
+## Textures
 
 ### Avatar Texture
 
@@ -325,7 +309,7 @@ Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirr
 
 ### Default UVs on box and plane primitives
 
-`MeshRenderer.setBox` / `setPlane` without `uvs` use the desktop Explorer's built-in layout (unity-explorer `Utility/Primitives/BoxFactory.cs` and `PlaneFactory.cs`, read Oct 2026), and on a **box it differs per face**. With the box unrotated, and "upright" meaning the texture's top row is at the top as a viewer facing that face sees it:
+`MeshRenderer.setBox` / `setPlane` without `uvs` use the desktop Explorer's built-in layout (unity-explorer `BoxFactory.cs` / `PlaneFactory.cs`), and on a **box it differs per face**. With the box unrotated, and "upright" meaning the texture's top row is at the top as a viewer facing that face sees it:
 
 | Face | How the texture reads |
 | --- | --- |
@@ -334,16 +318,16 @@ Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirr
 | −x and +x | rotated 90° (the texture's u axis runs vertically) |
 | top (+y) and bottom (−y) | rotated 90° (u runs along z, v along x; for a viewer facing +z) |
 
-So any texture with an orientation — lettering, brick courses, wood grain, a floor pattern — comes out turned on two of the four walls and on floors and ceilings (observed in-world 2026-10: "walls and the ceiling came out rotated"). Yawing the box 90° only moves the problem to the other pair of walls. Fixes, best first: pass explicit `uvs` — 48 floats, 6 faces × 4 corners × (u, v), see *Set UVs* on the docs' Materials page for the helper; or build the surface from `setPlane` entities, one per face; or ship a GLB.
+So any texture with an orientation — lettering, brick courses, wood grain, a floor pattern — comes out turned on two of the four walls and on floors and ceilings. Yawing the box 90° only moves the problem to the other pair of walls. Fixes, best first: pass explicit `uvs` — 48 floats, 6 faces × 4 corners × (u, v), see *Set UVs* on the docs' Materials page for the helper; or build the surface from `setPlane` entities, one per face; or ship a GLB.
 
 A **plane** is two-sided: u runs along local +x and v along local +y, so the texture reads upright and unmirrored from the −z side and mirrored left-to-right from the +z side. [DERIVED, not checked in-world: laid flat with `Quaternion.fromEulerDegrees(90, 0, 0)`, the unmirrored side faces up and the texture's top points to world +z.]
 
-## Texture Tweens
+### Texture Tweens
 
 For animated texture patterns (`Tween.setTextureMoveContinuous` scrolling, `Tween.setTextureMove` slide-once, `TMT_OFFSET` vs `TMT_TILING` movement types, and looping via `TweenSequence`) — all requiring a texture with `wrapMode: TWM_REPEAT` — see the **Texture Tweens** section in `{baseDir}/references/rendering-patterns.md`.
 
 
-## FlatMaterial Accessors
+### FlatMaterial Accessors
 
 The `Material` component provides shortcut methods that skip the nested union structure, making material access more ergonomic:
 

@@ -64,7 +64,7 @@ opacity field.
 ## Platform support
 
 - Desktop Explorer: `@dcl/sdk` 7.28.0+.
-- **Mobile: not implemented, no ETA** (it was listed as shipping in v1.14.0, then moved back to missing in the Oct 2026 parity refresh, mobile app v1.15.0). Mobile players see no plate at all. Never make the plate the only carrier of information — mirror it in a `TextShape`, a HUD list, or a color the avatar already wears.
+- **Mobile: not implemented.** What to do instead: SKILL.md → *Custom Nametag Plates* → Gotchas.
 
 ## Multiplayer roster pattern
 
@@ -155,6 +155,5 @@ call, so it never touches a stale entity id.
 ## Sources
 
 - Protocol: `proto/decentraland/sdk/components/avatar_nametag.proto` (`ecs_component_id 1221`).
-- SDK: `@dcl/sdk` 7.28.0 (released 2026-09-10). js-sdk-toolchain PR #1600 (merged 2026-09-07, commit `b8264fb`).
-- Renderer: unity-explorer `5cb52d6` — "feat: sdk | scene name tag (#9829)", 2026-09-04.
+- SDK: `@dcl/sdk` 7.28.0+.
 - Test scene: sdk7-test-scenes [`scenes/4,24-avatar-nametag`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/4,24-avatar-nametag).

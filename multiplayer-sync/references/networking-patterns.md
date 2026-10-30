@@ -257,7 +257,7 @@ function spawnGameState() {
 }
 ```
 
-**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (verified in `@dcl/ecs` engine `removeEntity`: it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
+**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
 
 ```typescript
 // Recreate on a later tick, not the same frame as removeEntity
@@ -281,10 +281,7 @@ This keeps the acting player's feedback instant while the authoritative state st
 
 ### Multiplayer Testing
 
-The desktop Explorer allows **one instance at a time**, so pressing Preview again just re-focuses the open window instead of adding a player. To get two local clients:
-
-1. **Second desktop instance** — tick **Multi-Instance Preview** in Creator Hub's **Play Options** > hover **Desktop Client** (= `sdk-commands start --multi-instance`, `@dcl/sdk` >= 7.20.4), or pass `-n` to force a new window. Multi-instance turns Skip Auth Screen off: sign in to each instance with a different account, otherwise both windows are the same player.
-2. **Desktop + browser** — keep the desktop client and open the Bevy web client as player 2: **Play Options** → select the **Web (Bevy)** client row, or `sdk-commands start --web` (alias `--bevy-web`).
+Running two local clients (second desktop instance, or desktop + browser): **multiplayer-sync** SKILL.md → *Multiplayer Testing*.
 
 ```typescript
 // Track active players

@@ -1,6 +1,6 @@
 # How the Creator Hub UI editor behaves
 
-What the UI Designer writes into the scene and what its canvas shows, so hand-written code matches it. Verified against creator-hub `docs/UIDesigner.md` and the implementing commits (`35cd6fa7`, `33134497`, `30207181`, `abb88456`, `6753eda9`, `379aa27e`, `75ad6f5e`, `66758e1c`). The editor is stable and always on in Creator Hub 0.50.0+; the only gate is `@dcl/sdk` 7.26.0+ (`MIN_SDK_VERSION` in `UIDesigner/SdkUpgradeNotice`).
+What the UI Designer writes into the scene and what its canvas shows, so hand-written code matches it. The editor is stable and always on in Creator Hub 0.50.0+; the only gate is `@dcl/sdk` 7.26.0+ (`MIN_SDK_VERSION` in `UIDesigner/SdkUpgradeNotice`).
 
 ## Saving
 
@@ -21,16 +21,20 @@ Consequences worth writing code around:
 
 ## Widget presets
 
-The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` × `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper the editor will edit, use the same pair. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — `SKILL.md` → **Pointer blocking**.)
+The **Full Screen** widget inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with **no `width`/`height`** — deliberately not `100%` × `100%`, because `100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space. Under a Free parent it uses the absolute variant instead (`positionType: 'absolute'` with `top/right/bottom/left: 0`). If you hand-write a full-screen wrapper the editor will edit, use the same pair. The `100%`×`100%` literal form also parses; the generated aggregator root and the in-world-verified templates use it. (And remember the pointer rule: never put an interaction spread on a full-screen wrapper — `SKILL.md` → **Pointer blocking**.)
 
 ## Scene Inset
 
-A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**). The panel labels and the SDK values they write:
+A root-only dropdown that wraps the top-level roots in `<ScreenInsetArea>`, `<InteractableArea>`, or nothing, in the generated `src/ui/index.tsx`. Default is `device`. This is the same setting as the renderer's `screenInset` option, applied structurally in the source — and because the generated `setUiRenderer` passes no options, the renderer's own default `'device'` inset applies underneath it (`SKILL.md` → **The aggregator**).
+
+**Double inset on mobile.** The renderer wraps the whole UI in its own `ScreenInsetArea` when `screenInset` is omitted, and the aggregator's wrapper **nests inside** it. Absolute positioning is relative to the parent box, so on a phone with non-zero insets a `device` root is inset twice, an `interactable` root gets device + interactable insets, and a `none` root still gets the single renderer-level device inset rather than the full canvas. Desktop insets are zero, so nothing changes there. This is read from `wrapWithScreenInset` in `@dcl/react-ecs` and the aggregator generator, not measured on a device. Leave `index.tsx` alone (it is regenerated); if exact safe-area placement on mobile matters, pick `none` for that root and measure.
+
+The panel labels and the SDK values they write:
 
 | Panel label | `screenInset` value written |
 | --- | --- |
 | **Device Safe Area** | `device` — only offered on the mobile platform preset |
-| **Interactable Safe Area** | `interactable` — renamed from "Gameplay Safe Area" in creator-hub `fbca1dca` |
+| **Interactable Safe Area** | `interactable` — formerly "Gameplay Safe Area" |
 | **Full Screen** | `none` |
 
 The **values are unchanged** — a rename of the label only. Emit `screenInset: 'interactable'` regardless of which label the user quotes at you. The property panel's own help text (still using the old label): "Full Screen uses the entire renderable screen. Gameplay Safe Area excludes game-native UI such as chat, minimap and HUD indicators. Device Safe Area (mobile only) excludes physical constraints such as the notch, Dynamic Island and system bars. Requires @dcl/react-ecs 7.26.0+ in your scene."

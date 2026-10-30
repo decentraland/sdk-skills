@@ -8,7 +8,7 @@ Connecting the MCP gives the agent the **tools**, not the **skills**. The Creato
 
 The server is localhost-only and gated by a bearer token. Both the **port and the token are random and change every time the Creator Hub starts**, so they are never something you can hard-code — the user copies them from the app:
 
-1. Creator Hub → **Settings > AI** → expand **Expose AI assistant MCP server** (help text: *"Let an AI agent running outside Creator Hub control the open scene. Paste this into the agent's MCP configuration."*). The section only appears when **Enable AI Assistant** is on, which it is by default since Creator Hub 0.50.0. (Before 0.50.0 all of this lived under Settings > Experimental — update any instruction still saying that.)
+1. Creator Hub → **Settings > AI** → expand **Expose AI assistant MCP server** (help text: *"Let an AI agent running outside Creator Hub control the open scene. Paste this into the agent's MCP configuration."*). The section only appears when **Enable AI Assistant** is on, which it is by default.
 2. A read-only JSON snippet appears with a **Copy configuration** button, under the note *"Localhost only. The URL and token change each time Creator Hub restarts."* It has this shape:
 
 ```json
@@ -25,7 +25,7 @@ The server is localhost-only and gated by a bearer token. Both the **port and th
 
 The same snippet is offered in the AI assistant panel when no provider CLI is detected.
 
-### Settings > AI (labels as of creator-hub `e9ba6357`, Creator Hub 0.50.0)
+### Settings > AI
 
 The AI Assistant left Experimental and now has its own **AI** tab. These are the current strings, in case a user reads you a different one:
 
@@ -33,7 +33,7 @@ The AI Assistant left Experimental and now has its own **AI** tab. These are the
 | --- | --- |
 | **Enable AI Assistant** | The master switch for the embedded assistant, now **on by default**. Help text: *"Runs your installed Claude, Codex, Cursor, or Gemini CLI with full access to your machine, the same reach it has in your terminal."* The toggle is kept (unlike the UI Editor's) precisely so it can be turned off. |
 | **Bill this to an API key instead** | Nested under the switch, off by default. Uses `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `CURSOR_API_KEY` / `GEMINI_API_KEY` from the environment rather than the signed-in subscription. |
-| **Connect** (accordion) | One row per detected provider: **Connected**, or **Sign in** / **Sign out**. A **Via Terminal** section gives the install and sign-in commands. Gemini has no scriptable login subcommand, so it shows no in-app Sign in button. |
+| **Connect** (accordion) | One row per provider, status **Connected** or an amber-dot **Sign-in needed**. Only **Codex** gets in-app **Sign in** / **Sign out** buttons, and only when the Creator Hub installs it (not a Codex already on `PATH`); Claude, Cursor and Gemini sign in from a terminal. Each row's **Via Terminal** section gives the install and sign-in commands; on *Sign-in needed* a terminal-signed provider gets the re-login pair instead (a Hub-installed Codex: **Sign out**, then **Sign in**): `claude auth logout` / `claude auth login`, `codex logout` / `codex login`, `cursor-agent logout` / `cursor-agent login`, Gemini: run `gemini`, then `/auth logout`, `/auth login`. Then **Recheck** and resend the message. |
 | **Expose AI assistant MCP server** | The accordion described above; expanding it turns the server on. Only shown while **Enable AI Assistant** is on. |
 
 **Settings > Experimental now holds only the Bevy renderer toggle.** The **Enable UI Editor** row is gone — the UI Editor is stable and always on (see **build-ui**), gated only by the scene's SDK version.
@@ -90,7 +90,7 @@ export CREATOR_HUB_MCP_TOKEN=<TOKEN>
 
 ### Inside the Creator Hub's own assistant, all four providers now get the scene tools
 
-As of creator-hub `2cf0dc7e` the CH MCP scene tools are wired for **Claude, Codex, Cursor and Gemini** — the earlier Cursor/Gemini gap is closed. The app writes the config per provider and sets `CREATOR_HUB_MCP_TOKEN` on the child process: Claude via `--mcp-config`, Codex via `-c mcp_servers.creator-hub.bearer_token_env_var`, Gemini via `.gemini/settings.json` with a `$CREATOR_HUB_MCP_TOKEN` reference, and Cursor via a project `.cursor/mcp.json`. **Cursor's config format has no token indirection**, so the bearer token sits literally in `.cursor/mcp.json`; the Creator Hub writes it `0600` and adds it to the scene's `.gitignore`. If you are working in a scene folder and see `.cursor/mcp.json` or `.gemini/settings.json` appear, those are the Creator Hub's — do not commit them and do not hand-edit them.
+The CH MCP scene tools are wired for **Claude, Codex, Cursor and Gemini** — the earlier Cursor/Gemini gap is closed. The app writes the config per provider and sets `CREATOR_HUB_MCP_TOKEN` on the child process: Claude via `--mcp-config`, Codex via `-c mcp_servers.creator-hub.bearer_token_env_var`, Gemini via `.gemini/settings.json` with a `$CREATOR_HUB_MCP_TOKEN` reference, and Cursor via a project `.cursor/mcp.json`. **Cursor's config format has no token indirection**, so the bearer token sits literally in `.cursor/mcp.json`; the Creator Hub writes it `0600` and adds it to the scene's `.gitignore`. If you are working in a scene folder and see `.cursor/mcp.json` or `.gemini/settings.json` appear, those are the Creator Hub's — do not commit them and do not hand-edit them.
 
 ## Probe
 

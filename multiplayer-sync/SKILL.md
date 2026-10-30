@@ -1,15 +1,11 @@
 ---
 name: multiplayer-sync
-description: Peer-to-peer multiplayer in Decentraland using CRDT networking with syncEntity and MessageBus. Use when the user wants multiplayer, synced entities, shared world state, broadcast events, or player-to-player communication without a server. Do NOT use for server-authoritative multiplayer, anti-cheat, or persistent storage (see authoritative-server). Do NOT use for screen UI (see build-ui).
+description: Serverless (peer-to-peer) multiplayer in Decentraland with CRDT syncEntity and MessageBus. Use when the user wants synced entities, shared world state, broadcast events, player-to-player communication without a server, or to test a scene with two local players. For server-authoritative state, anti-cheat or persistence see authoritative-server.
 ---
 
 # Multiplayer Synchronization in Decentraland
 
-Decentraland runs scenes locally in a player's instance of the explorer. By default, players are able to see each other and interact directly, but each player interacts with the environment independently. Changes in the environment aren't shared between players by default.
-
-To sync any changes in the scene state, SDK7 uses CRDT-based synchronization.
-
-> **Runtime constraint:** Decentraland runs in a QuickJS sandbox. No Node.js APIs (`fs`, `http`, `path`, `process`). Use `fetch()` and `WebSocket` for network communication. See the **scene-runtime** skill for async patterns.
+> **Smart wearables:** none of this works there — no `syncEntity`, no `MessageBus`. Only the wearer's avatar position and emotes reach other players; anything else needs a third-party server. See **smart-wearables** → Multiplayer.
 
 ## Sync Strategy Decision Tree
 
@@ -88,8 +84,6 @@ function createProjectile() {
 }
 ```
 
-> **Some visuals are inherently per-player, not shared.** A `Billboard` (camera-facing) is recomputed locally in each explorer, so every player sees it facing themselves — this is not synced and needs no `syncEntity`. The exception is a `Billboard` with a `targetEntity`: because the target's position is scene state, all players see that billboard oriented the same way. Use `targetEntity` when you need a shared, consistent orientation (e.g. a sign that points at a shared object). See the `player-avatar` / `sdk-scenes` component reference for Billboard details.
-
 ## Custom Synced Components
 
 Define custom components and sync them between players:
@@ -140,7 +134,7 @@ Available schema types for custom components:
 
 | Type                          | Usage                       |
 | ----------------------------- | --------------------------- |
-| `Schemas.Boolean`             | true/false                  |
+| `Schemas.Boolean`             | true/false (there is no `Schemas.Bool`) |
 | `Schemas.Int`                 | Integer numbers             |
 | `Schemas.Float`               | Decimal numbers             |
 | `Schemas.String`              | Text strings                |
@@ -172,18 +166,14 @@ const Loot = engine.defineComponent('game::Loot', {
 })
 ```
 
-### Schema fixes landed in `@dcl/sdk` 7.28.0 — drop the old workarounds
+### Schema behavior to rely on (`@dcl/sdk` 7.28.0+)
 
-All four were real bugs; if you are on 7.28.0+ you can write the obvious code.
+On an older pin these do not hold: never leave a `OneOf` field unset (serializing it throws and stops the engine tick for the whole scene), and treat `false`, `0` and `''` in an `Optional` or primitive-schema component as unset.
 
-| Fix | Old broken behavior | Now |
-|---|---|---|
-| `Schemas.Optional(...)` with falsy values (`da82bfb0`) | `false`, `0` and `''` were treated as unset — never written, read back as `undefined`. An `Optional(Schemas.Boolean)` could only hold `true` or nothing. | Presence is tested for `undefined`/`null`, so falsy values round-trip. `Optional(Boolean)` is now a real tri-state. |
-| `Schemas.OneOf(...)` left unselected (`0dce4d2d`) | `create()` returns `{}` with no `$case`; serialization called `$case.toString()`, **threw, and killed the engine tick for the whole scene**. | The unset case is encoded as index `0` (real cases start at 1) and deserializes back to `{}`. A `OneOf` field the scene never sets is safe. |
-| Components defined **directly from a primitive or array schema** (`5ec1a8a1`) | Every accessor tested the stored value for truthiness, so a component holding `0`, `false` or `''` reported itself as missing: `get` threw "not found", `getOrNull`/`deleteFrom` returned `null`, `getMutable` threw, `getOrCreateMutable` threw "already exists", and `create` silently succeeded over an existing falsy value. `deepReadonly` also spread non-objects, so a number came back as `{}` and an array as an index-keyed object. | Presence is asked of the map, and `deepReadonly` passes primitives through and copies arrays as arrays. |
-| `ReadonlyPrimitive` narrowed (`5ec1a8a1`) | Included array types, so `DeepReadonly<number[]>` resolved back to `number[]` — a `.push()` type-checked and then threw at runtime, because the array is frozen. | `ReadonlyPrimitive = number \| string \| boolean`. Array reads now resolve through the `ReadonlyArray` branch: **`.push()` no longer type-checks.** Copy the array (`[...arr]`) before mutating. This is a **public API change**; existing code that mutated a component array read may newly fail to compile — that code was already broken at runtime. |
-
-Related in the same release: `Player.wearables` and `Player.emotes` from the `@dcl/sdk` player helper are now **copies**, not aliases of the frozen component arrays, so writing to them no longer throws.
+- `Schemas.Optional(...)` holds falsy values: `false`, `0` and `''` round-trip, so `Optional(Schemas.Boolean)` is a real tri-state.
+- A `Schemas.OneOf(...)` field the scene never sets is safe: it serializes and reads back as `{}` with no `$case`.
+- A component defined directly from a primitive or array schema may hold `0`, `false` or `''`; every accessor treats that as present.
+- Component reads are deeply readonly: an array read is a `ReadonlyArray`, so `.push()` does not type-check. Copy it (`[...arr]`) before mutating and write the result back through `getMutable`.
 
 ## Parent-Child Sync Relationships
 
@@ -233,7 +223,7 @@ engine.addSystem(() => {
 
 ## MessageBus
 
-Send custom messages between players (fire-and-forget, no persistence):
+Send custom messages between players (fire-and-forget, no persistence). The SDK marks `MessageBus` `@deprecated` and the docs say it may be removed in a future version; it still works. Use `syncEntity` for anything late joiners need (the docs' recommendation for most cases), and keep `MessageBus` for transient effects.
 
 ```typescript
 import { MessageBus } from '@dcl/sdk/message-bus'
@@ -247,7 +237,7 @@ bus.on('hit', (data: { damage: number }) => {
 bus.emit('hit', { damage: 10 })
 ```
 
-> **Authoritative-server scenes**: `MessageBus` is client-only — the headless server runtime does not implement the legacy comms event it relies on, and a module-scope `new MessageBus()` (as above) fails on the server with `RemoteError: not implemented`. In those scenes construct it only inside the client branch (`if (!isServer())`); see the `authoritative-server` skill.
+> **Authoritative-server scenes:** construct `MessageBus` only inside the client branch (`if (!isServer())`); a module-scope `new MessageBus()` fails on the server. Use `registerMessages` instead: **authoritative-server** → Messages.
 
 ### syncEntity vs MessageBus
 
@@ -298,38 +288,7 @@ See the **scene-runtime** skill for full `fetch` and `signedFetch` patterns.
 
 ## WebSocket Connections
 
-For full WebSocket patterns (reconnection, heartbeat, message format), see `{baseDir}/references/networking-patterns.md`.
-
-### Basic Connection
-
-```typescript
-executeTask(async () => {
-	const ws = new WebSocket('wss://example.com/ws')
-
-	ws.onopen = () => {
-		console.log('Connected to WebSocket')
-		ws.send(JSON.stringify({ type: 'join', playerId: 'player123' }))
-	}
-
-	ws.onmessage = (event) => {
-		const msg = JSON.parse(event.data)
-		switch (msg.type) {
-			case 'gameState':
-				handleGameState(msg)
-				break
-			case 'playerJoin':
-				handlePlayerJoin(msg)
-				break
-			case 'playerLeave':
-				handlePlayerLeave(msg)
-				break
-		}
-	}
-
-	ws.onerror = (error) => console.error('WebSocket error:', error)
-	ws.onclose = () => console.log('Disconnected')
-})
-```
+WebSocket connect, reconnect with backoff, heartbeat and message format: `{baseDir}/references/networking-patterns.md`. Raw `WebSocket` API in the scene runtime: **scene-runtime**.
 
 ---
 
@@ -350,17 +309,18 @@ onLeaveScene((userId) => {
 
 ### SDK Observables (low-level)
 
-The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above. Recent fixes to be aware of:
+The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above.
 
-## GOTCHA: remote players' Transforms are world coordinates
+## Remote players' Transforms are scene-relative
 
-The local player's `Transform` is scene-local; **another player's entity reports world coordinates**. Subtract `basePos * 16` to compare them (see `player-avatar` > "remote players' Transforms are in WORLD coordinates"). This bites any distance check, leaderboard-by-proximity, or follow camera that iterates `PlayerIdentityData`.
+Another player's `Transform` is in the same scene-relative frame as the local player's (desktop, and mobile app 1.15.0+), which is what distance checks, proximity leaderboards and follow cameras that iterate `PlayerIdentityData` rely on. Older mobile apps report world coordinates; the conditional conversion and the safety-critical rule are in **player-avatar** → *Remote players' positions are scene-relative*.
 
 ## Per-player visuals are NOT automatically shared
 
-Some components that *look* multiplayer are **client-local**: writing them on a remote player's entity changes only what the writing client sees. They are never relayed, and `syncEntity` does not help — player entities are engine-owned, not scene-created.
+Some components that *look* multiplayer are evaluated or stored **per client**, so each player can see something different:
 
-- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local. If every player should see the same plate on everyone, each client must compute and write the whole set itself. **It is still not implemented on mobile** — it was previously listed as shipping in v1.14.0, but the Oct 2026 refresh (docs commit `5f212e3`, mobile app v1.15.0) moved it back to *missing, no ETA*. Mobile players see no plate at all, so **never make the plate the only carrier of information a player needs**: mirror rank/role in a `TextShape`, a HUD list or a color the avatar already wears.
+- **`Billboard`** (camera-facing) is recomputed in each client, so every player sees it facing their own camera; it needs no `syncEntity`. A `Billboard` with a `targetEntity` faces that entity instead, so all players see it oriented the same way: use it when the orientation must agree (e.g. a sign pointing at a shared object). Details: **advanced-rendering** → *Billboard (Face the Camera)*.
+- **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local: writing it on a remote player's entity changes only what the writing client sees, and `syncEntity` cannot relay it (player entities are engine-owned). If every player should see the same plate on everyone, each client must compute and write the whole set itself. It is not rendered on mobile, so never make it the only carrier of information a player needs (**player-avatar** → *Custom Nametag Plates* → Gotchas).
 
 Two ways to make a client-local visual agree across clients:
 
@@ -371,12 +331,12 @@ In both cases: resolve the target `Entity` from the user id on **every** write. 
 
 ## Multiplayer Testing
 
-Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing Preview a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
+Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing **Play** a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:
 
-- **Second desktop instance**: in Creator Hub open **Play Options** (the dropdown arrow on the **Play** button), hover the **Desktop Client** row to open its flyout, and tick **Multi-Instance Preview** (requires `@dcl/sdk` >= 7.20.4); or run `npx sdk-commands start --multi-instance`. Then press **Play** / run the command again. `-n` ("open a new instance of the Client even if one is already running") forces a new window on its own. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each.
+- **Second desktop instance**: in Creator Hub open **Play Options** (the dropdown arrow on the **Play** button), hover the **Desktop Client** row to open its flyout, and tick **Multi-Instance Preview** (requires `@dcl/sdk` >= 7.20.4); or run `npx sdk-commands start --multi-instance`. Then press **Play** / run the command again. Multi-instance needs each window to authenticate as a *different* account, so it disables Skip Auth Screen — expect an auth screen per instance and sign in with a different wallet in each, otherwise both windows are the same player. `--multi-instance` is the flag that lifts the single-instance lock. The `start` command's `-n` flag is not a substitute: it adds an `open-deeplink-in-new-instance` deep-link parameter that the Explorer rejects with an unsafe-parameters dialog, and it starts no second instance.
 - **Desktop + browser**: leave the desktop client open and add the Bevy web client as player 2 — **Play Options** → select the **Web (Bevy)** client row, or `npx sdk-commands start --web` (alias `--bevy-web`), which opens `https://decentraland.org/bevy-web/?preview=true&realm=<local realm origin>` (`.zone` under `--dclenv zone`). Browser tabs have no instance limit.
 
-The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `open-deeplink-in-new-instance=true` (from `-n`) or `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
+The `decentraland://` deep link Preview fires (`realm=…&position=…&dclenv=…&local-scene=true`) is subject to the same single-instance rule unless it carries `multi-instance=true`; let the CLI or Creator Hub build it rather than typing it by hand.
 
 ### Offline Mode
 
@@ -411,3 +371,5 @@ Engine-team test scenes exercised against the real engine:
 For contrast, the other multiplayer scene in the set is server-authoritative — use it to see how that pattern differs from the serverless one described here:
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/90,-9-authoritative-server-leaderboard — **authoritative** (NOT serverless): only the server calls `syncEntity`, and synced components are locked with `validateBeforeChange` so clients can only read them and send messages. If you instead want any client to mutate shared state directly (the pattern this skill documents), each client calls `syncEntity` on its own and there is no `validateBeforeChange`. See the **authoritative-server** skill for that scene's full breakdown.
+
+Published games in the docs example catalog (`{baseDir}/../sdk-scenes/references/example-scenes.md`) that sync without a server: **Clean The Club** (one shared component poll feeding several systems; other players' carried props via `AvatarAttach`), **Kick Off** (kick message plus immediate local ball motion), **Alien Scrapyard** (round-state cinematic cameras). Player queues and scoreboards for multiplayer mini games: `@dcl-sdk/mini-games` (catalog id `mini-games-library`).

@@ -1,38 +1,32 @@
 ---
 name: particle-system
-description: Emit particles (fire, smoke, snow, fireworks, magic, trails) from an entity in a Decentraland SDK7 scene with the ParticleSystem component. Do NOT use for procedural entity motion (see animations-tweens), GLTF model effects (see add-3d-models), or 2D UI effects (see build-ui).
+description: "Emit particles from an entity with the ParticleSystem component: fire, smoke, sparks, rain, snow, fireworks, magic, trails, explosion bursts. Use for any particle or VFX effect. For entity motion see animations-tweens; for UI effects see build-ui."
 ---
 
 # ParticleSystem (SDK7)
 
 Emit particles from an entity. One `ParticleSystem` component per entity, attached alongside a `Transform`. No mesh required — particles render from the component itself.
 
-## RULE: Transform.scale does NOT scale particles
+## RULE: Size particles with `initialSize` / `sizeOverTime` (Transform.scale is ignored)
 
-Particle size is controlled exclusively by `initialSize` and `sizeOverTime` (FloatRange). The `ParticleSystem` also sets emitter shape's spatial dimensions when the shape has size fields (Sphere radius, Box size, Cone radius). These are not affected by the entity's `Transform.scale`. Setting `Transform.scale` larger does not produce bigger particles.
+Particle size comes only from `initialSize` and `sizeOverTime` (FloatRange), and the emitter's extent only from the shape's own size fields (Sphere radius, Box size, Cone radius). The entity's `Transform.scale` affects neither.
 
 ## RULE: Particles only render to players inside scene parcels
 
 Players viewing the scene from outside its parcels see nothing. Particles are not part of the scene LOD silhouette. Position emitters within parcel bounds.
 
-## RULE: Engine caps total particles at ~1000
+## RULE: Budget particles — ≤ 8 emitters, `maxParticles` summing to ≤ 1,000
 
-The engine enforces a per-scene particle budget and will scale down emission rates across all active particle systems if total live particles would exceed the limit. Cap each system with `maxParticles` and prefer fewer impactful systems over many small ones.
+The desktop (Unity) explorer budgets **1,000 live particles per scene** and scales down emission rates across all active systems when the total would exceed it. `maxParticles` defaults to 1,000 per system, so a single system left at the default can claim the whole scene budget: set `maxParticles` on every system so the sum stays within 1,000, and prefer fewer impactful systems over many small ones. This desktop budget is the design target for a cross-platform scene; the mobile limits below are looser.
 
-### Mobile budget (published numbers)
-
-The mobile client publishes explicit figures (docs commit `8139a7f`, Oct 2026):
+Mobile limits (soft = a warning in the mobile performance panel; hard = the scene will not load):
 
 | | Soft | Hard |
 | --- | --- | --- |
 | VFX emitters (particle systems in the scene) | 8 | 10 |
 | Live particles | 25,000 | 50,000 |
 
-Soft = a warning in the mobile performance panel; hard = the scene will not load. On top of the scene limits, mobile **clamps at runtime to 5,000 particles per emitter and 50,000 per scene** — anything authored above those caps is silently reduced, so a `maxParticles` above 5,000 only wastes budget and buys no visuals.
-
-Practical target: **≤ 8 emitters**, `maxParticles` well under 5,000 each, and keep the sum of simultaneous live particles modest. [UNVERIFIED: how the "~1000" desktop figure above relates to these mobile numbers — they come from different sources, so treat the tighter one as the design target for a cross-platform scene.]
-
-Full mobile limit table and the lights/particles rationale: **optimize-scene** → *Mobile Scene Limits*. `ParticleSystem` itself **is** supported on mobile (it is no longer a parity gap).
+Mobile also clamps at runtime to 5,000 particles per emitter and 50,000 per scene. Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*. `ParticleSystem` itself is supported on mobile.
 
 ## RULE: prewarm requires loop = true
 
@@ -62,7 +56,7 @@ Aliases `ParticleSystemBlendMode` and `ParticleSystemPlaybackState` are also exp
 | ---------------------- | ------------------------------------ | ------------------ | ------------------------------------------------------------------------------- |
 | `active`               | `boolean`                            | `true`             | Master on/off for new emission.                                                 |
 | `rate`                 | `number`                             | `10`               | Particles emitted per second (continuous). Set to `0` when using `bursts`.      |
-| `maxParticles`         | `number`                             | `1000`             | Hard cap on simultaneous live particles for this system.                        |
+| `maxParticles`         | `number`                             | `1000`             | Cap on simultaneous live particles for this system. See the budget RULE.        |
 | `lifetime`             | `number`                             | `5`                | Particle lifespan in seconds.                                                   |
 | `gravity`              | `number`                             | `0`                | Multiplier on scene gravity (~ -9.81 m/s²). Negative = particles rise.          |
 | `additionalForce`      | `Vector3`                            | —                  | Constant force vector applied each frame (world space).                         |
@@ -70,7 +64,7 @@ Aliases `ParticleSystemBlendMode` and `ParticleSystemPlaybackState` are also exp
 | `sizeOverTime`         | `FloatRange`                         | `{start:1, end:1}` | Size lerped start→end over particle lifetime.                                   |
 | `initialRotation`      | `Quaternion`                         | identity           | Spawn orientation (3D).                                                         |
 | `rotationOverTime`     | `Quaternion`                         | identity           | Per-axis angular velocity (quaternion converted to Euler XYZ rad/s-equivalent). |
-| `faceTravelDirection`  | `boolean`                            | `false`            | Orient along velocity. Overrides `billboard`.                                   |
+| `faceTravelDirection`  | `boolean`                            | `false`            | Orient along velocity. See RULE above.                                          |
 | `initialColor`         | `ColorRange`                         | `{white,white}`    | Random color at spawn.                                                          |
 | `colorOverTime`        | `ColorRange`                         | `{white,white}`    | Color lerped start→end over lifetime. Use alpha=0 at end to fade out.           |
 | `initialVelocitySpeed` | `FloatRange`                         | `{start:1, end:1}` | Initial speed in m/s, randomized per particle.                                  |
@@ -80,7 +74,7 @@ Aliases `ParticleSystemBlendMode` and `ParticleSystemPlaybackState` are also exp
 | `spriteSheet`          | `{tilesX, tilesY, framesPerSecond?}` | —                  | Texture-atlas frame animation. `framesPerSecond` defaults to 30.                |
 | `shape`                | oneof Point/Sphere/Cone/Box          | Point              | Emitter geometry — see below.                                                   |
 | `loop`                 | `boolean`                            | `true`             | Loop the emission cycle. `false` = one-shot.                                    |
-| `prewarm`              | `boolean`                            | `false`            | Start as if one full loop has already simulated. Requires `loop: true`.         |
+| `prewarm`              | `boolean`                            | `false`            | Start as if one full loop has already simulated. See RULE above.                |
 | `simulationSpace`      | `PBParticleSystem_SimulationSpace`   | `PSS_LOCAL`        | `PSS_LOCAL` (move with entity) \| `PSS_WORLD` (stay put after spawn).           |
 | `limitVelocity`        | `{speed, dampen?}`                   | —                  | Clamp top speed. `dampen` 0–1, default `1` = hard clamp.                        |
 | `playbackState`        | `PBParticleSystem_PlaybackState`     | `PS_PLAYING`       | `PS_PLAYING` \| `PS_PAUSED` \| `PS_STOPPED`.                                    |
@@ -148,7 +142,7 @@ For full production-ready configurations, see `{baseDir}/references/particle-pre
 
 ## Creator Hub editor integration
 
-The Creator Hub inspector has a dedicated **ParticleSystem panel** (verified source: `ParticleSystemInspector.tsx`, multiEntity-capable, registered in `EntityInspector.tsx`). The recommended way to create and tune particle effects in Creator Hub scenes is:
+The Creator Hub inspector has a dedicated **ParticleSystem panel** (works on multi-entity selections). The recommended way to create and tune particle effects in Creator Hub scenes is:
 
 1. Add a `ParticleSystem` component to an entity in the editor.
 2. Tweak all fields live in the inspector panel -- no code, no scene reload.
@@ -213,11 +207,11 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Gotchas
 
-- **Texture path** — particle textures default to `assets/Images/`. Same path conventions as Material textures. Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/` (still works); textures from Creator Hub asset packs land in `assets/asset-packs/` and custom items in `assets/custom/` — reference those paths as-is.
+- **Texture path** — textures go in `assets/Images/` (folder conventions: **add-3d-models** → Asset folder conventions). Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/`; that still works, so reference those paths as-is.
 - **Quaternion rotation fields** — `rotationOverTime` is interpreted as per-axis angular velocity (quaternion → Euler XYZ). `Quaternion.fromEulerDegrees(0, 90, 0)` = spin 90°/s on Y. Identity = no spin.
 - **`additionalForce` is world-space** even when `simulationSpace = PSS_LOCAL`. Wind/drift directions stay constant regardless of emitter rotation.
 - **`limitVelocity.dampen = 1`** = hard clamp (particles never exceed `speed`). Lower values let velocity exceed cap briefly then decay.
-- **Color.alpha = 0 at end of `colorOverTime`** is the standard way to fade particles out — don't rely on `sizeOverTime` ending at 0 alone.
+- **Fade particles out with alpha 0 at the end of `colorOverTime`**, alongside or instead of `sizeOverTime` ending at 0.
 - **Bursts ignore `active = false`** at the moment of evaluation — `active` is checked once per frame for continuous rate; setting it after a burst time will not retroactively cancel that burst.
 - **No mesh attached to the emitter entity** — adding `MeshRenderer` is unrelated; particles render via the ParticleSystem component itself.
 
@@ -230,7 +224,7 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 
 ## Resources
 
-- `{baseDir}/references/particle-presets.md` — 17 ready-to-use preset configurations from the SDK7 test scene (fire, magic, snowfall, vortex, fountain, swarms, sparks, rain, bursts, fireworks, campfire, trails).
+- `{baseDir}/references/particle-presets.md` — the 17 presets listed above.
 - Live tuner: `ParticleLab.dcl.eth` (open with Decentraland client).
 
 ## Example scenes

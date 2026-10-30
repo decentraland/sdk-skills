@@ -146,4 +146,4 @@ This is the canonical pattern: **one read-into-view system per analyzed entity p
 
 ## Source
 
-Adapted from the merged example at `decentraland/sdk7-goerli-plaza/audio-visualization` ([PR #273](https://github.com/decentraland/sdk7-goerli-plaza/pull/273)).
+Adapted from the merged example at `decentraland/sdk7-goerli-plaza/audio-visualization`.

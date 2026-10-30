@@ -19,6 +19,34 @@ NftShape.create(nftFrame, {
 })
 ```
 
+Frame styles (`style`):
+
+```typescript
+NftFrameType.NFT_CLASSIC            // Simple classic frame
+NftFrameType.NFT_BAROQUE_ORNAMENT   // Ornate baroque
+NftFrameType.NFT_DIAMOND_ORNAMENT   // Diamond pattern
+NftFrameType.NFT_MINIMAL_WIDE       // Minimal wide border
+NftFrameType.NFT_MINIMAL_GREY       // Minimal grey border
+NftFrameType.NFT_BLOCKY             // Pixelated/blocky
+NftFrameType.NFT_GOLD_EDGES         // Gold edge trim
+NftFrameType.NFT_GOLD_CARVED        // Carved gold
+NftFrameType.NFT_GOLD_WIDE          // Wide gold border
+NftFrameType.NFT_GOLD_ROUNDED       // Rounded gold
+NftFrameType.NFT_METAL_MEDIUM       // Medium metal
+NftFrameType.NFT_METAL_WIDE         // Wide metal
+NftFrameType.NFT_METAL_SLIM         // Slim metal
+NftFrameType.NFT_METAL_ROUNDED      // Rounded metal
+NftFrameType.NFT_PINS               // Pinned to wall
+NftFrameType.NFT_MINIMAL_BLACK      // Minimal black
+NftFrameType.NFT_MINIMAL_WHITE      // Minimal white
+NftFrameType.NFT_TAPE               // Taped to wall
+NftFrameType.NFT_WOOD_SLIM          // Slim wood
+NftFrameType.NFT_WOOD_WIDE          // Wide wood
+NftFrameType.NFT_WOOD_TWIGS         // Twig/branch wood
+NftFrameType.NFT_CANVAS             // Canvas style
+NftFrameType.NFT_NONE               // No frame
+```
+
 ## Check Player Wallet
 
 ```typescript
@@ -275,7 +303,7 @@ executeTask(async () => {
 
 ### Estate Fingerprint Verification
 
-When building marketplace integrations that list or verify Estate NFTs, use `getFingerprintV2(uint256 estateId)` on the Estate smart contract to obtain the fingerprint at listing time, and `verifyFingerprint(uint256 estateId, bytes fingerprint)` at execution time. The older `getFingerprint` method is deprecated: starting **26 November 2026**, `verifyFingerprint` stops accepting values produced by it. New integrations must use `getFingerprintV2`. Verified against docs commit `e8e76fd`.
+When building marketplace integrations that list or verify Estate NFTs, use `getFingerprintV2(uint256 estateId)` on the Estate smart contract to obtain the fingerprint at listing time, and `verifyFingerprint(uint256 estateId, bytes fingerprint)` at execution time. The older `getFingerprint` method is deprecated: starting **26 November 2026**, `verifyFingerprint` stops accepting values produced by it. New integrations must use `getFingerprintV2`.
 
 ### Sign Message
 

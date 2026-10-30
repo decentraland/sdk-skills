@@ -1,11 +1,9 @@
 ---
 name: advanced-input
-description: System-level input polling, player movement control, and mobile on-screen controls in Decentraland. Covers inputSystem, InputModifier, PointerLock, PrimaryPointerInfo, and TouchScreenControls. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, multi-key combo patterns, or to hide/customize the mobile joystick, crosshair, or on-screen buttons. For event-driven clicks and hover on entities see add-interactivity.
+description: System-level input polling, player movement control, platform and language detection, and mobile on-screen controls in Decentraland. Covers inputSystem, InputModifier, PointerLock, PrimaryPointerInfo, getPlatform/getPlayerLanguage, and TouchScreenControls. Use when the user wants continuous key polling, WASD-controlled entities, to freeze the player during a cutscene, FPS-style cursor lock, multi-key combo patterns, mobile-specific behavior, localized text in the player's language, or to hide/customize the mobile joystick, crosshair, or on-screen buttons. For event-driven clicks and hover on entities see add-interactivity.
 ---
 
 # Advanced Input Handling in Decentraland
-
-For basic click/hover events, see the `add-interactivity` skill. This skill covers advanced input patterns. Prefer `pointerEventsSystem.onPointerDown()` (add-interactivity) for simple entity clicks; use `inputSystem` for complex multi-key or polling patterns.
 
 ## Pointer Lock State
 
@@ -29,7 +27,7 @@ engine.addSystem(checkPointerLock)
 
 ### Requesting / releasing pointer lock (writable)
 
-`PointerLock.isPointerLocked` is a plain writable boolean — a scene can request or release cursor capture by mutating it (verified: `31,20-pointer-lock-control` sets it from click handlers and a timed system):
+`PointerLock.isPointerLocked` is a plain writable boolean — a scene can request or release cursor capture by mutating it, from a click handler or a system:
 
 ```typescript
 PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })
@@ -73,11 +71,11 @@ engine.addSystem(readPointer)
 ### Field details
 
 - `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the top-left corner of the screen** (positive Y = down — the same space as `UiTransform`/`UiCanvasInformation`, so cursor coords drop straight into a UI `position`). When the cursor is locked, freezes at the screen center.
-- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. This caught the reference mouse-look scenes, which subtracted `delta.y` until sdk7-test-scenes `0e4eecf` corrected them. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
 - `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
 - `pointerType` — `0` for none, `1` for mouse.
 
-PITFALL: every field is optional — verified schema and `0,5-primary-cursor-info`, which guards each read (`pointerInfo.screenCoordinates?.x ?? -666`, `pointerInfo.worldRayDirection?.x.toFixed(2)`). Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and always null-check the fields. `worldRayDirection` feeds directly into a camera raycast direction (see the "spawn at cursor" pattern in that scene).
+PITFALL: every field is optional. Use `getOrCreateMutable(engine.RootEntity)` so the component exists before first read, and null-check each field (`pointerInfo.screenCoordinates?.x ?? 0`). `worldRayDirection` feeds directly into a camera raycast direction (the "spawn at cursor" pattern in `0,5-primary-cursor-info`).
 
 ## Input Polling with inputSystem
 
@@ -108,33 +106,13 @@ The returned command carries `hit` data (position and entity) — use `getInputC
 
 Pass `InputAction.IA_ANY` to match any action — `getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` returns a command for whatever key was pressed, and `cmd.button` tells you which one.
 
-> **CORRECTION — "omit the entity argument to check globally" is wrong.** Omitting the entity does not mean "no target" or "the scene root". Verified in `@dcl/ecs/src/engine/input.ts`: both `isTriggered` and `getInputCommand` branch on `if (entity) { ...that entity's results... } else { ...globalState.thisFrameCommands... }`, and `thisFrameCommands` is filled by iterating `engine.getEntitiesWith(PointerEventsResult)` — i.e. **every entity in the scene**. So an entity-bound press satisfies the entity-less call, and you cannot tell a scene-root broadcast from a click on some cube.
->
-> **Passing `engine.RootEntity` does not help either.** `RootEntity` is `0`, which is falsy, so `if (entity)` sends it down the _same_ all-entities branch. This has produced real misdiagnoses: in `149,149-synthetic-input-showcase` it made an input-suppression test read as broken across three runs, and armed a paint station from clicks on unrelated stations.
->
-> **To genuinely read root-entity input**, read the root's own grow-only result set and track a timestamp watermark:
->
-> ```typescript
-> let lastRootTimestampSeen = 0
-> engine.addSystem(() => {
->   let maxTimestamp = lastRootTimestampSeen
->   for (const cmd of PointerEventsResult.get(engine.RootEntity)) {
->     if (cmd.timestamp <= lastRootTimestampSeen) continue
->     if (cmd.timestamp > maxTimestamp) maxTimestamp = cmd.timestamp
->     if (cmd.state !== PointerEventType.PET_DOWN) continue
->     // ...handle the root-level press...
->   }
->   lastRootTimestampSeen = maxTimestamp
-> })
-> ```
->
-> The same flaw is present in the `0,1-input-modifier` test scene (`getInputCommand(InputAction.IA_ANY, PointerEventType.PET_DOWN)` with no entity) — do not copy that line as a "global input" idiom.
-
 For the Tag-based per-entity cookbook (mark entities with a Tag, fetch them with `engine.getEntitiesByTag`, and poll each with `getInputCommand` inside a system), see `{baseDir}/references/input-patterns.md` → "Per-Entity Input Command Cookbook (Tag-based)".
 
 ### Global Input Checks
 
 Check if a specific key was pressed, regardless of if the player's cursor was pointing at an entity or not.
+
+**Entity-less calls answer from every entity.** Called without an entity (or with `engine.RootEntity`, which is `0` and takes the same branch), `isTriggered` / `getInputCommand` read the results of every entity that has `PointerEventsResult`, so a click on any entity counts as the "global" press. That is right for "was E pressed at all". To read only presses that hit no entity (scene-root input), read `PointerEventsResult.get(engine.RootEntity)` with a timestamp watermark: `{baseDir}/references/input-patterns.md` → *Root-Entity Input (timestamp watermark)*.
 
 Use `isTriggered()` for one-shot actions (fire a weapon, open a door) — it returns true only on the frame the key is first pressed. Use `isPressed()` for continuous actions (movement, holding a shield) — it returns true every frame while held.
 
@@ -154,19 +132,13 @@ function globalInputSystem() {
 engine.addSystem(globalInputSystem)
 ```
 
-### Cross-entity input interference (fixed in `@dcl/sdk` 7.28.0)
-
-`2778e4bb`. The per-entity command scan walked an entity's commands newest-first and stopped as soon as it hit one no newer than the **global** button state — which an entity processed earlier in the _same frame_ had usually just written. The scan then abandoned that entity's remaining commands, including ones for other buttons.
-
-Symptom on 7.27.x and earlier: **releasing the pointer over one entity while a key went down over another in the same frame lost the key.** `isPressed` and the global `isTriggered` both answered `false` while the per-entity `isTriggered` still said `true` — an inconsistency that made the bug look like a scene logic error.
-
-The scan now stops at the frame boundary instead of at another entity's command. Nothing to change in scene code; just stop working around it, and be aware the old behavior is still live for anyone on an older SDK.
+Below `@dcl/sdk` 7.28.0, a key pressed over one entity in the same frame the pointer is released over another is dropped: `isPressed` and the global `isTriggered` read `false` while that entity's `isTriggered` reads `true`. Upgrade the pin rather than work around it.
 
 ## All InputAction Values
 
 | InputAction    | Key/Button                                                       |
 | -------------- | ---------------------------------------------------------------- |
-| `IA_POINTER`   | Left mouse button                                                |
+| `IA_POINTER`   | Left mouse button / tap                                          |
 | `IA_PRIMARY`   | E key                                                            |
 | `IA_SECONDARY` | F key                                                            |
 | `IA_ACTION_3`  | 1 key                                                            |
@@ -184,12 +156,7 @@ The scan now stops at the frame boundary instead of at another entity's command.
 
 ## Event Types
 
-```typescript
-PointerEventType.PET_DOWN         // Button/key pressed
-PointerEventType.PET_UP           // Button/key released
-PointerEventType.PET_HOVER_ENTER  // Cursor enters entity
-PointerEventType.PET_HOVER_LEAVE  // Cursor leaves entity
-```
+`PointerEventType` values (`PET_DOWN`, `PET_UP`, hover and proximity enter/leave): **add-interactivity** → *All Event Types*.
 
 ## InputModifier (Movement Restriction)
 
@@ -220,9 +187,13 @@ InputModifier.createOrReplace(engine.PlayerEntity, {
 InputModifier.deleteFrom(engine.PlayerEntity)
 ```
 
-**Standard flags** (all optional booleans; verified `input_modifier.gen.d.ts`): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent (both seen in test scenes).
+**Standard flags** (all optional booleans): `disableAll`, `disableWalk`, `disableJog`, `disableRun`, `disableJump`, `disableEmote`, `disableDoubleJump`, `disableGliding`. A `false`/omitted flag is ignored (consumes no bandwidth). `InputModifier.Mode.Standard({...})` and the raw `{ $case: 'standard', standard: {...} }` form are equivalent.
 
-**Important:** InputModifier only works in the DCL 2.0 desktop client. It has no effect in the web browser explorer — test with the desktop client if your scene relies on it.
+`disableJog` is separate from `disableWalk` / `disableRun`: jog is the default movement speed, so disabling only walk and run still lets the player jog.
+
+**Behavior when frozen:** gravity and external forces still apply, camera rotation stays available, global input events are still detectable, and the restrictions lift automatically when the player leaves the scene bounds. To lock input for an action, pair it with `triggerSceneEmote` or `movePlayerTo` (**player-avatar**) and remove the modifier when the action ends.
+
+**Clients:** works on desktop and on mobile app 0.50+ (`disableDoubleJump` and `disableGliding` need mobile 0.65+; older mobile apps ignore the modifier). On mobile, `disableAll` stops the touch joystick and buttons from moving the player but leaves them on screen; hide them with `TouchScreenControls` if they should disappear.
 
 ### Cutscene Pattern
 
@@ -256,11 +227,11 @@ function platformCheckSystem() {
 engine.addSystem(platformCheckSystem)
 ```
 
-Import from `@dcl/sdk/platform`. Verified against docs commit `17ca7be`.
+Import from `@dcl/sdk/platform`.
 
 ## Player language (`getPlayerLanguage`)
 
-**Requires `@dcl/sdk` 7.30.0+** (js-sdk-toolchain `201a8a35`, PR #1622 — landed after the 7.29.0 tag, released in 7.30.0; verified with `git merge-base --is-ancestor 201a8a35 7.30.0`). Check the scene's pin before using it on an older project.
+**Requires `@dcl/sdk` 7.30.0+.** Check the scene's pin before using it on an older project.
 
 Same module, `@dcl/sdk/platform`. Use it to pick localized strings for UI text, NPC dialogue, signage, and hover text.
 
@@ -297,7 +268,7 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 - Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
 - **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
 - Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
-- **If the scene uses the Creator Hub UI Designer, this component is the editor's.** Creator Hub 0.50.0+ ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **build-ui** skill > "MobileHUD".
+- **If the scene uses the Creator Hub UI Designer, this component is the editor's.** The Creator Hub ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **build-ui** skill > "MobileHUD".
 
 `PBTouchScreenControls` fields:
 
@@ -335,61 +306,25 @@ Gotchas:
 - Hiding a button does not disable the action — `inputSystem` still reports it if it can be triggered another way. Hiding removes the _button_, not the _input_.
 - Hiding the joystick leaves mobile players with no native way to walk; replace it with scene UI or make the scene intentionally stationary.
 - Buttons cannot be repositioned. Their slots are fixed; a scene only chooses which are visible and which one leads.
-
-Raw form (what the helpers write for you) — note the nested `icon` shape, which is a `TextureUnion`, not a plain path. From `33,20-spectate-mode`:
-
-```typescript
-import { engine, InputAction, TouchScreenControls } from '@dcl/sdk/ecs'
-import { isMobile } from '@dcl/sdk/platform'
-
-const ICON_DIR = 'assets/Images/spectate-mode'
-const textureIcon = (src: string) => ({ tex: { $case: 'texture' as const, texture: { src } } })
-
-TouchScreenControls.createOrReplace(engine.RootEntity, {
-	hideJoystick: false,
-	hideCrosshair: false,
-	touchInputs: [
-		{ inputAction: InputAction.IA_ACTION_3, hide: false, icon: textureIcon(`${ICON_DIR}/icon-next.png`) },
-		{ inputAction: InputAction.IA_ACTION_5, hide: true },
-		{ inputAction: InputAction.IA_PRIMARY, hide: false, icon: textureIcon(`${ICON_DIR}/icon-zoomIn.png`) },
-	],
-})
-```
-
-`createOrReplace` **replaces** the whole config (the helpers merge instead). Tear down with `touchInputs: []`. Re-call it whenever the icons should change with scene state — the spectate scene swaps zoom-in/zoom-out for raise/lower depending on whether a follow target is selected.
+- `createOrReplace` **replaces** the whole config (the helpers merge instead); `icon` is a nested `TextureUnion`, not a plain path.
 
 Combine with `UiInputBinding` (the `uiInputBinding` prop on `UiEntity`, see **build-ui**) to build custom on-screen action buttons: hide the native buttons here, then bind the same `InputAction`s to your own scene UI.
 
-**Mobile UI sizing alongside touch controls:** `isMobile()` is the switch for the _scene's own_ UI, not for `TouchScreenControls` (which is a safe no-op on desktop). The pattern in `33,20-spectate-mode` is to branch the scene HUD on `isMobile()`: hide pointer-lock affordances, swap keyboard instruction text for joystick/tap text, render icon caps instead of W/A/S/D keycaps, and enlarge tap targets (that scene goes from 32px to 48px). [UNVERIFIED: 48px is that scene's measured choice, not a published Decentraland minimum — treat it as a sensible starting point and check on a device.]
-
-For the button priority stack and the "+" overflow rules, custom icons, and full worked examples, see `{baseDir}/references/touch-screen-controls.md`.
+For the button priority stack and the "+" overflow rules, custom icons, the raw `createOrReplace` form with per-state icon swaps, adapting the scene HUD with `isMobile()`, and full worked examples, see `{baseDir}/references/touch-screen-controls.md`.
 
 ## Mobile considerations
 
-Key facts from the mobile docs expansion (commit `17ca7be`):
-
-- **Touch-only input** -- no mouse hover states, keyboard shortcuts, or right-click.
-- **`borderRadius` unsupported on mobile UI** -- avoid rounded corners in mobile-targeting scenes.
-- **On-screen controls ARE scene-configurable** on SDK 7.26.0+ via `TouchScreenControls` -- hide the joystick, the crosshair, or individual gamepad buttons, re-bind the central button, or swap a button glyph for a scene image. Their positions are still fixed. This supersedes older docs claiming the mobile HUD is static. See the `TouchScreenControls` section above.
-- **The old "~3x scaling for mobile" rule no longer applies as written.** On SDK 7.26.0+ pixel-sized UI is already ~2–3× larger on a phone than before (`devicePixelRatio` was removed from the UI scale factor), and the mobile virtual screen (`1600x720` vs desktop's `1920x1080`) adds ~1.2× more. Start from the desktop sizes, measure on a device, and scale up only what comes up short. See [[build-ui]].
-- **UI is kept inside the device's safe area (notch, home indicator) automatically on SDK 7.26.0+** — the renderer's `screenInset` option defaults to `'device'`. Only pass `screenInset: 'none'` if you want the UI over the whole screen; the `ScreenInsetArea` component is then available to inset individual subtrees. Below 7.26.0, wrap the UI in `ScreenInsetArea` (from `@dcl/sdk/react-ecs`) yourself. See [[build-ui]].
-- **SDK feature parity with the desktop client** (docs commit `5f212e3`, reviewed **Oct 2026, mobile app v1.15.0**):
-  - **Now available:** `ParticleSystem`, `PrimaryPointerInfo`, `AssetLoad`, `LightSource` (scene dynamic lights, **v1.13.0**), avatar masks / upper-body-only emotes (**v1.13.0**). Audio parity (volume curves + spatial attenuation), `AudioEvent` (`PBAudioEvent`), `AudioAnalysis` (`PBAudioAnalysis`), pinch-to-zoom (**v1.14.0**). `stopEmote` restricted action, `Tween` **`MoveRotateScale`** mode, other players' positions reported **scene-relative** like the local player's (`getPlayer({ userId }).position`, `onEnterScene`, items attached to other players), the first Unity-parity pass on player movement, and correct `hitDistance` on downward player raycasts over sloped geometry (**v1.15.0**).
-  - **Still missing, no ETA:**
-    - **`TweenSequence` is not implemented — sequenced tweens do not animate at all.** The single `Tween` component works (including `MoveRotateScale` since v1.15.0); it is the *sequence* wrapper that is dead. Drive multi-step motion from a system instead. See [[animations-tweens]].
-    - **`AvatarNametag`** — the scene-authored plate above a player's nametag. (It was previously listed as shipping in v1.14.0; the Oct 2026 refresh moved it back to missing.)
-    - **Draco mesh compression** (`KHR_draco_mesh_compression`) — the mobile app has **no runtime Draco decoder**. Draco models load only from the scene's *optimized assets*, where the asset server already decompressed them; with no optimized assets — **local preview** — they **fail to load silently, with no error**. Export without Draco.
-    - **Custom fonts** (`fontSrc`) — the mobile app always renders the `font` fallback on `TextShape` and UI text. See **fonts**.
-    - `UiBackground` **nine-slice** (mobile tiles instead of stretching), proximity voice chat, point-at-in-world. **Smart Items are not officially supported on mobile.**
-  - **Known inconsistencies** (beyond the v1.15.0 movement pass): slopes, edges, walls, landing, moving platforms and glide behavior still differ from Unity; **scene colliders thinner than 1 cm only collide from above**, and invisible blockers and some SDK collision layers do not block the player at all; spawn / landing / jump animations and movement blending are missing; some emotes from other clients (Bevy-Web scene emotes, Unity emotes over LiveKit) do not play on mobile; in a Creator Hub mobile preview the mobile player's avatar is **not visible to desktop testers**. Do not tune tight platforming or ledge geometry against desktop feel alone — see [[player-physics]].
-  - Mobile also enforces its own flat scene limits (lights, VFX emitters, particles, triangles…) — see [[optimize-scene]] → *Mobile Scene Limits*. Check the docs parity tracker for the latest.
+- **Touch only:** no hover states, keyboard shortcuts, right-click or mouse movement (`screenDelta` stays 0). Every action a player needs must be reachable from a tap, an on-screen button, or a scene UI button.
+- **On-screen controls are scene-configurable** (SDK 7.26.0+) through `TouchScreenControls` above; their positions are fixed.
+- **`InputModifier` on mobile:** app version floors and the `disableAll` caveat are under *InputModifier* → **Clients**.
+- Mobile UI sizing, safe area and borders: **build-ui**. Every other mobile gap (`TweenSequence`, Draco GLBs, `AvatarNametag`, colliders, movement) and what each app version supports: `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Flat mobile scene limits: **optimize-scene** → *Mobile Scene Limits*.
 
 ## Example scenes
 
 Engine-team test scenes exercising these APIs (ground truth):
 
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier — InputModifier standard flags (incl. `disableWalk`/`disableJog`), `getInputCommand(IA_ANY, PET_DOWN)` to read whichever key was pressed. **Caveat:** that entity-less `getInputCommand` call is answered from every entity's `PointerEventsResult`, so it also fires on entity-bound clicks — see the correction under "Per-Entity Input Commands"; do not copy it as a global-input idiom.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — 2x2-parcel rig of ten stations (S1-S10) exercising the whole synthetic-input surface under the Unity Explorer MCP: walk, camera look, click/hover, key presses, UI text entry and clicks. Source of the root-entity input-reading pattern above, the tall-invisible-`TriggerArea` fix, and the occupancy-recompute `InputModifier` pattern.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,1-input-modifier — InputModifier standard flags (incl. `disableWalk`/`disableJog`), `getInputCommand(IA_ANY, PET_DOWN)` to read whichever key was pressed (an entity-less call; see *Global Input Checks*).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — 2x2-parcel rig of ten stations (S1-S10) exercising the whole synthetic-input surface under the Unity Explorer MCP: walk, camera look, click/hover, key presses, UI text entry and clicks. Source of the root-entity input pattern (references/input-patterns.md), the tall-invisible-`TriggerArea` fix, and the occupancy-recompute `InputModifier` pattern.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate/free-cam: two-entity `VirtualCamera` rig, `InputModifier disableAll` to freeze the avatar, an `onEnterScene`/`onLeaveScene` roster for cycling follow targets, and full `TouchScreenControls` + `isMobile()` mobile parity (icon swaps per state). Its README documents only the desktop bindings; the mobile handling is in the source.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/31,20-pointer-lock-control — writing `PointerLock.isPointerLocked` to request/release cursor capture; `PointerLock.onChange`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — reading `PrimaryPointerInfo` (screen coords/delta/worldRayDirection) each frame; feeding `worldRayDirection` into a camera raycast.
@@ -399,7 +334,7 @@ Engine-team test scenes exercising these APIs (ground truth):
 
 ## References
 
-- `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
-- `{baseDir}/references/touch-screen-controls.md` — `TouchScreenControls`: button priority stack and "+" overflow rules, custom button icons, declutter/full-custom-HUD examples, helper semantics.
+- `{baseDir}/references/input-patterns.md` — branch-specific worked patterns: Tag-based per-entity input cookbook, root-entity input with a timestamp watermark, cutscene freeze/restore flow, WASD-driven custom entity, action-bar number-key mapping.
+- `{baseDir}/references/touch-screen-controls.md` — `TouchScreenControls`: button priority stack and "+" overflow rules, custom button icons, raw form with state-driven icons, mobile HUD adaptation, declutter/full-custom-HUD examples, helper semantics.
 
 For basic pointer events and click handlers, see the `add-interactivity` skill.

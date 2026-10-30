@@ -6,7 +6,7 @@
 import { AudioSource } from '@dcl/sdk/ecs'
 
 AudioSource.create(entity, {
-  audioClipUrl: 'sounds/effect.mp3',  // Path to local audio file (required)
+  audioClipUrl: 'assets/Audio/effect.mp3',  // Path to local audio file (required)
   playing: false,                      // Start/stop playback
   loop: false,                         // Loop when finished
   volume: 1.0,                         // Volume 0.0 to 1.0 (default 1.0)
@@ -35,9 +35,9 @@ audio.pitch = 1.5      // Speed up
 Use `playSound` / `stopSound` to reliably retrigger. They write the whole component, so identical-parameter clicks still re-emit — hand-mutating `getMutable().playing` can be silently deduped by the LWW-CRDT when values are unchanged, so repeat clicks may do nothing.
 
 ```typescript
-// Signatures (both return false if the entity has no AudioSource):
-//   AudioSource.playSound(entity, src: string, resetCursor = true): boolean
-//   AudioSource.stopSound(entity, resetCursor = true): boolean
+// Signatures:
+//   AudioSource.playSound(entity, src: string, resetCursor = true): boolean  // creates the AudioSource if missing; always true
+//   AudioSource.stopSound(entity, resetCursor = true): boolean               // false if the entity has no AudioSource
 
 AudioSource.playSound(entity, 'sounds/effect.mp3')        // play from 0 every call
 AudioSource.playSound(entity, 'sounds/effect.mp3', false) // resume from currentTime
@@ -98,7 +98,7 @@ AudioStream is NOT spatial — it plays at the same volume regardless of player 
 import { VideoPlayer } from '@dcl/sdk/ecs'
 
 VideoPlayer.create(entity, {
-  src: 'videos/clip.mp4',    // Local file or external URL (required)
+  src: 'assets/Videos/clip.mp4',    // Local file or external URL (required)
   playing: true,              // Start/stop playback
   loop: false,                // Loop when finished
   volume: 1.0,                // Volume 0.0 to 1.0
@@ -176,7 +176,7 @@ const state = videoEventsSystem.getVideoState(entity)
 
 ```typescript
 // One VideoPlayer, shared across screens
-VideoPlayer.create(screen1, { src: 'videos/shared.mp4', playing: true })
+VideoPlayer.create(screen1, { src: 'assets/Videos/shared.mp4', playing: true })
 const tex = Material.Texture.Video({ videoPlayerEntity: screen1 })
 Material.setBasicMaterial(screen1, { texture: tex })
 Material.setBasicMaterial(screen2, { texture: tex })
@@ -190,20 +190,9 @@ Material.setBasicMaterial(screen2, { texture: tex })
 | Medium | 5 |
 | High | 10 |
 
-### Media Permissions in scene.json
-
-`[LEGACY]` External audio/video URLs do **not** require any permission on current clients — no current client enforces `ALLOW_MEDIA_HOSTNAMES` (unity-explorer gates it behind the unset `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define; bevy-explorer has no enforcement). Only the retired web client enforced it. For legacy scenes that still declare it, the syntax is:
-
-```json
-{
-  "requiredPermissions": ["ALLOW_MEDIA_HOSTNAMES"],
-  "allowedMediaHostnames": ["stream.example.com", "cdn.example.com"]
-}
-```
-
 ## AudioAnalysis (Advanced)
 
-Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. **Unity explorer only.**
+Real-time amplitude + 8-band frequency data from any `AudioSource`, `AudioStream`, or `VideoPlayer`. Used for music visualizers, reactive environments, and beat-synced animations. Desktop: all three sources. Mobile: `AudioSource` only (`AudioStream`/`VideoPlayer` read 0; band values differ by a constant factor).
 
 ```typescript
 import { AudioAnalysis, AudioAnalysisView } from '@dcl/sdk/ecs'

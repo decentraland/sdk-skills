@@ -1,6 +1,6 @@
 ---
 name: camera-control
-description: Control camera behavior in Decentraland scenes. Covers CameraMode, CameraModeArea, VirtualCamera, MainCamera, and camera vs collider interactions. Use when the user wants camera control, cutscenes, forced camera modes, camera tracking, or a spectate / observer / replay / free-cam mode. Do NOT use for input restriction during cutscenes (see advanced-input for InputModifier) or cursor lock detection (see advanced-input for PointerLock).
+description: "Control the camera in Decentraland scenes: read camera state, force first/third person in an area, cinematic VirtualCamera shots, walls that block the third-person camera. Use for cutscenes, forced camera modes, camera tracking, or a spectate / free-cam mode. For freezing input or cursor lock see advanced-input."
 ---
 
 # Camera Control in Decentraland
@@ -23,7 +23,7 @@ function trackCamera() {
 engine.addSystem(trackCamera)
 ```
 
-`engine.CameraEntity` is read-only — never write to its Transform. To move a camera under scene control, drive a VirtualCamera instead (see VirtualCamera below).
+`engine.CameraEntity`'s Transform is read-only (to move a camera, see VirtualCamera below).
 
 ## Camera Mode Detection
 
@@ -86,11 +86,11 @@ CameraModeArea.create(fpArea, {
 
 When the player leaves the area, the camera reverts to their preferred mode.
 
-**GOTCHA — a non-zero `area` wins over `Transform.scale` for the life of the component.** Scaling the area entity, or any of its parents, after `CameraModeArea.create()` does **not** resize the region: it stays exactly `area` metres. An axis scaled to 0 still collapses it. So a camera region cannot be grown by tweening a scale or by parenting it under a rig that scales — write `CameraModeArea.getMutable(entity).area` instead (and mirror the numbers into `scale` so the Creator Hub gizmo agrees). Size a *visible* debug box as a separate entity; a `MeshRenderer` on the area entity itself misreports the volume as soon as either value changes. Full rule, plus the opposite behaviour of `TriggerArea` (no size field — the Transform *is* the volume, later scale changes included), in **player-avatar** → `AvatarModifierArea`. Regression coverage in [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) → `src/areaScaleDrift.ts`.
+**Resize the region through `area`.** A non-zero `area` fixes the region size for the life of the component: scaling the entity or its parents does not resize it (an axis scaled to 0 still collapses it), so write `CameraModeArea.getMutable(e).area`. Full rule: **player-avatar** → Avatar Modifier Areas.
 
 **A whole-experience restriction needs whole-experience coverage.** An area that covers only the spawn route proves nothing once the scene teleports, respawns, jumps the player to an alternate height, or hands the camera back after a cinematic. Size the area to the full horizontal *and* vertical play space (including debug jumps and death/restart positions), then test every transition in-world: spawn, teleport, death/restart, alternate height, unlock/relock and cinematic handback. When handing control back, restore the mode the scene intends (first person for a first-person scene), not a generic third person.
 
-**Creator Hub / Inspector support:** the Creator Hub now has a dedicated inspector panel for `CameraModeArea` with a dropdown for `mode` (`First Person` / `Third Person`; Cinematic is intentionally omitted -- use `VirtualCamera` for that). A "Camera Modifier Area" smart item (utils category, translucent placeholder cube) is available in the asset catalog. The editor keeps the `area` field invisibly in sync with the entity's `Transform.scale` (the runtime sizes the region from a non-zero `area` and compensates out `scale`; a zero `area` falls back to the scale), so resizing the entity via the gizmo automatically updates the camera region. **That mirroring is an editor-time write, not a runtime binding** — at runtime `area` stands alone (GOTCHA above). Default init: `{ area: {1,1,1}, mode: CameraType.CT_FIRST_PERSON }`. Verified against creator-hub commit `a843390a`. The same sizing rule as `AvatarModifierArea` in **player-avatar** applies: the explicit `area` sizes the region, and `Transform.scale` is kept mirrored for the editor. After `place_smart_item`, confirm with `entity_detail` that the entity carries `core::CameraModeArea`: the pack's `composite.json` defines it (`asset-packs::Placeholder` + `core::CameraModeArea`, creator-hub `origin/main` 2026-10-19), but one placement arrived without it (2026-10-08, Bevy editor, not reproduced) — if so, `set_component` it, sized to the room.
+**Creator Hub / Inspector support:** the inspector has a `CameraModeArea` panel with a `mode` dropdown (`First Person` / `Third Person`; Cinematic is omitted — use `VirtualCamera` for that), and the asset catalog has a "Camera Modifier Area" smart item (utils category, translucent placeholder cube). Default init: `{ area: {1,1,1}, mode: CameraType.CT_FIRST_PERSON }`. The editor mirrors `area` from the entity's `Transform.scale` when you resize with the gizmo; that is an editor-time write, so at runtime `area` stands alone. After `place_smart_item`, confirm with `entity_detail` that the entity carries `core::CameraModeArea` (one placement arrived without it); if it is missing, `set_component` it, sized to the room.
 
 ## VirtualCamera (Cinematic Cameras)
 
@@ -117,7 +117,11 @@ VirtualCamera.create(cinematicCam, {
 // getMutable throws if MainCamera doesn't exist yet)
 MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematicCam })
 
-// Return to normal camera (component now exists, so getMutable is safe)
+// Only one VirtualCamera is active at a time. To cut/transition to another,
+// set virtualCameraEntity to that entity (getMutable is safe once MainCamera exists)
+MainCamera.getMutable(engine.CameraEntity).virtualCameraEntity = otherCam
+
+// Return to the player's normal camera (see "Handing control back")
 MainCamera.getMutable(engine.CameraEntity).virtualCameraEntity = undefined
 ```
 
@@ -153,7 +157,7 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 
 `VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
 
-`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Defaults to `60` when omitted.** When set, the virtual camera overrides the default FOV for as long as it is the active `MainCamera.virtualCameraEntity`. Verified against js-sdk-toolchain `PBVirtualCamera` commit `26cb9251` and docs commit `717227a`.
+`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Defaults to `60` when omitted.** When set, the virtual camera overrides the default FOV for as long as it is the active `MainCamera.virtualCameraEntity`.
 
 Choosing a value:
 
@@ -161,38 +165,31 @@ Choosing a value:
 - **Narrower (lower, e.g. 35-45)** — zooms in and flattens perspective. Good for aiming down sights and cinematic shots.
 - Very wide values distort at the frame edges; keep a fixed framing camera near the default unless the distortion is the point.
 
-> **Teardown order matters — clear the binding first, delete the entity later.** Removing a `VirtualCamera` entity in the same frame you stop using it makes the view **jump**, and removing it *before* clearing `MainCamera.virtualCameraEntity` leaves the engine bound to a dead entity, which drops the view to the player's feet.
->
-> The safe sequence (verified in `33,20-spectate-mode`):
->
-> 1. Set `MainCamera.virtualCameraEntity = undefined`.
-> 2. Leave the `VirtualCamera` entity (and its rig parents) **alive for ~1 second** so the renderer can blend back to the player camera.
-> 3. Then `engine.removeEntity(...)` the rig.
->
-> ```typescript
-> let rigDestroyTimer = 0
-> function rigDestroySystem(dt: number) {
->   rigDestroyTimer += dt
->   if (rigDestroyTimer < 1) return
->   engine.removeSystem(rigDestroySystem)
->   if (rigCamera) engine.removeEntity(rigCamera)
->   if (rigRoot) engine.removeEntity(rigRoot)
-> }
-> // in disableSpectate(): clear MainCamera, restore input, then
-> rigDestroyTimer = 0
-> engine.addSystem(rigDestroySystem)
-> ```
->
-> If the camera is reused rather than one-shot, simply keep the entity around and skip the delete.
->
-> **The way back ignores `defaultTransition`.** Returning to the first-person, third-person or drone camera is always a fixed 0.5 s ease-in-out blend (the Explorer's camera blend settings, unity-explorer main 2026-10). From a shot far from the player that reads as a jump. To hand back smoothly, tween the virtual camera to the player camera's pose, then clear `virtualCameraEntity` once it arrives (a 0.9 s tween worked in the Locksmith scene, 2026-10):
->
-> - Read the pose from `Transform.get(engine.CameraEntity)` **just before the handback tween starts**, not at shot start: if the avatar moved during the shot, an early pose is stale.
-> - Tween the entity that carries the camera's world pose. On a parented rig like the spectate one, unparent the camera first. Otherwise tween the rig root so that the camera, not the root, ends on that pose. A tween on a child runs in its parent's local space, so a world pose fed to it lands somewhere else.
+You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
 
-**Switching between cameras / deactivating:** with `MainCamera` already present, mutate it via `MainCamera.getMutableOrNull(engine.CameraEntity)`; set `virtualCameraEntity` to another VirtualCamera entity to cut/transition to it, or to `undefined` to return to the player's normal camera (verified: `2,22-virtual-cameras`). Only one VirtualCamera is active at a time (`MainCamera.virtualCameraEntity` holds a single entity).
+### Handing control back
 
-**Never write `0` — or any entity that has no `VirtualCamera` — into `virtualCameraEntity`.** The engine releases the player camera only when the field is *absent*: `undefined` is omitted from the message, and `MainCameraSystem` then clears the binding. A *present* value whose entity carries no `VirtualCamera` (`0` is `engine.RootEntity`) makes the engine retry every frame and keep the **currently active** virtual camera: if a rig was active, the view stays stuck on it even after input is restored (if none was active, nothing changes). This bites save/restore code: the field is `optional`, so a fresh `MainCamera` reads `undefined` — you only ever get `0` from a saved value scene code wrote, typically a `?? 0` / `|| 0` fallback — and writing that `0` back later sticks the camera (a capture sequence stuck this way, 2026-10; the mechanism is read from `MainCameraSystem.HandleVirtualCameraChange` on unity-explorer main, not reproduced in isolation). Treat both `undefined` and `0` as "no previous camera":
+Returning to the first-person, third-person or drone camera ignores `defaultTransition`: it is always a fixed 0.5 s ease-in-out blend, which reads as a jump from a shot far from the player. Clearing the binding and deleting the camera entity in the wrong order also breaks the view: deleting it in the same frame makes the view **jump**, and deleting it *before* clearing `MainCamera.virtualCameraEntity` binds the engine to a dead entity and drops the view to the player's feet.
+
+1. *(Optional, for a smooth handback)* Tween the virtual camera to the player camera's pose, read from `Transform.get(engine.CameraEntity)` **just before the tween starts** (an early pose is stale if the avatar moved during the shot). Tween the entity that carries the camera's world pose: on a parented rig, unparent the camera first or tween the rig root so the camera ends on that pose, because a tween on a child runs in its parent's local space. About 0.9 s works.
+2. Set `MainCamera.virtualCameraEntity = undefined`.
+3. Remove the `VirtualCamera` entity (and its rig parents) about **1 second later**, so the renderer can blend back. Skip this step for a camera you reuse.
+
+```typescript
+import { engine, MainCamera, timers } from '@dcl/sdk/ecs'
+
+function endShot() {
+	const cam = MainCamera.getMutableOrNull(engine.CameraEntity)
+	if (cam) cam.virtualCameraEntity = undefined // step 2
+	timers.setTimeout(() => {
+		// step 3: delete the rig only after the blend back
+		if (rigCamera) engine.removeEntity(rigCamera)
+		if (rigRoot) engine.removeEntity(rigRoot)
+	}, 1000)
+}
+```
+
+**Write only `undefined` or an entity that has a `VirtualCamera` into `virtualCameraEntity`; never `0`.** The engine releases the player camera only when the field is *absent*: `undefined` is omitted from the message, and `MainCameraSystem` then clears the binding. A *present* value whose entity carries no `VirtualCamera` (`0` is `engine.RootEntity`) makes the engine retry every frame and keep the **currently active** virtual camera: if a rig was active, the view stays stuck on it even after input is restored (if none was active, nothing changes). This bites save/restore code: the field is `optional`, so a fresh `MainCamera` reads `undefined` — you only ever get `0` from a saved value scene code wrote, typically a `?? 0` / `|| 0` fallback — and writing that `0` back later sticks the camera. Treat both `undefined` and `0` as "no previous camera":
 
 ```typescript
 function restoreCamera(previous: Entity | undefined) {
@@ -205,55 +202,23 @@ function restoreCamera(previous: Entity | undefined) {
 
 Then verify the handback in-world (`get_player_state` → `camera.mode` back to a retail mode), including the interrupted and respawn paths — a headless test cannot see a stuck view.
 
-You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
-
 ## Tracking Camera Position
 
 Poll camera position each frame by reading `Transform.get(engine.CameraEntity).position` inside a system. For a full worked zone-tracking system (`cameraZoneSystem`), see `{baseDir}/references/camera-patterns.md` → "Tracking Camera Position (camera zone system)".
 
-## Camera and Colliders
+## Camera and Colliders
 
-When a player's camera moves in 3rd person mode, the camera might be blocked by colliders or not, depending on the collision layers assigned to the entities. To avoid the camera from going through walls, you must assign both the ColliderLayer.CL_PHYSICS and the ColliderLayer.CL_POINTER layers to the entities that you want to block the camera.
+A mesh blocks the third-person camera only when the same geometry carries both `CL_PHYSICS` and `CL_POINTER`. The default `GltfContainer` masks do (both layers on the invisible collider geometry); splitting physics and pointer across the visible and invisible meshes lets the camera pass through.
 
 ```ts
-// NO CAMERA GOING THROUGH THE WALL
-// default (both pointer and physics use the invisible geometry)
-GltfContainer.create(myEntity, {
-	src: '/models/myModel.gltf',
-})
-
-// NO CAMERA GOING THROUGH THE WALL
-// Both use the same invisible geometry
-GltfContainer.create(myEntity2, {
-	src: '/models/myModel.gltf',
-	invisibleMeshesCollisionMask:
-		ColliderLayer.CL_PHYSICS | ColliderLayer.CL_POINTER,
-})
-
-// NO CAMERA GOING THROUGH THE WALL
-// Both use the same visible geometry
-GltfContainer.create(myEntity2, {
-	src: '/models/myModel.gltf',
-	visibleMeshesCollisionMask:
-		ColliderLayer.CL_PHYSICS | ColliderLayer.CL_POINTER,
-})
-
-// YES CAMERA GOES THROUGH THE WALL
-// physics and pointer are on different layers
-GltfContainer.create(myEntity2, {
-	src: '/models/myModel.gltf',
-	invisibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS,
-	visibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
-})
-
-// YES CAMERA GOES THROUGH THE WALL
-// physics and pointer are on different layers
-GltfContainer.create(myEntity2, {
-	src: '/models/myModel.gltf',
-	invisibleMeshesCollisionMask: ColliderLayer.CL_POINTER,
-	visibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS,
+// Blocks the camera: both layers on the same (visible) geometry
+GltfContainer.create(wall, {
+	src: 'assets/Models/wall.glb',
+	visibleMeshesCollisionMask: ColliderLayer.CL_PHYSICS | ColliderLayer.CL_POINTER,
 })
 ```
+
+Mask patterns and collider checks: **add-3d-models** → RULE: Always check for built-in colliders.
 
 ## Common Patterns
 
@@ -261,15 +226,13 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 
 - **Camera-Triggered Events** — use camera position/proximity to trigger actions when the player looks at an area.
 - **Following an NPC (camera-follows-NPC)** — track an NPC by driving a VirtualCamera's Transform each frame (guardrail on why this works lives in the VirtualCamera section above).
-- **Mouselook Camera (FPS-style)** — drive a VirtualCamera with `PrimaryPointerInfo.screenDelta` (pixel delta per frame, keeps working while cursor is locked). Accumulate into yaw/pitch, clamp pitch [-85,+85], combine with PointerLock + InputModifier `disableAll`. `screenDelta` is **top-left origin, `y` grows downward**, so pitch **adds** `delta.y` (`pitch + delta.y * SENS`) — subtracting it inverts the vertical axis. Desktop only (screenDelta always 0 on mobile). See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
-- **Spectate Mode (observer / director / replay camera)** — toggle the player from avatar movement into a free-roaming or player-following camera: two-entity yaw/pitch rig, WASD/E/F/1/2 controls, `onEnterScene`/`onLeaveScene` player roster, InputModifier freeze, and parcel-bounds clamping (the engine disables VirtualCameras outside parcel bounds). See `{baseDir}/references/camera-patterns.md` → "Spectate Mode".
-
-> **Freezing player during cutscenes?** Combine VirtualCamera with `InputModifier` from the **advanced-input** skill to prevent player movement during cinematic sequences.
+- **Mouselook Camera (FPS-style)** — `PrimaryPointerInfo.screenDelta` drives a VirtualCamera's yaw/pitch; desktop only. Sign convention: **advanced-input** → Cursor Position and World Ray. See `{baseDir}/references/camera-patterns.md` → "Mouselook Camera".
+- **Spectate Mode (observer / director / replay camera)** — toggle the player from avatar movement into a free-roaming or player-following camera: two-entity yaw/pitch rig, WASD/E/F/1/2 controls, `onEnterScene`/`onLeaveScene` player roster, InputModifier freeze, and parcel-bounds clamping (the engine disables VirtualCameras outside parcel bounds). To restrict who can enter spectate mode, gate it with a server-verified admin check (**authoritative-server**). See `{baseDir}/references/camera-patterns.md` → "Spectate Mode".
 
 ## Example scenes
 
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,22-virtual-cameras — multiple VirtualCameras: static, `Speed`/`Time` transitions, `lookAtEntity: engine.PlayerEntity`, a Tween-driven moving camera, a WASD-controllable camera (driving the VirtualCamera Transform each frame), plus `CameraModeArea` and `AvatarModifierArea`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — mouselook camera: `PrimaryPointerInfo.screenDelta` driving VirtualCamera yaw/pitch while pointer is locked, with `InputModifier` disableAll and PointerLock control. Reference implementation for the mouselook pattern.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate mode: free-roaming / player-following camera in one self-contained module (`src/spectate.ts`): two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping, the delayed-teardown sequence above, and full `TouchScreenControls` mobile parity (its README documents only the desktop bindings — the mobile handling is in the source). Reference implementation for the spectate pattern.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate mode: free-roaming / player-following camera in one self-contained module (`src/spectate.ts`): two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping, the delayed-teardown sequence in Handing control back, and full `TouchScreenControls` mobile parity (its README documents only the desktop bindings — the mobile handling is in the source). Reference implementation for the spectate pattern.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas — `CameraModeArea` forcing `CameraType.CT_FIRST_PERSON` inside a rotated 4x4x4 volume, rendered as a translucent box so the trigger volume is visible. A click handler moves the area's `Transform` to show the area follows the entity; a commented-out branch shows mutating `mode` in place via `CameraModeArea.getMutable()`. Sits alongside an `AvatarModifierArea` in the same scene.

@@ -1,6 +1,6 @@
 ---
 name: animations-tweens
-description: Animate objects in Decentraland scenes. Play GLTF model animations with Animator, create procedural motion with Tween, chain sequences with TweenSequence. Use when the user wants to animate, move, rotate, scroll a texture, or create motion effects. Do NOT use for audio/video playback (see audio-video), player emotes (see player-avatar), authoring emote clips (see avatar-animations), or physics-driven motion (see player-physics).
+description: "Animate entities in Decentraland: play GLB clips with Animator, tween position/rotation/scale, chain TweenSequences, scroll textures. Use for moving platforms, doors, spinning or bobbing props, animated models, texture scrolling. Not for player emotes (player-avatar / avatar-animations), audio/video (audio-video) or physics (player-physics)."
 ---
 
 # Animations and Tweens in Decentraland
@@ -26,64 +26,30 @@ Play animations embedded in .glb models. Supports **skeletal animations**, **obj
 
 Set up with `Animator.create(entity, { states: [{ clip: 'idle', playing: true, loop: true, speed: 1 }] })`. Play a single animation with `Animator.playSingleAnimation(entity, 'walk')`. Stop all with `Animator.stopAllAnimations(entity)`. Get a clip with `Animator.getClip(entity, 'Walk')`. Blend animations by setting `weight` (0.0-1.0) on multiple states.
 
-### PITFALL: `playSingleAnimation` silently no-ops on clips not in `states` (programmatic Animator only)
+### Which clip plays: Animator vs autoplay
 
-**Scope:** this applies _only_ when you author the `Animator` entirely in code and call `Animator.playSingleAnimation(entity, clipName)` programmatically. In many practical workflows the clip list is already populated for you — see "When you don't need to register clips manually" below.
+- **No `Animator` on a `GltfContainer` with clips:** the renderer autoplays a clip of its own choosing — typically the file's first clip (so it depends on export order: a ghost whose first clip was `die` played `die` forever), and not stable across models. Fine when the model should just spawn animating and never stop or switch. To choose the clip, start still, or switch at runtime, add an `Animator` with the intended clip `playing: true`.
+- **`playSingleAnimation(entity, clip)` returns `false` and does nothing, with no warning, when `clip` is not in `Animator.states`.** Register every clip you will play in `states[]` when you build the Animator in code. Animators written by the Creator Hub Inspector and by asset packs / smart items already list every clip.
+- **Call `playSingleAnimation` (or any clip-switch helper) on transitions, not every frame:** each call rewrites every state and re-serializes the Animator. Read state per frame with `Animator.get()` only.
 
-The narrow fact (verified — `@dcl/ecs/dist-cjs/components/extended/Animator.js` lines 35-46): `playSingleAnimation(entity, clipName)` returns `false` and does nothing when `clipName` is not present in the entity's `Animator.states` array. The internal `getClipAndAnimator` helper returns a null state, and `playSingleAnimation` exits with `if (!animator || !state) return false`. There is no console warning.
-
-So **when you're building the Animator yourself in TypeScript and you intend to call `playSingleAnimation` with a clip name**, that clip must already be in `states[]`:
-
-```ts
-Animator.create(ghost, {
-  states: [
-    { clip: "Idle_001", playing: true, loop: true },
-    { clip: "Idle_002", playing: false, loop: true },
-    { clip: "Appear", playing: false, loop: false },
-    { clip: "Death", playing: false, loop: false },
-    { clip: "Hit", playing: false, loop: false },
-  ],
-});
-```
-
-If you want SDK6's "play any clip, no setup required" ergonomics, wrap `playSingleAnimation` and lazily add missing states:
+Lazy-registering wrapper, for code that plays clips by name without setting `states[]` up front:
 
 ```ts
 function playAnim(entity: Entity, clip: string, loop = false) {
   const a = Animator.getMutableOrNull(entity);
   if (!a) return;
   if (!a.states.find((s) => s.clip === clip)) {
-    a.states.push({
-      clip,
-      playing: false,
-      loop,
-      shouldReset: true,
-      speed: 1,
-      weight: 1,
-    });
+    a.states.push({ clip, playing: false, loop, shouldReset: true, speed: 1, weight: 1 });
   }
-  Animator.playSingleAnimation(entity, clip, true);
-  // playSingleAnimation already pauses all other states
+  Animator.playSingleAnimation(entity, clip, true); // pauses all other states
 }
 ```
 
-### When you don't need to register clips manually
-
-Several common workflows populate the clip list for you — the rule above does **not** apply in these cases:
-
-- **`GltfContainer` with no `Animator` attached.** The renderer autoplays one of the GLB's clips on its own (observed: the first/default clip baked into the file). Confirmed first-hand in a Halloween scene where small ghosts had no `Animator` and the renderer autoplayed `die` straight from the GLB. Use this when the model should just spawn already animating and you don't need to switch clips at runtime.
-- **Creator Hub Inspector placement.** When you drop an asset into the Inspector, the composite is written with an `Animator` whose `states` array already includes _every_ clip from the GLB. Creators using the Inspector never see the registration step because the editor does it.
-- **Asset packs / smart items.** These ship with `states` already populated by whoever authored the pack.
-
-The "you have to pre-register" issue only bites the **author-in-code + `playSingleAnimation`** path. If a model is animating without any code-side `Animator.create` call, you're on the autoplay path described above — that's expected.
-
-Related: if a `GltfContainer` model spawns playing the _wrong_ clip (e.g. a death pose on what should be an idling NPC), the entity has no `Animator` and the renderer picked a clip you didn't intend. Add an `Animator.create` with the desired default clip set to `playing: true` to take control.
+SDK6 port helpers (short-circuiting per-frame clip switches, `noLoop + revertToIdle`): `{baseDir}/references/animation-patterns.md` → Clip-switch helper for SDK6 ports.
 
 ### Resting an animated model at its FIRST frame (start-closed doors / graves / lids)
 
-A common SDK6 → SDK7 port problem: a door/grave/coffin GLB whose "closed" pose is **frame 0** of its open/trigger clip. Under SDK7 the renderer auto-plays a clip on load and holds its final frame, so the model spawns **open** instead of closed.
-
-**Verified fix (user-confirmed in-world):** keep a state actively `playing: true` but frozen with `speed: 0` and `loop: false`, so it holds frame 0 — the closed/rest pose — while still being a controlled, actively-playing state:
+A door/grave/coffin GLB whose "closed" pose is **frame 0** of its open clip can spawn **open**: the renderer auto-plays the clip on load and holds its final frame. Keep a state `playing: true` but frozen with `speed: 0` and `loop: false`, so it holds frame 0 under your control:
 
 ```typescript
 // Hold `clip` at its first frame (closed pose), under your control.
@@ -97,64 +63,7 @@ export function holdFirstFrame(entity: Entity, clip: string) {
 }
 ```
 
-Then, to open, set the same clip to `speed: 1, playing: true` (a normal `playSingleAnimation` / `playClip` call); to close, play the reverse/close clip. This is the observed behavior + working fix; the precise internals of which clip the renderer auto-plays are not documented in the SDK — treat it as renderer behavior and verify per model.
-
-### BEST PRACTICE: Short-circuit clip-switch helpers called from per-frame callers
-
-**Scope:** this applies when you write your own clip-switch helper that mutates `Animator.states` directly (`s.playing`, `s.loop`, `s.shouldReset`) and that helper is invoked from a per-frame caller (an `engine.addSystem` update, an `inputSystem`/raycast callback that fires every tick, or any code path that runs each frame). The most common reason to write such a helper is porting an SDK6 scene that used lazy clip registration or `noLoop + revertToIdle` semantics ([[migrate-sdk6-to-sdk7]]).
-
-**Why it matters.** A naive helper looks like this:
-
-```ts
-function playClip(entity: Entity, name: string, loop: boolean) {
-  const a = Animator.getMutableOrNull(entity);
-  if (!a) return;
-  for (const s of a.states) {
-    if (s.clip === name) {
-      s.playing = true;
-      s.loop = loop;
-      s.shouldReset = true; // <-- rewritten every tick if helper is called per-frame
-    } else {
-      s.playing = false;
-    }
-  }
-}
-```
-
-Called every frame, this calls `Animator.getMutableOrNull()` each tick, which marks the entity dirty in the CRDT layer. The ECS then serializes the component to bytes and compares against the last-sent snapshot (`lww-element-set-component-definition.ts`). Since the values are identical frame-to-frame, the CRDT suppression layer silently drops the update — the animation will NOT freeze. However, the per-frame serialization and byte comparison is unnecessary overhead that should be avoided.
-
-**Note on `Animator.playSingleAnimation`.** Verified against `@dcl/ecs/src/components/extended/Animator.ts`: `playSingleAnimation` is NOT idempotent — it writes `playing=false, shouldReset=true` on every state in a loop, then `playing=true, shouldReset=<arg>` on the target. Calling it per-frame triggers the same unnecessary serialization overhead. Prefer to call `playSingleAnimation` from one-shot transitions (`onPointerDown`, state-machine edges) rather than from a system tick.
-
-**Fix — track the last-applied clip and short-circuit:**
-
-```ts
-type Anim = { entity: Entity; lastClip?: string };
-
-function playClip(a: Anim, name: string, loop: boolean) {
-  if (a.lastClip === name) return; // already applied — skip redundant serialization
-  const an = Animator.getMutableOrNull(a.entity);
-  if (!an) return;
-  for (const s of an.states) {
-    if (s.clip === name) {
-      s.playing = true;
-      s.loop = loop;
-      s.shouldReset = true;
-    } else {
-      s.playing = false;
-    }
-  }
-  a.lastClip = name;
-}
-```
-
-The short-circuit avoids calling `getMutableOrNull()` on unchanged frames, eliminating the per-frame serialization overhead. The CRDT delta is only sent on actual clip transitions.
-
-**SDK6-port subtlety — `noLoop + revertToIdle`.** An SDK6-style helper that takes `(clipName, noLoop, durationSec)` and schedules a `timers.setTimeout` (from `@dcl/sdk/ecs` — never the native JS `setTimeout`) to revert to an idle clip must:
-
-- On a same-clip re-call (e.g. the player holds the beam and "Hit" keeps being requested every frame), **only refresh the timer** (clear + reschedule) so the clip keeps replaying for as long as input is held. Do not re-mutate `Animator.states`.
-- When the revert-to-idle timer fires, **clear `lastClip` before re-calling the helper with the idle clip** — otherwise the short-circuit prevents the idle from being applied if `lastClip` already equals the idle name from a prior tick.
-
-**When to prefer `Animator.playSingleAnimation`.** It's the canonical write: pauses all other states in one pass and accepts a `resetCursor` argument (defaults to `true`). It's not idempotent — but it's the right call site when the trigger is a one-shot event. The custom-helper pattern only exists when porting SDK6 code that needs lazy clip registration (see the previous PITFALL) or `noLoop + revertToIdle` semantics.
+To open, set the same clip to `speed: 1, playing: true` (a normal `playSingleAnimation` call); to close, play the reverse/close clip. Which clip the renderer auto-plays is renderer behaviour; verify per model.
 
 ## Detecting Animation Completion
 
@@ -173,7 +82,7 @@ engine.addSystem(() => {
 })
 ```
 
-- **Never poll with `Animator.getClip()` or `getMutable()`** — both return a mutable ref and mark the component dirty every frame (same serialization overhead as the PITFALL above). `Animator.get()` is the only safe per-frame read.
+- **Poll with `Animator.get()` only.** `Animator.getClip()` and `getMutable()` return a mutable ref and mark the component dirty every frame.
 - The engine only flips the flag when the clip ends by itself. Looping clips never flip it, `speed: 0` states never finish, and a scene-side `stopAllAnimations()` is your own write (track it yourself if you need to tell them apart).
 - Treat the flag as a *notification*, not a guarantee: never hard-block gameplay on it. Where a missed signal would wedge the scene, keep a `timers.setTimeout` fallback sized from the clip length.
 
@@ -208,7 +117,7 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 
 **PITFALL — a CONSTANTLY changing target needs `setMoveContinuous`, not repeated `setMove`**: re-creating a Move tween every frame to chase a moving target (following the player, homing at a runaway entity) makes the entity visibly **stutter**. `Transform.get(entity).position` is what the renderer last wrote back over CRDT, so it trails the entity's real position by ~1-3 frames; the renderer applies the new `start` the instant it arrives, snapping the entity backwards on every re-aim. One correction is invisible, ~30/second is jitter — and raising the re-aim threshold only makes the stutter coarser, since the replacement *frequency* is the problem. Use `Tween.setMoveContinuous(entity, direction, speed)` instead: continuous modes take their start from the renderer's own live transform, so replacing them mid-motion cannot snap. Caveats: it has no destination (stop it yourself with `Tween.deleteFrom` on a distance check, or pass the optional stop-after `duration`), and you should only re-aim when the direction has changed materially, or you send a CRDT update per frame. Discrete retargeting (clicks, waypoints) is still fine with `setMove` (verified in `79,-4-tween-following-cube`, which switches between both modes live).
 
-`Tween.Mode.MoveRotateScale({...})` and `setMoveRotateScale` accept a **partial** transform — supply only the axes you want (`position` / `rotation` / `scale`); at least one is required. Omitted axes are left unchanged (verified against SDK source + `78,-4-tweens`). **Supported on mobile since mobile app v1.15.0** (docs commit `5f212e3`); on older mobile builds it did not animate.
+`Tween.Mode.MoveRotateScale({...})` and `setMoveRotateScale` accept a **partial** transform — supply only the axes you want (`position` / `rotation` / `scale`); at least one is required. Omitted axes are left unchanged (verified against SDK source + `78,-4-tweens`). On mobile it needs app 1.15.0+; older mobile apps do not animate it.
 
 **Texture movement type** (`setTextureMove` / `setTextureMoveContinuous`, and `Tween.Mode.TextureMove`): the `movementType` param is `TextureMovementType.TMT_OFFSET` (default, `=0` — scrolls the UV offset) or `TextureMovementType.TMT_TILING` (`=1` — animates the tiling). Import `TextureMovementType` from `@dcl/sdk/ecs`. The texture must use `wrapMode: TextureWrapMode.TWM_REPEAT` for continuous scrolling to tile seamlessly (verified in `0,3-texture-movement`, `78,-4-tweens`).
 
@@ -216,12 +125,12 @@ Animate entity properties smoothly over time. Create with `Tween.create(entity, 
 
 Chain with `TweenSequence.create(entity, { sequence: [...tweenConfigs], loop })`. Loop modes: `TweenLoop.TL_RESTART` (`=0`, loop from start), `TweenLoop.TL_YOYO` (`=1`, reverse at each end).
 
-> ⚠️ **`TweenSequence` is NOT implemented on the mobile client — sequenced tweens do not animate.** Not a timing or easing difference: nothing moves. Plain `Tween` works on mobile (including `MoveRotateScale` since mobile app **v1.15.0**); it is the sequence wrapper that is absent, with no ETA (docs commit `5f212e3`, reviewed Oct 2026 / v1.15.0). This kills the two most common uses on a phone: **looping platforms** and **patrol paths**. If the scene targets mobile:
+> ⚠️ **`TweenSequence` is NOT implemented on the mobile client — sequenced tweens do not animate.** Not a timing or easing difference: nothing moves. Plain `Tween` works on mobile (including `MoveRotateScale` from app 1.15.0); it is the sequence wrapper that is absent. This kills the two most common uses on a phone: **looping platforms** and **patrol paths**. If the scene targets mobile:
 > - **Do not build traversal geometry on a `TweenSequence`.** A moving platform that is the only way across a gap becomes an impassable scene on mobile.
 > - Drive repeat and multi-leg motion from a system instead: run one plain `Tween` at a time and start the next leg on `tweenSystem.tweenCompleted(entity)`. That is mobile-safe and costs a few lines.
 > - Decorative sequences (a drifting cloud, an idle bob) degrade to a static prop — acceptable, but check the scene still reads with them frozen.
 >
-> This includes the empty-`sequence` looping idiom below, which exists only as a `TweenSequence` [inferred from "not implemented"; the docs do not call the empty-sequence case out separately — verify on a device if a scene depends on it].
+> This includes the empty-`sequence` looping idiom below: it is a `TweenSequence` too. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 ### PATTERN: empty sequence loops the base Tween
 
@@ -241,20 +150,40 @@ Available from `EasingFunction`: `EF_LINEAR`, `EF_EASEINQUAD`/`EASEOUTQUAD`/`EAS
 
 For complex animations, create a system with `engine.addSystem((dt) => { ... })` and modify `Transform.getMutable(entity)` each frame. Use a custom component (e.g. `Spinner`) to mark which entities need animating.
 
+### Following / easing toward a moving goal: tween first, `dt`-based smoothing second
+
+- **Default: continuous tweens.** For an entity that keeps chasing a goal that moves (pet, homing pickup, follower, drifting marker), use `Tween.setMoveContinuous` / `setRotateContinuous`, re-aimed only when the direction changes materially. The renderer interpolates at display frame rate from its own live transform, so motion is frame-rate independent with no per-frame CRDT writes. Full chase loop: `{baseDir}/references/animation-patterns.md` → *Follow a constantly changing target*.
+- Continuous modes move at **constant speed** and have no destination. Stop them yourself (`Tween.deleteFrom` on a distance check, or the stop-after `duration`).
+- **Use a system instead** when the motion must *decelerate into* the goal (a follow that slows as it arrives) or when the eased value is not a transform (volume, a UI number, a material color). A system writes a CRDT update every frame for each moving entity, so keep it to a few entities.
+- **In a system, never use a fixed lerp factor per frame** (`x += (goal - x) * 0.1`). It converges faster at 60 fps than at 30 fps, so the feel changes with the player's frame rate. Make the factor depend on `dt` (seconds):
+
+```typescript
+const RATE = 8 // per second; ~5 = floaty, ~12 = snappy
+engine.addSystem((dt) => {
+  const pos = Transform.get(follower).position
+  const goal = Transform.get(engine.PlayerEntity).position
+  if (Vector3.distanceSquared(pos, goal) < 0.0001) return // settled: stop writing
+  const t = 1 - Math.exp(-RATE * dt)                      // same feel at any frame rate
+  Transform.getMutable(follower).position = Vector3.lerp(pos, goal, t)
+})
+```
+
+For rotations use `Quaternion.slerp(current, target, t)` with the same `t`; for plain numbers, `Scalar.lerp` (all from `@dcl/sdk/math`).
+
 ## Troubleshooting
 
 | Problem                                             | Cause                                                                                                                                                                    | Solution                                                                                                                                                                                                           |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | GLTF animation not playing                          | Wrong clip name                                                                                                                                                          | Check exact clip names (case-sensitive) in a viewer                                                                                                                                                                |
-| `playSingleAnimation` does nothing, returns `false` | Clip name not in `Animator.states` for an Animator you built in code                                                                                                     | Add the clip to `states[]` at `Animator.create` time, or use the lazy-add wrapper above. Only applies when you authored the Animator programmatically — Inspector / asset-pack Animators are already pre-populated |
-| Model autoplays an unexpected animation on spawn    | No `Animator` component — `GltfContainer` autoplays one clip from the .glb (the same mechanism that lets clip-less Inspector scenes animate without manual registration) | Add `Animator.create` with the intended default clip set to `playing: true` to take control                                                                                                                        |
+| `playSingleAnimation` does nothing, returns `false` | Clip name not in `Animator.states` for an Animator you built in code                                                                                                     | Add the clip to `states[]` at `Animator.create` time, or use the `playAnim` wrapper above |
+| Model autoplays an unexpected animation on spawn    | No `Animator` component — the renderer autoplays a clip of its own choosing | Add `Animator.create` with the intended default clip set to `playing: true` to take control                                                                                                                        |
 | Door/grave/lid spawns OPEN instead of closed        | The renderer auto-plays the clip and holds its final (open) frame; the model's closed pose is frame 0 of that clip                                                       | Hold frame 0 with a `playing: true, speed: 0, loop: false` state — see "Resting an animated model at its FIRST frame" above                                                                                          |
-| Unnecessary per-frame serialization overhead        | Clip-switch helper calls `getMutableOrNull` every tick with identical values (custom helper or `playSingleAnimation` called from a system / per-frame input callback)     | Track the last-applied clip and short-circuit when unchanged, or only call the helper on state transitions — see "Short-circuit clip-switch helpers" best practice above                                           |
+| Unnecessary per-frame serialization overhead        | Clip-switch helper calls `getMutableOrNull` every tick with identical values (custom helper or `playSingleAnimation` called from a system / per-frame input callback)     | Call the helper only on state transitions, or short-circuit when the clip is unchanged — see `references/animation-patterns.md` → Clip-switch helper for SDK6 ports |
 | Animator has no effect                              | Missing `GltfContainer`                                                                                                                                                  | `Animator` only works on entities with a loaded GLTF model                                                                                                                                                         |
 | Need to know when a non-looping clip ends           | Guessing with `timers.setTimeout(clipLength)`                                                                                                                            | Edge-detect `playing` flipping to `false` via read-only `Animator.get()` — see "Detecting Animation Completion" above                                                                                              |
 | Tween doesn't move                                  | Same start and end                                                                                                                                                       | Verify values differ in `Tween.Mode.Move()`                                                                                                                                                                        |
 | Entity teleports when a Move tween starts           | `start` doesn't match the entity's current position — omitted `start` = `(0,0,0)` (scene origin), hardcoded/stale `start` = wherever you wrote                            | Pass `Transform.get(entity).position` as `start` — it's the live position even while a previous tween is mid-flight                                                                                                |
-| Tween plays once then stops                         | No loop                                                                                                                                                                  | Add `TweenSequence` with `loop: TweenLoop.TL_YOYO`                                                                                                                                                                 |
+| Tween plays once then stops                         | No loop                                                                                                                                                                  | Desktop-only scene: empty-sequence `TweenSequence` with `loop: TweenLoop.TL_YOYO`. Mobile: restart the plain `Tween` on `tweenSystem.tweenCompleted(entity)` (see *Tween Sequences*) |
 | Animation jitters                                   | Creating Tween every frame                                                                                                                                               | Only create Tween once, not inside a system                                                                                                                                                                        |
 | Intro animation/tween is over by the time the player sees the scene | It was started at scene startup and played out behind the Explorer's loading screen | Gate it on `EngineInfo.sceneHidden` flipping to `false` (the loading-screen fade-out) — see the **scene-runtime** skill |
 

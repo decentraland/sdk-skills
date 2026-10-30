@@ -1,6 +1,6 @@
 ---
 name: build-ui
-description: Build 2D screen-space UI for Decentraland scenes with React-ECS (JSX) — HUDs, menus, health bars, dialogs, toasts, notifications, buttons, inputs, dropdowns, sliders. By default writes UI that the Creator Hub's 2D UI editor (UI Designer) can read and edit (one component per file under src/ui/, state/props bindings, useInteraction layers, @ui-action handlers, a driver for animation), and falls back to free-form coded React-ECS only for UI too data-driven or dynamic for the editor. Use when the user wants on-screen UI, menus, form inputs, UI editable in the Creator Hub, or an existing coded UI adapted for the editor. Do NOT use for 3D in-world text (see advanced-rendering) or clickable 3D objects (see add-interactivity).
+description: "Build 2D screen-space UI for Decentraland scenes with React-ECS: HUDs, menus, dialogs, health bars, form inputs, sliders. Use for any on-screen UI, UI editable in the Creator Hub UI Designer, or adapting existing coded UI for the editor. For 3D in-world text see advanced-rendering; for clickable 3D objects see add-interactivity."
 ---
 
 # Building UI with React-ECS
@@ -23,6 +23,7 @@ Both are ordinary React-ECS and run anywhere; the editable contract is a *subset
 | Open a web page | `openExternalUrl` | **scene-runtime** |
 | Clickable objects in 3D space | pointer events | **add-interactivity** |
 | On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
+| Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | **game-design** → *The platform already provides this* |
 
 ## Choosing the mode
 
@@ -37,7 +38,7 @@ Almost everything else that looks dynamic — fill bars, timers, eased motion, a
 
 If only one panel needs coded, keep the rest editable and mount the coded panel separately with `ReactEcsRenderer.addUiRenderer` from a module outside `src/ui/` (`{baseDir}/references/coded-ui.md` → Hybrid scenes). Tell the user which part is not editable and why. When adapting an existing coded UI, expect the result to be **larger** (unrolled loops and variants are the price of editability); report that trade-off rather than half-porting.
 
-**Prerequisite:** `@dcl/sdk` **7.26.0+** — the version that ships `ScreenInsetArea` / `InteractableArea` and the per-device default virtual screen. The UI editor is stable and always on in the Creator Hub (0.50.0+): there is no Settings > Experimental toggle and no `settings.guiEditor` key — do not tell users to enable it. Below 7.26.0, entering 2D mode shows an SDK-upgrade notice with an **Update SDK** button instead of the canvas.
+**Prerequisite:** `@dcl/sdk` **7.26.0+** — the version that ships `ScreenInsetArea` / `InteractableArea` and the per-device default virtual screen. The UI editor is always on in the Creator Hub. Below 7.26.0, entering 2D mode shows an SDK-upgrade notice with an **Update SDK** button instead of the canvas.
 
 ## How the editor reads code
 
@@ -48,13 +49,9 @@ The editor has **no saved format of its own**: the scene's real `.tsx` files dir
 | **Frozen node** | any `uiTransform` / `uiBackground` value, or any `Label`/`Input`/`Dropdown` prop, that is neither a literal nor a bare `state.x` / `props.x` reference | node renders on the canvas, but the panel refuses **every** edit on it |
 | **Opaque node** | unknown element name, a spread other than one `useInteraction` const, conditional/logical/`.map()` children, JSX comments | grey read-only block; **its children are not walked**, so the subtree disappears from the canvas |
 
-Write to the contract below and neither happens. Editor facts that shape authored code:
+Write to the contract below and neither happens.
 
-- **Layout is two independent axes.** The panel's **Flow** (row / column / **Free**) writes `flexDirection` only — **Free means the key is absent**, not a "free" value. **Ignore Layout Flow** writes `positionType: 'absolute'`. Roots are always absolute. A child dropped under a Free parent is seeded absolute at the drop point; switching a parent to Free pins every existing child at its measured position in one batched edit.
-- **The Full Screen widget preset** inserts `uiTransform={{ flexGrow: 1, alignSelf: 'stretch' }}` with no `width`/`height` (`100%` reads back as a Percent unit rather than Fill, and two `100%` siblings overflow Yoga's free space); under a Free parent it uses `positionType: 'absolute'` with `top/right/bottom/left: 0`. Prefer the same pair for a hand-written full-screen wrapper the editor will edit. The `100%`×`100%` literal form also parses — it is what the generated aggregator root and the in-world-verified templates use.
-- **Under the Bevy renderer, opening 2D mode freezes the scene** (resumes on returning to 3D). A driver's clock does not advance while the user lays out UI.
-
-Everything else about the editor UI (Scene Inset dropdown, Opacity naming, canvas tools, mode persistence, the mobile preview's guide areas and their limits): `{baseDir}/references/editor-behavior.md`.
+What the editor writes and shows (layout Flow/Free axes, the Full Screen preset, Scene Inset, Opacity naming, canvas tools, mode persistence, the Bevy freeze, the mobile preview and its limits): `{baseDir}/references/editor-behavior.md`. Read it before hand-writing layout the editor will edit.
 
 ## Setup (editable)
 
@@ -82,8 +79,6 @@ Steps for a new UI:
 
 A legacy single-file `src/ui.tsx` is **backed up to `src/ui.tsx.bak` and deleted** the first time the editor opens the scene — always author under `src/ui/`. To port an existing coded UI, follow `{baseDir}/references/adapting-coded-ui.md` (the blockers in order: `.map()` → unroll; conditionals → `active` display gates on the element being hidden; computed styles → driver variables; interpolated text → segment bindings; hand-tracked hover → layers; then explicit boxes everywhere).
 
-The SDK template already includes the JSX settings in `tsconfig.json` — do NOT modify it.
-
 ### The aggregator (`src/ui/index.tsx`)
 
 Generated from the list of top-level roots and rewritten whenever the editor opens the scene or a root is added, renamed, removed or re-inset — **any hand edit is lost**. Emit exactly:
@@ -104,7 +99,7 @@ export function setupUi() {
 }
 ```
 
-Screen inset is a per-root choice (the editor's **Scene Inset** dropdown); `device` is its default. Verified against the Creator Hub's aggregator generator (`UIDesigner/code/aggregator.ts`) and `@dcl/react-ecs` `system.ts`:
+Screen inset is a per-root choice (the editor's **Scene Inset** dropdown); `device` is its default:
 
 | Editor inset | Wrapper in `index.tsx` | Intended for |
 |---|---|---|
@@ -112,10 +107,7 @@ Screen inset is a per-root choice (the editor's **Scene Inset** dropdown); `devi
 | `interactable` | `<InteractableArea>` | UI that must also avoid the explorer's own on-screen controls (minimap, chat, left-side controls) |
 | `none` | bare `<Component />` | letterbox bars, full-screen backdrops, deliberately drawing where platform UI lives |
 
-Two facts about this generated shape:
-
-- `setUiRenderer` is called with **no options**, so the scene gets the SDK platform default virtual canvas — **desktop `1920x1080`, mobile `1600x720`** — and the renderer-level `screenInset` default `'device'`. Never hand-add `virtualWidth`/`virtualHeight` (regeneration drops them); design px values against those two canvases. This is the one place where the coded-UI rule "always pass the virtual size explicitly" cannot be honored.
-- The renderer already wraps the whole UI in its own `ScreenInsetArea` when `screenInset` is omitted, and the aggregator's wrapper **nests inside** it. Absolute positioning is relative to the parent box, so on a phone with non-zero insets a `device` root is inset twice, an `interactable` root gets device + interactable insets, and a `none` root still gets the single renderer-level device inset rather than the full canvas. On desktop the insets are zero, so nothing changes. This follows from reading `wrapWithScreenInset` in `@dcl/react-ecs` and the Creator Hub's `aggregator.ts`; it has not been measured on a device. Do not "fix" it in `index.tsx` (regenerated). If exact safe-area placement on mobile matters, pick `none` for that root and measure.
+`setUiRenderer` is called with **no options**, so the scene gets the SDK platform default virtual canvas — **desktop `1920x1080`, mobile `1600x720`** — and the renderer-level `screenInset` default `'device'`. Never hand-add `virtualWidth`/`virtualHeight` (regeneration drops them); design px values against those two canvases. This is the one place where the coded-UI rule "always pass the virtual size explicitly" cannot be honored. Hand-tuning safe-area placement on mobile: the aggregator's wrapper nests inside the renderer's own inset (`{baseDir}/references/editor-behavior.md` → Scene Inset).
 
 Both wrapper elements belong **only in `index.tsx`** — inside a component file their names are unknown to the parser and make the subtree opaque.
 
@@ -310,11 +302,11 @@ Verified in-world with side-by-side screenshots: a 720-px dialog whose two label
 - The root of every `/** @ui-component */` file declares `width` AND `height` (px numbers or percent literals). So does every wrapper `UiEntity` around a component ref, matching the component's root size — a wrapper carrying only `margin` / `position` collapses identically.
 - Every `Label` (and `Button` text) declares a `uiTransform` `width` AND `height`; every container that stacks labels has an explicit height. Wrapped text: height = line count × line height (two lines at `fontSize: 20` → 60). A label filling a fixed parent uses `100%` / `100%`.
 - Every **bound** size or position is a plain px `number` — no arithmetic, no percent strings. Static percent literals in unbound keys are the right tool for fluid layout.
-- Design against **desktop `1920x1080` and mobile `1600x720`**. The mobile canvas is 33% shorter: anchor to edges and use flex/percent for the fluid axis rather than absolute offsets computed for one height. Do **not** apply the old "scale sizes ~3× for mobile" rule on 7.26.0+ — pixel UI is already ~2–3× larger on a phone (`devicePixelRatio` left the scale factor) and the mobile canvas adds ~1.2×; start from desktop sizes and scale up only what measures small on a device.
+- Design against **desktop `1920x1080` and mobile `1600x720`**. The mobile canvas is 33% shorter: anchor to edges and use flex/percent for the fluid axis rather than absolute offsets computed for one height. Start from desktop sizes and scale up only what measures small on a device: on 7.26.0+ pixel UI is already ~2–3× larger on a phone, and the mobile canvas adds ~1.2×.
 - Touch targets ≥ ~48 px on the virtual canvas; body text `fontSize` ≥ 16, ≥ 20 for anything read while moving; `textWrap="wrap"` plus an explicit width on any label that can grow.
 - **No emoji or decorative Unicode in any text value** (`Label` / `Button` `value`, `uiText.value`, `Input` `placeholder`, `Dropdown` options, bound strings). Glyph coverage comes from the fonts each explorer bundles, not the SDK, and the Unity explorer ships no emoji glyphs — verified in-world: `value="✨ Particles"` lost its sparkle. Use a small `UiEntity` with `uiBackground={{ texture: { src: 'images/icon.png' } }}` beside the label, or an atlas sprite via `uvs`; `texture.src` is a binding, so the icon stays editable. Stick to ASCII plus the accented letters the copy needs.
 - Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `src/`.
-- `borderRadius` is unsupported on mobile. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
+- On mobile (app 1.10.1+), `borderRadius` and `borderWidth` accept pixels only; percentages have no effect. Older mobile apps draw square corners. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
 
 ## Placement: never anchor to the top-left; keep mobile UI off the action buttons
 
@@ -322,7 +314,7 @@ The most common layout mistake in generated scenes is a panel pinned to the top-
 
 1. **Small HUD (score, timer, a couple of buttons)** → anchor to the **right** edge or **center** it: `positionType: 'absolute', position: { top: 40, right: 40 }`, or `justifyContent: 'center'` on the root. Never leave a panel at the origin; no `left: 0` without an interactable inset.
 2. **Needs a reliable safe area** → the `interactable` inset (editable: the root's Scene Inset; coded: `screenInset: 'interactable'` on the renderer, 7.26.0+, below that wrap in `<InteractableArea>`). It excludes the minimap, chat and left-side controls, so `left: 0` inside it is safe on desktop. It excludes the **left column only** — it shares its right edge with the device area, so the bottom-right action cluster sits *inside* it by design.
-3. **Mobile: the bottom-right action buttons (jump, E, F, pointer) are drawn on top of the interactable area**, and taps there go to the client. A **gameplay HUD** stays clear: anchor top-right / top-center, no interactive element bottom-right on mobile (read `UiCanvasInformation.interactableArea` for exact margins; the button slots are fixed). **UI that interrupts gameplay** (scoreboard, results, shop, rules card) hides the touch controls while open — `TouchScreenControls.hideAll()` + `hideJoystick()` on open, `showAll()` + `showJoystick()` on close (no-ops on desktop; `showAll()` also clears custom icons — re-apply them), optionally `InputModifier` `disableAll` on `engine.PlayerEntity` for the same span (desktop and mobile clients — the mobile docs recommend it for this case; it only has no effect in the legacy web explorer). Route **every** close path through the same function so controls are never left hidden. Editable: the driver does this when `state.visible` flips; coded pattern: `{baseDir}/references/coded-ui.md` → Full-screen modal. In a scene that uses the UI Designer's MobileHUD panel, that runtime toggle fights the panel's static call — see **MobileHUD**.
+3. **Mobile: the bottom-right action buttons (jump, E, F, pointer) are drawn on top of the interactable area**, and taps there go to the client. A **gameplay HUD** stays clear: anchor top-right / top-center, no interactive element bottom-right on mobile (read `UiCanvasInformation.interactableArea` for exact margins; the button slots are fixed). **UI that interrupts gameplay** (scoreboard, results, shop, rules card) hides the touch controls while open — `TouchScreenControls.hideAll()` + `hideJoystick()` on open, `showAll()` + `showJoystick()` on close (no-ops on desktop; `showAll()` also clears every per-button setting, custom icons and per-button hides alike — re-apply them), optionally `InputModifier` `disableAll` on `engine.PlayerEntity` for the same span (desktop and mobile clients — the mobile docs recommend it for this case; it only has no effect in the legacy web explorer). Route **every** close path through the same function so controls are never left hidden. Editable: the driver does this when `state.visible` flips; coded pattern: `{baseDir}/references/coded-ui.md` → Full-screen modal. In a scene that uses the UI Designer's MobileHUD panel, that runtime toggle fights the panel's static call — see **MobileHUD**.
    **A card the player dismisses with a key needs a tap path on mobile.** A title, ending or "press E to continue" card advanced only by `IA_PRIMARY` is a dead end on a phone once the touch controls are hidden — the native E button was the only way forward (owner-reported 2026-10-12: "cannot press the E button"). Bind the same action to the UI: `uiInputBinding={{ actions: [InputAction.IA_PRIMARY] }}` on a visible **Continue** button, or on the card itself so a tap anywhere advances it (`{baseDir}/references/ui-components.md` → uiInputBinding: the element fires the action as if the key were pressed, so the existing `inputSystem` check keeps working). Keep the touch controls visible when the card has no tappable control of its own. The button form is the documented mobile pattern; the tap-anywhere form has not been checked on a device yet.
 
 Content rule for any panel that explains the game: one screen, no scrolling, 3–5 short lines, show (icon, diagram, highlighted first target) rather than tell — **game-design** skill → "Rules: show, don't tell".
@@ -417,7 +409,7 @@ Run over **every** `.tsx` under `src/ui/` you write or adapt. Each item is a sil
 17. No clock, `Date.now()`, `setTimeout`, easing, rounding or string formatting anywhere in `src/ui/` — it lives in the driver.
 18. `src/ui/index.tsx` matches the generated shape exactly, each root wrapped in `ScreenInsetArea` unless full-canvas control was explicitly requested.
 19. Mobile pass: layout survives a `1600x720` canvas, touch targets ≥ ~48 px, no hover-only affordances, no emoji, nothing anchored top-left, nothing interactive bottom-right.
-20. No `TouchScreenControls` call anywhere you wrote in a UI-Designer scene — mobile controls are the MobileHUD panel's, via `src/mobile-hud.ts`. Grep the scene and confirm the only hit is that generated file.
+20. In a UI-Designer scene, mobile controls are the MobileHUD panel's (`src/mobile-hud.ts`). Grep the scene for `TouchScreenControls`: the only `createOrReplace` is in that generated file, and every other hit is a runtime hide/show toggle inside a driver (**Placement** rule 3, **MobileHUD**).
 
 ## References
 
@@ -432,10 +424,11 @@ Run over **every** `.tsx` under `src/ui/` you write or adapt. Each item is a sil
 
 ## Cross-references
 
-- **Custom fonts**: `fontSrc` (a `.ttf` shipped with the scene) on `Label`, `Button`, `Input`, `Dropdown` and `uiText`, always with `font` as the fallback. Needs the first SDK release after 7.30.1, never shows on mobile, and on desktop shows only from asset bundles (deployed, or preview with Compress Assets). See **fonts**.
+- **Custom fonts**: `fontSrc` (a `.ttf` shipped with the scene) on `Label`, `Button`, `Input`, `Dropdown` and `uiText`, always with `font` as the fallback. SDK version, where it renders, editable-UI handling and testing: **fonts**.
 - **Platform detection**: `getPlatform()` / `isMobile()` from `@dcl/sdk/platform` (wrapped by `usePlatform()` in editable UI). See **advanced-input**.
 - **Localized UI text**: `getPlayerLanguage()` (same module) returns the player's client language as a BCP-47 tag, with `onPlayerLanguageChanged` for mid-session switches. It returns `'en'` until the explorer answers, so read it in a system (the driver), not at module scope. See **advanced-input** > "Player language". SDK **7.30.0+**.
 - **Sending the player to a client panel**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it. Requires a user gesture. See **scene-runtime** > "openExplorerUi -- Open Explorer Panels".
 - **Replacing the native mobile controls**: `TouchScreenControls` (SDK 7.26.0+, **advanced-input**) hides the joystick / crosshair / gamepad buttons so scene UI can take their place, with `uiInputBinding` wiring replacement buttons to InputActions. In a UI-Designer scene that config belongs to the MobileHUD panel. The client's own HUD (chat, profile, emote wheel) cannot be hidden.
 - **Rules / instructions content**: **game-design** ("Rules: show, don't tell") lists the text-heavy pop-up and unreadable in-world rulebook anti-patterns.
 - **Editing the open scene live** (entities, smart items, settings): **creator-hub-mcp**.
+- **Worked example of animated UI** (sprite sheets, loading indicators): [ui-animations](https://github.com/decentraland/sdk7-goerli-plaza/tree/main/ui-animations), from the docs example catalog (`{baseDir}/../sdk-scenes/references/example-scenes.md`). It is coded UI: port its animation into a driver for editable UI.
