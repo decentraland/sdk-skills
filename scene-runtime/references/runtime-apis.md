@@ -54,6 +54,31 @@ import { setCommunicationsAdapter } from '~system/RestrictedActions'
 setCommunicationsAdapter({ adapter: 'wss://custom-comms.example.com/room/my-scene' })
 ```
 
+### openExplorerUiAndWait — `until` and `collect`
+
+```typescript
+openExplorerUiAndWait(request: { ui: ExplorerUi }, options?: {
+  timeoutMs?: number
+  until?: Channel | Variant      // stop early when an event arrives on this channel (or this $case of it)
+  collect?: Channel[]            // channels whose events are returned in outcome.events
+}): Promise<WaitOutcome>
+```
+
+Channels are exported by `@dcl/sdk/explorer-ui`: `ExplorerUiEvents` (every `ExplorerUiEventsResult` entry: `opened` / `closed` of any panel) and `ItemPurchase` (unused: the explorer has no purchase flow). `variant(channel, '$case')` narrows a channel to one case. The panel closing always ends the wait as `closed`, even when `until` is set; `until` firing first ends it as `matched`. `outcome.events` (on `closed`, `matched` and `timedOut`) holds everything collected, the matching event included, each as `{ channel, event }`.
+
+```typescript
+import { openExplorerUiAndWait, ExplorerUi, ExplorerUiEvents, variant } from "@dcl/sdk/explorer-ui";
+
+// Resolve as soon as any panel reports `opened`, instead of waiting for the close
+const outcome = await openExplorerUiAndWait(
+  { ui: ExplorerUi.EU_MAP },
+  { collect: [ExplorerUiEvents], until: variant(ExplorerUiEvents, "opened"), timeoutMs: 10_000 },
+);
+if (outcome.$case === "matched") {
+  for (const { event } of outcome.events) console.log(event.ui, event.event?.$case);
+}
+```
+
 ## Portable Experiences
 
 Scenes that persist across world navigation. Import from `~system/PortableExperiences`.

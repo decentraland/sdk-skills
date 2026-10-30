@@ -231,7 +231,7 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // c
 
 ### openExplorerUi -- Open Explorer Panels
 
-Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. Requires prior player interaction.
+Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. The call must land in the same tick as a **player gesture**, otherwise it returns `REJECTED_NO_USER_GESTURE`.
 
 ```typescript
 import { openExplorerUi } from "~system/RestrictedActions";
@@ -241,7 +241,9 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Call it from an input callback: called at top level it always returns `REJECTED_NO_USER_GESTURE`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+
+**What counts as a gesture**: a click on a 3D entity (`pointerEventsSystem.onPointerDown` / `onPointerUp`), a click on scene UI (`onMouseDown` / `onMouseUp`), or an activation button (`E`, `F`, `1`-`4`: `IA_PRIMARY`, `IA_SECONDARY`, `IA_ACTION_3`-`IA_ACTION_6`) read with `inputSystem.isTriggered` on `PET_DOWN` / `PET_UP`. Hover, movement keys, `main()`, timers and trigger areas are not gestures. The window is about one tick, so call `openExplorerUi` **first** inside the handler: an `await` on a fetch, a timer or another restricted action before it pushes the call outside the window.
 
 ```typescript
 import { openExplorerUi, OpenExplorerUiResult } from "~system/RestrictedActions";
@@ -258,7 +260,27 @@ pointerEventsSystem.onPointerDown(
 );
 ```
 
-`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing. `EU_ITEM_PURCHASE` also exists in the SDK types but the explorer has no purchase flow and answers `REJECTED_FEATURE_DISABLED`; do not use it.
+
+### openExplorerUiAndWait -- Wait Until the Panel Closes
+
+`openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`, SDK **7.30.0+**) opens a panel and resolves when the player closes it. Use it when the scene continues only after the player is done (sent to the backpack to equip something, to the map to pick a destination). Same gesture rule: call it first inside the handler; the `await` on its result is fine because the panel is already requested. The module re-exports `ExplorerUi`, and the bare-enum overload `openExplorerUiAndWait(ExplorerUi.EU_MAP)` is equivalent to `{ ui: ExplorerUi.EU_MAP }`.
+
+```typescript
+import { openExplorerUiAndWait, ExplorerUi } from "@dcl/sdk/explorer-ui";
+import { InputAction, pointerEventsSystem } from "@dcl/sdk/ecs";
+
+pointerEventsSystem.onPointerDown(
+  { entity: wardrobe, opts: { button: InputAction.IA_POINTER, hoverText: "Change outfit" } },
+  async () => {
+    const outcome = await openExplorerUiAndWait({ ui: ExplorerUi.EU_BACKPACK }, { timeoutMs: 60_000 });
+    if (outcome.$case === "closed") startFashionShow();
+    else if (outcome.$case === "notOpened") showHint(`Backpack unavailable: ${outcome.openResult}`);
+  },
+);
+```
+
+`outcome.$case`: `closed` (the panel this call opened was closed, the normal end), `notOpened` (nothing opened; `outcome.openResult` is the `OpenExplorerUiResult` reason, resolves immediately), `timedOut` (`timeoutMs` elapsed with the panel still open), `matched` (an `until` condition fired first; the panel may still be open). There is no default timeout: a panel can stay open for minutes, so pass `timeoutMs` whenever the scene must move on regardless. `until` / `collect` options and event channels: `{baseDir}/references/runtime-apis.md` → openExplorerUiAndWait.
 
 ### ExplorerUiEventsResult -- Observe Panel Open/Close
 
