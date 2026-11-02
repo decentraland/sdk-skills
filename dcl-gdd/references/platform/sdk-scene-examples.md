@@ -432,28 +432,25 @@ and authoritative role assignment are not established by this inspection.
 
 ## Lighting evidence
 
-**Light limits currently need scope.** General Lights docs state one light per parcel. The
-[upstream lighting skill](https://github.com/decentraland/sdk-skills/blob/main/lighting-environment/SKILL.md) instead describes separate authored-content and renderer budgets.
-Official mobile [docs change 8139a7f](https://github.com/decentraland/docs/commit/8139a7fb6d9c91f6ed29cd10cdc19db7ee8aaca6)
-confirms soft/hard authored limits of 8/16 lights and 2/4 shadow lights, while quality profiles
-activate 0–8 nearest lights and may disable shadows. These measure different things. The skill also cites desktop Unity quality assets, not independently inspected here. Preserve this conflict; inspect the relevant validator/renderer before promising an exact
-budget. If the game targets profiles with lights or shadows disabled, provide another way to read
-its essential cues; otherwise record that profile dependency.
+**Light budget:** follow the lighting skill (`{baseDir}/../lighting-environment/SKILL.md`),
+*Light Limits* and *Mobile light budget*. Author at most 8 lights and 2 shadow-casting lights
+(the mobile soft limits); the renderer then shows only the nearest few per quality profile, and
+desktop *Low* and mobile *Very Low* show none. Keep every essential cue readable without scene
+lights or shadows.
 
 ## Particle evidence
 
 **Smoke, sparks and other particle cues:** native `ParticleSystem` and the
-[particle presets](https://github.com/decentraland/sdk-skills/blob/main/particle-system/references/particle-presets.md)
+particle presets (`{baseDir}/../particle-system/references/particle-presets.md`)
 provide a concrete starting point. The official
 [particle test scene](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/0,7-particle-system/src/index.ts)
 also demonstrates the API; its package uses SDK `^7.24.5`. The
-[particle skill](https://github.com/decentraland/sdk-skills/blob/main/particle-system/SKILL.md)
+particle skill (`{baseDir}/../particle-system/SKILL.md`)
 documents mobile support and warns that particles are visible only from inside the scene's
 parcels and are not included in its LOD silhouette. Set particle size in the emitter, not `Transform.scale`.
-Keep collision and gameplay outcomes separate from cosmetic particles. The same skill contains
-an unresolved conflict between a general particle cap and larger mobile budgets; do not turn
-either number into a universal quota. Check the relevant validator/runtime if the effect depends
-on a limit. Appearance, performance and example reuse permission remain separate checks.
+Keep collision and gameplay outcomes separate from cosmetic particles. Budget them per that
+skill's *RULE: Budget particles*: ≤ 8 emitters and `maxParticles` summing to ≤ 1,000 is the
+cross-platform target; the looser mobile limits are not a design target. Appearance, performance and example reuse permission remain separate checks.
 Use these cues to make an action readable: a pot boiling over, a machine starting or a trail
 showing a recent event. A visible effect can communicate state without implementing that state.
 

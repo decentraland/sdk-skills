@@ -41,7 +41,8 @@ does."* A choice put on the table, never a verdict.
 ## Performance and dependencies
 
 The proposal targets **60 fps on recommended desktop hardware** and **30 fps on a *named* mobile device and
-client**, both at §5's **target player count** (programme baseline: up to 20 players). If §5's count is
+client**, both at §5's **target player count** (programme baseline: up to 20 players), per the
+template's §6 *Performance* line ([s6.md](../assets/gdd-template/s6.md)). If §5's count is
 `TBD:`, the load for the performance target is too.
 For general design, choose performance goals appropriate to the intended devices, load and experience.
 

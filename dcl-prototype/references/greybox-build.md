@@ -13,11 +13,13 @@ For a mood, light or sound question, choose a relevant [atmosphere trial](atmosp
 2. **The interaction, real.** Input, timing, collision, camera and feedback; for a toy, connect
    the actions needed to play with it before tuning each part separately.
 3. **Everything else, faked.** In the crudest form that lets a tester keep playing. With the
-   Creator Hub MCP connected, place greybox geometry live in the editor. Otherwise, before the
-   first build in a project, ask the owner once with the three choices from `sdk-scenes`
-   (*Building static geometry in code*), recommending runtime spawning from code for a throwaway
-   greybox: it is fast to change but shows only in the preview, not in the Creator Hub editor.
-   Record the answer in the bootstrap note and do not ask again unless the setup changes.
+   Creator Hub MCP connected, place greybox geometry live in the editor. If the scene is not and
+   will not be open in the Creator Hub, write it to `assets/scene/main.composite`. If it is or may
+   be open, follow `sdk-scenes` (*Building static geometry in code*): ask its three choices without
+   recommending one; code-spawned geometry is never a default, not even for a throwaway greybox.
+   Re-check the Hub state each session; a recorded answer holds only while that state holds.
+   Size the space with **add-3d-models** → *RULE: Scale interiors up for the third-person camera*,
+   and keep interactables the test depends on away from parcel edges.
 4. **Smoke-check the setup.** Confirm the action and observation work. For a registered test,
    check that its outcomes can be distinguished; smoke is not evidence of human enjoyment.
 
@@ -86,7 +88,7 @@ Use these shortcuts only for properties outside the current question; do not fak
 | Thing | Fake |
 |---|---|
 | progression, unlocks | a number printed on screen, set by hand |
-| economy, rewards | arithmetic in the brief; a debug button that grants |
+| economy, rewards | arithmetic in the brief; a debug button that grants (remove before publishing) |
 | other players | a scripted entity, or another client in an explicitly arranged multiplayer setup |
 | art, characters, environment | primitives; colour carries meaning |
 | audio | one sound on the verb under test if the feel depends on it, otherwise silence |

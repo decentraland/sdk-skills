@@ -64,8 +64,8 @@ deeplink. One question, recommendation attached; never spawn servers or open cli
 - **sdk-skills installed:** use its `unity-explorer-mcp` skill — it sets up, launches and drives
   the Explorer through its MCP server: screenshots, camera moves, logs and scene state without
   leaving the session.
-- **No sdk-skills:** if `mcp__explorer__*` tools are already present in the session, use them
-  directly. Otherwise ask the owner before installing
+- **No sdk-skills:** if `mcp__explorer__*` tools are already present in the session, confirm with
+  the owner before probing or launching the Explorer, then use them. Otherwise ask the owner before installing
   (`npx skills add decentraland/sdk-skills --all`), or watch the owner play.
 
 ## Who tests — ask it in the Brief
@@ -84,9 +84,11 @@ Record in the Brief **who runs the sessions**, as a question to the owner with a
 Use when mobile is part of the chosen scope, or for an applicable Creator Success requirement.
 The cost depends on device access, setup and what the check must establish.
 
-**The QR pass** (verified): Creator Hub → the dropdown next to **Preview** → **Show QR Code for
-Mobile** → point the phone camera at it. CLI fallback: `npm run start -- --mobile` (prints the QR
-in the terminal; the desktop explorer does not launch with this flag). Phone and machine must share
+Before building, check that no mechanic depends on a mobile gap:
+`{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+
+**The QR pass** (verified): Creator Hub → **Play** → **Play Options** → **Show QR Code for
+Mobile** → point the phone camera at it. Phone and machine must share
 one Wi-Fi — a personal hotspot beats corporate isolation. Hot-reload reaches the phone, so you
 iterate without re-scanning.
 

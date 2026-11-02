@@ -56,7 +56,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `dcl-gdd` | Design a game or experience with the creator — brainstorm, core loop, audience, retention, mobile, scope — and write or revise a GDD. Pairs with `dcl-prototype`. |
-| `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. |
+| `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. Requires `dcl-gdd`. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |

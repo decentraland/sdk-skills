@@ -40,8 +40,10 @@ programme terms before presenting them as current requirements.
 
 - **Program dashboard D7 = first-week return:** the share of new players who come back *at least
   once during days 1–7* (the template's glossary). **v1 floor >10%; program target >20%.** Both bars
-  apply only once the view holds **at least ten eligible new users with a completed window**; below
-  that the verdict is *insufficient evidence*, not a fail.
+  come from the template ([before-you-submit.md](../assets/gdd-template/before-you-submit.md));
+  no public programme page states them, so confirm them with the programme before quoting them as
+  current requirements. They apply only once the view holds **at least ten eligible new users
+  with a completed window**; below that the verdict is *insufficient evidence*, not a fail.
 - **Never set against mobile-F2P "D7"**, which counts players active *on day 7* and measures a
   different event. Comparing the percentages directly overstates what the figures establish.
 - For external comparisons, find a public source and check its metric definition, time window,

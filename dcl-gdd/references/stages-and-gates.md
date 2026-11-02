@@ -146,7 +146,8 @@ ready. A request not to offer again persists. No separate tracking file is neede
 
 `.md` is the source of truth. `.html` is a **disposable, free-form creative render** of it —
 self-contained, inline CSS, no JS frameworks, no build step, no pipeline: you simply rewrite the
-file. Start from [deck-shell.html](../assets/deck-shell.html) for navigation only; replace its
+file. Load nothing from the network (no remote scripts, fonts, images or embeds), and HTML-escape
+any text quoted from sources or the owner. Start from [deck-shell.html](../assets/deck-shell.html) for navigation only; replace its
 sample content and style for this game. Keep only pages supported by the source. Grow it as a
 small pitch deck inside this one HTML, with distinct slide-like pages:
 1. **Core:** player fantasy, core mechanic (input, response and choice), the shape of play and intended

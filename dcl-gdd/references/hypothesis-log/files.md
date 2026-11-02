@@ -29,7 +29,7 @@ prefix and matching H-prefix; never duplicate a prefix or renumber existing reco
 Keep this one-folder depth for the shared glob; folders carry no status suffix and may also hold
 playtest notes, screenshots and raw data. Create only the files needed for the current work.
 
-The `design/` path is the session folder's `design/` (see SKILL.md phase 0); never hardcode it.
+The `design/` path is the session folder's `design/` (see [creator-success.md](../creator-success.md), phase 0); never hardcode it.
 
 ## Working direction
 

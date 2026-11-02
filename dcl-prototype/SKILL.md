@@ -123,8 +123,8 @@ evidence consistently; different people may experience the action differently.
 ### 2 — Build
 
 Greybox on the rung the brief chose: [references/greybox-build.md](references/greybox-build.md).
-Where greybox geometry lives (Creator Hub, scene file or code) is the owner's choice, asked once
-per project; the build guidance has the question and the recommendation. For layout, camera clearance, navigation or spatial feel, read the relevant moves in the
+Greybox geometry goes through the Creator Hub MCP or the scene file; code-spawned geometry only
+as the owner's explicit choice, per the build guidance. For layout, camera clearance, navigation or spatial feel, read the relevant moves in the
 [level-design playbook](references/level-design-playbook.md) before shaping the space.
 Use `sdk-skills` for SDK7 APIs and `sdk7-test-scenes` for mechanics, never memory. If neither is
 available and installation is declined or fails (ask the owner before installing), report that and use official SDK7 docs via the

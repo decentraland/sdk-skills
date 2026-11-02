@@ -26,13 +26,13 @@ technical configuration and every survey detail need not be decided here.
 
 ## Use the feedback skill and its docs
 
-When refining question wording or response formats, use the available feedback skill's relevant
-instructions and the module's [question guide](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md).
+When refining question wording or response formats, use the **scene-feedback** skill's relevant
+instructions (for organizing rounds and finding testers, its *Run test rounds*) and the module's [question guide](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/QUESTION_GUIDE.md).
 Reuse their guidance and question bank selectively; keep them as the source of truth instead of
-copying their workflow here. For implementation, route to the feedback skill discovered in the
-target project or agent environment. If unavailable, use the module's
+copying their workflow here. For implementation, route to **scene-feedback** in the target
+project or agent environment. If unavailable, use the module's
 [README](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md)
-and question guide; do not invent a skill name or require its installation just to prepare design.
+and question guide; do not require its installation just to prepare design.
 
 Pass the GDD/trial link, questions, experience/timing conditions and chosen items to that feedback
 skill or docs-guided builder. Reuse the [handoff](hypothesis-log/handoff.md) record and build/run

@@ -51,7 +51,7 @@ Implementation: `advanced-input` via `TouchScreenControls`, and `build-ui` for c
 charging tool. Simple events and continuous input are available routes. Decide how the action
 starts, cancels and gives feedback. Mouse movement can serve desktop aiming, but needs a touch
 alternative for mobile. The player/client can override pointer capture, so recovery matters.
-Source: [advanced-input](https://github.com/decentraland/sdk-skills/blob/main/advanced-input/SKILL.md).
+Source: advanced-input (`{baseDir}/../advanced-input/SKILL.md`).
 Implementation: `add-interactivity` for clicks, `advanced-input` for polling and restrictions.
 
 ## Move players, move objects, detect contact
@@ -60,7 +60,7 @@ Implementation: `add-interactivity` for clicks, `advanced-input` for polling and
 locomotion, move the local player to a destination or apply forces. Choose the effect that serves
 the action: a slow carrying role feels different from a conveyor hazard or a launch-pad course.
 These are distinct routes, with their own control and recovery needs; arbitrary character-controller
-behavior is not established. Sources: [player-avatar](https://github.com/decentraland/sdk-skills/blob/main/player-avatar/SKILL.md)
+behavior is not established. Sources: player-avatar (`{baseDir}/../player-avatar/SKILL.md`)
 and [player physics](https://docs.decentraland.org/creator/scenes-sdk7/interactivity/player-physics).
 Implementation: `player-avatar`, `advanced-input`, `player-physics` according to the intended effect.
 
@@ -85,7 +85,7 @@ animated shapes do not automatically deform their colliders. Native `TriggerArea
 enter/stay/exit route for players or chosen objects. Give a thin visible floor enough detection
 space to register a player. Overlapping zones and teleports can leave stale exit events, so base
 persistent effects on current occupancy when that matters. The
-[interaction guidance](https://github.com/decentraland/sdk-skills/blob/main/add-interactivity/SKILL.md)
+interaction guidance (`{baseDir}/../add-interactivity/SKILL.md`)
 and official trigger example were inspected, not tested on every client/version.
 Implementation: `add-interactivity`; `add-3d-models` for model colliders.
 
@@ -120,26 +120,26 @@ Detection and success rules are scene logic, separate from the light's appearanc
 
 **Lighting depends on the target graphics profile.** Some profiles can disable lights or
 shadows. Provide another readable cue when those profiles are part of the audience; otherwise
-record the dependency. Published light budgets also need a focused check before promising an
-exact count. [Lighting evidence](sdk-scene-examples.md#lighting-evidence) retains the different
-limits and their source scopes.
+record the dependency. Budget lights per [Lighting evidence](sdk-scene-examples.md#lighting-evidence)
+(at most 8 authored lights and 2 shadow-casting ones).
 
 **Materials and effects:** players can recognize a selected tool, a damaged machine or a changed
 state through its appearance. A scene can change the whole model or named parts without
 rebuilding the mesh, when the model supports the chosen override. An emissive material remains
 different from a light. These public controls do not establish access to arbitrary custom shaders or renderer
 post-processing. Implementation: PBR/unlit materials and `GltfNodeModifiers`; source:
-[advanced-rendering](https://github.com/decentraland/sdk-skills/blob/main/advanced-rendering/SKILL.md).
+advanced-rendering (`{baseDir}/../advanced-rendering/SKILL.md`).
 
 **Smoke, sparks and other particle cues:** a pot boiling over, a machine starting or a recent
 event can become easier to notice through native `ParticleSystem` and
-[particle presets](https://github.com/decentraland/sdk-skills/blob/main/particle-system/references/particle-presets.md)
+particle presets (`{baseDir}/../particle-system/references/particle-presets.md`).
 These are visual signals; collision and game outcomes need their own rules. The
-[particle guidance](https://github.com/decentraland/sdk-skills/blob/main/particle-system/SKILL.md)
+particle guidance (`{baseDir}/../particle-system/SKILL.md`)
 documents mobile support, but particles are visible only inside the scene's parcels and are
 absent from its LOD silhouette. Appearance and performance need the chosen client/profile.
-If an effect depends on a particle budget, check it before committing: published limits conflict.
-[Particle evidence](sdk-scene-examples.md#particle-evidence) retains the example and exact uncertainty.
+Budget particles per **particle-system** → *RULE: Budget particles* (≤ 8 emitters, `maxParticles`
+summing to ≤ 1,000 as the cross-platform target).
+[Particle evidence](sdk-scene-examples.md#particle-evidence) retains the example.
 
 ## Carry things and create characters
 
@@ -148,7 +148,7 @@ teammates recognize their task without opening a menu. `AvatarAttach` and upper-
 provide an implementation route. Full-body interruption rules do not apply to every masked animation.
 The visible attachment is not an inventory, ownership transfer or shared game state. The remaining
 work includes grip/readability, pickup/drop states and cross-client presentation. Source:
-[player-avatar](https://github.com/decentraland/sdk-skills/blob/main/player-avatar/SKILL.md).
+player-avatar (`{baseDir}/../player-avatar/SKILL.md`).
 Implementation: `player-avatar` and `avatar-animations`.
 Choose an attachment that stays readable during the intended movement and gesture.
 
@@ -158,10 +158,10 @@ visual and animation options. The toolkit supplies building blocks; the game sti
 customer or enemy logic. Player emotes, AvatarShape expressions and GLB Animator
 clips are different playback paths. The upstream NPC skill records limitations on custom looping
 and upper-body masks for AvatarShape; inspect them before choosing an animation-dependent design.
-Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: [npcs](https://github.com/decentraland/sdk-skills/blob/main/npcs/SKILL.md).
+Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: npcs (`{baseDir}/../npcs/SKILL.md`).
 For planned behavior, follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic).
 
-The [NPC patterns](https://github.com/decentraland/sdk-skills/blob/main/npcs/references/npc-library.mdc)
+The NPC patterns (`{baseDir}/../npcs/references/npc-library.md`)
 include authored waypoint movement and direct following. Those are useful for a customer route
 or an enemy in an open space; they do not establish obstacle-aware pathfinding. A changing
 kitchen layout needs a navigation implementation or deliberately simpler movement rules.
@@ -176,7 +176,7 @@ routes. Spatial sound does not automatically stay inside a room; distance-based 
 activation may be needed. Media formats, host access and loading still matter. A sequence that
 depends on a finish event needs recovery when media fails.
 Implementation: `AudioSource`, `AudioStream` and `VideoPlayer`; source:
-[audio-video](https://github.com/decentraland/sdk-skills/blob/main/audio-video/SKILL.md).
+audio-video (`{baseDir}/../audio-video/SKILL.md`).
 
 **Audio-reactive play:** a pulse cue or reactive installation can respond to a scene track.
 `AudioAnalysis` provides amplitude and frequency bands from an entity's audio component;
@@ -184,7 +184,7 @@ detecting exact beats or scoring rhythm still needs game logic and timing checks
 It does not expose the player's microphone or recognize words. The upstream
 skill distinguishes progressive video from HLS analysis and warns that silence and missing
 support can both produce zeros. Source and implementation:
-[audio-analysis](https://github.com/decentraland/sdk-skills/blob/main/audio-analysis/SKILL.md).
+audio-analysis (`{baseDir}/../audio-analysis/SKILL.md`).
 If play must also work without audio, provide a readable alternative. Official [docs change b4d4c88](https://github.com/decentraland/docs/commit/b4d4c88191f3d65fc2214f586c86dfb9447ce55e)
 records AudioAnalysis and AudioEvent support in mobile v1.14.0; an unqualified “desktop only”
 claim is outdated. For a speaking indicator rather than audio analysis, see the separate
