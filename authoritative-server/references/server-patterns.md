@@ -439,24 +439,14 @@ Source: `decentraland/hammurabi-headless` Resource / DoS limits (host calls, iso
 
 ## Production Logs
 
-Stream live server-side `console.log()` output from the deployed server to diagnose issues without redeploying.
-
-Configure it with `logsPermissions` — a **root-level array of wallet addresses** in `scene.json` authorized to read production server logs. **Without it, server logs are hidden in production even from the scene owner.**
+Use `scene-insights` for deployed server log search, bounded live tails, execution history and CPU/memory metrics. Logs and metrics are retained for 7 days across restarts and redeploys. Read `{baseDir}/references/scene-insights.md` first for the installed-CLI check, scoped login, target selection and output handling.
 
 ```bash
-# Genesis City LAND
-npx sdk-commands sdk-server-logs
+# Genesis City scene: a bounded live tail
+npx sdk-commands scene-insights tail --position=-1,2 --for 30s --lines 20 --json
 
-# World (manually specify when not auto-detected)
-npx sdk-commands sdk-server-logs --world WORLD_NAME.dcl.eth
+# World: a bounded live tail
+npx sdk-commands scene-insights tail --world WORLD_NAME.dcl.eth --for 30s --lines 20 --json
 ```
 
-Flow:
-1. Add the wallet address(es) to `logsPermissions` in `scene.json` and deploy.
-2. Run the command. It prompts to sign a message with a wallet listed in `logsPermissions`.
-3. After signing, server logs stream to the terminal in real time.
-
-Gotchas:
-- The signing wallet must already appear in the **deployed** `scene.json`. Updating `logsPermissions` requires a redeploy.
-- `--world` is the only documented flag; use it when the command cannot infer the world name from the current project.
-- Only server-side `console.log()` is streamed — client logs are not.
+The wallet must be in the deployed scene's root-level `logsPermissions` array, or be the World's owner or a deployment collaborator whose grant covers the whole World or every deployed parcel of the scene. Genesis City ownership alone does not grant access. Report missing permissions; leave wallet selection, permission changes and redeployment to the user unless explicitly authorized. These commands retrieve server logs, not client logs.

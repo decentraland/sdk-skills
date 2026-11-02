@@ -194,7 +194,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Multiplayer Server
 
-**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Requires `@dcl/sdk@auth-server`.
+**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Also investigate deployed multiplayer scenes automatically using persisted log search, bounded live tail, executions and CPU/memory metrics (`scene-insights`). Read-only diagnostics reuse an existing session; they do not require adding a server. First check the installed `node_modules/.bin/sdk-commands scene-insights --help`, including stderr; if unavailable, explain the required SDK update. Do not upgrade automatically. Older installations may need updating, and granting log access requires redeploying. Authoring requires `@dcl/sdk@auth-server`.
 
 ### Script Components (Creator Hub)
 
