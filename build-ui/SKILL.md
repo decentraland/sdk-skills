@@ -23,7 +23,7 @@ Both are ordinary React-ECS and run anywhere; the editable contract is a *subset
 | Open a web page | `openExternalUrl` | **scene-runtime** |
 | Clickable objects in 3D space | pointer events | **add-interactivity** |
 | On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
-| Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | **game-design** → *The platform already provides this* |
+| Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | `{baseDir}/../create-scene/references/platform-provided.md` |
 
 ## Choosing the mode
 
@@ -317,7 +317,21 @@ The most common layout mistake in generated scenes is a panel pinned to the top-
 3. **Mobile: the bottom-right action buttons (jump, E, F, pointer) are drawn on top of the interactable area**, and taps there go to the client. A **gameplay HUD** stays clear: anchor top-right / top-center, no interactive element bottom-right on mobile (read `UiCanvasInformation.interactableArea` for exact margins; the button slots are fixed). **UI that interrupts gameplay** (scoreboard, results, shop, rules card) hides the touch controls while open — `TouchScreenControls.hideAll()` + `hideJoystick()` on open, `showAll()` + `showJoystick()` on close (no-ops on desktop; `showAll()` also clears every per-button setting, custom icons and per-button hides alike — re-apply them), optionally `InputModifier` `disableAll` on `engine.PlayerEntity` for the same span (desktop and mobile clients — the mobile docs recommend it for this case; it only has no effect in the legacy web explorer). Route **every** close path through the same function so controls are never left hidden. Editable: the driver does this when `state.visible` flips; coded pattern: `{baseDir}/references/coded-ui.md` → Full-screen modal. In a scene that uses the UI Designer's MobileHUD panel, that runtime toggle fights the panel's static call — see **MobileHUD**.
    **A card the player dismisses with a key needs a tap path on mobile.** A title, ending or "press E to continue" card advanced only by `IA_PRIMARY` is a dead end on a phone once the touch controls are hidden — the native E button was the only way forward (owner-reported 2026-10-12: "cannot press the E button"). Bind the same action to the UI: `uiInputBinding={{ actions: [InputAction.IA_PRIMARY] }}` on a visible **Continue** button, or on the card itself so a tap anywhere advances it (`{baseDir}/references/ui-components.md` → uiInputBinding: the element fires the action as if the key were pressed, so the existing `inputSystem` check keeps working). Keep the touch controls visible when the card has no tappable control of its own. The button form is the documented mobile pattern; the tap-anywhere form has not been checked on a device yet.
 
-Content rule for any panel that explains the game: one screen, no scrolling, 3–5 short lines, show (icon, diagram, highlighted first target) rather than tell — **game-design** skill → "Rules: show, don't tell".
+## Rules: show, don't tell
+
+Content rule for any panel that explains the game: one screen, no scrolling, 3–5 short lines, show (icon, diagram, highlighted first target) rather than tell. Two anti-patterns show up constantly in generated games. Both lose players before the first interaction.
+
+- **The rules pop-up.** An intro modal with several dense paragraphs explaining every mechanic, scoring rule and control. Players dismiss it unread. Fix: the pop-up (if any) is one screen, 3–5 lines, ≤ 8 words each, ideally one goal line plus one control line plus one picture/diagram. Everything else is learned by playing.
+- **The in-world rulebook.** The same paragraphs on a stylized plane or board in the scene. It looks like design, but the text is too small and too long to read in-world, and players will not stand still and squint. Fix: a sign says one thing (≤ 10 words, large `fontSize`); one sign per idea; put the rest into the level design.
+
+Show instead of tell:
+- Make the first target unmistakable: a glowing, animated, or oversized object placed in the player's opening sightline. A pulsing outline teaches "click me" better than a sentence does.
+- Teach one mechanic by letting the player do it once safely (tutorial gate, practice target) before the real game starts.
+- Use `hoverText` on interactive entities as the just-in-time instruction — it appears exactly when it is relevant and costs no reading up-front.
+- Use an image/diagram (a `uiBackground` texture or an in-world plane) for spatial or sequence rules; a picture of "red gems = 1, blue = 5" replaces a paragraph.
+- Deliver anything longer through an NPC or a dialog one message at a time, skippable, or as `Timed Announcement`-style hints at the moment they matter.
+
+Text budget as a checklist: intro panel ≤ 5 lines; sign ≤ 10 words; hint ≤ 1 sentence; if a rule needs more than that, redesign the mechanic or show it with visuals.
 
 ## Pointer blocking
 
@@ -429,6 +443,5 @@ Run over **every** `.tsx` under `src/ui/` you write or adapt. Each item is a sil
 - **Localized UI text**: `getPlayerLanguage()` (same module) returns the player's client language as a BCP-47 tag, with `onPlayerLanguageChanged` for mid-session switches. It returns `'en'` until the explorer answers, so read it in a system (the driver), not at module scope. See **advanced-input** > "Player language". SDK **7.30.0+**.
 - **Sending the player to a client panel**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it. Requires a user gesture. See **scene-runtime** > "openExplorerUi -- Open Explorer Panels".
 - **Replacing the native mobile controls**: `TouchScreenControls` (SDK 7.26.0+, **advanced-input**) hides the joystick / crosshair / gamepad buttons so scene UI can take their place, with `uiInputBinding` wiring replacement buttons to InputActions. In a UI-Designer scene that config belongs to the MobileHUD panel. The client's own HUD (chat, profile, emote wheel) cannot be hidden.
-- **Rules / instructions content**: **game-design** ("Rules: show, don't tell") lists the text-heavy pop-up and unreadable in-world rulebook anti-patterns.
 - **Editing the open scene live** (entities, smart items, settings): **creator-hub-mcp**.
 - **Worked example of animated UI** (sprite sheets, loading indicators): [ui-animations](https://github.com/decentraland/sdk7-goerli-plaza/tree/main/ui-animations), from the docs example catalog (`{baseDir}/../sdk-scenes/references/example-scenes.md`). It is coded UI: port its animation into a driver for editable UI.

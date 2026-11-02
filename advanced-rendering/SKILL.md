@@ -101,7 +101,7 @@ TextShape.create(label, {
 ```
 
 - **`fontSize` is in world units, not pixels: `10` makes the text about 1 m tall** (SDK docs; the Explorer passes it straight to a world-space TextMeshPro, `TMPProSdkExtensions.cs`), and the parent `Transform.scale` multiplies it. `16–32` is big signage read from across a parcel; a monitor, plaque or label needs about `1–4`, or a small size under a scaled parent. Text spilling out of a monitor model (2026-10-08) was this unit mismatch, not a layout bug.
-- One idea per sign, ≤ 10 words, large type: **game-design** → "Rules: show, don't tell".
+- One idea per sign, ≤ 10 words, large type: **build-ui** → *Rules: show, don't tell*.
 - Always add `outlineColor` and `outlineWidth` for legibility against any background.
 - **Free-standing labels go in open air:** solid geometry occludes world-space text, so keep no solid model within 2 m horizontally, leave height clearance, and add `Billboard` with `billboardMode: BillboardMode.BM_Y`. A sign mounted flat on a wall needs no Billboard.
 - For a custom typeface, set `fontSrc` to a `.ttf` in the scene, with `font` as the fallback. See **fonts** for the SDK version, explorer and mobile support, and previewing it.
