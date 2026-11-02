@@ -78,21 +78,24 @@ def reset(aspect=1.0, exposure=-0.7):
         scn.render.engine = 'CYCLES'
         scn.cycles.samples = SAMPLES
         scn.cycles.use_denoising = True
-        # GPU: the first Cycles backend with a device (Apple METAL, NVIDIA OPTIX/CUDA, AMD HIP, Intel ONEAPI); else CPU.
+        # GPU: the first Cycles backend that lists a device of its own kind (Apple METAL, NVIDIA OPTIX/CUDA,
+        # AMD HIP, Intel ONEAPI); else CPU. Each backend is asked for its own list: prefs.devices holds every
+        # backend's devices at once, so checking it would pick OPTIX on an AMD or Intel machine and render on the CPU.
         prefs = bpy.context.preferences.addons['cycles'].preferences
         for backend in ('METAL', 'OPTIX', 'CUDA', 'HIP', 'ONEAPI'):
             try:
-                prefs.compute_device_type = backend
-                prefs.get_devices()
-                if not any(d.type != 'CPU' for d in prefs.devices):
-                    continue
-                for d in prefs.devices:
-                    d.use = True
-                scn.cycles.device = 'GPU'
-                print('Cycles on GPU (%s)' % backend)
-                break
+                devs = list(prefs.get_devices_for_type(backend))
             except Exception:   # backend not compiled into this Blender
                 continue
+            gpus = [d for d in devs if d.type == backend]
+            if not gpus:
+                continue
+            prefs.compute_device_type = backend
+            for d in devs:
+                d.use = d.type == backend
+            scn.cycles.device = 'GPU'
+            print('Cycles on GPU (%s: %s)' % (backend, ', '.join(d.name for d in gpus)))
+            break
         else:
             print('no GPU backend found, rendering on CPU (slower)')
     scn.render.resolution_x = int(round(RES * aspect))

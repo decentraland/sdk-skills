@@ -1,7 +1,8 @@
-import { AbsoluteFill, Easing, Img, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { Shot as ShotT, Source } from "../edits";
 import { sec } from "../lib/config";
 import { Caption } from "./Caption";
+import { KitImg } from "./KitImg";
 import { Placeholder } from "./Placeholder";
 
 const out = Easing.out(Easing.cubic);
@@ -16,8 +17,8 @@ const KenBurns: React.FC<{ src: string; move?: string; focus?: [number, number] 
   const dx = move === "left" ? -3 * t : move === "right" ? 3 * t : 0;
   const dy = move === "up" ? -3 * t : move === "down" ? 3 * t : 0;
   return (
-    <Img
-      src={staticFile(src)}
+    <KitImg
+      file={src}
       style={{
         width: "100%",
         height: "100%",

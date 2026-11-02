@@ -271,6 +271,12 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 // posts.json is data: only http(s) links become hrefs, and local files must be plain relative paths (no scheme, no ..).
 const safeUrl = u => /^https?:\/\/[^\s<>"']+$/i.test(u || '') ? u : '';
 const safeFile = f => (typeof f === 'string' && f && !/^[a-z][a-z0-9+.-]*:/i.test(f) && !f.split(/[\\/]/).includes('..')) ? f : '';
+// Download / open links for a kit file. A rejected path gets a disabled button or plain text: <a href="" download>
+// would download this page itself.
+const dlLink = (f, label, cls) => safeFile(f) ? `<a class="btn ${cls}" href="${esc(f)}" download>${label}</a>`
+  : `<button class="btn ${cls}" disabled title="Bad file path in posts.json: ${esc(f)}">${label}</button>`;
+const fileLink = f => safeFile(f) ? `<a href="${esc(f)}" target="_blank" rel="noopener">${esc(f)}</a>`
+  : `<code>${esc(f)}</code> <span class="missing">(bad file path in posts.json)</span>`;
 const iconLogo = K.logos.find(l => /_icon_\d+\.png$/.test(l.file));
 const avatar = (K.images.icon && K.images.icon.src) || (iconLogo && iconLogo.src) || '';
 document.title = K.game + ' marketing kit';
@@ -386,7 +392,7 @@ function metaHtml(img, t, p) {
     : `${n} characters${n > 280 ? ' <span class="missing">(over the 280 limit on X)</span>' : ''}`;
   const file = !img ? '—'
     : img.missing ? `<code>${esc(img.file)}</code> <span class="missing">(file not generated yet)</span>`
-    : `<a href="${esc(safeFile(img.file))}" target="_blank" rel="noopener">${esc(img.file)}</a>`;
+    : fileLink(img.file);
   return `<div>${chars}</div><div>${file}</div>`;
 }
 function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB'; }
@@ -395,7 +401,7 @@ function videoMeta(v, status) {
   if (!v && status) return `<div>Video: <span style="color:var(--amber)">being generated since ${esc(fmtTime(status.since))}</span> (marker <code>videos/&lt;post id&gt;.rendering</code>)</div>`;
   if (!v) return '';
   const redo = status ? `<div><span style="color:var(--amber)">A new version is being generated since ${esc(fmtTime(status.since))}</span>; this is the previous one.</div>` : '';
-  const one = x => `<a href="${esc(safeFile(x.file))}" target="_blank" rel="noopener">${esc(x.file)}</a>${x.w ? ` ${x.w}×${x.h}` : ''}${x.seconds ? ` · ${x.seconds} s` : ''} · ${fmtSize(x.bytes)}${x.seconds > 30 ? ' <span class="missing">(over the 30 s trailer limit)</span>' : ''}`;
+  const one = x => `${fileLink(x.file)}${x.w ? ` ${x.w}×${x.h}` : ''}${x.seconds ? ` · ${x.seconds} s` : ''} · ${fmtSize(x.bytes)}${x.seconds > 30 ? ' <span class="missing">(over the 30 s trailer limit)</span>' : ''}`;
   return `<div>Video: ${one(v)}</div>${v.vertical ? `<div>Vertical: ${one(v.vertical)}</div>` : ''}${redo}`;
 }
 // The prompt the creator pastes to any AI coding assistant to get ONE post video.
@@ -508,7 +514,7 @@ function renderPosts() {
           : `<button class="btn primary" data-a="copy">Copy text</button>`}
         <button class="btn" data-a="copyimg">Copy image</button>
         <button class="btn" data-a="download">Download image</button>
-        ${p.video ? `<a class="btn" href="${esc(safeFile(p.video.file))}" download>Download video</a>` : ''}
+        ${p.video ? dlLink(p.video.file, 'Download video', '') : ''}
         ${hasVideoBtn ? (p.video_status ? `<button class="btn" disabled title="A video for this post is being generated; the card updates by itself when it lands">Video in progress…</button>` : `<button class="btn" data-a="prompt" title="Copies a prompt asking your AI coding assistant to generate this post's video">${p.video ? 'Copy prompt to redo video' : 'Copy video prompt'}</button>`) : ''}
         <button class="btn" data-a="reset" title="Restore the original wording">Reset</button>
       </div>`;
@@ -576,7 +582,7 @@ function renderBrand() {
   document.getElementById('brand').innerHTML = K.logos.map(l => `
     <div class="tile"><div class="thumb"><img src="${l.src}" alt=""></div>
       <div class="cap"><code>${esc(l.file.split('/').pop())}</code><span>${l.w}×${l.h}</span>
-        <span><button class="btn small" data-logo="${esc(l.file)}">Copy</button> <a class="btn small" href="${esc(safeFile(l.file))}" download>Download</a></span></div></div>`).join('');
+        <span><button class="btn small" data-logo="${esc(l.file)}">Copy</button> ${dlLink(l.file, 'Download', 'small')}</span></div></div>`).join('');
   document.querySelectorAll('#brand [data-logo]').forEach(b => b.onclick = () => copyImageSrc(b.dataset.logo));
   document.getElementById('gallery').innerHTML = Object.entries(K.images).filter(([k, im]) => !im.file.startsWith('logo/')).map(([k, im]) => `
     <div class="tile"><div class="thumb photo">${im.src ? `<img src="${im.src}" alt="${esc(im.alt||'')}">` : `<span class="missing">not generated yet</span>`}</div>
@@ -591,7 +597,7 @@ function renderBrand() {
     document.getElementById('videos').innerHTML = vids.map(v => `
     <div class="tile"><div class="thumb photo"><video src="${esc(safeFile(v.file))}" controls muted preload="metadata"></video></div>
       <div class="cap"><code>${esc(v.file.split('/').pop())}</code><span>${v.w ? v.w + '×' + v.h : ''}${v.seconds ? ' · ' + v.seconds + ' s' : ''} · ${fmtSize(v.bytes)}</span>
-        <a class="btn small" href="${esc(safeFile(v.file))}" download>Download</a></div></div>`).join('');
+        ${dlLink(v.file, 'Download', 'small')}</div></div>`).join('');
   }
 }
 

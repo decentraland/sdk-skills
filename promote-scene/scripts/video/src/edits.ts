@@ -10,6 +10,8 @@
  *   { video: "clips/hero.mp4" }                           render_shots.py -- clip <shot>
  *   { image: "images/renders/hero.png", move: "push" }    a kit still with slow camera motion
  *   { placeholder: "RECORD: the turbine spinning up" }     nothing exists yet (shows a labelled slate)
+ * A kit image that is not on disk yet (key art before compose_social.py, the lockup before make_logo.py)
+ * renders a "MISSING: <file>" slate instead of failing the render.
  */
 import { KIT, SLUG } from "./lib/config";
 
@@ -60,7 +62,7 @@ export type EndCard = {
 };
 
 export type Edit = {
-  /** Post id from posts.json; becomes videos/<id>.mp4. Letters, digits and dashes only. */
+  /** Post id from posts.json; becomes videos/<id>.mp4. Letters, digits, dashes and underscores only. */
   id: string;
   /** Total length in seconds. Footage posts 6-15 s; a trailer at most 30 s. */
   duration: number;
@@ -76,8 +78,11 @@ export type Edit = {
 };
 
 // The example edit below is built from whatever the kit already has (posts.json "images" and make_logo.py's lockup),
-// so it renders for any scene; a kit without images gets labelled slates. Replace it with this scene's posts.
-const stills = Object.values(KIT.images ?? {}).map((i) => i.file).filter((f) => /^images\//.test(f));
+// so it renders for any scene; a kit without images, or whose images are not generated yet, gets labelled slates.
+// Replace it with this scene's posts.
+// Renders first: the composed key art and quote cards already carry the wordmark or a line of text.
+const files = Object.values(KIT.images ?? {}).map((i) => i.file).filter((f) => /^images\//.test(f));
+const stills = [...files.filter((f) => f.startsWith("images/renders/")), ...files.filter((f) => !f.startsWith("images/renders/"))];
 const still = (i: number, move: "push" | "left"): Source => (stills[i] ? { image: stills[i], move } : { placeholder: `RECORD: shot ${i + 1}` });
 
 export const EDITS: Edit[] = [

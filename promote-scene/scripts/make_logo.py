@@ -16,7 +16,7 @@ KIT = json.load(open(os.path.join(P, 'posts.json'), encoding='utf-8'))
 B = KIT.get('brand', {})
 
 
-def find_font(preferred, names, what):
+def find_font(preferred, names, what):   # same helper in make_logo.py / compose_social.py: each tool is one file, copied on its own
     """A readable .ttf: `preferred` (brand.font / brand.font_small in posts.json) when it exists, else the first of
     `names` found in the usual font folders (macOS, Windows, Linux). Exits with a clear message when none is found."""
     if preferred and os.path.exists(preferred):

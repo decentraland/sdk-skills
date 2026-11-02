@@ -3,6 +3,7 @@
 #   python3 promote/tools/build_kit.py
 #   python3 promote/tools/build_kit.py --rendering <post id>   also writes videos/<post id>.rendering (UTC start time) first
 #   python3 promote/tools/build_kit.py --done <post id>        also deletes that marker first (the video is in place)
+#   (the id must be a post in posts.json; --done warns when that post's video file is still missing)
 # Needs Pillow. ffprobe (part of ffmpeg) is optional: without it videos are listed without size and length.
 # Windows: run with `python` or `py -3` if `python3` is not on PATH.
 # Writes:
@@ -29,12 +30,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 P = os.path.join(ROOT, 'promote')
 data = json.load(open(os.path.join(P, 'posts.json'), encoding='utf-8'))
 problems = []
+ID_OK = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]*$')   # post ids name files (videos/<id>.mp4, the Remotion composition)
+for p in data.get('posts', []):
+    if not ID_OK.match(str(p.get('id', ''))):
+        problems.append('post id %r: use letters, digits, dashes and underscores only (it names files)' % p.get('id'))
 for flag in ('--rendering', '--done'):   # marker handling, so the video workflow needs no date/rm commands
     if flag in sys.argv:
         i = sys.argv.index(flag) + 1
         if i >= len(sys.argv) or sys.argv[i].startswith('--'):
             sys.exit('%s needs a post id, e.g. %s footage-02' % (flag, flag))
-        marker = os.path.join(P, 'videos', sys.argv[i] + '.rendering')
+        pid = sys.argv[i]
+        post = next((p for p in data.get('posts', []) if p.get('id') == pid), None)
+        if post is None or not ID_OK.match(pid):   # a typo gets no marker; "../x" cannot write outside videos/
+            sys.exit('%s %s: no post with that id in posts.json (ids: %s)'
+                     % (flag, pid, ', '.join(str(p.get('id')) for p in data.get('posts', [])) or 'none'))
+        marker = os.path.join(P, 'videos', pid + '.rendering')
         if flag == '--rendering':
             os.makedirs(os.path.dirname(marker), exist_ok=True)
             open(marker, 'w', encoding='utf-8').write(time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
@@ -42,8 +52,10 @@ for flag in ('--rendering', '--done'):   # marker handling, so the video workflo
         else:
             if os.path.exists(marker):
                 os.remove(marker); print('marker removed:', marker)
-            if not os.path.exists(os.path.join(P, 'videos', sys.argv[i] + '.mp4')):
-                problems.append('--done %s but videos/%s.mp4 does not exist' % (sys.argv[i], sys.argv[i]))
+            vfile = post.get('video') or 'videos/%s.mp4' % pid   # a post may name its own file with "video"
+            tall = 'videos/%s-9x16.mp4' % pid
+            if not any(os.path.exists(os.path.join(P, f)) for f in (vfile, tall)):
+                problems.append('--done %s but neither %s nor %s exists' % (pid, vfile, tall))
 MAXW = 1200        # preview width for embedded images; Download always uses the full-size file
 LOGO_MAXW = 900
 # Decentraland Foundation "New Experience: Marketing Requirements" asks that need in-world capture

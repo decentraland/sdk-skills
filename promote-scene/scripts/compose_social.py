@@ -27,7 +27,7 @@ B = KIT.get('brand', {})
 SLUG = re.sub(r'[^a-z0-9]+', '_', KIT['game'].lower()).strip('_')
 
 
-def find_font(preferred, names, what):
+def find_font(preferred, names, what):   # same helper in make_logo.py / compose_social.py: each tool is one file, copied on its own
     """A readable .ttf: `preferred` (brand.font / brand.font_small in posts.json) when it exists, else the first of
     `names` found in the usual font folders (macOS, Windows, Linux). Exits with a clear message when none is found."""
     if preferred and os.path.exists(preferred):
@@ -47,7 +47,6 @@ def find_font(preferred, names, what):
              '(macOS: /System/Library/Fonts/Supplemental/Impact.ttf; Windows: C:\\Windows\\Fonts\\impact.ttf; Linux: a DejaVu or Liberation bold face).' % what)
 
 
-DISPLAY_FONTS = ['Impact.ttf', 'impact.ttf', 'Arial Bold.ttf', 'arialbd.ttf', 'LiberationSans-Bold.ttf', 'DejaVuSans-Bold.ttf']
 SMALL_FONTS = ['DIN Condensed Bold.ttf', 'Arial Narrow Bold.ttf', 'ARIALNB.TTF', 'arialnb.ttf', 'Arial Bold.ttf', 'arialbd.ttf',
                'LiberationSansNarrow-Bold.ttf', 'DejaVuSansCondensed-Bold.ttf', 'DejaVuSans-Bold.ttf']
 

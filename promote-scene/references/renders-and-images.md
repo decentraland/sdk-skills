@@ -19,7 +19,7 @@ The whole-interior case is the common one for Creator Hub scenes (one big GLB, t
 
 Helpers (edit only the per-scene settings and the `SHOTS` section):
 
-- `reset(aspect=1.0, exposure=-0.7)`: factory-empty scene, Cycles with denoising, AgX "High Contrast", near-black world. Tries the Cycles GPU backends in turn (METAL, OPTIX, CUDA, HIP, ONEAPI), uses the first one that has a device and prints which; otherwise it says it is rendering on CPU.
+- `reset(aspect=1.0, exposure=-0.7)`: factory-empty scene, Cycles with denoising, AgX "High Contrast", near-black world. Tries the Cycles GPU backends in turn (METAL, OPTIX, CUDA, HIP, ONEAPI), asks each for its own device list, uses the first one that lists a GPU of its kind and prints the backend and device; otherwise it says it is rendering on CPU.
 - `haze(density)`: world volume scatter for visible light shafts. Use 0.02 for subtle, 0.05–0.07 for thick.
 - `load(path, at, rot=0, scale=1, align_long_x=False, anchor='bottom')`: imports a GLB under an empty and **normalises it by its world bounding box**, so its footprint centre sits at `at` on the floor whatever the GLB's origin is. `align_long_x` first turns long pieces (walls, benches, counters) so they run along X. Relative paths resolve under `MODELS` (`assets/Models`). Absolute paths work for asset-pack items elsewhere in `assets/`.
 - `room(floor, wall, ceiling, tile=8, back_y, centre_wall, ceiling_z=6)`: 3×3 floor tiles at −tile/0/+tile, a three-piece back wall, an optional ceiling row.
