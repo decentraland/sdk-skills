@@ -40,7 +40,7 @@ Two models don't overlap just because their origins are different. Always verify
 
 **This is the canonical copy of this guidance; other skills link here instead of repeating the numbers.** It is design guidance from practice (Decentraland staff feedback after walking a scene in the Explorer, 2026-10-08), not an engine constant.
 
-Decentraland is mostly played in the default third-person camera, which sits **behind and above** the avatar. Interiors therefore feel much smaller on screen than their real-world dimensions suggest: the camera crowds the ceiling, the avatar fills the frame, and ordinary rooms read as corridors. **Do not build rooms at realistic scale.** Give the envelope roughly **1.5× to 2× real headroom**:
+Decentraland is mostly played in the default third-person camera, which sits **behind and above** the avatar. Interiors therefore feel much smaller on screen than their real-world dimensions suggest: the camera crowds the ceiling, the avatar fills the frame, and ordinary rooms read as corridors. **Do not build rooms at realistic scale.** Give the envelope roughly **1.5× to 2× real headroom**. The headroom is for the camera: where a `CameraModeArea` forces first person (**camera-control**), it does not apply inside that area, but the avatar, collider, step and slope limits below still do. Everywhere else players start in third person and switch freely, so size for third person:
 
 | Element | Real-world | Build it at |
 | --- | --- | --- |
