@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, fixtures that glow and cast light. For emissive, metallic, roughness or transparent materials see advanced-rendering.
+description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, fixtures that glow and cast light, strobe and flash effects (photosensitivity limit). For emissive, metallic, roughness or transparent materials see advanced-rendering.
 ---
 
 # Lighting and Environment in Decentraland
@@ -241,6 +241,10 @@ On top of that, each mobile **graphics profile** only activates a budget of the 
 - On Very Low **no** scene light is active: keep the no-light baseline from Light Limits.
 
 Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
+
+## RULE: Photosensitivity — no strobing by default
+
+Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flickering `LightSource`, full-screen UI flashes, video) can trigger seizures. Keep any flash to **at most 3 per second** (WCAG 2.3.1 "Three Flashes or Below Threshold"), keep flashing regions small, and avoid saturated red and large high-contrast full-view flashes. If the design depends on intense effects (club strobes, lightning, damage flashes), add an in-scene toggle to turn them off or tone them down.
 
 ## Gotchas
 

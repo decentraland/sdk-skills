@@ -376,6 +376,5 @@ Engine-team stress-test scenes (treat as ground truth for API shape):
 
 - **deploy-scene** — post-publish asset bundle conversion timing, troubleshooting, `/detectabs` command
 - **add-3d-models** — model loading, colliders, file organization, and driving Blender to fix or author models (`references/blender-authoring.md`)
-- **game-design** — design patterns and MVP planning
 - **advanced-rendering** — texture modes, material reuse, and LOD with VisibilityComponent
 - **scene-runtime** — `EngineInfo.sceneHidden` to pause expensive systems when the scene is hidden behind fullscreen Explorer UI

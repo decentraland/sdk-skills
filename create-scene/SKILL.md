@@ -15,7 +15,7 @@ If the user hasn't described their scene, ask them:
 - How many parcels? (default: 1 parcel = 16x16m)
 - Any specific features? (3D models, interactivity, UI, multiplayer)
 
-Do not plan a login, nickname prompt, chat, friends list, emote menu, avatar editor or loading screen by default: the Explorer provides all of them (**game-design** → *The platform already provides this*).
+Do not plan a login, nickname prompt, chat, friends list, emote menu, avatar editor or loading screen by default: the Explorer provides all of them. What a scene in a shared world can and cannot do, and the full list of what the Explorer provides: `{baseDir}/references/platform-provided.md`.
 
 ## 2. Scaffold the Project
 
@@ -131,7 +131,7 @@ Preview flags (`--web`, `--mcp`, `--multi-instance`, `--asset-bundles`, deep-lin
 - Publishing: **deploy-scene** (Genesis City) or **deploy-worlds** (Worlds; a World has its own metadata separate from `scene.json`). Publish timing before live events: **deploy-scene**.
 - Parcel limits and production-quality local preview (`--asset-bundles`): **optimize-scene**.
 - Targeting mobile: flat mobile limits in **optimize-scene** → *Mobile Scene Limits*; feature gaps that rule out common mechanics in `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Check both before writing code.
-- Planning a game: **game-design**.
+- Designing a game or writing a GDD: **dcl-gdd**. Building a playable prototype: **dcl-prototype**. Playtest surveys and running test rounds: **scene-feedback**.
 - Scenes edited in the Creator Hub: prefer the Script-component-first workflow (a Script component on the entity with `start()` / `update(dt)`) over free-standing systems: **script-components**.
 - Component combinations that require or exclude each other: `{baseDir}/references/entity-validation-rules.md`.
 
