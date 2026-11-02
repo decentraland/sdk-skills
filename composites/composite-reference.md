@@ -11,7 +11,7 @@ This file must exist at `assets/scene/main.composite`.
 Two file forms carry initial-scene entity state; do not confuse them:
 
 - **`assets/scene/main.composite`** — the human-editable **JSON** source described in this document. This is the file to author when creating a scene from scratch. For an existing scene that is open in the Creator Hub, change it through the Creator Hub MCP (skill: **creator-hub-mcp**) rather than by editing the file — see "Editing an existing composite" below.
-- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
+- **`main.crdt`** (scene root) — a **binary** file the SDK build produces from the composite. It is the pre-serialized CRDT snapshot the runtime loads on the first frame (entities exist at `tickNumber === 1`, before `main()` runs). Do **not** hand-edit it — it is not JSON, and there is never a reason to: `sdk-commands build` regenerates it from `main.composite` on every build, and the `start` watcher rebuilds on any `.composite` change (`logic/composite.ts`, `logic/bundle.ts` in `@dcl/sdk-commands`). After a hand edit to the composite (Creator Hub closed), rebuild and the CRDT follows; patching both files "consistently" is wasted work. If a scene ships only a `main.crdt` (no readable `main.composite`), regenerate the composite via the Creator Hub / build rather than editing the binary. Static entities loaded this way get engine IDs starting at `512` and are queryable in code by component (e.g. `engine.getEntitiesWith(GltfContainer)`) from within `main()` or a system.
 
 The rest of this document describes the `main.composite` JSON format.
 
@@ -48,7 +48,7 @@ The rules in this document have **two modes** that you must distinguish before t
 
 When **authoring a new composite from scratch**, these components are auto-generated and must **NEVER** be added by hand. Including any of them in a fresh composite will break the scene in the Creator Hub and/or cause SDK build failures:
 
-- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (see the Troubleshooting section for the exact wording, which differs between current and older SDK versions)
+- **`inspector::Nodes`** — the Inspector creates this automatically from the Transform parent hierarchy. Including it in a fresh composite **overrides the auto-generated entity tree** — if the included Nodes data is incomplete or has empty `children` arrays, the Creator Hub entity panel will show a broken/empty tree. Also causes an SDK build error about an undefined component (wording: **composites** SKILL.md → *Post-Write Validation*)
 - **`inspector::SceneMetadata`** (any version, e.g. `inspector::SceneMetadata-v3`, `inspector::SceneMetadata-v4`) — the Inspector creates this from `scene.json`. Same build error if included. **Never use versioned names** like `-v3` when authoring from scratch; the engine uses base names only.
 - **`inspector::Selection`**, **`inspector::UIState`** — editor-only, stripped during save
 - **`inspector::TransformConfig`** — editor-only proportional-scaling hint, stripped during save
@@ -67,11 +67,11 @@ The Creator Hub entity tree has a **search bar** that filters entities by name (
 
 ### STOP — prefer the Creator Hub MCP; never edit the file while the scene is open
 
-**The right tool for a scene that is open in the Creator Hub is its MCP server** (skill: **creator-hub-mcp**): `create_entity`, `set_component`, `remove_entity`, `set_parent`, `place_smart_item`, `attach_script`, … apply to the live engine, the editor autosaves the composite itself, and all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section is done for you. Use it whenever it is available — inside the Creator Hub's AI assistant it always is; from another tool the user can expose it via Settings > AI.
+**For a scene open in the Creator Hub, use its MCP server** (rule: **sdk-scenes** → *CRITICAL RULE — Editing an existing composite*; tools: **creator-hub-mcp**). Its tools apply to the live engine and do all the `inspector::Nodes` / `core-schema::Name` / `inspector::TransformConfig` / `entity-names.ts` bookkeeping described in this section for you.
 
 **If you must edit the file and the Creator Hub has this scene open, your edits to `main.composite` will be silently discarded.** Ask the user to close the scene (returning to the Creator Hub scene list is enough) before you write, and tell them to reopen it afterwards.
 
-Why — verified in the inspector source (`packages/inspector/src/lib/data-layer/host/composite-provider.ts`):
+Why:
 
 - On save the inspector calls `dumpEngineToComposite(this.engine, 'json')` and then `compositeManager.save(...)`, which **regenerates the whole file from its in-memory engine and overwrites `main.composite` wholesale**. It is not a diff or a merge, and it never reads the on-disk file first — so anything you added that the in-memory engine does not know about is gone.
 - **Autosave is on by default** (`autosaveEnabled: true`). `onTransactionComplete` saves after *any* editor transaction, throttled only by `minSaveInterval = 100` ms. The user does not have to press save — nudging the camera or selecting an entity is enough to overwrite your work.
@@ -228,6 +228,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 
 - Slug rule: `asset.name.trim().replaceAll(' ', '_').toLowerCase()`
 - Example: "Tree Forest Pink 01" → `assets/asset-packs/tree_forest_pink_01/Tree_Forest_Pink_01.glb`
+- The `<filename>` part is the key exactly as the asset's `contents` lists it in `catalog.json`, which for the newer items (the Genesis Plaza and template-scene imports) includes a subfolder: "Photo Building" → `assets/asset-packs/photo_building/photo_building/photo_building.glb`. The `glb:` field of each row in **add-3d-models** → `references/asset-pack-catalog.md` is that final path.
 
 **Default collision masks:** If not provided, set `visibleMeshesCollisionMask: 0` and `invisibleMeshesCollisionMask: 3` (CL_POINTER + CL_PHYSICS).
 
@@ -241,7 +242,7 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 	"data": {
 		"512": {
 			"json": {
-				"mesh": { "$case": "box", "box": {} }
+				"mesh": { "$case": "box", "box": { "uvs": [] } }
 			}
 		}
 	}
@@ -249,6 +250,8 @@ If you only add entities to `core::Transform` etc. and skip `inspector::Nodes`, 
 ```
 
 Mesh types: `box`, `sphere`, `cylinder`, `plane`.
+
+**Raw JSON gets none of the TypeScript helpers' defaults.** A bare `"box": {}` fails the build with `TypeError: message.uvs is not iterable` because the protobuf serializer iterates `uvs`. Always write `"uvs": []` for `MeshRenderer` `box` and `plane` (`sphere` and `cylinder` have no `uvs`; `MeshCollider` meshes have none either, so `"box": {}` is correct there).
 
 Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiusBottom": 0.5 } }`
 
@@ -367,7 +370,7 @@ Cylinder options: `{ "$case": "cylinder", "cylinder": { "radiusTop": 0.5, "radiu
 
 ### core::AudioStream
 
-Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. The stream host must be whitelisted in `scene.json` `allowedMediaHostnames` together with the `ALLOW_MEDIA_HOSTNAMES` required permission.
+Streams audio from a URL (e.g. an internet radio / icecast stream) rather than a local file. No hostname whitelist or permission is needed: `allowedMediaHostnames` / `ALLOW_MEDIA_HOSTNAMES` are legacy and ignored (**create-scene** `references/scene-json.md` → Required Permissions).
 
 ```json
 {
@@ -675,13 +678,13 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core. On current SDK versions the build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required; older SDK versions require `@dcl/asset-packs` to be a project dependency. Either way, do not add any of these components unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. The build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency). Even so, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 
 These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
-**Migrated Smart Items carry no `asset-packs::Triggers`.** Since creator-hub `658f4daf` most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
+**Migrated Smart Items carry no `asset-packs::Triggers`.** Most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 
@@ -719,6 +722,7 @@ Entities defined in the composite can be fetched in TypeScript code by name or b
 The Creator Hub auto-generates `assets/scene/entity-names.ts` with an `EntityNames` enum that lists every named entity. Import it to get type-safe access:
 
 ```ts
+import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {
@@ -800,12 +804,12 @@ export async function spawnBarrel(position: Vector3) {
 }
 ```
 
-- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. ⚠ An earlier API named `engine.addEntityFromComposite(src)` does NOT exist on current SDK main (it was replaced by `Composite.instance`) — do not use it even if older docs mention it.
+- `Composite.instance(engine, compositeData: Composite.Resource, compositeProvider, options?): Entity` — on the `Composite` namespace from `@dcl/sdk/ecs`. Creates every entity/component described by the composite and returns the **root entity** — use it to read/mutate/remove the spawned tree later. `engine.addEntityFromComposite(src)` from older docs does not exist; `Composite.instance` replaced it.
 - `getCompositeProvider()` returns the scene's standard provider (`@dcl/sdk` registers it via `setCompositeProvider(engine, compositeProvider)` at module load; returns `null` only if that never ran). The provider offers `loadComposite(src): Promise<Composite.Resource>` — reads + caches the file via `~system/Runtime.readFile`, accepting JSON `.composite` and binary `.composite.bin` — and `getCompositeOrNull(src)`, the synchronous cache lookup.
 - `InstanceCompositeOptions`: `rootEntity?` (reuse an existing entity as the root), `entityMapping?` (`EMM_NEXT_AVAILABLE` with `getNextAvailableEntity`, or `EMM_DIRECT_MAPPING` with `getCompositeEntity`), `alreadyRequestedSrc?`. There is **no** transform option — set the root's `Transform` after instancing.
-- **`rootEntity: engine.RootEntity` works from `@dcl/sdk` 7.28.0** (fixed in `cb87612b`). Before that, two truthiness checks in the entity mapping treated `RootEntity` (id `0`) as absent, so the mapping for composite entity 0 was never recorded and every top-level entity in the composite was parented to a freshly allocated, component-less entity that was never handed back — the composite hung off something invisible instead of the scene root. If you are pinned below 7.28.0, instance into a normal entity you created yourself rather than the root.
+- **`rootEntity: engine.RootEntity` needs `@dcl/sdk` 7.28.0+.** On an older pin the composite's top-level entities hang off an invisible, component-less entity instead of the scene root; instance into a normal entity you created yourself.
 - **Nested composites:** `Composite.instance` resolves composite references held by the spawned entities through the provider's **synchronous** cache (`getCompositeOrNull`), so a nested composite only instantiates if it was already loaded — `loadComposite` every composite the spawned one references first, or keep spawned composites self-contained. Directly or indirectly recursive references throw.
-- JSON `.composite` decoding uses `TextDecoder`. Since `@dcl/sdk` replaced the external text-encoding polyfill with a built-in UTF-8 codec, `TextDecoder` is available by default and no extra import (e.g. `@dcl/sdk/ethereum-provider`) is needed. The older polyfill helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required for composite loading.
+- JSON `.composite` decoding uses `TextDecoder`. `TextDecoder` is built in (a UTF-8 codec ships with `@dcl/sdk`), so no extra import is needed. The older helper `polyfillTextEncoder()` from `@dcl/sdk/text-codec` still exists with the same API but is no longer required; legacy scene code that imports it can drop the call.
 - Scene Editor equivalent: the no-code **"Spawn Entity"** action (Source + Position). Make an item spawnable via right-click → **"Add to filesystem"**. Spawned smart items keep their own independent actions/triggers — distinct from **Clone**.
 
 ## Example scenes

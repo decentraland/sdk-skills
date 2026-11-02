@@ -1,6 +1,6 @@
 ---
 name: audio-analysis
-description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Use when the user asks for music visualizers, beat reactivity, equalizers, or audio-reactive scenes. Do NOT use to play sound (see audio-video) or to detect player-emitted audio (this reads only entity-attached AudioSource/AudioStream/VideoPlayer audio).
+description: Read real-time amplitude and 8-band frequency data from any AudioSource, AudioStream, or VideoPlayer entity in a Decentraland SDK7 scene with the AudioAnalysis component. Use when the user asks for music visualizers, beat reactivity, equalizers, or audio-reactive scenes. To play sound see audio-video.
 ---
 
 # AudioAnalysis
@@ -18,10 +18,10 @@ Values are derived from live audio frames. If the source is paused, muted, or no
 ## RULE: Not implemented everywhere — always design a silent fallback
 
 - **Unity (desktop):** implemented.
-- **Mobile (Godot):** `AudioAnalysis` (`PBAudioAnalysis`) ships in mobile **v1.14.0 (Sep 2026)** along with the broader audio parity work and `AudioEvent` (docs commit `b4d4c88`). Older mobile clients write no analysis.
+- **Mobile (Godot):** app 1.14.0+, `AudioSource` only; older mobile apps write no analysis. `AudioStream` and `VideoPlayer` read `0`: their audio is decoded by native platform players and never reaches the analyser. Band values differ from desktop by a constant factor (and band edges differ, since mobile downmixes to mono first), so tune thresholds and gains on both clients.
 - **Bevy:** ignores the component (no analysis written).
 
-Where it is unimplemented the values simply stay at `0` — same shape as silence — so the scene never errors, it just goes still. Always design a fallback that does not depend on `amplitude` (e.g. a base scale, a looping tween) so the scene still reads on every client.
+Where it is unimplemented (including a stream or video on mobile) the values simply stay at `0` — same shape as silence — so the scene never errors, it just goes still. Always design a fallback that does not depend on `amplitude` (e.g. a base scale, a looping tween) so the scene still reads on every client.
 
 ## RULE: Read via `readIntoView` into a pre-allocated view
 
@@ -45,9 +45,11 @@ import {
 import { Vector3 } from "@dcl/sdk/math";
 ```
 
-`AudioAnalysisView` is a TypeScript type alias (not a component), exported from `@dcl/sdk/ecs`.
+`AudioAnalysisView` is a TypeScript type alias (not a component), exported from `@dcl/sdk/ecs`: `{ amplitude: number, bands: number[] }`, `bands[0]` = lowest frequency, `bands[7]` = highest.
 
 ## Component fields
+
+Component ID is `1212`.
 
 Output (filled by the renderer; read in your systems):
 
@@ -68,17 +70,6 @@ Inputs (configure once at create time):
 
 > Values are unbounded floats — gains can push them above `1`. Clamp or scale in your system if the visual you drive needs `0..1`. For typical music at default gains, expect peaks roughly in `0..1` with normal content sitting `0..0.5`.
 
-## AudioAnalysisView
-
-Read-only convenience shape used by `readIntoView` / `tryReadIntoView`:
-
-```typescript
-type AudioAnalysisView = {
-  amplitude: number;
-  bands: number[]; // length 8 — bands[0] = lowest freq, bands[7] = highest
-};
-```
-
 ## Reading the data
 
 ```typescript
@@ -96,7 +87,7 @@ engine.addSystem(() => {
 ```
 
 `readIntoView(entity, out)` — populates `out` from the latest analysis. Throws if the entity has no `AudioAnalysis`.
-`tryReadIntoView(entity, out): boolean` — same, but returns `false` instead of throwing when the component is missing.
+`tryReadIntoView(entity, out): boolean` — same, but returns `false` instead of throwing when the component is missing; use it when the analysis may be attached later (e.g. added at runtime).
 
 ## Common patterns
 
@@ -144,18 +135,14 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 ## Gotchas
 
-- **Component ID is `1212`.**
-- **`amplitudeGain` and `bandsGain` are no-ops in MODE_RAW.** Setting them won't error, but the renderer ignores them outside MODE_LOGARITHMIC.
-- **Output values can exceed `1.0`** with high gains or loud source material. Clamp downstream if you feed UI bars or alpha channels expecting `0..1`.
 - **Throttled updates.** The renderer runs analysis under a frame-time budget — values update each frame in normal conditions but can skip frames under heavy load. Drive smooth animations with `dt` interpolation rather than assuming a fixed update cadence.
 - **Multi-source scenes.** Each audio-emitting entity needs its own `AudioAnalysis` if you want to react to that specific source. There is no global mix-down; you pick the entity to analyze.
-- **Works on `VideoPlayer` audio too** — call `AudioAnalysis.createAudioAnalysis(videoEntity)` on the same entity that has `VideoPlayer`. The renderer taps the video's audio frame buffer the same way it does for `AudioSource`. **IMPORTANT: the video must be a progressive file (MP4/WebM with direct URL), not an HLS stream (.m3u8).** HLS streams play with audible sound but the renderer writes zeros to the AudioAnalysis component (its audio decodes on a path the analyzer does not tap). Verified in `88,-10-audio-visualization`, which demonstrates AudioSource and VideoPlayer side by side.
+- **Works on `VideoPlayer` audio too** — call `AudioAnalysis.createAudioAnalysis(videoEntity)` on the same entity that has `VideoPlayer`. The renderer taps the video's audio frame buffer the same way it does for `AudioSource`. **IMPORTANT: the video must be a progressive file (MP4/WebM with direct URL), not an HLS stream (.m3u8).** HLS streams play with audible sound but the renderer writes zeros to the AudioAnalysis component (its audio decodes on a path the analyzer does not tap).
 - **No `pitch` interaction.** `AudioSource.pitch` changes playback speed; the analysis runs on the actual played audio frames, so a higher pitch shifts perceived band energy upward. This is expected, not a bug.
-- **Don't call `readIntoView` before `createAudioAnalysis`.** Reading without the component throws. Use `tryReadIntoView` if the component may not be attached yet (e.g. analysis added at runtime).
 
 ## Permissions
 
-No special scene permission is needed beyond what the underlying `AudioSource` / `AudioStream` / `VideoPlayer` already requires. Streamed audio still needs `ALLOW_MEDIA_HOSTNAMES` in `scene.json` for its hostname (see `audio-video` skill).
+No scene permission or hostname whitelist is needed: `ALLOW_MEDIA_HOSTNAMES` / `allowedMediaHostnames` are legacy and ignored (`{baseDir}/../create-scene/references/scene-json.md` → Required Permissions).
 
 ## Example scenes
 
@@ -164,5 +151,3 @@ No special scene permission is needed beyond what the underlying `AudioSource` /
 ## Resources
 
 - `{baseDir}/references/audio-analysis-example.md` — full music visualizer scene from the SDK examples (audio source + amplitude pulse + 8-bar equalizer).
-- Source PRs: protocol [#328](https://github.com/decentraland/protocol/pull/328), js-sdk-toolchain [#1256](https://github.com/decentraland/js-sdk-toolchain/pull/1256), unity-explorer [#6361](https://github.com/decentraland/unity-explorer/pull/6361).
-- Reference scene: [`sdk7-goerli-plaza/audio-visualization`](https://github.com/decentraland/sdk7-goerli-plaza/tree/main/audio-visualization).

@@ -32,7 +32,7 @@ This is also how to surface the `1`/`2`/`3`/`4` buttons (`IA_ACTION_3`..`IA_ACTI
 
 **It is a stack, not a swap.** `mainAction` pulls one action to the front, and everything else re-packs in priority order behind it — it does not trade places with the old main button. Making `IA_PRIMARY` (E) the main action puts E in the big central slot and lands `IA_JUMP` in the **first cluster slot**, not in E's old position. Hiding buttons re-packs the rest with no gaps.
 
-Source: Decentraland docs `creator/sdk7/interactivity/touch-screen-controls.md`, corroborated by the Creator Hub UI Designer's MobileHUD preview (`packages/inspector/src/components/UIDesigner/Canvas/MobileHudPreview/`), which implements exactly this model (`visible = [main, ...rest].filter(!hide)`, slot `i` = the `i`-th home slot, `+` only when more than five are visible). Still not confirmed against the shipping client itself.
+[UNVERIFIED against the mobile client: this model comes from the Decentraland docs and the Creator Hub UI Designer's MobileHUD preview. Check slot order on a device when a layout depends on it.]
 
 **In a Creator Hub scene that uses the UI Designer, all of this is edited from the MobileHUD panel**, which owns `src/mobile-hud.ts`. Do not hand-write `TouchScreenControls` there — see the **build-ui** skill > "MobileHUD".
 
@@ -51,7 +51,7 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
     {
       inputAction: InputAction.IA_PRIMARY,
       hide: false,
-      icon: { tex: { $case: 'texture', texture: { src: 'images/grab.png' } } }
+      icon: { tex: { $case: 'texture', texture: { src: 'assets/Images/grab.png' } } }
     }
   ]
 })
@@ -60,6 +60,31 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
 - Only scene-content paths — not external URLs, `avatarTexture`, or `videoTexture`.
 - If the path cannot be resolved, the built-in glyph is used (silent fallback).
 - On `IA_JUMP` the icon replaces **all** of that button's dynamic states (jump / double-jump / glide), so one static image covers all three.
+
+## Raw form with state-driven icons
+
+What the helpers write for you. `createOrReplace` replaces the whole config; tear down with `touchInputs: []`. Re-call it whenever the icons should follow scene state. From `33,20-spectate-mode`, which swaps zoom-in/zoom-out for raise/lower depending on whether a follow target is selected:
+
+```typescript
+import { engine, InputAction, TouchScreenControls } from '@dcl/sdk/ecs'
+
+const ICON_DIR = 'assets/Images/spectate-mode'
+const textureIcon = (src: string) => ({ tex: { $case: 'texture' as const, texture: { src } } })
+
+TouchScreenControls.createOrReplace(engine.RootEntity, {
+  hideJoystick: false,
+  hideCrosshair: false,
+  touchInputs: [
+    { inputAction: InputAction.IA_ACTION_3, hide: false, icon: textureIcon(`${ICON_DIR}/icon-next.png`) },
+    { inputAction: InputAction.IA_ACTION_5, hide: true },
+    { inputAction: InputAction.IA_PRIMARY, hide: false, icon: textureIcon(`${ICON_DIR}/icon-zoomIn.png`) }
+  ]
+})
+```
+
+## Adapting the scene's own HUD with `isMobile()`
+
+`isMobile()` (`@dcl/sdk/platform`) is the switch for the scene's own UI; `TouchScreenControls` needs no guard (a no-op on desktop). `33,20-spectate-mode` branches its HUD on `isMobile()`: it hides pointer-lock affordances, swaps keyboard instruction text for joystick/tap text, renders icon caps instead of W/A/S/D keycaps, and enlarges tap targets from 32 px to 48 px. 48 px is that scene's choice, not a published Decentraland minimum: start there and check on a device.
 
 ## Worked example — declutter and re-icon
 
@@ -80,7 +105,7 @@ export function main() {
       {
         inputAction: InputAction.IA_JUMP,
         hide: false,
-        icon: { tex: { $case: 'texture', texture: { src: 'images/banana.png' } } }
+        icon: { tex: { $case: 'texture', texture: { src: 'assets/Images/banana.png' } } }
       }
     ]
   })
@@ -120,7 +145,7 @@ TouchScreenControls.hideCrosshair()
 
 Hiding the joystick removes the only native way to walk on mobile — replace it, or leave the scene unwalkable on purpose (a fixed-camera minigame). Gate this behind `isMobile()` only if the scene's desktop path differs; on desktop the component is a no-op either way.
 
-## Helper semantics (verified in `dist/components/extended/TouchScreenControls.js`, 7.26.1)
+## Helper semantics
 
 All helpers read the current `RootEntity` value, mutate a copy, and `createOrReplace` it — safe to call from anywhere, any number of times.
 

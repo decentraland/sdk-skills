@@ -41,8 +41,8 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | Skill | Description |
 |-------|-------------|
 | `sdk-scenes` | **Entry point.** Agent behavioral guidelines, composite-first rule, and index of all topic skills. |
-| `create-scene` | Scaffold a new SDK7 scene project (scene.json, package.json, tsconfig, index.ts). |
-| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. Also authoring/editing custom models by driving Blender (headless or MCP). |
+| `create-scene` | Scaffold a new SDK7 scene project (scene.json, package.json, tsconfig, index.ts), and the scene.json field reference for editing an existing scene. |
+| `add-3d-models` | Add 3D models (.glb/.gltf) with GltfContainer — positioning, scaling, colliders, visibility. Free catalogs: 8,800+ OpenDCL models and the Creator Hub asset packs. Also authoring/editing custom models by driving Blender (headless or MCP). |
 | `add-interactivity` | Event-driven interactivity — pointer events, triggers, raycasts. |
 | `advanced-input` | System-level input polling and player movement control. |
 | `advanced-rendering` | Billboard, TextShape, PBR materials, video materials, avatar textures. |
@@ -50,27 +50,32 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
 | `authoritative-server` | Build multiplayer servers and diagnose deployed scenes with log search, bounded live tail, executions and resource metrics. |
-| `avatar-animations` | Author custom avatar animations (scene emotes) in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
+| `avatar-animations` | Find or author avatar animations (scene emotes): built-in emotes and the Creator Hub Avatar Animations pack first (catalogued with previews), then custom clips in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs, toasts, sliders. Editable in the Creator Hub's UI Designer by default; free-form coded UI for data-driven corner cases. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
-| `game-design` | Game design patterns, scene limits, performance budgets. |
-| `lighting-environment` | Dynamic lighting, shadows, skybox, fog, environment settings. |
+| `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
+| `game-design` | Game design patterns, MVP planning, playtests. |
+| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
-| `player-avatar` | Player position, profile, avatar customization, attachments. |
+| `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
+| `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
+| `scene-retro` | Retrospective of a scene's build sessions: turns real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only; saves a report. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
+| `smart-wearables` | Smart wearables: `wearable.json` schema the Builder accepts, the 3 MB limit, preview vs published behavior, what other players see (emote props yes, scene code and sound no), multiplayer limits, pack and upload. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
+| `wearables` | Wearable files: official base meshes, category limits, skinning, texturing, glTF export and verification, thumbnail, body-shape representations, Builder upload. |
 
 ## What Are Skills?
 

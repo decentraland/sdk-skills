@@ -1,6 +1,6 @@
 # Curl JSON-RPC fallback
 
-**Open this file only after the user — told its costs first — has explicitly chosen this fallback over reconnecting via `/mcp` or restarting the Claude session, or their client cannot do Streamable HTTP.** If neither has happened yet, go back to the bind gate in `SKILL.md` Setup step 2 and ask; silence or a working probe is not a choice.
+**Open this file only after the user — told its costs first — has explicitly chosen this fallback over reconnecting the `explorer` server or starting a fresh session, or their client cannot do Streamable HTTP.** If neither has happened yet, go back to the bind gate in `SKILL.md` Setup step 2 and ask; silence or a working probe is not a choice.
 
 Every tool is reachable over plain HTTP, just without the schemas surfacing as native tools — so nothing validates your arguments before the server sees them.
 
@@ -32,5 +32,5 @@ curl -sS -m 30 http://127.0.0.1:8123/unity-explorer-mcp -X POST \
 
 ## While on this path
 
-- Re-offer `/mcp` once if the session runs long — a reconnect at any point upgrades every subsequent call.
+- Re-offer a reconnect (Setup step 2 lists how, per client) once if the session runs long — a reconnect at any point upgrades every subsequent call.
 - The readiness probe, `get_scene_state` polling, and `get_scene_logs` are cheap here. Screenshots are not: always route them through `scripts/screenshot.sh` so frames land on disk.
