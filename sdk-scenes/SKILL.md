@@ -227,6 +227,10 @@ Load the topic skill that matches the request; for requests spanning several top
 - **Skill: `deploy-scene`** — Genesis City (LAND) deployment with `npx @dcl/sdk-commands deploy`: pre-deploy checklist, thumbnail spec, `.dclignore`, post-publish conversion, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
 
+### Promotion & Marketing Kit
+
+**Skill: `promote-scene`** — Audience-first marketing kit for a finished or upcoming scene: names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, logo/wordmark/icon, Blender hero renders of the scene's own GLBs, key art, quote cards, a footage shot list, a first-20-players plan with a stop rule, and an offline HTML kit page to copy/download everything; on request, a Remotion-cut video for one footage post or Short (from the creator's recordings, gameplay it records itself in the Explorer, Blender clips or stills). Not for deploying or for the scene thumbnail alone.
+
 ### Wearables & Smart Wearables
 
 **Skill: `smart-wearables`** — Wearables that run SDK7 code while equipped: `wearable.json` schema, 3 MB limit, what other players see, multiplayer limits, Builder upload errors.
