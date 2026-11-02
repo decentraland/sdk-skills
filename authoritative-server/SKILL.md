@@ -1,9 +1,11 @@
 ---
 name: authoritative-server
-description: Build multiplayer Decentraland scenes with a headless Multiplayer Server. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
+description: Build multiplayer Decentraland scenes with a headless Multiplayer Server, and debug deployed ones. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages, or asks to search/tail deployed server logs, investigate errors or restarts, or diagnose server CPU, memory or performance of a deployed Multiplayer Server. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
 ---
 
 # Multiplayer Server
+
+For debugging an **already deployed authoritative scene**, read `{baseDir}/references/scene-insights.md` first and use its bounded, read-only search, tail and metrics workflow. Reuse a valid scoped session automatically within the requested investigation; ask the user to sign in only when needed. Check the installed `node_modules/.bin/sdk-commands scene-insights --help` first, reading stderr for the subcommands; if unavailable, explain the required SDK update without upgrading automatically. Investigation does not require adding a server; an older CLI may need updating and granting `logsPermissions` requires redeploying. For client rendering/FPS problems, use Explorer diagnostics instead.
 
 **📔 Note**: The Multiplayer Server was previously called the **Authoritative Server**. Only the name changed, the feature is the same. The SDK branch to install is still named `auth-server`.
 
@@ -15,7 +17,7 @@ Build multiplayer Decentraland scenes where a **headless server** controls game 
 
 ## Setup
 
-You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), and the `@dcl/sdk@auth-server` sdk-commands adds it (plus a `server-logs` script in `package.json`) on every build and preview when it is absent. Keep it in `scene.json`. Optionally add `logsPermissions` (root-level array of wallet addresses) to authorize reading production server logs — see `{baseDir}/references/server-patterns.md` → Production Logs. The preview automatically starts a local server in the background.
+You **must** use `npm install @dcl/sdk@auth-server` and `npm install @dcl/js-runtime@auth-server` — the standard `@dcl/sdk` does NOT include authoritative server APIs. **`"authoritativeMultiplayer": true`** at the **root** of `scene.json` is what enables the headless server (without it the scene runs as ordinary serverless CRDT and `isServer()` never returns `true`), and the `@dcl/sdk@auth-server` sdk-commands adds it on every build and preview when it is absent. Keep it in `scene.json`. Add `logsPermissions` (root-level array of wallet addresses) to authorize reading production server logs; World owners and deployment collaborators whose grant covers the whole World or every parcel of the scene already have access, but Genesis City owners need an explicit grant — see `{baseDir}/references/server-patterns.md` → Production Logs. The preview automatically starts a local server in the background.
 
 ## Server/Client Branching
 
@@ -146,7 +148,7 @@ Client and server always move together (paired by hash). Existing players keep t
 
 - **Log prefixes**: Use `[SERVER]` and `[CLIENT]` in `console.log()`
 - **Local multi-player**: pressing **Play** again does not add a player; to run two local clients, see **multiplayer-sync** → *Multiplayer Testing*.
-- **Production logs**: `npx sdk-commands sdk-server-logs` (add `--world WORLD_NAME.dcl.eth` for Worlds). Prompts a wallet-signature challenge; signing wallet must be listed in `scene.json` `logsPermissions`. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- **Production logs and metrics**: check the installed `node_modules/.bin/sdk-commands scene-insights --help`, including stderr; if unavailable, explain the required SDK update without upgrading automatically. Read `{baseDir}/references/scene-insights.md` for session checks, permissions and bounded diagnostics. Use `scene-insights logs`, `executions` and `metrics` with `--json` for persisted evidence, or `scene-insights tail --for 30s --lines 20 --json` for live output. The user signs in when needed; scene access is required for every request.
 - **Server-log noise signatures**: two recurring errors in *server* logs both mean client-only code is running in the server branch. `RemoteError: not implemented` on `EngineApi.subscribe('comms')` → a `MessageBus` was constructed on the server (see Messages). `400 Invalid metadata content` from `comms-gatekeeper.decentraland.org` → server code called a client-context platform API via `signedFetch`. Neither crashes the server, but the repeating noise buries real server logs — gate the offending code behind `!isServer()`.
 - **Per-player entity error signatures**: `syncEntity failed because the id provided is already in use` → an explicit sync id collided (usually a hash-derived per-player id, or a same-frame remove-and-recreate with the same id); `[mutable] Component <name> for <id> not found` repeating every frame → a cached entity handle went stale on a long-running server. Both fixes in Per-Player Synced Entities above.
 - **Stale CRDT files**: Delete `main.crdt` and `main1.crdt` and restart
