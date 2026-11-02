@@ -64,6 +64,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
+| `htn-domain-authoring` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |

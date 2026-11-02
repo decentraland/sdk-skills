@@ -5,6 +5,9 @@ description: "Create NPCs in Decentraland: GLB characters with dialogue, paths a
 
 # NPCs in Decentraland
 
+For HTN task planning, `.domain` behaviours, replanning or cooperating agents, use
+[htn-domain-authoring](../htn-domain-authoring/SKILL.md). This skill covers character representation, dialogue and toolkit setup.
+
 Two approaches — choose based on what the NPC needs to do:
 
 | Approach | Use when |

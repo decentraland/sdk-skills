@@ -156,6 +156,8 @@ Load the topic skill that matches the request; for requests spanning several top
 
 **Skill: `npcs`** — `AvatarShape` NPCs and the NPC Toolkit library for GLB-based NPCs with dialogue and state machines.
 
+**Skill: `htn-domain-authoring`** — HTN task decomposition and `.domain` behaviour design, host integration, debugging and tests for the Decentraland HTN module.
+
 ### Player Physics
 
 **Skill: `player-physics`** — Impulse forces, knockback, repulsion fields.
