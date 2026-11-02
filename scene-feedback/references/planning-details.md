@@ -60,7 +60,18 @@ the invitation and question timing; present those choices to the creator.
 Use this branch when planning invitation wording, recruitment, or incentives.
 If the creator needs help finding playtesters or organizing a session, suggest
 [Decentraland's Playtests guide][playtests]. Read its relevant sections when helping
-plan recruitment, observation, or test rounds.
+plan recruitment, observation, or test rounds. Its deltas that shape a Scene Feedback plan:
+
+- Two formats: a **live session** (everyone at once, observed; can be listed on Decentraland
+  Events) or a **multi-day asynchronous run** where testers come when they can and Scene
+  Feedback collects the answers. The async run leans entirely on the in-scene questions.
+- Testers new to Decentraland enter through the web `/jump` link the Creator Hub shows after
+  publishing (`https://decentraland.org/jump?realm=<world>.dcl.eth` or `?position=x,y`); it
+  opens in a browser before the client is installed. Note where they struggle before reaching
+  the scene separately from feedback on the game.
+- Thank-you gifts beyond the in-client **Gift**: transfer an owned item from the Marketplace
+  to a wallet address, mint straight to a wallet from the Builder when the creator owns the
+  collection, or Marketplace Credits (gifting in beta, invited studios only).
 
 Treat motivation to keep playing and willingness to give feedback as separate questions.
 A useful playtest can reveal why players stop. Follow the guide's exposure and timing rules;
