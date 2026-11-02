@@ -1,6 +1,6 @@
 ---
 name: scene-feedback
-description: "Scene Feedback surveys for Decentraland SDK7 playtests: plan questions and timing, integrate or debug the module, or analyze exported CSV ratings and comments. For audiovisual reactions to gameplay actions, use game-design or build-ui."
+description: "Scene Feedback surveys for Decentraland SDK7 playtests: plan questions and timing, organize test rounds and find testers, integrate or debug the module, or analyze exported CSV ratings and comments. For audiovisual reactions to gameplay actions, use add-interactivity, audio-video or build-ui."
 ---
 
 # Scene Feedback
@@ -43,6 +43,7 @@ ID beside its meaning. Keep exact IDs in code and configuration.
 | Request | Read next | Scope |
 | --- | --- | --- |
 | Choose a playtest focus, propose/adapt questions, scales, or timing | [Planning](references/planning.md) | Ground the proposal in the scene or brief and review creator-facing choices before applying them. |
+| Organize test rounds: who to invite, round cadence, live or asynchronous, finding testers | [Run test rounds](references/planning-details.md#run-test-rounds) | Advice only; writes no scene files. |
 | Install, wire events, apply approved edits, or update the module | [Integration](references/integration.md) | Inspect the current installation first; reuse it and change only what the task needs. |
 | Check/debug existing behavior or test devices/Storage | [Verification](references/verification.md) | Inspect configuration and hooks, then run relevant checks. |
 | Download responses only | [World Storage retrieval](https://github.com/decentraland/sdk7-test-scenes/blob/main/scenes/0,-1-scene-feedback/README.md#4-review) | Explain retrieval without starting a full analysis. |

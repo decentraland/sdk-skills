@@ -323,7 +323,7 @@ const Scoreboard = () => {
 }
 ```
 
-Always route every close path (close button, timer, leaving the area) through `closeScoreboard()` so the controls are never left hidden. If the modal is a **rules card**, keep its content to 3–5 short lines or a diagram image (**game-design** → "Rules: show, don't tell").
+Always route every close path (close button, timer, leaving the area) through `closeScoreboard()` so the controls are never left hidden. If the modal is a **rules card**, keep its content to 3–5 short lines or a diagram image (`{baseDir}/SKILL.md` → *Rules: show, don't tell*).
 
 ### Timed announcement
 

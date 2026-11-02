@@ -55,10 +55,11 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
+| `dcl-gdd` | Design a game or experience with the creator — brainstorm, core loop, audience, retention, mobile, scope — and write or revise a GDD. Pairs with `dcl-prototype`. |
+| `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. Requires `dcl-gdd`. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
-| `game-design` | Game design patterns, MVP planning, playtests. |
 | `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
@@ -69,7 +70,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
-| `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
+| `scene-feedback` | Help creators choose playtest questions and timing, organize test rounds, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
 | `scene-retro` | Retrospective of a scene's build sessions: turns real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only; saves a report. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |

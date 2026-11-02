@@ -174,7 +174,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, integrate or debug the module, analyze exported CSV responses.
+**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, organize test rounds and find testers, integrate or debug the module, analyze exported CSV responses.
 
 ### Audio & Video
 
@@ -218,7 +218,9 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Game Design
 
-**Skill: `game-design`** — DCL design philosophy, platform-provided features, core loop and MVP, game archetypes, onboarding, playtests, spatial layout, engagement.
+- **Skill: `dcl-gdd`** — Design a game or experience with the creator: brainstorm, core loop, audience, readability, social play, retention, mobile, scope; audit an idea; write or revise a GDD.
+- **Skill: `dcl-prototype`** — Small playable prototypes and greyboxes that answer a design question; owner self-tests, registered experiments and their verdicts.
+- What a scene in a shared world can and cannot do, and what the Explorer already provides (login, chat, name tags, emotes, loading screen): `{baseDir}/../create-scene/references/platform-provided.md`. Rules and instruction text: **build-ui** → *Rules: show, don't tell*. Organizing playtest rounds: **scene-feedback**.
 
 ### Deployment
 
