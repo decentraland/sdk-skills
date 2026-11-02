@@ -6,6 +6,12 @@ Available in the published `auth-server` SDK starting with `@dcl/sdk` / `@dcl/sd
 
 Contract-wallet scoped login is available in `auth-server` starting with `@dcl/sdk` / `@dcl/sdk-commands` **`7.31.1-41498712919.commit-5e4cada`**. Keep the installed-CLI capability check below: projects pinned to an earlier release do not gain support automatically.
 
+## Project log script
+
+Starting with `@dcl/sdk` / `@dcl/sdk-commands` **`7.31.1-41508430758.commit-0af8af0`** on `auth-server`, full project builds generate `scripts.server-logs: "sdk-commands scene-insights tail"` when missing and migrate the previous SDK-generated default. Custom scripts, including commands with extra arguments, are preserved. Previews with `--skip-build` and single-file builds do not migrate scripts; `code-to-composite` also runs a full project build.
+
+Prefer the direct `scene-insights` commands below. If using `npm run server-logs`, inspect `package.json` first and confirm the script is `sdk-commands scene-insights tail`, then pass `-- --for 30s --lines 20 --json`. The alias name or installed version alone does not prove what it runs. Do not build or modify a project just to migrate its script during an investigation. Its `--target` is the Insights service URL described below.
+
 ## Investigate automatically within the debugging task
 
 When asked to diagnose a deployed authoritative scene, use these read-only commands as evidence alongside its source code; the user need not name `scene-insights`. Check `session --json`, resolve the intended scene and environment, and query within that scope. Ask only for missing target or incident information that cannot be inferred from the project or conversation. Do not enable authoritative multiplayer or redeploy a scene just to inspect it.
