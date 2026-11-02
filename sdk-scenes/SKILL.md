@@ -174,7 +174,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, integrate or debug the module, analyze exported CSV responses.
+**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, organize test rounds and find testers, integrate or debug the module, analyze exported CSV responses.
 
 ### Audio & Video
 

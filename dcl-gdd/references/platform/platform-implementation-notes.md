@@ -15,7 +15,8 @@ to separate established inputs from remaining questions or reproducible failures
 
 ## Persistence and authority
 
-Design context: [services and publishing](dcl-platform-facts.md#progress-between-visits-and-scenes).
+Implementation: **authoritative-server** (`{baseDir}/../authoritative-server/SKILL.md`); this
+section keeps only the design-relevant conditions. Design context: [services and publishing](dcl-platform-facts.md#progress-between-visits-and-scenes).
 
 The documented Multiplayer Server supplies persistent World Storage and Player Storage,
 with data surviving restarts and redeploys. Its current setup requires the SDK/runtime

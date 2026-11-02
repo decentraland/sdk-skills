@@ -156,7 +156,7 @@ Choose an attachment that stays readable during the intended movement and gestur
 movement and authored behavior. An avatar-style character or a custom model offers different
 visual and animation options. The toolkit supplies building blocks; the game still defines
 customer or enemy logic. Player emotes, AvatarShape expressions and GLB Animator
-clips are different playback paths. The upstream NPC skill records limitations on custom looping
+clips are different playback paths. The **npcs** skill records limitations on custom looping
 and upper-body masks for AvatarShape; inspect them before choosing an animation-dependent design.
 Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: npcs (`{baseDir}/../npcs/SKILL.md`).
 For planned behavior, follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic).
@@ -181,7 +181,7 @@ audio-video (`{baseDir}/../audio-video/SKILL.md`).
 **Audio-reactive play:** a pulse cue or reactive installation can respond to a scene track.
 `AudioAnalysis` provides amplitude and frequency bands from an entity's audio component;
 detecting exact beats or scoring rhythm still needs game logic and timing checks.
-It does not expose the player's microphone or recognize words. The upstream
+It does not expose the player's microphone or recognize words. The **audio-analysis**
 skill distinguishes progressive video from HLS analysis and warns that silence and missing
 support can both produce zeros. Source and implementation:
 audio-analysis (`{baseDir}/../audio-analysis/SKILL.md`).

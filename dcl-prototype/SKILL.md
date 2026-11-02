@@ -1,9 +1,9 @@
 ---
 name: dcl-prototype
-description: "Explore a Decentraland toy or test a design question: make a small playable SDK7 prototype, run an owner self-test or a registered experiment, and record what it does and does not establish. Use for an early sound, movement or look trial without a finished GDD; for a parked hypothesis, greybox, playtest, arithmetic check, pre-build audience check, mobile check or verdict. Pairs with dcl-gdd through its shared Hypothesis Log. Exploration needs no invented metric; registered experiments preserve their agreed criterion. Takes a hypothesis ID or resume."
+description: "Explore a Decentraland toy or test a design question: make a small playable SDK7 prototype, run an owner self-test or a registered experiment, and record what it does and does not establish. Use for an early sound, movement or look trial without a finished GDD; for a parked hypothesis, greybox, playtest, arithmetic check, pre-build audience check, mobile check or verdict. Pairs with dcl-gdd through its shared Hypothesis Log. Exploration needs no invented metric; registered experiments preserve their agreed criterion. Takes a hypothesis ID or resume. For playtest surveys and organizing test rounds, use scene-feedback."
 ---
 
-# Game Prototype Assist: The Prototype Axis
+# Game Prototyping in Decentraland
 
 Explore **"what happens when we play it?"** through a playable idea or a focused experiment.
 Make the action tangible and record learning, including inconclusive results; exploration needs
