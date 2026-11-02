@@ -7,7 +7,7 @@
     "render": "remotion render"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.534",
+    "@remotion/cli": "4.0.540",
     "@remotion/fonts": "4.0.534",
     "@remotion/google-fonts": "4.0.534",
     "react": "19.2.3",
