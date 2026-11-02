@@ -42,8 +42,8 @@ Wire only reward-eligible questions/routes, excluding debug previews. Under the 
 result, including text-only answers; Intro acceptance, `skipped`, and `not-shown` are not
 answers. For “completed form” eligibility, require a nonempty result list where **every**
 result is `submitted`, per shown Group, never accumulated across Groups. Share the reward cap
-across gameplay and player-opened routes. A submitted result means the client sent the answer,
-not that Storage saved it.
+across gameplay and player-opened routes. A submitted result means the answer was kept for
+submission, not that the client sent it or that Storage saved it.
 
 Worked recipe: the module's [participation reward example][reward-example] awards +5 coin
 score, x2 on the next 5 pickups and a `Playtest Contributor` `AvatarNametag` for a completed

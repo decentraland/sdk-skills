@@ -9,7 +9,8 @@ goal, begin with an overview of recurring experiences and questions to investiga
 
 - Obtain relevant CSV parts, note coverage, and deduplicate by response `id`. One part can be
   several files: write-once versions `scene-feedback-<part>-<UTC time>-<random>.csv` (more
-  than one after a redeploy overlap or a missed read) plus, on older installs, an old-format
+  than one after a redeploy overlap, or a Storage read that missed a file or returned an old
+  listing) plus, on older installs, an old-format
   `scene-feedback-<part>.csv` the server never deletes. Load every file of each part; the same
   `id` across files is expected, not a double answer. If exports are missing, use [Review][review]
   to explain retrieval.
