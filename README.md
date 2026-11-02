@@ -49,7 +49,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
-| `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
+| `authoritative-server` | Build multiplayer servers and diagnose deployed scenes with log search, bounded live tail, executions and resource metrics. |
 | `avatar-animations` | Author custom avatar animations (scene emotes) in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs, toasts, sliders. Editable in the Creator Hub's UI Designer by default; free-form coded UI for data-driven corner cases. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |

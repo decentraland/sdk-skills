@@ -155,7 +155,7 @@ This skill is the entry point. The detailed implementation guidance lives in ind
 
 ### Multiplayer Server
 
-**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Requires `@dcl/sdk@auth-server`.
+**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Also investigate deployed multiplayer scenes automatically using persisted log search, bounded live tail, executions and CPU/memory metrics (`scene-insights`). Read-only diagnostics reuse an existing session; they do not require adding a server or redeploying. Authoring requires `@dcl/sdk@auth-server`.
 
 ### Script Components (Creator Hub)
 

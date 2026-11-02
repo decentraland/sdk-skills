@@ -5,6 +5,8 @@ description: Optimize Decentraland scene performance. Scene limit formulas, obje
 
 # Optimizing Decentraland Scenes
 
+For a deployed authoritative multiplayer scene's server performance, start with **authoritative-server** → `references/scene-insights.md`: inspect execution-scoped CPU, heap and workload metrics before changing code. This skill's rendering budgets do not diagnose server CPU or memory. For client FPS/rendering, continue below and use Explorer performance diagnostics.
+
 ## Scene Limits (Per Parcel Count)
 
 All limits below scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials and textures scale logarithmically. The height limit does **not** scale — it is a flat 330 m for every scene (see below).

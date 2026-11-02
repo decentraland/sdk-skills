@@ -1,9 +1,11 @@
 ---
 name: authoritative-server
-description: Build multiplayer Decentraland scenes with a headless Multiplayer Server, and debug deployed ones. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages, or asks about a deployed server's logs, errors, crashes, restarts or resource usage. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
+description: Build multiplayer Decentraland scenes with a headless Multiplayer Server, and debug deployed ones. Use when the user wants authoritative multiplayer, anti-cheat, server-side validation, persistent storage, or server messages, or asks to search/tail deployed server logs, investigate errors or restarts, or diagnose multiplayer scene CPU, memory or performance. Do NOT use for basic CRDT multiplayer without a server (see multiplayer-sync).
 ---
 
 # Multiplayer Server
+
+For debugging an **already deployed authoritative scene**, read `{baseDir}/references/scene-insights.md` first and use its bounded, read-only search, tail and metrics workflow. Reuse a valid scoped session automatically within the requested investigation; ask the user to sign in only when needed. This does not require adding a server, changing SDK versions or redeploying. For client rendering/FPS problems, use Explorer diagnostics instead.
 
 **📔 Note**: The Multiplayer Server was previously called the **Authoritative Server**. Only the name changed, the feature is the same. The SDK branch to install is still named `auth-server`.
 
