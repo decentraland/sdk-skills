@@ -454,11 +454,11 @@ npx sdk-commands sdk-server-logs --world WORLD_NAME.dcl.eth
 ```
 
 Flow:
-1. Add the wallet address(es) to `logsPermissions` in `scene.json` and deploy.
-2. Run the command. It prompts to sign a message with a wallet listed in `logsPermissions`.
+1. For Genesis City or a wallet that is not the World's owner or a deployer, add the wallet address(es) to `logsPermissions` in `scene.json` and deploy.
+2. Run the command. It prompts to sign a message with a wallet listed in `logsPermissions`, or the World's owner or a deployer.
 3. After signing, server logs stream to the terminal in real time.
 
 Gotchas:
-- The signing wallet must already appear in the **deployed** `scene.json`. Updating `logsPermissions` requires a redeploy.
+- Unless the wallet owns or can deploy to the World, it must already appear in `logsPermissions` in the **deployed** `scene.json`. Updating `logsPermissions` requires a redeploy.
 - `--world` is the only documented flag; use it when the command cannot infer the world name from the current project.
 - Only server-side `console.log()` is streamed — client logs are not.

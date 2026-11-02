@@ -5,7 +5,7 @@ description: Optimize Decentraland scene performance and fit scene limits — pe
 
 # Optimizing Decentraland Scenes
 
-For a deployed authoritative multiplayer scene's server performance, start with **authoritative-server** → `references/scene-insights.md`: inspect execution-scoped CPU, heap and workload metrics before changing code. This skill's rendering budgets do not diagnose server CPU or memory. For client FPS/rendering, continue below and use Explorer performance diagnostics.
+For a deployed authoritative multiplayer scene's server performance, use the **authoritative-server** skill, which must also be installed, and read its `references/scene-insights.md`: inspect execution-scoped CPU, heap and workload metrics before changing code. This skill's rendering budgets do not diagnose server CPU or memory. For client FPS/rendering, continue below and use Explorer performance diagnostics.
 
 ## Scene Limits (Per Parcel Count)
 
