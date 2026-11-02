@@ -33,3 +33,7 @@ These 21 emotes ship in the Explorer client binary, so they need no catalyst fet
 **Not embedded:** the social emotes (`wave`, `fistpump`, `robot`, `raiseHand`, `clap`, `money`, `kiss`, `tik`, `hammer`, `tektonik`, `dontsee`, `handsair`, `shrug`, `disco`, `dab`, `headexplode`) are resolved as emote urns like any other wearable emote and are listed in **player-avatar** (`references/avatar-apis.md`).
 
 Source: `Explorer/Assets/DCL/AvatarRendering/Emotes/EmbeddedEmotes/EmbeddedEmotes.asset` (unity-explorer `main`, read 2026-10-12).
+
+## Relationship to the Creator Hub's "Built-in" list
+
+The Creator Hub (its *Play Default Emote* action and the **Avatar Animations** asset pack) labels **32** ids as *built-in*: the 16 sitting/interaction ids above plus the 16 social emotes. It does **not** list `crafting`, `handsintheair`, `Victory`, `Waving` or `fistpump_short`, which the Explorer still plays by name. All 32, with animated previews, plus the pack's 45 downloadable `_emote.glb` clips, are in `animation-catalog.md` next to this file — loop flags stay authoritative here.

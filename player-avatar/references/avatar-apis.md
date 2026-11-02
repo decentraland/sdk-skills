@@ -8,7 +8,7 @@ Create NPC avatars in your scene:
 import { AvatarShape } from '@dcl/sdk/ecs'
 
 AvatarShape.create(entity, {
-	id: 'npc-unique-id', // Unique identifier (required)
+	id: 'npc-0001', // Unique; its last 4 characters show beside the name
 	name: 'NPC Name', // Display name
 	bodyShape: 'urn:decentraland:off-chain:base-avatars:BaseMale', // or BaseFemale
 	wearables: [
@@ -73,7 +73,7 @@ Display wearables without a full avatar body — useful for storefronts:
 
 ```typescript
 AvatarShape.create(entity, {
-	id: 'mannequin-1',
+	id: 'mannequin-0001',
 	name: 'Display',
 	wearables: ['urn:decentraland:matic:collections-v2:0x...:0'],
 	showOnlyWearables: true,
@@ -88,7 +88,7 @@ import { AvatarAnchorPointType } from '@dcl/sdk/ecs'
 AvatarAnchorPointType.AAPT_NAME_TAG // Above the head
 AvatarAnchorPointType.AAPT_RIGHT_HAND // Right hand
 AvatarAnchorPointType.AAPT_LEFT_HAND // Left hand
-AvatarAnchorPointType.AAPT_POSITION // Avatar root position
+AvatarAnchorPointType.AAPT_POSITION // [DEPRECATED] root position with an arbitrary offset; parent to engine.PlayerEntity (body-fixed) or engine.CameraEntity (aim) instead
 AvatarAnchorPointType.AAPT_HEAD
 AvatarAnchorPointType.AAPT_NECK
 AvatarAnchorPointType.AAPT_SPINE
@@ -111,16 +111,15 @@ AvatarAnchorPointType.AAPT_RIGHT_UP_LEG
 AvatarAnchorPointType.AAPT_RIGHT_LEG
 AvatarAnchorPointType.AAPT_RIGHT_FOOT
 AvatarAnchorPointType.AAPT_RIGHT_TOE_BASE
-AvatarAnchorPointType.AAPT_NAME_TAG
 ```
 
 ## Built-in Emote Names
 
-For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**).
+For `triggerEmote({ predefinedEmote: '...' })` and for `AvatarShape.expressionTriggerId` (NPCs and copies of the player — see **npcs**). Animated previews of all 32 names, and 45 downloadable `_emote.glb` clips beyond them: `{baseDir}/../avatar-animations/references/animation-catalog.md`.
 
 ### Embedded emotes — shipped inside the Explorer
 
-The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact case-sensitive ids and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
+The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitting ones loop). The full list — exact ids (use the casing listed; the Explorer matches ignoring case) and loop flags — lives in one place: **`{baseDir}/../avatar-animations/references/embedded-emotes.md`**. Check it before authoring a custom emote for a pose.
 
 **Social** — not in the embedded asset; resolved as emote urns like any other:
 - `wave` — wave hello
@@ -166,8 +165,9 @@ import {
 	EmoteState,
 } from '@dcl/sdk/ecs'
 
-// Emote lifecycle: each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
-// Absent state (older clients) means STARTED — always apply the ?? default.
+// Written by the Explorer on every player entity (local and remote); read-only for the scene.
+// Each entry carries state ES_STARTED / ES_FINISHED / ES_INTERRUPTED.
+// `state` is optional in the protocol; absent means STARTED — always apply the ?? default.
 // See SKILL.md "Detecting when an emote finishes".
 AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 	if (cmd) console.log('Emote:', cmd.emoteUrn, 'state:', cmd.state ?? EmoteState.ES_STARTED)
@@ -184,15 +184,9 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 })
 ```
 
-## AvatarModifierType — All Values
+## AvatarModifierType
 
-```typescript
-AvatarModifierType.AMT_HIDE_AVATARS // Hide all avatars in area
-AvatarModifierType.AMT_DISABLE_PASSPORTS // Disable clicking avatars for profiles
-AvatarModifierType.AMT_HIDE_NAMETAGS // Hide name tags above avatars in area
-```
-
-To disable jumping in an area, use the `InputModifier` component's `disableJump` flag (covered in the advanced-input skill), not an `AvatarModifierType`.
+All values, combinations and the sizing rule: `modifier-areas.md`.
 
 ## AvatarLocomotionSettings
 

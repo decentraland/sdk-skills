@@ -110,3 +110,16 @@ Free audio files from the official Decentraland Creator Hub asset packs. All sou
 | Respawn Pad  | spawn.mp3    | health, respawn, spawn, pad                                  | `curl -o assets/Audio/spawn.mp3 "https://builder-items.decentraland.org/contents/bafkreig7ndrpblob577zmuokv5kjvxbxdin2qdia742bgpbotdeplyfowa"`    |
 | Spikes       | spikes.mp3   | health, enemy, damage                                        | `curl -o assets/Audio/spikes.mp3 "https://builder-items.decentraland.org/contents/bafkreicyb3fdwmyjmmgvgg4cisttzeu4codckr2qakfjxwwvfnqd7zizfi"`   |
 | You Win      | wingame.mp3  | game mechanics, victory, celebration, announcement, announce | `curl -o assets/Audio/wingame.mp3 "https://builder-items.decentraland.org/contents/bafkreifboogkwotg3qz4hyssbvruy5murtsjxrv5vbrhi6n66y6772waci"`  |
+
+---
+
+## Beyond the catalog
+
+The catalog has **no environmental machinery** — drips, motors, fans, fridge hum, escalators. Source real recordings rather than synthesizing a stand-in with `ffmpeg`/python: a creator asked for ambience hears a tone generator immediately and rejects it (observed 2026-10-10). **Wikimedia Commons** is a workable source:
+
+- Search: `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=<terms>+filetype:audio&format=json`, then `action=query&prop=imageinfo&iiprop=url|extmetadata` on the hits to read `LicenseShortName` and `Artist`.
+- Prefer **CC0 / Public domain**; **CC BY** and **CC BY-SA** need a credit line wherever the scene is published. Record title, author, licence and source URL in the scene's `design/` notes as you download.
+- Send a descriptive `User-Agent` and pace the calls — the API returned **HTTP 429** after ~8 rapid requests.
+- Files named `LL-Q1860 …` are **Lingua Libre word pronunciations**, not sound effects; skip them.
+- Cut the loop with `ffmpeg` (`afade` in/out + `loudnorm`) before dropping it in `assets/Audio/`.
+

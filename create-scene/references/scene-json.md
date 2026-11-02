@@ -1,0 +1,150 @@
+# scene.json reference
+
+Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file — except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0` (**creator-hub-mcp** → *Tool catalog*, Settings row; spawn points: *RULE — confirm a batch landed on disk*; thumbnail: *Gotchas*).
+
+## Fields
+
+All valid `scene.json` fields:
+
+| Field                     | Required     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ecs7`                    | Conventional | `true` in SDK7 scenes. Written by `init`; the build only validates `runtimeVersion`, but keep it for tooling compatibility                                                                                                                                                                                                                                                                                                                               |
+| `runtimeVersion`          | Yes          | Must be `"7"`                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `main`                    | Yes          | Must be `"bin/index.js"` — the compiled output path                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `display.title`           | Recommended  | Scene name shown in the map and Places                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `display.description`     | Recommended  | Short description for discovery                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `display.navmapThumbnail` | Recommended  | Thumbnail shown in the map modal and teleport confirmation (`.png`/`.jpg`, 16:9). Spec, checks and capture procedure: **deploy-scene** → *Thumbnail image* |
+| `tags`                    | Recommended  | Root-level `string[]`. The scene's categories in the Places dApp. Max 3, values from the predefined list (see below)                                                                                                                                                                                                                                                                                                                                     |
+| `scene.parcels`           | Yes          | Array of `"x,y"` coordinate strings                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `scene.base`              | Yes          | The origin parcel (usually southwest corner)                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `spawnPoints`             | Optional     | Where players appear when entering (see below)                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `requiredPermissions`     | Optional     | Smart wearables only; no effect on scenes or portable experiences (see Required Permissions below) |
+| `allowedMediaHostnames`   | Optional     | `[LEGACY]` whitelisted domains for external media; not required (see Required Permissions) |
+| `skyboxConfig`            | Optional     | Root-level `{ "fixedTime": number }`: fixed time of day (see Skybox fixed time below) |
+| `featureToggles`          | Optional     | Enable/disable SDK features                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `worldConfiguration`      | Optional     | World settings: name, Places opt-out, skybox, minimap (see worldConfiguration below; deploying: **deploy-worlds**) |
+| `landscapeTerrain`        | Optional     | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
+| `creator`                 | Optional     | Root-level wallet address (`"0x…"`) that receives MANA tips. When set, visitors get a **piggy bank icon** at the top left that opens a MANA tip modal (showing the address's Decentraland NAME if it has one), and the creator gets an in-app notification per tip. Creator Hub: scene Settings → Details → **Creator wallet address** |
+
+## Tags (scene categories)
+
+The root-level `tags` array holds the scene's **categories**. The [Places dApp](https://places.decentraland.org) uses them to group places so players can browse by interest — untagged scenes show up in no category.
+
+Rules:
+
+- Max **3** categories per scene.
+- Values must come from this predefined list — arbitrary strings are not categories:
+
+`"art"`, `"game"`, `"casino"`, `"social"`, `"music"`, `"fashion"`, `"crypto"`, `"education"`, `"shop"`, `"business"`, `"sports"`, `"parkour"`
+
+```json
+"tags": ["game", "casino"]
+```
+
+## Required Permissions
+
+`requiredPermissions` applies **only to smart wearables**. Scenes (Genesis City and Worlds) and portable experiences run with every permission granted: leave the field out of a scene's `scene.json`; adding it changes nothing. Verified in unity-explorer: every scene loads with `AllowEverythingJsApiPermissionsProvider`; only `LoadSmartWearableSceneSystem` builds a `RestrictedJsApiPermissionsProvider` from the list.
+
+For a smart wearable, four permissions gate an API; an undeclared one makes the call fail and logs `Fetch API: permission denied` (or `Web Sockets API`, `Web3 API`, `Open External URL`):
+
+| Permission           | Gates                                         |
+| -------------------- | --------------------------------------------- |
+| `USE_FETCH`          | `fetch` only. `signedFetch` is not gated: `SignedFetchWrap` has no permission check |
+| `USE_WEBSOCKET`      | WebSocket connections                         |
+| `USE_WEB3_API`       | Every Ethereum RPC sent through `sendAsync`, read-only calls such as `eth_call` included, and `signMessage` (a `personal_sign` through the same path). `getUserAccount` is not gated |
+| `OPEN_EXTERNAL_LINK` | `openExternalUrl`                             |
+
+Equip-time prompt, preview behaviour and the rest: **smart-wearables** → Permissions.
+
+The protocol also lists `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE`, `ALLOW_TO_TRIGGER_AVATAR_EMOTE` and `ALLOW_MEDIA_HOSTNAMES`. The Explorer ignores all three: moving the player (`movePlayerTo`), playing emotes (`triggerEmote`, `triggerSceneEmote`), physics forces and external media need no permission anywhere. Remove them when you meet them in an existing `scene.json`.
+
+`[LEGACY]` `allowedMediaHostnames` goes with `ALLOW_MEDIA_HOSTNAMES` and can be removed too: unity-explorer gates the hostname check behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define, set in no build config (`SceneData.TryGetMediaUrl` falls through to a plain URL syntax check), and bevy-explorer has no enforcement at all.
+
+## Feature Toggles
+
+```json
+"featureToggles": {
+  "voiceChat": "enabled",
+  "portableExperiences": "enabled"
+}
+```
+
+Valid values: `"enabled"`, `"disabled"`. For `portableExperiences` also: `"hideUi"`.
+
+## Spawn Points
+
+Configure where and how players enter the scene:
+
+```json
+{
+	"spawnPoints": [
+		{
+			"name": "spawn1",
+			"default": true,
+			"position": { "x": [1, 5], "y": [0, 0], "z": [2, 4] },
+			"cameraTarget": { "x": 8, "y": 1, "z": 8 }
+		}
+	]
+}
+```
+
+- Position ranges (e.g., `[1, 5]`) spawn players randomly within the range
+- `cameraTarget` orients the player's camera on spawn — point it at the scene's focal area
+- Fixed spawn: use single values on **all three** axes (e.g., `"position": { "x": 8, "y": 0, "z": 8 }`)
+- `position` is a whole-object union (`@dcl/schemas` `SinglePosition | MultiPosition`): all three axes are numbers, or all three are `[min, max]` arrays. A mix such as `"x": [1, 5], "y": 0` fails validation at build time, and the error does not say why.
+
+## Skybox fixed time
+
+A permanent time of day, no code needed. Two valid locations:
+
+```json
+// Genesis City scene — top-level
+{ "skyboxConfig": { "fixedTime": 43200 } }
+
+// World — inside worldConfiguration
+{ "worldConfiguration": { "name": "my-name.dcl.eth", "skyboxConfig": { "fixedTime": 36000 } } }
+```
+
+Values are seconds since midnight; a full day is `86400`:
+
+| Value | Time of day |
+|-------|------------|
+| `0` | Midnight |
+| `21600` | 6 AM (sunrise) |
+| `43200` | Noon |
+| `64800` | 6 PM (sunset) |
+| `86400` | Full day (maximum) |
+
+- Any value above `86400` is interpreted as midnight. Omit `fixedTime` for the dynamic day/night cycle.
+- **Precedence** (verified against the engine test scenes `2,0-skybox-scene-json` and `3,0-skybox-world-json`): `worldConfiguration.skyboxConfig.fixedTime` wins over top-level `skyboxConfig.fixedTime`; either JSON value is in turn overridden at runtime by a `SkyboxTime` component on `engine.RootEntity` (**lighting-environment**).
+
+## worldConfiguration
+
+Fields of the `@dcl/schemas` `WorldConfiguration` type:
+
+- `name` — the DCL NAME or ENS domain the World deploys to; must be owned by (or ACL-granted to) the deploying wallet.
+- `placesConfig.optOut` — `true` keeps the World off the Places listing.
+- `skyboxConfig.fixedTime` (see Skybox fixed time) and `skyboxConfig.textures` (`string[]`).
+- `miniMapConfig` — `visible` / `dataImage` / `estateImage`.
+- `[DEPRECATED]` `skybox` and `minimapVisible`; use `skyboxConfig.fixedTime` and `miniMapConfig.visible`.
+
+Deploy steps, multi-scene Worlds and the storage budget: **deploy-worlds**.
+
+## Multi-Parcel Layouts
+
+| Layout         | Parcels Array                     | Use Case                                        |
+| -------------- | --------------------------------- | ----------------------------------------------- |
+| **Single**     | `["0,0"]`                         | Small games, galleries, single-room experiences |
+| **Strip**      | `["0,0", "1,0", "2,0"]`           | Hallways, racing tracks, linear journeys        |
+| **L-Shape**    | `["0,0", "1,0", "0,1"]`           | Corner buildings, split experiences             |
+| **2x2 Square** | `["0,0", "1,0", "0,1", "1,1"]`    | Open plazas, arenas, medium games               |
+| **3x3 Square** | 9 parcels from `"0,0"` to `"2,2"` | Large games, multi-room buildings               |
+
+**Base parcel:** Always set `scene.base` to the southwest (lowest x,y) corner parcel.
+
+**Boundaries:** each parcel is 16m x 16m; a 2x2 scene spans 32m x 32m. The height limit is **330 meters** for every scene, regardless of parcel count. ⚠️ Anything placed above ~200 m may suffer multiplayer sync issues — keep gameplay-relevant content below that.
+
+- **Always validate entity positions against parcel bounds.** With the default base parcel at the lower-left corner, valid range is `0 ≤ x ≤ 16*parcelsWide` and `0 ≤ z ≤ 16*parcelsDeep`. **Any negative X or Z coordinate is outside the scene.** An entity entirely outside the bounds is not rendered and no error is shown; a model that straddles the boundary still renders the part that is inside. The bound check uses **world** positions, so a child whose parent is moved out of bounds disappears with it, and exceeding the height limit hides the entity too. Multi-parcel scenes are only rectangular if you list every parcel; an L-shaped parcel set has "holes" that are out of bounds. (See the `5,90-scene-bounds-check` example scene.)
+
+**Changing parcels in an existing scene:** Modifying `scene.parcels` shifts the coordinate bounds for the entire scene — entities near the current boundary may end up outside (invisible) after the change. Before editing this field, describe the proposed change and confirm with the user first. See the "Agent Behavioral Guidelines" section in the `sdk-scenes` skill (`{baseDir}/../sdk-scenes/SKILL.md`).
+
