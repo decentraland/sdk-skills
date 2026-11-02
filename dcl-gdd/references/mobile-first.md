@@ -74,6 +74,8 @@ client, an active rollout or a missing or conflicting answer, check the affected
 [Desktop vs Mobile Feature Gap tracker](https://github.com/decentraland/godot-explorer/issues/2402)
 (the link the template hands the owner in §6) and the
 [official missing-features inventory](https://docs.decentraland.org/creator/build-for-mobile/mobile-client/missing-features).
+For mechanics that fail silently on mobile (Draco GLBs, thin colliders, `TweenSequence`), check
+`{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 Do not infer a rollout's availability from an older release. If a needed source will not open,
 keep any still-applicable evidence and mark the unresolved claim `TBD:`; do not guess.
 A core loop that depends on a desktop-only feature with no fallback is not

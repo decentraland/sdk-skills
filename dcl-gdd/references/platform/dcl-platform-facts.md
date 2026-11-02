@@ -68,7 +68,9 @@ each client before promising hidden information. Route and source:
 when visitors arrive and sleeps after they leave. Production arrival may need a waiting activity
 or clear loading state; connected players may still be waiting for game logic to become ready.
 For growth or timers between visits, saving timestamps and applying elapsed progress on return
-is a candidate, not proof of an always-running server. Storage, authority and availability are
+is a candidate, not proof of an always-running server. Use the server clock, whole units, a cap
+and the kept remainder from **authoritative-server** → *Progress while nobody is in the scene*
+(`{baseDir}/../authoritative-server/references/server-patterns.md`). Storage, authority and availability are
 separate decisions. Timing guidance and readiness handling:
 [server availability](platform-implementation-notes.md#server-availability-and-deployment-versions).
 

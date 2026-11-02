@@ -82,7 +82,7 @@
     next.disabled = current === pages.length - 1;
     position.textContent = `${current + 1} / ${pages.length}`;
     if (focus) {
-      pages[current].querySelector('h1').focus({ preventScroll: true });
+      pages[current].querySelector('h1')?.focus({ preventScroll: true });
       window.scrollTo(0, 0);
     }
   }

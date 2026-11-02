@@ -17,7 +17,8 @@ the intended camera mode. Include nearby placeholder furniture if its volume mat
 
 Change the relevant clearance or placement before scaling the entire building. If useful, compare
 two short passage variants. Actual movement limits come from the current controller; comfortable
-dimensions remain design choices. Other engines' door sizes are not DCL standards.
+dimensions remain design choices. Start the blockout from **add-3d-models** → *RULE: Scale
+interiors up for the third-person camera* (about 1.5–2× real headroom), not real-world sizes. Other engines' door sizes are not DCL standards.
 [Metrics](https://book.leveldesignbook.com/process/blockout/metrics)
 
 If people will share this space, try the relevant interaction with another avatar: can both see,

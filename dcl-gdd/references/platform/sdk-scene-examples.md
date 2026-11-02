@@ -312,7 +312,7 @@ subscription cleanup gaps and a transaction-specific crypto dependency; inspect 
 without importing the whole scene. A local custom component is not automatically replicated.
 
 **Authoritative rounds and progress →** shared pickups, a competition, a podium or a persistent
-record. [Leaderboard](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/90,-9-authoritative-server-leaderboard/src/server/server.ts)
+record. Clients send intent, never scores: **authoritative-server** → *Messages*. [Leaderboard](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/90,-9-authoritative-server-leaderboard/src/server/server.ts)
 validates sender/proximity, publishes state and writes Storage; [Gem Rush](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/92,-9-authoritative-server-gem-rush/src/server/server.ts)
 adds lobby/active/podium phases, first-valid-claim resource removal, local decoration and round
 checkpoints. Both depend on the **auth-server branch and hosting conditions**, as does the
