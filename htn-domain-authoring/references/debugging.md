@@ -12,6 +12,7 @@ Use the matching module design/NPC guides when a failure crosses domain and host
 2. **Reproduce at the right level.** For a wrong plan on known facts, create a game-owned world/scenario
    with an independent expected plan. With consumer testing installed, run
    `npm run htn:check -- htn-tests/worker.tests.ts --case '<name>' --json --session ../htn-reports`.
+   `--session` resolves beside the manifest: this example writes to the project's `htn-reports/`.
    For missing replans, stale facts, cancellation or inter-agent timing, retain the earlier events and host writes
    in a shared-host story. A correct isolated plan does not clear the host. If reproduction is unavailable,
    report the limit rather than inventing a domain defect.

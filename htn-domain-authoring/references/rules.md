@@ -1,6 +1,6 @@
 # Rules: reasons and examples
 
-The numbered wording lives in [SKILL.md](SKILL.md). These are design defaults for this planner/host,
+The numbered wording lives in [SKILL.md](../SKILL.md). These are design defaults for this planner/host,
 not universal HTN laws. Validators, upkeep, event-driven directors and source-faithful lessons may need different shapes.
 Use [module-reference.md](module-reference.md) to resolve public guides and the examples below at one revision.
 Source example paths are relative to `src/examples/`; a consumer may have only an optional `reference/htn` snapshot.
@@ -59,7 +59,8 @@ See `canon/classics/commuter.domain` and `canon/door_helper/door_helper.domain`.
 
 ## 9. Commitment tradeoffs
 
-Use `continueTask` or an `activePlan` validator when retaining progress is worth reduced responsiveness.
+Use the domain step `!continue` with host option `continueTask`, or an `activePlan` validator, when
+retaining progress is worth reduced responsiveness.
 Compare outcomes with and without the policy; avoiding retargeting can also lose catches.
 `basics/storekeeper.domain` checks running actions; `canon/sentry_turret/sentry_turret.domain` shows continuation.
 Validators need a branch per accepted case, not a catch-all that accepts every running action.

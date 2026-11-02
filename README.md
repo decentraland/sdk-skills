@@ -59,12 +59,12 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
 | `game-design` | Game design patterns, MVP planning, playtests. |
+| `htn-domain-authoring` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
 | `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
 | `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
-| `htn-domain-authoring` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
@@ -85,6 +85,9 @@ Skills are markdown files that give AI coding assistants the context they need t
 ## Contributing
 
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
+
+The `sdk7-test-scenes` HTN scene (`96,-11-htn-planner`) is covered by `htn-domain-authoring`.
+When syncing that source, update this skill and its versioned references rather than add a duplicate.
 
 The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
 

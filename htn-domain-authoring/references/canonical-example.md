@@ -3,14 +3,14 @@
 This route is for contributions in the full HTN source checkout, not ordinary consumer authoring.
 For game-owned cases use the consumer testing guide through [module-reference.md](module-reference.md).
 
-A canonical example is a published HTN example re-expressed as a paper prototype under
+A canonical example is a published HTN example re-expressed as a scripted executor model (paper prototype) under
 `scenes/96,-11-htn-planner/src/examples/canon/`: a domain, scenarios, stories, one small TS file, nothing to
 register for the scenarios. The format and its commands:
 [htn-examples-catalog.md, "Canonical examples"](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/htn-examples-catalog.md#canonical-examples--srcexamplescanon).
-Write the domain with the steps of [SKILL.md](SKILL.md); these steps add what the canon needs.
+Write the domain with the steps of [SKILL.md](../SKILL.md); these steps add what the canon needs.
 
-1. **The domain**: `src/examples/canon/<example>/<stem>.domain`, `<stem>` unique across the examples (it is the
-   station's id). Its header, before `(:domain`, has one line starting with each field:
+1. **The domain**: `src/examples/canon/<example>/<stem>.domain`, `<stem>` a unique catalogue id
+   (the named example shown by the source demo). Its header, before `(:domain`, has one line starting with each field:
    - `// Teaches:` the lessons, each with the rule number it follows;
    - `// Source:` author, title, URL, the commit or edition, the file and the method names you took;
    - `// Licence:` the source's licence and how you used it: `re-expressed (nothing copied)`, or `MIT (adapted)` with
@@ -34,7 +34,7 @@ Write the domain with the steps of [SKILL.md](SKILL.md); these steps add what th
    sensed facts written out (a scenario is the world the planner sees). The current catalogue suite requires the
    same plan with branch backtracking off. Keep intentionally mode-dependent source comparisons in example-specific
    tests (step 5), with expected results per mode; a documented exception alone does not bypass the suite.
-   Follow "Independent scenarios" in [SKILL.md](SKILL.md): write complete expected status/steps and the reason
+   Follow "Independent scenarios" in [SKILL.md](../SKILL.md): write complete expected status/steps and the reason
    from the source or strategy before the first execution. Never paste actual output as the oracle or fill a
    placeholder from it. Then run `npm run -s htn:run -- --world <stem>/<scenario>`.
    Done when every required entry/near-miss/re-entry case compares against an independent expectation and passes;
@@ -44,9 +44,10 @@ Write the domain with the steps of [SKILL.md](SKILL.md); these steps add what th
    (`checkMethods`); no unconditional fallback. Test both accepted and rejected worlds.
 4. **The stories**: `src/examples/canon/<example>/stories.ts` with the scripted host (a `PaperHost`: the facts each
    executor writes, what a failure leaves, step durations, sensors; only primitives `htn-lint.json` lists) and
-   stories that replay the lesson over replans: `story({ station, name, blurb, from: '<scenario>' | facts, method,
+   stories that replay the lesson over replans: `story({ station, name, blurb, from: '<scenario>', facts: '<additional worldstate text>', method,
    host, events, fails, until, maxSteps, show, expect: <independently derived trace> })` for one agent, or a `play(stage)` script for several
-   (`stage.agent`, `tick`, `run`, `stage.event`, `matches`, `show`). Add them to `CANON_STORIES` in
+   (`stage.agent`, `tick`, `run`, `stage.event`, `matches`, `show`). Both `from` and `facts` are optional;
+   `facts` adds to the selected start world, so they can be combined. Add stories to `CANON_STORIES` in
    `src/examples/canon/index.ts`. Interacting agents need a shared-host story: include the relevant contention,
    handoff and interruption, with progress or deliberate termination for each agent. Before executing it, derive
    expected outcomes and an exact trace from the strategy/host schedule; if exact formatting is impractical, put
