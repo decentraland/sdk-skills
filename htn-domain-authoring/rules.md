@@ -21,9 +21,10 @@ when the host handles completion. `canon/bridge_troll/v1_priority.domain` is a t
 ## 3. Guard and bind entry facts
 
 An exact tier guard explains selection and avoids relying on failed child decomposition. Bind a selected
-target/state once and pass it down. Reactive tiers should retain their decision with branch backtracking off;
-an intentional backtracking lesson instead tests its declared modes. See `canon/creatures/mouse.domain`
-and `stalker/stalker.domain`'s `hear` tier. A disabled mode can reveal implicit fall-through dependencies.
+target/state once and pass it down: see `canon/creatures/mouse.domain` and Stalker's `hear` tier.
+Stalker's `hunt` tier deliberately declines when it cannot notice a visible target; branch backtracking then
+reaches the next tier. Its header and `test/npc/tiered-equivalence.test.ts` record this production policy.
+Changing the mode can reveal a hidden dependency or confirm a documented one; it is not automatically a defect.
 
 ## 4. Useful one-task branches
 

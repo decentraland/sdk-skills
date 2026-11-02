@@ -39,9 +39,9 @@ Shape
 2. Branch order expresses priority. An ongoing reactive root needs a fallback that lets time pass. A validator
    may deliberately return no plan; a completed goal or event-driven director may return an empty plan if its
    host does not busy-loop. Document that host contract.
-3. Guard each tier by its entry conditions, bind entry facts and pass them down; use axioms for shared tests.
-   Reactive tiers should select the same plan with branch backtracking off. Keep an intentional backtracking
-   lesson explicit and test its intended modes instead.
+3. Prefer exact tier entry guards; bind entry facts and pass them down, using axioms for shared tests.
+   Check decisions with branch backtracking off. A tier may deliberately decline through child failure instead:
+   document its required mode and test a case where that policy matters, including the unsupported-mode result.
 4. Delegation, `!continue` and a long-running action are useful one-task branches. A short action is also valid
    when it is the whole decision. Do not add hierarchy just to change the number of tasks.
 

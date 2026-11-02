@@ -31,8 +31,9 @@ Write the domain with the steps of [SKILL.md](SKILL.md); these steps add what th
 3. **The scenarios**: files `src/examples/canon/<example>/worlds/<stem>/<n>_<what>.worldstate`, numbered in
    reading order (two digits from 10 on). Header: a line saying what the world shows, `// method: <name> [args]`,
    `// expect: succeeded|no_plan` and the numbered steps exactly as `npm run htn:run` prints them; then the facts,
-   sensed facts written out (a scenario is the world the planner sees). The test also plans each scenario with
-   branch backtracking off and wants the same plan (rule 3; document intentional source exceptions).
+   sensed facts written out (a scenario is the world the planner sees). The current catalogue suite requires the
+   same plan with branch backtracking off. Keep intentionally mode-dependent source comparisons in example-specific
+   tests (step 5), with expected results per mode; a documented exception alone does not bypass the suite.
    Follow "Independent scenarios" in [SKILL.md](SKILL.md): write complete expected status/steps and the reason
    from the source or strategy before the first execution. Never paste actual output as the oracle or fill a
    placeholder from it. Then run `npm run -s htn:run -- --world <stem>/<scenario>`.

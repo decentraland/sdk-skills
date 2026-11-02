@@ -13,7 +13,7 @@ optional `htn:measure`. Source lint/variant tools are not installed by the minim
    a successful consumer compile/check does not count as lint.
 2. **Walk the rules** in [SKILL.md](SKILL.md), using each rule's scope and [rules.md](rules.md) for evidence.
    Lint covers only part; inspect the implementation and run applicable cases:
-   - guard choices with branch backtracking off (3), unless backtracking is the lesson;
+   - guard choices under the documented backtracking policy (3), including its mode-dependent case when applicable;
    - horizons and deferred decisions (7); applicable partial-work/re-entry states (8);
    - ablations for commitment features (9);
    - independent expectations and entry/near-miss/re-entry coverage (13).

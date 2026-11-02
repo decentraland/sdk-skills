@@ -2,10 +2,9 @@
 
 ## Resolve the version first
 
-This skill was adapted from `docs/skills/htn-domain-authoring` at source `aef1953a484cbb475168fe18cf4c9086eb258e42`
-(last authoring revision `73b4c29`). The public compatibility baseline is SDK7 HTN module commit
+The public compatibility baseline is SDK7 HTN module commit
 `122a3ff2e87b7e89a6c6ea415eb140dd51716125` (upstream HTN 2.4.0, SDK 7.30.1, Node 22+ authoring).
-These are reference pins, not a requirement to downgrade another installed revision.
+This is a reference pin, not a requirement to downgrade another installed revision.
 
 1. In the creator's project, find `src/htn-planner/README.md`, `HOW-TO.md`, `htn.config.json`,
    `package.json` and any `src/htn-planner/SOURCE.json`. Read recorded source URL/ref, flags and local-change
@@ -35,6 +34,7 @@ These public links use the baseline pin. Prefer the matching local files or repl
 | World invariants | [docs/htn-world-invariants.md](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/htn-world-invariants.md) |
 | Game-owned scenarios and shared-host stories | [docs/consumer-testing.md](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/consumer-testing.md) |
 | Game-owned planning measurements | [docs/consumer-benchmark.md](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/consumer-benchmark.md) |
+| Source host/action measurements (`htn:perf`, fixed workloads) | [docs/performance-measurements.md](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/performance-measurements.md) |
 | Source examples, provenance and teaching limits | [docs/htn-examples-catalog.md](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/docs/htn-examples-catalog.md) |
 
 ## Installation and workspace boundaries
@@ -54,7 +54,7 @@ review ownership and obsolete paths using the module's update guide. Do not over
 | Configured creator game | `htn:generate` is the normal edit/compile step; `htn:notices` maintains deployment notices. `htn:watch` is optional. Read its `htn.config.json` targets and export names. |
 | Consumer with `--testing` | `htn:check -- htn-tests/worker.tests.ts` checks game-owned manifests. Optional `--session` writes portable DebugSession JSON. The installed guide is `docs/consumer-testing.md`. |
 | Consumer with `--benchmark` | `htn:measure -- <manifest> --quick` measures planning; full host/action work needs its own check. Start with the guide, not a long run. |
-| Full HTN source checkout, cwd `scenes/96,-11-htn-planner` | `htn:compile`, `htn:run`, `htn:lint`, `htn:view`, `htn:level`, `htn:bench`, `htn:ci` and variant tools are source workflows. Its package does not define consumer `htn:generate`. Keep source baselines and teaching registrations here. |
+| Full HTN source checkout, cwd `scenes/96,-11-htn-planner` | `htn:compile`, `htn:run`, `htn:lint`, `htn:view`, `htn:level`, `htn:bench`, `htn:perf`, `htn:ci` and variant tools are source workflows. Its package does not define consumer `htn:generate`. Keep source baselines and teaching registrations here. |
 
 If optional tools are absent, use an explicit source checkout for them or follow the documented optional install.
 Do not invent npm scripts or report a source check as run in the consumer. Keep test/measurement reports and

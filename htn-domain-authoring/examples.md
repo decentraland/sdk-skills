@@ -12,7 +12,7 @@ Use installed `htn:check` for game-owned manifests instead.
 
 | Lesson | Before | After |
 |---|---|---|
-| Tiers, upkeep in `reasoning`, no copied tails (rules 1, 4, 5, 10) | `test/fixtures/reference/stalker_flat.domain` | `stalker/stalker.domain` |
+| Tiers, upkeep in `reasoning`, no copied tails (rules 1, 4, 5, 10) | `test/fixtures/reference/stalker_flat.domain` | `stalker/stalker.domain` (its `hunt` tier intentionally needs branch backtracking; see rule 3) |
 | The same, small gain (rules 1, 5) | `test/fixtures/reference/guard_flat.domain` | `guard/guard.domain` + `guard/guard_kit.domain` |
 | The reason as a fact (rule 6) | `canon/bridge_troll/v5_combo_bug.domain` | `canon/bridge_troll/v5_tired.domain` |
 | A guard on every root branch (rule 3) | Space Station 14's unguarded roots, failing in `test/examples/canon/creatures.test.ts` | `canon/creatures/mouse.domain` |
