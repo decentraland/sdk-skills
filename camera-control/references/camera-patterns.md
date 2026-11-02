@@ -256,4 +256,4 @@ MIN_FOLLOW_DISTANCE / MAX_FOLLOW_DISTANCE  // Orbit radius range when following
 LERP_FACTOR              // Camera smoothing (position lerp / rotation slerp per frame)
 ```
 
-Related: player roster events (`onEnterScene`/`onLeaveScene`) are covered in **player-avatar**; InputModifier in **advanced-input**; the on-screen toggle/controls HUD in **build-ui**; observer roles in multiplayer game design (e.g. admin-gated spectate via authoritative-server) in **game-design**.
+Related: player roster events (`onEnterScene`/`onLeaveScene`) are covered in **player-avatar**; InputModifier in **advanced-input**; the on-screen toggle/controls HUD in **build-ui**; admin-gated spectate (an admin allow-list checked against the server-verified sender) in **authoritative-server** → Pattern 4.

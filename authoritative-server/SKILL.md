@@ -52,6 +52,8 @@ Long-running servers recycle entity slots, so cached `Map<address, Entity>` hand
 
 Use `registerMessages()` for client-to-server and server-to-client communication. Define message schemas with `Schemas.Map(...)` — plain JS objects will fail binary serialization.
 
+**Clients send intent, never results.** When scores, prizes or shared resources are at stake, a client message names an action (`claimPoint`, `harvest`), never a score, amount won or new state. The server validates it (sender, phase, proximity, what remains) and is the only writer of game state. Reference: the leaderboard example below.
+
 **Module-load timing (critical):** `registerMessages()` defines a component internally, and `engine.defineComponent()` in `shared/schemas.ts` defines components too. Both MUST run during initial module load, before the engine seals. Reach them via **static** `import` (e.g. `import './shared/messages'` at the top of `index.ts`), NOT via a dynamic `import()` inside `main()` — a dynamic import runs after the seal and throws `Engine is already sealed`. Only server-only modules (those importing `@dcl/sdk/server`) should be dynamically imported inside the `isServer()` branch, and only if they define no components at module scope — this keeps `@dcl/sdk/server` out of the client bundle path.
 
 - Client sends: `room.send('playerJoin', { displayName: 'Alice' })`

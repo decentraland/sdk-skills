@@ -89,6 +89,46 @@ playtest notes for later comparison; these are context notes, not new CSV fields
 For a concrete reward proposal, read [Decentraland reward recipes](participation-rewards.md).
 Choose a recipe that fits the scene and verify its prerequisites before promising delivery.
 
+## Run test rounds
+
+Use this branch when the creator asks how to organize playtests: who to invite, how many
+rounds, live or asynchronous. Deploy to a **test World**, never the live LAND or main World,
+and walk through it first. Watch players without explaining the game — if you have to
+explain something, that is the design feedback.
+
+Match the question to how finished the game is; a question the build cannot answer yet, or
+one already settled, wastes the session. Pick one or two goals per round.
+
+| Build | What to learn | Who to invite |
+| --- | --- | --- |
+| Early build (core mechanic) | Is the core mechanic understandable and usable? Can players form a strategy around it? | A few players who already know Decentraland, so the client does not get in the way |
+| First full loop | Can players progress unaided? Where do they get stuck or lose interest? | A mix of Decentraland players and people new to the game |
+| Near release | How does it make players *feel*? Do they come back? Would they recommend it? | New players, including people from outside Decentraland |
+
+Iterate in small rounds (test → fix → test): 3–5 players per round, fix the clearest problem
+between rounds, run the next round with new players. This beats one big playtest with a long
+issue list.
+
+- **Fix between rounds, never during one.** Redeploying mid-session breaks players' games and
+  destroys the attribution — you no longer know which build a comment refers to.
+- **Keep the same questions across rounds**, or the ratings are not comparable. Add questions;
+  do not reword the ones you track.
+- **"Clear" means**: you saw it happen, you can say what the player expected instead, and you
+  know what to change. One player, cause unknown → carry it to the next round.
+- **Log every round**: build, who played, what you saw, what you changed.
+- **Live or asynchronous**: a live session (everyone at once, observed, optionally listed on
+  [Decentraland Events](https://decentraland.org/events/)), or a run over several days where
+  testers come when they can and Scene Feedback collects the answers while the creator is away.
+- **Finding testers**: the `#playtesters` channel on the Decentraland Discord, or people from
+  outside Decentraland when the thing under test is the first-time experience. Newcomers enter
+  through the web `/jump` link (works before the client is installed); log where they struggle
+  *before* reaching the scene separately from feedback on the game. A small thank-you raises
+  turnout — gift an owned wearable or emote in-client (right-click the player → **Gift**),
+  transfer one from the Marketplace or mint one from the Builder to a wallet address — and say
+  plainly that you want criticism, not praise.
+- **Close the loop**: post a "you said / we learned / we changed" update to the same thread.
+  Testers who see their feedback land come back for the next round.
+
 ## Prepare the chosen plan for implementation
 
 Review outstanding content, timing, or Intro choices that materially change the chosen
