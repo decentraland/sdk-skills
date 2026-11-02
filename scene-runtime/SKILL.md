@@ -180,7 +180,7 @@ engine.addSystem(lateSystem, 10);         // runs after regular systems
 
 ## Restricted Actions
 
-They run only while the player is inside the scene. `openExplorerUi` also needs a fresh player gesture (see its section); `openExternalUrl`, `teleportTo`, `changeRealm` and `openNftDialog` ask the player to confirm first. Player movement and emotes (`movePlayerTo`, `triggerEmote`, `triggerSceneEmote`, `stopEmote`): **player-avatar**. Import from `~system/RestrictedActions`:
+They run only while the player is inside the scene. `openExplorerUi` and `openExplorerUiAndWait` also need a fresh player gesture (see their sections); `openExternalUrl`, `teleportTo`, `changeRealm` and `openNftDialog` ask the player to confirm first. Player movement and emotes (`movePlayerTo`, `triggerEmote`, `triggerSceneEmote`, `stopEmote`): **player-avatar**. Import from `~system/RestrictedActions`:
 
 ```typescript
 import {
@@ -231,7 +231,7 @@ changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // c
 
 ### openExplorerUi -- Open Explorer Panels
 
-Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. Requires prior player interaction.
+Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. The call must land in the tick of a **player gesture** or the next one, otherwise it returns `REJECTED_NO_USER_GESTURE`.
 
 ```typescript
 import { openExplorerUi } from "~system/RestrictedActions";
@@ -241,7 +241,9 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Call it from an input callback: called at top level it always returns `REJECTED_NO_USER_GESTURE`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+
+**What counts as a gesture**: a click on a 3D entity (`pointerEventsSystem.onPointerDown` / `onPointerUp`), a click on scene UI (`onMouseDown` / `onMouseUp`), a pointer click with nothing under the cursor (`inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_DOWN)`), or an activation button (`E`, `F`, `1`-`4`: `IA_PRIMARY`, `IA_SECONDARY`, `IA_ACTION_3`-`IA_ACTION_6`) read with `inputSystem.isTriggered` on `PET_DOWN` / `PET_UP`. Hover, movement keys, `main()`, timers and trigger areas are not gestures. The window is the gesture's tick plus one, so call `openExplorerUi` **first** inside the handler: an `await` on a fetch, a timer or another restricted action before it pushes the call outside the window.
 
 ```typescript
 import { openExplorerUi, OpenExplorerUiResult } from "~system/RestrictedActions";
@@ -258,7 +260,34 @@ pointerEventsSystem.onPointerDown(
 );
 ```
 
-`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing. `EU_ITEM_PURCHASE` also exists in the SDK types but the explorer has no purchase flow and answers `REJECTED_FEATURE_DISABLED`; do not use it.
+
+### openExplorerUiAndWait -- Wait Until the Panel Closes
+
+`openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`, SDK **7.30.0+**) opens a panel and resolves when the player closes it. Use it when the scene continues only after the player is done (sent to the backpack to equip something, to the map to pick a destination). Same gesture rule: call it first inside the handler; the `await` on its result is fine because the panel is already requested. The module re-exports `ExplorerUi` and `OpenExplorerUiResult`, and the bare-enum overload `openExplorerUiAndWait(ExplorerUi.EU_MAP)` is equivalent to `{ ui: ExplorerUi.EU_MAP }`. Every lifecycle outcome resolves, but the promise **rejects** when the underlying `openExplorerUi` RPC throws or when an event cannot be matched to this call, so wrap it in `try` / `catch`: an unhandled rejection inside an `async` pointer callback is silent.
+
+```typescript
+import { openExplorerUiAndWait, ExplorerUi, OpenExplorerUiResult } from "@dcl/sdk/explorer-ui";
+import { InputAction, pointerEventsSystem } from "@dcl/sdk/ecs";
+
+pointerEventsSystem.onPointerDown(
+  { entity: wardrobe, opts: { button: InputAction.IA_POINTER, hoverText: "Change outfit" } },
+  async () => {
+    try {
+      const outcome = await openExplorerUiAndWait({ ui: ExplorerUi.EU_BACKPACK }, { timeoutMs: 60_000 });
+      if (outcome.$case === "closed") startFashionShow();
+      else if (outcome.$case === "notOpened") {
+        // openResult is a numeric enum; index it for the name (e.g. REJECTED_FEATURE_DISABLED)
+        showHint(`Backpack unavailable (${OpenExplorerUiResult[outcome.openResult]})`);
+      }
+    } catch (error) {
+      console.error("openExplorerUiAndWait failed", error);
+    }
+  },
+);
+```
+
+`outcome.$case`: `closed` (the panel this call opened was closed, the normal end), `notOpened` (nothing opened; `outcome.openResult` is the `OpenExplorerUiResult` reason, resolves immediately), `timedOut` (`timeoutMs` elapsed with the panel still open), `matched` (an `until` condition fired first; the panel may still be open). There is no default timeout: a panel can stay open for minutes, so pass `timeoutMs` whenever the scene must move on regardless. `until` / `collect` options and event channels: `{baseDir}/references/runtime-apis.md` → openExplorerUiAndWait.
 
 ### ExplorerUiEventsResult -- Observe Panel Open/Close
 
@@ -281,7 +310,7 @@ engine.addSystem(() => {
 });
 ```
 
-Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `requestId` (the `requestId` of the `openExplorerUi` call that caused the event; `0` when the call passed none or the player opened the panel themselves), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
 
 ## Timers
 
@@ -378,4 +407,4 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
-`setCommunicationsAdapter`, `teleportTo({ realm })` details and extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.
+`setCommunicationsAdapter`, `teleportTo({ realm })` details, `openExplorerUiAndWait` `until` / `collect` options and extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.
