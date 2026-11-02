@@ -7,7 +7,8 @@
 # pose and the next take was recorded from it.
 #
 # What each pattern is for:
-#   begin()            every scene restart: title card away (a root click), cheat on, debug overlay off
+#   begin(ex)          runs once before the first take (capture_play.py calls it when defined; --no-begin skips it):
+#                      title card away (a root click), cheat on, debug overlay off. Re-run it after a scene restart.
 #   village_walk()     the trailer's "a person in motion from the first frame": teleport, record, walk
 #   talk()             an NPC conversation: E (primary) within its radius, then one click per line
 #   woods_apparition() a scripted event: walk into its trigger rectangle, then wait it out on camera

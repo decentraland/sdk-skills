@@ -1,10 +1,9 @@
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, useCurrentFrame, useVideoConfig } from "remotion";
 import type { Card as CardT } from "../edits";
-import { ACCENT, TEXT, textScale } from "../lib/config";
+import { ACCENT, TEXT, ramp, textScale } from "../lib/config";
 import { DISPLAY_FONT, TEXT_SHADOW } from "../lib/fonts";
 
 const SIZE = { md: 72, lg: 118, xl: 190 } as const;
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 /** Text card. "fade" creeps open; "slam" lands on a beat. Sizes scale with the frame width. */
 export const Card: React.FC<{ card: CardT }> = ({ card }) => {
@@ -13,9 +12,12 @@ export const Card: React.FC<{ card: CardT }> = ({ card }) => {
   const { size = "lg", color = "text", pos = "center", anim = "fade", over = false } = card;
   const k = textScale(width, height);
   const slam = anim === "slam";
-  const opacity = slam ? interpolate(f, [0, 2, d - 6, d], [0, 1, 1, 0], clamp) : interpolate(f, [0, 12, d - 10, d], [0, 1, 1, 0], clamp);
-  const scale = slam ? interpolate(f, [0, 9], [1.35, 1], { ...clamp, easing: Easing.out(Easing.exp) }) : interpolate(f, [0, d], [1, 1.03]);
-  const spacing = (slam ? 8 : interpolate(f, [0, d], [8, 18])) * k;
+  // Fades shrink on short cards (at most a third of the card each) and ramp() keeps the ranges valid at any length.
+  const inF = Math.min(slam ? 2 : 12, Math.floor(d / 3));
+  const outF = Math.min(slam ? 6 : 10, Math.floor(d / 3));
+  const opacity = ramp(f, [0, inF, d - outF, d], [0, 1, 1, 0]);
+  const scale = slam ? ramp(f, [0, 9], [1.35, 1], { easing: Easing.out(Easing.exp) }) : ramp(f, [0, d], [1, 1.03]);
+  const spacing = (slam ? 8 : ramp(f, [0, d], [8, 18])) * k;
   const fill = color === "text" ? TEXT : color === "accent" ? ACCENT : color;
   return (
     <AbsoluteFill
@@ -23,8 +25,7 @@ export const Card: React.FC<{ card: CardT }> = ({ card }) => {
         backgroundColor: over ? "transparent" : "#000",
         justifyContent: pos === "lower" ? "flex-end" : "center",
         alignItems: "center",
-        paddingBottom: pos === "lower" ? 200 * k : 0,
-        padding: `0 ${80 * k}px`,
+        padding: `0 ${80 * k}px ${pos === "lower" ? 200 * k : 0}px`,   // one shorthand: a separate paddingBottom would be overridden
         opacity,
       }}
     >

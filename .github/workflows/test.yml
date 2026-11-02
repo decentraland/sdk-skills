@@ -26,3 +26,19 @@ jobs:
       # A shell glob, not a directory: Node 24 reads `node --test tests/` as a file path.
       - run: node --test tests/*.test.mjs
         shell: bash
+
+  # promote-scene ships Python tools and a Remotion project that no test exercises: at least compile them.
+  promote-scene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: python3 -m py_compile promote-scene/scripts/*.py
+      # src/lib/config.ts reads the kit's posts.json three levels up from src/lib; in the repo that is scripts/posts.json.
+      - run: cp promote-scene/scripts/posts.example.json promote-scene/scripts/posts.json
+      - run: npm ci
+        working-directory: promote-scene/scripts/video
+      - run: npx tsc --noEmit
+        working-directory: promote-scene/scripts/video

@@ -2,8 +2,9 @@
 #   python3 promote/tools/compose_social.py
 # Run after the renders and make_logo.py. Reads promote/posts.json:
 #   "keyart": {"1920x1080": "images/keyart/hero_1920x1080.png", "1080x1080": "..."}
-#       one text-free source per output size; a size with no entry is centre-cropped from the first one,
-#       so a single good image (e.g. the scene's own thumbnail, if it has no text) is enough.
+#       one text-free source per output size. 1920x1080 and 1080x1080 (the default kit) are centre-cropped from
+#       the first entry when they have no entry of their own, so a single good image (e.g. the scene's own
+#       thumbnail, if it has no text) is enough; 1080x1350 and 1080x1920 (expanded kit) are only written when listed.
 #   "quote_cards": [{"id": "quote_forever", "render": "images/renders/hero.png", "line": "Line one.\nLine two."}]
 #   "brand": {"text", "accent", "font_small", "quote_tag"}   (see make_logo.py)
 #   "keyart_logo_y": 0.42      vertical centre of the wordmark as a fraction of the height (0.12-0.9; past 0.25-0.75 only when
@@ -14,17 +15,43 @@
 #                              banners: event_1340x670.jpg and event_716x1814.jpg, JPEG, each under 500 KB.
 # Writes promote/images/social/: keyart_<size>.png (wordmark inside the central 60 %),
 # x_header_1500x500.png, and one 1080 px card per quote.
-import os, re, io, sys, json
+import os, re, io, sys, json, glob
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 P = os.path.join(ROOT, 'promote')
 OUT = os.path.join(P, 'images', 'social')
 os.makedirs(OUT, exist_ok=True)
-KIT = json.load(open(os.path.join(P, 'posts.json')))
+KIT = json.load(open(os.path.join(P, 'posts.json'), encoding='utf-8'))
 B = KIT.get('brand', {})
 SLUG = re.sub(r'[^a-z0-9]+', '_', KIT['game'].lower()).strip('_')
-FONT_SMALL = B.get('font_small') or '/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf'
+
+
+def find_font(preferred, names, what):
+    """A readable .ttf: `preferred` (brand.font / brand.font_small in posts.json) when it exists, else the first of
+    `names` found in the usual font folders (macOS, Windows, Linux). Exits with a clear message when none is found."""
+    if preferred and os.path.exists(preferred):
+        return preferred
+    if preferred:
+        print('WARNING: %s font %s not found; looking for a fallback' % (what, preferred))
+    dirs = ['/System/Library/Fonts/Supplemental', '/System/Library/Fonts', '/Library/Fonts', os.path.expanduser('~/Library/Fonts'),
+            os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts'), os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Fonts'),
+            '/usr/share/fonts', '/usr/local/share/fonts', os.path.expanduser('~/.fonts'), os.path.expanduser('~/.local/share/fonts')]
+    for d in dirs:
+        for n in names:
+            hits = glob.glob(os.path.join(glob.escape(d), '**', n), recursive=True) if os.path.isdir(d) else []
+            if hits:
+                print('%s font: %s' % (what, hits[0]))
+                return hits[0]
+    sys.exit('No %s font found. Set brand.font and brand.font_small in posts.json to .ttf files on this machine '
+             '(macOS: /System/Library/Fonts/Supplemental/Impact.ttf; Windows: C:\\Windows\\Fonts\\impact.ttf; Linux: a DejaVu or Liberation bold face).' % what)
+
+
+DISPLAY_FONTS = ['Impact.ttf', 'impact.ttf', 'Arial Bold.ttf', 'arialbd.ttf', 'LiberationSans-Bold.ttf', 'DejaVuSans-Bold.ttf']
+SMALL_FONTS = ['DIN Condensed Bold.ttf', 'Arial Narrow Bold.ttf', 'ARIALNB.TTF', 'arialnb.ttf', 'Arial Bold.ttf', 'arialbd.ttf',
+               'LiberationSansNarrow-Bold.ttf', 'DejaVuSansCondensed-Bold.ttf', 'DejaVuSans-Bold.ttf']
+
+FONT_SMALL = find_font(B.get('font_small'), SMALL_FONTS, 'small')
 X_HEADER = True
 EVENT_BANNERS = KIT.get('event_banners', False) or '--events' in sys.argv
 EVENT_MAX_BYTES = 500 * 1000   # Foundation event pages: "max 500kb"

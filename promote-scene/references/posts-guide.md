@@ -1,6 +1,6 @@
 # posts.json: schema, kinds, writing rules
 
-`promote/posts.json` is the single source of truth for the kit. `make_logo.py`, `compose_social.py` and `build_kit.py` all read it. A complete runnable example (Eeireport, 5 posts) is `{baseDir}/scripts/posts.example.json`.
+`promote/posts.json` is the single source of truth for the kit. `make_logo.py`, `compose_social.py` and `build_kit.py` all read it. A complete runnable example (Eeireport, 8 posts, one or two of each kind) is `{baseDir}/scripts/posts.example.json`.
 
 ## Schema
 
@@ -13,8 +13,8 @@
 | `listing` | `{short, long, events?}` | copy.md, README | The scene-description rewrites for the Places card and the Foundation package, see below. **Not shown on the page.** `events`: optional recurring schedule, day and time in UTC. |
 | `event_banners` | bool | compose | Foundation event-page banners (1340×670, 716×1814, JPEG ≤ 500 KB). Default `false`; set `true` when the creator mentions events. |
 | `hashtags` | `{core: string[], extra: string[]}` | page, copy.md | core ≈ 3 tags, extra ≈ 4–6. |
-| `brand` | object | logo, compose, page | `text`, `ink`, `accent` (hex); `font`, `font_small` (absolute .ttf paths); optional `wordmark` (override text), `icon_text` (1–3 chars, default the initial), `icon_top`, `icon_bottom`, `quote_tag` (small accent label on quote cards). |
-| `keyart` | `{"<w>x<h>": path}` | compose | Text-free plates relative to `promote/`. Missing sizes are centre-cropped from the first entry. |
+| `brand` | object | logo, compose, page | `text`, `ink`, `accent` (hex); `font`, `font_small` (absolute .ttf paths; when they do not exist on this machine the scripts fall back to a system face and say so); optional `video_font` (a .ttf under `promote/fonts/`, relative to `promote/`, for the post videos: see `{baseDir}/references/video-posts.md`), `wordmark` (override text), `icon_text` (1–3 chars, default the initial), `icon_top`, `icon_bottom`, `quote_tag` (small accent label on quote cards). |
+| `keyart` | `{"<w>x<h>": path}` | compose | Text-free plates relative to `promote/`. `1920x1080` and `1080x1080` are centre-cropped from the first entry when they have none of their own; `1080x1350` and `1080x1920` (expanded kit) are written only when listed. |
 | `keyart_logo_y` | number 0.12–0.9 | compose | Vertical centre of the wordmark on key art (default 0.42). Stay within 0.25–0.75 unless the subject fills the middle; a band near 0.9 (the ground) or 0.15 (the sky) is the fallback for a tall centred subject. |
 | `x_header_logo` | `"left"` \| `"right"` | compose | Side of the X header the wordmark goes on (default left). |
 | `quote_cards` | `[{id, render, line}]` | compose | `line` uses `\n` for breaks (~28 characters per line at 1080 px). `id` becomes `images/social/<id>.png`. |
@@ -78,7 +78,7 @@ The Foundation's marketing package asks for exactly two descriptions of the scen
 - **`long`**: at most two short paragraphs. Lead with the activity and the people, then recurring moments and why come back. A one-time story says so honestly. Do not invent replay hooks.
 - Same sourcing rules as the posts: every claim traces to `design/`, the repo or the creator's answer.
 
-## The five kinds (default counts)
+## The seven kinds (default counts)
 
 - **launch (4)**: needs `{LINK}`. One post each for the promise, a signature character or mechanic, what the game is (length, how you play, "free, in your browser"), and one with a different angle (bring a friend, a single-line joke).
 - **soon (4)**: no link. A teaser line from the game, a mood post, one `{N}` / `{DATE}` countdown template on the logo lockup, and one aimed at the genre audience.

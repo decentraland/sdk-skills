@@ -1,6 +1,10 @@
 # Builds the marketing kit's data file and plain-text copies from promote/posts.json.
 # Copy to <scene>/promote/tools/build_kit.py; re-run after every edit to posts.json or any image.
 #   python3 promote/tools/build_kit.py
+#   python3 promote/tools/build_kit.py --rendering <post id>   also writes videos/<post id>.rendering (UTC start time) first
+#   python3 promote/tools/build_kit.py --done <post id>        also deletes that marker first (the video is in place)
+# Needs Pillow. ffprobe (part of ffmpeg) is optional: without it videos are listed without size and length.
+# Windows: run with `python` or `py -3` if `python3` is not on PATH.
 # Writes:
 #   promote/kit-data.js          window.KIT = {...}: posts + images and logos embedded as data URIs
 #                                (downscaled), so index.html works from file:// and "Copy image" works
@@ -16,13 +20,30 @@
 # A post can also name its file explicitly with "video": "videos/<file>.mp4" in posts.json.
 # While a post's video is being made, a marker file promote/videos/<post id>.rendering (content: the UTC start
 # time) makes the page show a spinner on that card; delete it when the video is in place. The page re-reads
-# kit-data.js every 30 s, so run this script when the marker is written and again when the video lands.
-import os, re, json, base64, io, subprocess, shutil, time
+# kit-data.js every 30 s, so run this script when the marker is written and again when the video lands
+# (--rendering / --done do both steps in one command, on any OS).
+import os, re, sys, json, base64, io, subprocess, shutil, time
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 P = os.path.join(ROOT, 'promote')
-data = json.load(open(os.path.join(P, 'posts.json')))
+data = json.load(open(os.path.join(P, 'posts.json'), encoding='utf-8'))
+problems = []
+for flag in ('--rendering', '--done'):   # marker handling, so the video workflow needs no date/rm commands
+    if flag in sys.argv:
+        i = sys.argv.index(flag) + 1
+        if i >= len(sys.argv) or sys.argv[i].startswith('--'):
+            sys.exit('%s needs a post id, e.g. %s footage-02' % (flag, flag))
+        marker = os.path.join(P, 'videos', sys.argv[i] + '.rendering')
+        if flag == '--rendering':
+            os.makedirs(os.path.dirname(marker), exist_ok=True)
+            open(marker, 'w', encoding='utf-8').write(time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
+            print('marker written:', marker)
+        else:
+            if os.path.exists(marker):
+                os.remove(marker); print('marker removed:', marker)
+            if not os.path.exists(os.path.join(P, 'videos', sys.argv[i] + '.mp4')):
+                problems.append('--done %s but videos/%s.mp4 does not exist' % (sys.argv[i], sys.argv[i]))
 MAXW = 1200        # preview width for embedded images; Download always uses the full-size file
 LOGO_MAXW = 900
 # Decentraland Foundation "New Experience: Marketing Requirements" asks that need in-world capture
@@ -56,7 +77,8 @@ DEFAULT_DAYS = [
 
 def probe_video(path):
     """Width, height, seconds and bytes of a video via ffprobe (None for the first three without it)."""
-    info = {'file': os.path.relpath(path, P), 'bytes': os.path.getsize(path), 'w': None, 'h': None, 'seconds': None}
+    info = {'file': os.path.relpath(path, P).replace(os.sep, '/'),   # forward slashes: the page and posts.json use them
+             'bytes': os.path.getsize(path), 'w': None, 'h': None, 'seconds': None}
     if shutil.which('ffprobe'):
         try:
             out = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
@@ -84,7 +106,6 @@ def embed(path, maxw):
     return w, h, 'data:%s;base64,%s' % (mime, base64.b64encode(buf.getvalue()).decode())
 
 
-problems = []
 images = {}
 for key, meta in data['images'].items():
     path = os.path.join(P, meta['file'])
@@ -130,6 +151,8 @@ else:
         else: problems.append('audience.%s is missing' % k)
     for k in ('likes', 'trusts', 'outside'):
         for i, row in enumerate(aud.get(k) or []): check_row('%s[%d]' % (k, i), row)
+    if not data.get('hashtags') or not (data['hashtags'].get('core') or []):
+        problems.append('no hashtags.core: the page\'s hashtag toggle and copy.md have nothing to add')
     if not aud.get('venues'):
         problems.append('audience.venues is empty: name the subreddit / Discord / meetup the players are in (3-6, each verified this session)')
     for i, v in enumerate(aud.get('venues') or []):
@@ -164,7 +187,7 @@ rendering = {}   # post id -> start time, from videos/<post id>.rendering marker
 for f in sorted(os.listdir(vdir)) if os.path.isdir(vdir) else []:
     if f.endswith('.rendering'):
         path = os.path.join(vdir, f)
-        since = open(path).read().strip() or time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(os.path.getmtime(path)))
+        since = open(path, encoding='utf-8').read().strip() or time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(os.path.getmtime(path)))
         rendering[f[:-len('.rendering')]] = since
         if time.time() - os.path.getmtime(path) > 3 * 3600:
             problems.append('videos/%s is over 3 hours old: delete it if nothing is rendering' % f)
@@ -236,7 +259,7 @@ out['built_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 wm = next((l for l in logos if l['file'].endswith('_wordmark.png')), None)
 out['wordmark'] = wm['src'] if wm else ''
 js = 'window.KIT = ' + json.dumps(out) + ';\n'
-open(os.path.join(P, 'kit-data.js'), 'w').write(js)
+open(os.path.join(P, 'kit-data.js'), 'w', encoding='utf-8').write(js)
 print('kit-data.js', len(js) // 1024, 'KB')
 
 link = data.get('link') or '{LINK}'
@@ -244,7 +267,7 @@ game = data['game']
 
 md = ['# %s: social copy' % game, '',
       'Link to the game: %s' % (data.get('link') or '`{LINK}` (not published yet: fill in after deploying)'), '',
-      'Hashtags: %s' % ' '.join(data['hashtags']['core'] + data['hashtags'].get('extra', [])), '',
+      'Hashtags: %s' % ' '.join(((data.get('hashtags') or {}).get('core') or []) + ((data.get('hashtags') or {}).get('extra') or [])), '',
       'Placeholders: `{LINK}` is the game link; `{N}` and `{DATE}` are yours; `[FOOTAGE]` marks where a clip goes.', '']
 if listing:
     md += ['## Scene description', '', 'Proposed `display.description` for the Places card, plus the long description the Foundation marketing package asks for. Not social posts: apply them in scene.json / the Creator Hub scene settings.', '']
@@ -289,7 +312,8 @@ for kind, title in KINDS.items():
             md += ['**Hook (0-2 s):** %s' % p.get('hook', ''), '', 'Beats: ' + ' → '.join(p.get('beats') or []), '',
                    '**YouTube title:** %s' % p.get('yt_title', ''), '', 'Description:', '']
         md += [('> ' + l).rstrip() for l in p['text'].replace('{LINK}', link).split('\n')]
-        md += ['', 'Image: `%s`' % data['images'].get(p['image'], {}).get('file', p['image'])]
+        if p.get('image'):
+            md += ['', 'Image: `%s`' % data['images'].get(p['image'], {}).get('file', p['image'])]
         if kind == 'reddit':
             md += ['', 'Why here: ' + p.get('why_here', ''), '', 'Rules: ' + p.get('rules_note', '')]
         if p.get('modelled_on'):
@@ -306,7 +330,7 @@ if plan:
            '**First experiment:** ' + plan.get('experiment', ''), '', '**20 by hand:** ' + plan.get('first_20', ''), '',
            '**"Got it" means:** ' + plan.get('got_it', ''), '', '**Stop rule (set before the test):** ' + plan.get('stop_rule', ''), '',
            '### The five checks', ''] + ['- ' + c for c in plan['checks']] + ['', '### Seven days', ''] + ['- ' + d for d in plan['days']] + ['']
-open(os.path.join(P, 'copy.md'), 'w').write('\n'.join(md))
+open(os.path.join(P, 'copy.md'), 'w', encoding='utf-8').write('\n'.join(md))
 
 sl = ['# %s: footage shot list' % game, '', 'What to record in the Explorer for the footage posts and the Shorts, and how.', '',
       '## Tips', ''] + ['- ' + t for t in data.get('shotlist_tips', [])] + ['', '## Shots', '']
@@ -318,7 +342,7 @@ for p in data['posts']:
         sl += ['Caption: ' + p['text'].replace('\n', ' ').replace('{LINK}', link), '']
         if p.get('video'):
             sl += ['Video in the kit: `%s`. A recording from the Explorer still beats it: drop one in `promote/footage/` and ask for the video again.' % p['video']['file'], '']
-open(os.path.join(P, 'footage-shotlist.md'), 'w').write('\n'.join(sl))
+open(os.path.join(P, 'footage-shotlist.md'), 'w', encoding='utf-8').write('\n'.join(sl))
 print('copy.md and footage-shotlist.md written')
 if rendering:
     print('rendering markers:', ', '.join('%s (since %s)' % kv for kv in rendering.items()))

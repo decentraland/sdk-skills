@@ -3,7 +3,7 @@
  * so `npx remotion render footage-02 ../videos/footage-02.mp4` renders that post's video.
  * All times are seconds from the start of the video. Paths are relative to public/, which links to the
  * kit's folders: images/ (renders, keyart, social), logo/, footage/ (recordings), clips/ (Blender camera
- * moves), music/ (creator-supplied, licensed).
+ * moves), music/ (creator-supplied, licensed), fonts/ (optional, see lib/fonts.ts).
  *
  * Sources, best first:
  *   { video: "footage/wind-take2.mp4", trimStart: 3.2 }   a recording from the Explorer
@@ -11,6 +11,8 @@
  *   { image: "images/renders/hero.png", move: "push" }    a kit still with slow camera motion
  *   { placeholder: "RECORD: the turbine spinning up" }     nothing exists yet (shows a labelled slate)
  */
+import { KIT, SLUG } from "./lib/config";
+
 export type Source =
   | { video: string; trimStart?: number; rate?: number; focus?: [number, number] }
   | { image: string; move?: "push" | "pull" | "left" | "right" | "up" | "down"; focus?: [number, number] }
@@ -73,21 +75,25 @@ export type Edit = {
   vertical?: boolean;
 };
 
+// The example edit below is built from whatever the kit already has (posts.json "images" and make_logo.py's lockup),
+// so it renders for any scene; a kit without images gets labelled slates. Replace it with this scene's posts.
+const stills = Object.values(KIT.images ?? {}).map((i) => i.file).filter((f) => /^images\//.test(f));
+const still = (i: number, move: "push" | "left"): Source => (stills[i] ? { image: stills[i], move } : { placeholder: `RECORD: shot ${i + 1}` });
+
 export const EDITS: Edit[] = [
-  // Example built from the kit's own stills (always available). Replace with this scene's posts.
   {
     id: "example",
     duration: 10,
     vertical: true,
     shots: [
-      { from: 0, to: 4, src: { image: "images/renders/hero.png", move: "push" }, fx: "dip" },
-      { from: 4, to: 7.5, src: { image: "images/renders/security.png", move: "left" }, fx: "cut", caption: "SECURITY" },
+      { from: 0, to: 4, src: still(0, "push"), fx: "dip" },
+      { from: 4, to: 7.5, src: still(1, "left"), fx: "cut" },
     ],
     cards: [
-      { text: "YOU ARE THE\nONLY PASSENGER.", from: 0.6, to: 3.6, over: true, size: "lg", anim: "fade" },
-      { text: "THE TRAY. THEN THE DETECTOR.", from: 4.4, to: 7.2, over: true, size: "md", pos: "lower", anim: "slam" },
+      { text: (KIT.tagline || "YOUR TAGLINE HERE").toUpperCase(), from: 0.6, to: 3.6, over: true, size: "lg", anim: "fade" },
+      { text: KIT.game.toUpperCase(), from: 4.4, to: 7.2, over: true, size: "md", pos: "lower", anim: "slam" },
     ],
-    end: { from: 7.5, logo: "logo/eeireport_lockup_on_black.png", line: "FREE, IN YOUR BROWSER", link: "" },
+    end: { from: 7.5, logo: `logo/${SLUG}_lockup_on_black.png`, line: KIT.link ? "LIVE ON DECENTRALAND" : "COMING SOON", link: KIT.link || "" },
     music: null,
   },
 ];

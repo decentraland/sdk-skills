@@ -1,7 +1,10 @@
 # Hero renders of a Decentraland scene's own GLBs for its marketing kit (headless Blender, Cycles).
 # Copy to <scene>/promote/tools/render_shots.py, then rewrite the SHOTS section for this scene.
+# Needs Blender 4.2 or newer (tested on 5.1): clip mode uses the EEVEE that shipped in 4.2.
 #
-#   B=/Applications/Blender.app/Contents/MacOS/Blender
+#   B=/Applications/Blender.app/Contents/MacOS/Blender              # macOS
+#   B="C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"   # Windows (PowerShell: & $B ...)
+#   B=blender                                                       # Linux, when it is on PATH
 #   $B -b -P promote/tools/render_shots.py -- preview [shot ...]   # 480 px, 12 samples -> promote/images/preview/
 #   $B -b -P promote/tools/render_shots.py -- final   [shot ...]   # 1600 px, 128 samples -> promote/images/renders/
 #   $B -b -P promote/tools/render_shots.py -- keyart preview       # same at 1/4 size, 12 samples -> promote/images/preview/
@@ -25,18 +28,26 @@ P = os.path.join(ROOT, 'promote')
 MODELS = os.path.join(ROOT, 'assets', 'Models')   # relative GLB paths in load() resolve here
 KEYART_SHOT = 'hero'                              # the shot re-rendered for key art (no text in it)
 KEYART_SIZES = [(1920, 1080), (1080, 1080)]       # expanded kit: add (1080, 1350), (1080, 1920)
-MONO = '/System/Library/Fonts/Supplemental/Courier New Bold.ttf'   # for in-scene 3D text (signs, boards)
+MONO = None                                       # font file for in-scene 3D text (signs, boards); None = first of MONO_FALLBACKS found, else Blender's default
 CLIP_SECONDS = 6                                  # length of every -- clip
 CLIP_FPS = 30                                     # matches the Remotion project in promote/video/
 CLIP_SAMPLES = 16                                 # EEVEE TAA samples per frame; 48 looked no better and cost 3x
 CLIP_MOVE = dict(dolly=-0.10, orbit=4.0, rise=0.0)   # default move: push in 10 % of dist, orbit 4 deg, no rise
 CLIP_MOVES = {}                                   # per-shot overrides, e.g. {'hero': dict(orbit=12, dolly=0)}
 
+MONO_FALLBACKS = ['/System/Library/Fonts/Supplemental/Courier New Bold.ttf', r'C:\Windows\Fonts\courbd.ttf',
+                  '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf']
+MONO = MONO or next((f for f in MONO_FALLBACKS if os.path.exists(f)), None)
+
 # ------------------------------------------------------------------ mode
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 MODE = argv[0] if argv else 'preview'
+if MODE not in ('preview', 'final', 'keyart', 'clip'):
+    sys.exit('unknown mode %r: use -- preview [shot ...], -- final [shot ...], -- keyart [preview], -- clip [preview] <shot ...>' % MODE)
 DRAFT = MODE == 'preview' or (MODE in ('keyart', 'clip') and 'preview' in argv[1:])
 ONLY = [KEYART_SHOT] if MODE == 'keyart' else [a for a in argv[1:] if a != 'preview']
+if MODE == 'clip' and not ONLY:   # every clip costs minutes; an unnamed batch outruns shell timeouts
+    sys.exit('clip mode needs shot names: -- clip hero security (each 1080p clip takes 2-3 minutes)')
 OUT = os.path.join(P, 'images', 'preview') + '/' if DRAFT else (
     os.path.join(P, 'clips') + '/' if MODE == 'clip' else os.path.join(P, 'images', {'final': 'renders', 'keyart': 'keyart'}[MODE]) + '/')
 os.makedirs(OUT, exist_ok=True)
@@ -53,7 +64,10 @@ def reset(aspect=1.0, exposure=-0.7):
     scn = bpy.context.scene
     if MODE == 'clip':
         aspect = 16 / 9
-        scn.render.engine = 'BLENDER_EEVEE'
+        try:
+            scn.render.engine = 'BLENDER_EEVEE'        # Blender 5.x
+        except TypeError:
+            scn.render.engine = 'BLENDER_EEVEE_NEXT'   # Blender 4.2-4.5 (older Blenders are not supported)
         scn.eevee.taa_render_samples = 8 if DRAFT else CLIP_SAMPLES
         scn.eevee.use_raytracing = True
         scn.eevee.use_shadows = True
@@ -64,15 +78,23 @@ def reset(aspect=1.0, exposure=-0.7):
         scn.render.engine = 'CYCLES'
         scn.cycles.samples = SAMPLES
         scn.cycles.use_denoising = True
-        try:  # Apple Silicon GPU; falls back to CPU silently
-            prefs = bpy.context.preferences.addons['cycles'].preferences
-            prefs.compute_device_type = 'METAL'
-            prefs.get_devices()
-            for d in prefs.devices:
-                d.use = True
-            scn.cycles.device = 'GPU'
-        except Exception as ex:
-            print('GPU setup failed, using CPU:', ex)
+        # GPU: the first Cycles backend with a device (Apple METAL, NVIDIA OPTIX/CUDA, AMD HIP, Intel ONEAPI); else CPU.
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        for backend in ('METAL', 'OPTIX', 'CUDA', 'HIP', 'ONEAPI'):
+            try:
+                prefs.compute_device_type = backend
+                prefs.get_devices()
+                if not any(d.type != 'CPU' for d in prefs.devices):
+                    continue
+                for d in prefs.devices:
+                    d.use = True
+                scn.cycles.device = 'GPU'
+                print('Cycles on GPU (%s)' % backend)
+                break
+            except Exception:   # backend not compiled into this Blender
+                continue
+        else:
+            print('no GPU backend found, rendering on CPU (slower)')
     scn.render.resolution_x = int(round(RES * aspect))
     scn.render.resolution_y = RES
     scn.view_settings.view_transform = 'AgX'
@@ -199,7 +221,9 @@ def text(body, at, size=0.5, color=(1, 0.6, 0.1), emit=6.0, font=MONO, rot=(90, 
     """Emissive 3D text, e.g. to fill a sign or departures board the scene fills at runtime."""
     bpy.ops.object.text_add(location=at, rotation=tuple(math.radians(r) for r in rot))
     t = bpy.context.active_object
-    t.data.body = body; t.data.font = bpy.data.fonts.load(font); t.data.size = size
+    t.data.body = body; t.data.size = size
+    if font:   # None: Blender's built-in font
+        t.data.font = bpy.data.fonts.load(font)
     t.data.align_x = align; t.data.align_y = 'CENTER'
     m = bpy.data.materials.new('txt'); m.use_nodes = True
     b = m.node_tree.nodes['Principled BSDF']

@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
-# Records real gameplay for footage posts by driving the Decentraland Explorer through its MCP server
-# (the one `npm run start -- --mcp` turns on) and grabbing frames with its screenshot tool.
-# Copy to <scene>/promote/tools/capture_play.py next to a takes.py that describes the scene's shots.
-#
-#   python3 promote/tools/capture_play.py probe             scene/player state and the frame rate the screenshot tool gives
-#   python3 promote/tools/capture_play.py take <name>...    run takes from takes.py (all, in order, when no name is given)
-#   python3 promote/tools/capture_play.py assemble <frames dir> <out.mp4> [--smooth]
-#
-# takes.py defines TAKES = {"woods-apparition": fn, ...}; each fn(ex, rec) moves the player with `ex` and
-# wraps the stretch to record in `with rec.take("woods-apparition"):`. Frames land in promote/footage/_frames/<take>/
-# and the assembled clip in promote/footage/<take>.mp4 (1920x1080, 30 fps, H.264), ready for edits.ts
-# as { video: "footage/<take>.mp4" }.
-#
-# RECORD OUTSIDE THE SCENE FOLDER. The dev server rebuilds and restarts the scene whenever any file under
-# it changes, promote/ included (.dclignore does not stop the watcher), and a restart mid-take puts the title
-# card back and locks the player. So frames and clips go to $CAPTURE_OUT (default: a capture/ folder next to
-# the scene folder); copy the finished clips into promote/footage/ once all takes are done. The same goes for
-# editing takes.py while the Explorer is up: edit a copy elsewhere, or expect a restart.
-#
-# Why frames and not a screen recording: the Explorer's screenshot tool is the one capture that needs no
-# OS permission. It serialises captures, so expect 3-6 frames/s; the assembler keeps each frame for the
-# time it really took, so motion stays in real time. --smooth adds motion interpolation (slow pans look
-# good, fast cuts smear: try both). A real screen recording at 60 fps beats it whenever you can grant
-# Screen Recording to the terminal (macOS: screencapture -V <seconds> <file>).
-import base64, json, os, subprocess, sys, threading, time, urllib.request
+"""Records real gameplay for footage posts by driving the Decentraland Explorer through its MCP server
+(the one `npm run start -- --mcp` turns on) and grabbing frames with its screenshot tool.
+Copy to <scene>/promote/tools/capture_play.py next to a takes.py that describes the scene's shots.
+
+  python3 promote/tools/capture_play.py probe             scene/player state and the frame rate the screenshot tool gives
+  python3 promote/tools/capture_play.py take <name>...    run takes from takes.py (all, in order, when no name is given)
+  python3 promote/tools/capture_play.py assemble <frames dir> <out.mp4> [--smooth]
+
+takes.py defines TAKES = {"woods-apparition": fn, ...}; each fn(ex, rec) moves the player with `ex` and
+wraps the stretch to record in `with rec.take("woods-apparition"):`. An optional begin(ex) in takes.py runs
+once before the first take (title card away, cheats, overlay off); `--no-begin` skips it. Frames land in
+$CAPTURE_OUT/_frames/<take>/ and the assembled clip in $CAPTURE_OUT/<take>.mp4 (1920x1080, 30 fps, H.264);
+copy the clips you keep into promote/footage/, ready for edits.ts as { video: "footage/<take>.mp4" }.
+Needs ffmpeg on PATH for `assemble` (and for the automatic assembly at the end of every take).
+
+RECORD OUTSIDE THE SCENE FOLDER. The dev server rebuilds and restarts the scene whenever any file under
+it changes, promote/ included (.dclignore does not stop the watcher), and a restart mid-take puts the title
+card back and locks the player. So frames and clips go to $CAPTURE_OUT (default: a capture/ folder next to
+the scene folder). The same goes for editing takes.py while the Explorer is up: edit a copy elsewhere, or
+expect a restart.
+
+Why frames and not a screen recording: the Explorer's screenshot tool is the one capture that needs no
+OS permission. It serialises captures: 12-14 frames/s at 1920 wide, world-only, measured on Apple Silicon
+(fewer on slower machines; `probe` prints the real rate). The assembler keeps each frame for the time it
+really took, so motion stays in real time. --smooth adds motion interpolation (slow pans look good, fast
+cuts smear: try both). A real screen recording at 60 fps beats it whenever you can grant Screen Recording
+to the terminal (macOS: screencapture -V <seconds> <file>; Windows: Xbox Game Bar, Win+Alt+R).
+"""
+import base64, json, os, shutil, subprocess, sys, threading, time, urllib.request
 
 PORT = int(os.environ.get('MCP_PORT', '8123'))
 URL = 'http://127.0.0.1:%d/unity-explorer-mcp' % PORT
@@ -152,7 +156,7 @@ class Recorder:
             def __exit__(self_, *a):
                 rec.stop = True; rec.thread.join(timeout=40)
                 secs = (rec.stamps[-1] - rec.stamps[0]) if len(rec.stamps) > 1 else 0
-                json.dump(rec.stamps, open(os.path.join(rec.dir, 'stamps.json'), 'w'))
+                json.dump(rec.stamps, open(os.path.join(rec.dir, 'stamps.json'), 'w', encoding='utf-8'))
                 print('STOP %s: %d frames over %.1f s (%.1f fps)' % (name, len(rec.stamps), secs, len(rec.stamps) / secs if secs else 0))
                 if len(rec.stamps) > 2:
                     assemble(rec.dir, os.path.join(OUT, name + '.mp4'))
@@ -161,10 +165,12 @@ class Recorder:
 
 def assemble(frames_dir, out, smooth=False):
     """Frames + their timestamps -> 1920x1080 30 fps H.264 (centre-cropped if the window is not 16:9)."""
-    stamps = json.load(open(os.path.join(frames_dir, 'stamps.json')))
+    if not shutil.which('ffmpeg'):
+        sys.exit('ffmpeg not found on PATH: install it (https://ffmpeg.org) to assemble the frames in %s' % frames_dir)
+    stamps = json.load(open(os.path.join(frames_dir, 'stamps.json'), encoding='utf-8'))
     frames = sorted(f for f in os.listdir(frames_dir) if f.endswith('.jpg'))
     lst = os.path.join(frames_dir, 'list.txt')
-    with open(lst, 'w') as f:
+    with open(lst, 'w', encoding='utf-8') as f:
         for i, name in enumerate(frames):
             dur = (stamps[i + 1] - stamps[i]) if i + 1 < len(stamps) else (stamps[-1] - stamps[-2] if len(stamps) > 1 else 0.2)
             f.write("file '%s'\nduration %.4f\n" % (name, max(dur, 0.01)))
@@ -194,12 +200,20 @@ if __name__ == '__main__':
     if cmd == 'probe':
         probe()
     elif cmd == 'assemble':
-        assemble(sys.argv[2], sys.argv[3], smooth='--smooth' in sys.argv)
+        args = [a for a in sys.argv[2:] if not a.startswith('--')]
+        if len(args) != 2:
+            sys.exit('usage: capture_play.py assemble <frames dir> <out.mp4> [--smooth]')
+        assemble(args[0], args[1], smooth='--smooth' in sys.argv)
     elif cmd == 'take':
         sys.path.insert(0, HERE)
         import takes
         ex = Explorer(); rec = Recorder(ex)
         names = [a for a in sys.argv[2:] if not a.startswith('--')] or list(takes.TAKES)
+        unknown = [n for n in names if n not in takes.TAKES]
+        if unknown:
+            sys.exit('unknown take(s) %s; takes.py defines: %s' % (', '.join(unknown), ', '.join(takes.TAKES)))
+        if hasattr(takes, 'begin') and '--no-begin' not in sys.argv:
+            print('== begin'); takes.begin(ex)
         for name in names:
             print('== take', name); t0 = time.time()
             try:
@@ -208,4 +222,4 @@ if __name__ == '__main__':
                 print('FAILED', name, ':', str(e)[:300])
             print('   %.0f s' % (time.time() - t0))
     else:
-        sys.exit(__doc__)
+        print('unknown command %r\n' % cmd); print(__doc__); sys.exit(1)

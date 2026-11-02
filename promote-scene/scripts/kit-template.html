@@ -267,7 +267,10 @@ state.platform = state.tab === 'ig' ? 'ig' : 'x';
 const KINDS = { all: 'All', launch: 'Launch + link', soon: 'Coming soon', footage: 'Footage', quote: 'Quotes', bts: 'Behind the scenes', reddit: 'Reddit', short: 'Shorts' };
 const GENERAL = ['launch', 'soon', 'footage', 'quote', 'bts'];   // the kinds on the X / Instagram tabs
 const tabOfKind = k => k === 'reddit' ? 'reddit' : k === 'short' ? 'short' : state.platform === 'ig' ? 'ig' : 'x';
-const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// posts.json is data: only http(s) links become hrefs, and local files must be plain relative paths (no scheme, no ..).
+const safeUrl = u => /^https?:\/\/[^\s<>"']+$/i.test(u || '') ? u : '';
+const safeFile = f => (typeof f === 'string' && f && !/^[a-z][a-z0-9+.-]*:/i.test(f) && !f.split(/[\\/]/).includes('..')) ? f : '';
 const iconLogo = K.logos.find(l => /_icon_\d+\.png$/.test(l.file));
 const avatar = (K.images.icon && K.images.icon.src) || (iconLogo && iconLogo.src) || '';
 document.title = K.game + ' marketing kit';
@@ -277,7 +280,7 @@ else document.getElementById('wm').remove();
 if (K.brand && K.brand.accent) document.documentElement.style.setProperty('--accent', K.brand.accent);
 if (K.link) {
   document.getElementById('link').textContent = K.link;
-  document.getElementById('openlink').href = K.link;
+  document.getElementById('openlink').href = safeUrl(K.link) || '#';
 } else {
   document.getElementById('link').textContent = 'not published yet: {LINK} stays a placeholder until you deploy';
   document.getElementById('copylink').remove();
@@ -286,7 +289,8 @@ if (K.link) {
 
 function allTags(mode) {
   if (mode === 'none') return '';
-  const t = mode === 'all' ? K.hashtags.core.concat(K.hashtags.extra) : K.hashtags.core;
+  const H = K.hashtags || {};
+  const t = mode === 'all' ? (H.core || []).concat(H.extra || []) : (H.core || []);
   return t.join(' ');
 }
 function fullText(p, raw) {
@@ -323,7 +327,7 @@ function ratioClass(img) {
 function redditMockup(p, text) {
   const { img } = imgFor(p);
   const v = p.video;
-  const media = v ? `<div class="img"><video src="${esc(v.file)}"${img && img.src ? ` poster="${img.src}"` : ''} controls muted loop playsinline preload="metadata"></video></div>`
+  const media = v ? `<div class="img"><video src="${esc(safeFile(v.file))}"${img && img.src ? ` poster="${img.src}"` : ''} controls muted loop playsinline preload="metadata"></video></div>`
     : img && img.src ? `<div class="img"><img src="${img.src}" alt="${esc(img.alt||'')}"></div>` : '';
   const who = 'u/' + igUser();
   return `<div class="rd">
@@ -338,7 +342,7 @@ function shortMockup(p, text) {
   const beats = (p.beats || []).slice(0, 6).join('  →  ');
   const firstLine = (text.split('\n').find(l => l.trim() && !/^#/.test(l.trim())) || '').trim();
   return `<div class="ph" style="background-image:url('${img && img.src || ''}')">
-    ${v ? `<video src="${esc(v.file)}"${img && img.src ? ` poster="${img.src}"` : ''} controls muted loop playsinline preload="metadata"></video>` : ''}
+    ${v ? `<video src="${esc(safeFile(v.file))}"${img && img.src ? ` poster="${img.src}"` : ''} controls muted loop playsinline preload="metadata"></video>` : ''}
     ${p.video_status ? `<div class="beat">video in the making since ${esc(fmtTime(p.video_status.since))}</div>` : beats ? `<div class="beat">captions: ${esc(beats)}</div>` : ''}
     ${v ? '' : `<div class="hook">${esc(fieldOf(p, 'hook'))}</div>`}
     <div class="meta2"><b>@${esc(igUser())}</b>${esc(p.yt_title || '')}<br><span style="opacity:.8">${esc(firstLine)}</span></div>
@@ -353,8 +357,8 @@ function mockup(p, text) {
   const poster = img && img.src ? ` poster="${img.src}"` : '';
   const media = isFootage && v
     ? (state.platform === 'ig' && v.vertical
-        ? `<div class="img vid tall"><video src="${esc(v.vertical.file)}"${poster} controls muted loop playsinline preload="metadata"></video></div>`
-        : `<div class="img vid ${state.platform === 'ig' ? 'fit' : ''}"><video src="${esc(v.file)}"${poster} controls muted loop playsinline preload="metadata"></video></div>`)
+        ? `<div class="img vid tall"><video src="${esc(safeFile(v.vertical.file))}"${poster} controls muted loop playsinline preload="metadata"></video></div>`
+        : `<div class="img vid ${state.platform === 'ig' ? 'fit' : ''}"><video src="${esc(safeFile(v.file))}"${poster} controls muted loop playsinline preload="metadata"></video></div>`)
     : isFootage && p.video_status
     ? `<div class="footage-slot rendering" style="background-image:url('${img && img.src || ''}')"><div class="spin"></div><div><b>Video in the making</b></div><div class="hint">started ${esc(fmtTime(p.video_status.since))} · this page re-checks every 30 s and will play it here when it lands</div></div>`
     : isFootage
@@ -382,7 +386,7 @@ function metaHtml(img, t, p) {
     : `${n} characters${n > 280 ? ' <span class="missing">(over the 280 limit on X)</span>' : ''}`;
   const file = !img ? '—'
     : img.missing ? `<code>${esc(img.file)}</code> <span class="missing">(file not generated yet)</span>`
-    : `<a href="${esc(img.file)}" target="_blank" rel="noopener">${esc(img.file)}</a>`;
+    : `<a href="${esc(safeFile(img.file))}" target="_blank" rel="noopener">${esc(img.file)}</a>`;
   return `<div>${chars}</div><div>${file}</div>`;
 }
 function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB'; }
@@ -391,7 +395,7 @@ function videoMeta(v, status) {
   if (!v && status) return `<div>Video: <span style="color:var(--amber)">being generated since ${esc(fmtTime(status.since))}</span> (marker <code>videos/&lt;post id&gt;.rendering</code>)</div>`;
   if (!v) return '';
   const redo = status ? `<div><span style="color:var(--amber)">A new version is being generated since ${esc(fmtTime(status.since))}</span>; this is the previous one.</div>` : '';
-  const one = x => `<a href="${esc(x.file)}" target="_blank" rel="noopener">${esc(x.file)}</a>${x.w ? ` ${x.w}×${x.h}` : ''}${x.seconds ? ` · ${x.seconds} s` : ''} · ${fmtSize(x.bytes)}${x.seconds > 30 ? ' <span class="missing">(over the 30 s trailer limit)</span>' : ''}`;
+  const one = x => `<a href="${esc(safeFile(x.file))}" target="_blank" rel="noopener">${esc(x.file)}</a>${x.w ? ` ${x.w}×${x.h}` : ''}${x.seconds ? ` · ${x.seconds} s` : ''} · ${fmtSize(x.bytes)}${x.seconds > 30 ? ' <span class="missing">(over the 30 s trailer limit)</span>' : ''}`;
   return `<div>Video: ${one(v)}</div>${v.vertical ? `<div>Vertical: ${one(v.vertical)}</div>` : ''}${redo}`;
 }
 // The prompt the creator pastes to any AI coding assistant to get ONE post video.
@@ -414,8 +418,8 @@ What to show: ${note}
 
 Rules: vertical only, 9:16 1080x1920, at most ${maxSec} seconds, the hook readable in the first two seconds, captions on screen so it works muted, nothing the shot-list tips say to keep out. Set focus on every shot so the middle third keeps the subject.
 Footage: use my recordings in promote/footage/ if any match; otherwise fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
-Before you start, write promote/videos/${p.id}.rendering (content: the current UTC time) and run python3 promote/tools/build_kit.py so the kit page shows this Short as in progress.
-Output: promote/videos/${p.id}.mp4 at 1080x1920 (render the vertical composition straight to that file); then delete the .rendering marker and run python3 promote/tools/build_kit.py again so it plays on the kit page.`;
+Before you start, run python3 promote/tools/build_kit.py --rendering ${p.id} (it writes promote/videos/${p.id}.rendering and rebuilds the kit page, which then shows this Short as in progress).
+Output: promote/videos/${p.id}.mp4 at 1080x1920 (render the vertical composition straight to that file); then run python3 promote/tools/build_kit.py --done ${p.id} (removes the marker and rebuilds the page so it plays there).`;
   }
   const maxSec = trailer ? 30 : Math.min(30, m ? +(m[2] || m[1]) : 15);
   const vertical = /vertical|reel|9:16|stor(y|ies)/i.test(note);
@@ -428,8 +432,8 @@ What to show: ${note}
 
 Rules: at most ${maxSec} seconds, 16:9 1920x1080, captions on screen so it works muted, nothing the shot-list tips say to keep out.${vertical ? ' Also render the 9:16 vertical cut.' : ''}
 Footage: use my recordings in promote/footage/ if any match this post; otherwise fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
-Before you start, write promote/videos/${p.id}.rendering (content: the current UTC time) and run python3 promote/tools/build_kit.py so the kit page shows this video as in progress.
-Output: promote/videos/${p.id}.mp4; then delete the .rendering marker and run python3 promote/tools/build_kit.py again so the video plays on the kit page.`;
+Before you start, run python3 promote/tools/build_kit.py --rendering ${p.id} (it writes promote/videos/${p.id}.rendering and rebuilds the kit page, which then shows this video as in progress).
+Output: promote/videos/${p.id}.mp4; then run python3 promote/tools/build_kit.py --done ${p.id} (removes the marker and rebuilds the page so the video plays there).`;
 }
 function renderFilters() {
   const f = document.getElementById('filters');
@@ -481,7 +485,7 @@ function renderPosts() {
     const raw = edits[p.id] != null ? edits[p.id] : p.text;
     const text = fullText(p, raw);
     const isR = p.kind === 'reddit', isS = p.kind === 'short', hasVideoBtn = p.kind === 'footage' || isS;
-    const modelled = (p.modelled_on || []).length ? `<div class="note model"><b>Modelled on</b> (the shape, not the words):<ul>${p.modelled_on.map(m => `<li><a href="${esc(m.url||'#')}" target="_blank" rel="noopener">${esc(m.title||m.url||'')}</a>${m.note ? ` — ${esc(m.note)}` : ''}</li>`).join('')}</ul></div>` : '';
+    const modelled = (p.modelled_on || []).length ? `<div class="note model"><b>Modelled on</b> (the shape, not the words):<ul>${p.modelled_on.map(m => `<li><a href="${esc(safeUrl(m.url) || '#')}" target="_blank" rel="noopener">${esc(m.title||m.url||'')}</a>${m.note ? ` — ${esc(m.note)}` : ''}</li>`).join('')}</ul></div>` : '';
     const headRight = isR ? `<span class="meta" style="padding:0;margin-left:auto">${esc(p.subreddit||'')}${p.flair ? ' · flair: ' + esc(p.flair) : ''} · link in ${esc(p.link_in||'?')}</span>`
       : isS ? `<span class="meta" style="padding:0;margin-left:auto">9:16 · YouTube Shorts / Reels / TikTok</span>`
       : p.platform ? `<span class="meta" style="padding:0;margin-left:auto">best on ${p.platform === 'ig' ? 'Instagram' : 'X'}</span>` : '';
@@ -493,7 +497,7 @@ function renderPosts() {
       ${p.footage ? `<div class="note"><b>What to show:</b> ${esc(p.footage)}</div>` : ''}
       ${isS && (p.beats||[]).length ? `<div class="beats">Captions, in order:${p.beats.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}
       ${modelled}
-      ${isR ? `<div class="field"><label>Reddit title (what the sub judges first)</label><input class="f2" value="${esc(fieldOf(p,'post_title')).replace(/"/g,'&quot;')}" spellcheck="false"></div>` : ''}
+      ${isR ? `<div class="field"><label>Reddit title (what the sub judges first)</label><input class="f2" value="${esc(fieldOf(p,'post_title'))}" spellcheck="false"></div>` : ''}
       ${isS ? `<div class="field"><label>Hook (on screen 0–2 s; line breaks are kept)</label><textarea class="f2 text" rows="2" style="min-height:0" spellcheck="false">${esc(fieldOf(p,'hook'))}</textarea></div>` : ''}
       <div class="editor"><label>${isR ? 'Edit body' : isS ? 'Edit description' : 'Edit text'}</label>
         <textarea class="text" spellcheck="false">${esc(raw)}</textarea></div>
@@ -504,11 +508,11 @@ function renderPosts() {
           : `<button class="btn primary" data-a="copy">Copy text</button>`}
         <button class="btn" data-a="copyimg">Copy image</button>
         <button class="btn" data-a="download">Download image</button>
-        ${p.video ? `<a class="btn" href="${esc(p.video.file)}" download>Download video</a>` : ''}
+        ${p.video ? `<a class="btn" href="${esc(safeFile(p.video.file))}" download>Download video</a>` : ''}
         ${hasVideoBtn ? (p.video_status ? `<button class="btn" disabled title="A video for this post is being generated; the card updates by itself when it lands">Video in progress…</button>` : `<button class="btn" data-a="prompt" title="Copies a prompt asking your AI coding assistant to generate this post's video">${p.video ? 'Copy prompt to redo video' : 'Copy video prompt'}</button>`) : ''}
         <button class="btn" data-a="reset" title="Restore the original wording">Reset</button>
       </div>`;
-    const ta = card.querySelector('textarea');
+    const ta = card.querySelector('.editor textarea');   // not the hook textarea (.f2) that Short cards put first
     const refresh = () => {
       const t = fullText(p, ta.value);
       card.querySelector('.preview').innerHTML = mockup(p, t);
@@ -535,7 +539,7 @@ function renderPosts() {
 function srcBadge(r) {
   const s = (r && r.source) || 'assumed';
   const label = { gdd: 'GDD', brief: 'brief', repo: 'repo', creator: 'you said', research: 'found', assumed: 'assumed' }[s] || s;
-  return r && r.url ? `<span class="src ${esc(s)}"><a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.url)}">${label} ↗</a></span>` : `<span class="src ${esc(s)}">${label}</span>`;
+  return r && safeUrl(r.url) ? `<span class="src ${esc(s)}"><a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener" title="${esc(r.url)}">${label} ↗</a></span>` : `<span class="src ${esc(s)}">${label}</span>`;
 }
 function renderAudience() {
   const A = K.audience, root = document.getElementById('audience');
@@ -544,7 +548,7 @@ function renderAudience() {
   const list = rows => rows && rows.length ? `<ul>${rows.map(r => `<li>${esc(r.text)} ${srcBadge(r)}</li>`).join('')}</ul>` : '<span class="missing">none yet</span>';
   const row = (label, html) => `<div class="row"><div class="lbl">${label}</div><div class="txt">${html}</div></div>`;
   const venues = (A.venues || []).map(v => `<div class="venue ${v.post ? '' : 'nopost'}">
-      <div class="nm"><a href="${esc(v.url||'#')}" target="_blank" rel="noopener">${esc(v.name||'?')}</a><small>${esc(v.kind||'')}${v.size ? ' · ' + esc(v.size) : ''}</small>${srcBadge({source: v.source || 'research', url: v.url})}</div>
+      <div class="nm"><a href="${esc(safeUrl(v.url) || '#')}" target="_blank" rel="noopener">${esc(v.name||'?')}</a><small>${esc(v.kind||'')}${v.size ? ' · ' + esc(v.size) : ''}</small>${srcBadge({source: v.source || 'research', url: v.url})}</div>
       <div><span class="k">Why</span> ${esc(v.why||'')}</div>
       <div><span class="k">Rules${v.verified ? ' (read ' + esc(v.verified) + ')' : ''}</span> ${esc(v.rules||'')}</div>
       <div><span class="k">Walk in</span> ${esc(v.walk_in||'')}</div>
@@ -572,19 +576,22 @@ function renderBrand() {
   document.getElementById('brand').innerHTML = K.logos.map(l => `
     <div class="tile"><div class="thumb"><img src="${l.src}" alt=""></div>
       <div class="cap"><code>${esc(l.file.split('/').pop())}</code><span>${l.w}×${l.h}</span>
-        <span><button class="btn small" onclick="copyImageSrc('${l.file}')">Copy</button> <a class="btn small" href="${l.file}" download>Download</a></span></div></div>`).join('');
+        <span><button class="btn small" data-logo="${esc(l.file)}">Copy</button> <a class="btn small" href="${esc(safeFile(l.file))}" download>Download</a></span></div></div>`).join('');
+  document.querySelectorAll('#brand [data-logo]').forEach(b => b.onclick = () => copyImageSrc(b.dataset.logo));
   document.getElementById('gallery').innerHTML = Object.entries(K.images).filter(([k, im]) => !im.file.startsWith('logo/')).map(([k, im]) => `
     <div class="tile"><div class="thumb photo">${im.src ? `<img src="${im.src}" alt="${esc(im.alt||'')}">` : `<span class="missing">not generated yet</span>`}</div>
       <div class="cap"><code>${esc(im.file.split('/').pop())}</code><span>${im.w ? im.w + '×' + im.h : ''}</span>
-        <span><button class="btn small" onclick="copyImage('${k}')">Copy</button> <button class="btn small" onclick="download('${k}')">Download</button></span></div></div>`).join('');
+        <span><button class="btn small" data-copy="${esc(k)}">Copy</button> <button class="btn small" data-dl="${esc(k)}">Download</button></span></div></div>`).join('');
+  document.querySelectorAll('#gallery [data-copy]').forEach(b => b.onclick = () => copyImage(b.dataset.copy));
+  document.querySelectorAll('#gallery [data-dl]').forEach(b => b.onclick = () => download(b.dataset.dl));
   document.getElementById('tips').innerHTML = (K.shotlist_tips || []).map(t => `<li>${esc(t)}</li>`).join('');
   const vids = K.videos || [];
   if (vids.length) {
     document.getElementById('videosec').style.display = '';
     document.getElementById('videos').innerHTML = vids.map(v => `
-    <div class="tile"><div class="thumb photo"><video src="${esc(v.file)}" controls muted preload="metadata"></video></div>
+    <div class="tile"><div class="thumb photo"><video src="${esc(safeFile(v.file))}" controls muted preload="metadata"></video></div>
       <div class="cap"><code>${esc(v.file.split('/').pop())}</code><span>${v.w ? v.w + '×' + v.h : ''}${v.seconds ? ' · ' + v.seconds + ' s' : ''} · ${fmtSize(v.bytes)}</span>
-        <a class="btn small" href="${esc(v.file)}" download>Download</a></div></div>`).join('');
+        <a class="btn small" href="${esc(safeFile(v.file))}" download>Download</a></div></div>`).join('');
   }
 }
 
@@ -625,7 +632,8 @@ async function copyImageSrc(file) {
 function download(key) {
   const im = K.images[key];
   if (!im) return;
-  const a = document.createElement('a'); a.href = im.file; a.download = im.file.split('/').pop(); document.body.appendChild(a); a.click(); a.remove();
+  if (!safeFile(im.file)) return toast('Bad file path in posts.json: ' + im.file, true);
+  const a = document.createElement('a'); a.href = safeFile(im.file); a.download = im.file.split('/').pop(); document.body.appendChild(a); a.click(); a.remove();
   toast('Downloading ' + a.download);
 }
 

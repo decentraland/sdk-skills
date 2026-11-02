@@ -43,13 +43,19 @@ Square images (renders, quote cards) are cover-cropped to 16:9: set `focus: [50,
 
 ```bash
 cp -R {baseDir}/scripts/video promote/video
-cd promote/video && mkdir -p public && for d in images logo footage clips music; do mkdir -p ../$d; ln -sfn ../../$d public/$d; done
-npm install            # ~40 s, ~340 MB in promote/video/node_modules, ~1.1 GB once the first render has downloaded the headless Chrome shell (git-ignored by the template; promote/ is already in .dclignore)
+cd promote/video && mkdir -p public && for d in images logo footage clips music fonts; do mkdir -p ../$d; ln -sfn ../../$d public/$d; done
+npm ci                 # pinned by the shipped package-lock.json; ~40 s, ~340 MB in promote/video/node_modules, ~1.1 GB once the first render has downloaded the headless Chrome shell (git-ignored by the template; promote/ is already in .dclignore)
 ```
 
-`public/` holds symlinks into the kit, so `staticFile("images/renders/hero.png")`, `"footage/…"`, `"clips/…"`, `"logo/…"`, `"music/…"` all resolve without copying anything (verified: Remotion follows them when bundling). `src/lib/config.ts` imports `promote/posts.json` for the game name, tagline, link and `brand.accent`, so the cards match the kit's colours. The first `npx remotion render` downloads a headless Chrome shell (one-off).
+Windows (cmd, no admin needed): `mklink /J public\images ..\images` for each of the six folders instead of `ln -sfn`.
 
-The Remotion skills the jaws repo used (`npx skills add remotion-dev/skills`) are optional. The template already covers what a post video needs; reach for them only if the creator wants something the template does not do (captions from a transcript, maps, 3D).
+`public/` holds symlinks into the kit, so `staticFile("images/renders/hero.png")`, `"footage/…"`, `"clips/…"`, `"logo/…"`, `"music/…"`, `"fonts/…"` all resolve without copying anything (verified: Remotion follows them when bundling). `src/lib/config.ts` imports `promote/posts.json` for the game name, tagline, link, `brand.accent` and the image list, so the cards match the kit's colours and the shipped `example` edit renders from whatever stills the kit has. The first `npx remotion render` downloads a headless Chrome shell (one-off).
+
+**Font.** By default the cards use Bebas Neue fetched from Google Fonts at render time, so a render with no network fails. To render offline, or to match the kit's wordmark, copy `brand.font` into `promote/fonts/` and set `"video_font": "fonts/<file>.ttf"` in `brand` (`posts.json`); `src/lib/fonts.ts` then loads that file through `@remotion/fonts` and never touches the network.
+
+**Licence.** Remotion is free for individuals, non-profits and for-profit companies with up to three employees; larger for-profit organisations need a company licence (https://www.remotion.dev/docs/license). Put that line in the README's Rights note when a video is made, so a studio knows before it ships one.
+
+The Remotion skills the jaws repo used (`npx skills add remotion-dev/skills`) are optional, third-party and unpinned: the template already covers what a post video needs, so do not install them by default, and if the creator wants something the template does not do (captions from a transcript, maps, 3D), read what that package installs before adding it.
 
 ## Authoring the edit (`promote/video/src/edits.ts`)
 
@@ -68,10 +74,10 @@ Add one `Edit` to `EDITS` with `id` = the post id (this is the composition id, s
 **First, mark the post as in progress** so the kit page shows a spinner on that card instead of the bare placeholder (the page re-reads its data every 30 s):
 
 ```bash
-date -u +%FT%TZ > promote/videos/footage-02.rendering && python3 promote/tools/build_kit.py
+python3 promote/tools/build_kit.py --rendering footage-02   # writes promote/videos/footage-02.rendering (UTC time) and rebuilds; same on Windows
 ```
 
-Delete the marker as soon as the video file is in place and run `build_kit.py` again; a marker left behind keeps the spinner up (the builder warns when one is over three hours old).
+As soon as the video file is in place, `python3 promote/tools/build_kit.py --done footage-02` deletes the marker and rebuilds; a marker left behind keeps the spinner up (the builder warns when one is over three hours old).
 
 ```bash
 cd promote/video
@@ -85,11 +91,11 @@ Then read the result, not just the log:
 - `ffmpeg -v error -y -i ../videos/footage-02.mp4 -vf "fps=1,scale=480:-1,tile=5x2" -frames:v 1 out/sheet.png` and read it: every card legible, no slate, the end card complete, nothing cut off in the vertical version.
 - `npx remotion studio` is the live editor if the creator wants to scrub through and adjust timings themselves.
 
-`rm promote/videos/footage-02.rendering`, then `python3 promote/tools/build_kit.py` picks the files up by name (`videos/<post id>.mp4`, `videos/<post id>-9x16.mp4`; or an explicit `"video": "videos/<file>.mp4"` on the post), embeds them on the page, lists them in `copy.md` and the shot list, and warns if a video is over 30 s or not 1920×1080. Delete `promote/video/out/` and `images/preview/*_clip.mp4`.
+`python3 promote/tools/build_kit.py --done footage-02` removes the marker and picks the files up by name (`videos/<post id>.mp4`, `videos/<post id>-9x16.mp4`; or an explicit `"video": "videos/<file>.mp4"` on the post), embeds them on the page, lists them in `copy.md` and the shot list, and warns if a video is over 30 s or not 1920×1080. Delete `promote/video/out/` and `images/preview/*_clip.mp4`.
 
 ## README, report and the follow-up
 
-Add a **Videos** section to `promote/README.md`: each file, its post, the footage rung it came from, the music and its licence, how to re-render (`cd promote/video && npx remotion render <id> ../videos/<id>.mp4`), and that `promote/video/node_modules` can be deleted and reinstalled with `npm install`. Report, in this order:
+Add a **Videos** section to `promote/README.md`: each file, its post, the footage rung it came from, the music and its licence, how to re-render (`cd promote/video && npx remotion render <id> ../videos/<id>.mp4`), that `promote/video/node_modules` can be deleted and reinstalled with `npm ci`, and the Remotion licence line (free for individuals and companies up to three people; company licence above that) in the Rights note. Report, in this order:
 
 1. **Where the video is, unmissably.** The absolute path of every file written, each as a clickable link to the local file, in a list of its own at the top of the report, not inside a sentence: `[footage-02.mp4](file:///Users/…/promote/videos/footage-02.mp4)` (and the `-9x16` file, and `promote/index.html` where it plays). Say the length and format next to each. A creator who has to hunt for the file has not received it.
 2. The file paths and lengths, the source used per video (which takes were recorded, which moments stayed on Blender clips and why, and that the Explorer was driven by `capture_play.py` over HTTP if the native tools were not bound), what was kept out, and the one post that would be the best next candidate. Do not generate it.

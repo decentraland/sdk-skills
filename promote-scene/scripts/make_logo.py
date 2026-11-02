@@ -5,29 +5,53 @@
 #   <slug>_wordmark.png        name with a hard drop shadow, transparent (used by compose_social.py)
 #   <slug>_lockup_on_black.png wordmark + tagline + tear-line rule on the ink colour, ready to post
 #   <slug>_icon_1024.png       square avatar/icon: short glyph with a glow over a dark tile pattern
-import os, re, json
+import os, re, sys, json, glob
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 P = os.path.join(ROOT, 'promote')
 OUT = os.path.join(P, 'logo')
 os.makedirs(OUT, exist_ok=True)
-KIT = json.load(open(os.path.join(P, 'posts.json')))
+KIT = json.load(open(os.path.join(P, 'posts.json'), encoding='utf-8'))
 B = KIT.get('brand', {})
+
+
+def find_font(preferred, names, what):
+    """A readable .ttf: `preferred` (brand.font / brand.font_small in posts.json) when it exists, else the first of
+    `names` found in the usual font folders (macOS, Windows, Linux). Exits with a clear message when none is found."""
+    if preferred and os.path.exists(preferred):
+        return preferred
+    if preferred:
+        print('WARNING: %s font %s not found; looking for a fallback' % (what, preferred))
+    dirs = ['/System/Library/Fonts/Supplemental', '/System/Library/Fonts', '/Library/Fonts', os.path.expanduser('~/Library/Fonts'),
+            os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts'), os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Fonts'),
+            '/usr/share/fonts', '/usr/local/share/fonts', os.path.expanduser('~/.fonts'), os.path.expanduser('~/.local/share/fonts')]
+    for d in dirs:
+        for n in names:
+            hits = glob.glob(os.path.join(glob.escape(d), '**', n), recursive=True) if os.path.isdir(d) else []
+            if hits:
+                print('%s font: %s' % (what, hits[0]))
+                return hits[0]
+    sys.exit('No %s font found. Set brand.font and brand.font_small in posts.json to .ttf files on this machine '
+             '(macOS: /System/Library/Fonts/Supplemental/Impact.ttf; Windows: C:\\Windows\\Fonts\\impact.ttf; Linux: a DejaVu or Liberation bold face).' % what)
+
+
+DISPLAY_FONTS = ['Impact.ttf', 'impact.ttf', 'Arial Bold.ttf', 'arialbd.ttf', 'LiberationSans-Bold.ttf', 'DejaVuSans-Bold.ttf']
+SMALL_FONTS = ['DIN Condensed Bold.ttf', 'Arial Narrow Bold.ttf', 'ARIALNB.TTF', 'arialnb.ttf', 'Arial Bold.ttf', 'arialbd.ttf',
+               'LiberationSansNarrow-Bold.ttf', 'DejaVuSansCondensed-Bold.ttf', 'DejaVuSans-Bold.ttf']
 
 # ------------------------------------------------------------------ overrides (None = from posts.json)
 NAME = None          # wordmark text; default: game name in upper case
 TAGLINE = None       # default: posts.json "tagline" in upper case
 ICON_TEXT = None     # 1-3 characters for the icon; default: brand.icon_text, else the name's initial
-FONT = None          # display face; default: brand.font, else Impact
-FONT_SMALL = None    # tagline / labels; default: brand.font_small, else DIN Condensed Bold
+FONT = None          # display face; default: brand.font, else Impact / Arial Bold / DejaVu Bold, whichever exists
+FONT_SMALL = None    # tagline / labels; default: brand.font_small, else DIN Condensed Bold / Arial Narrow Bold / DejaVu Condensed
 
-SUPP = '/System/Library/Fonts/Supplemental/'
 NAME = NAME or B.get('wordmark') or KIT['game'].upper()
 TAGLINE = TAGLINE or KIT.get('tagline', '').upper()
 ICON_TEXT = ICON_TEXT or B.get('icon_text') or NAME[0]
-FONT = FONT or B.get('font') or SUPP + 'Impact.ttf'
-FONT_SMALL = FONT_SMALL or B.get('font_small') or SUPP + 'DIN Condensed Bold.ttf'
+FONT = find_font(FONT or B.get('font'), DISPLAY_FONTS, 'display')
+FONT_SMALL = find_font(FONT_SMALL or B.get('font_small'), SMALL_FONTS, 'small')
 SLUG = re.sub(r'[^a-z0-9]+', '_', KIT['game'].lower()).strip('_')
 
 

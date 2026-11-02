@@ -1,6 +1,6 @@
 # Renders, key art, logo and composition
 
-All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacOS/Blender` (macOS; on other OSes, find the `blender` binary as in `{baseDir}/../add-3d-models/references/blender-authoring.md`). Tested with Blender 5.1 and Pillow 12.
+All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacOS/Blender` (macOS; Windows `"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"`; Linux `blender`; or find the binary as in `{baseDir}/../add-3d-models/references/blender-authoring.md`). Needs **Blender 4.2 or newer**: clip mode uses the EEVEE that shipped in 4.2 (the script picks `BLENDER_EEVEE_NEXT` on 4.2–4.5 and `BLENDER_EEVEE` on 5.x by itself). Tested with Blender 5.1 and Pillow 12.
 
 ## Render framework (`promote/tools/render_shots.py`)
 
@@ -11,7 +11,7 @@ All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacO
 | `$B -b -P promote/tools/render_shots.py -- keyart preview`   | `images/preview/<KEYART_SHOT>_<w>x<h>.png` | ¼ size, 12 samples                    |
 | `$B -b -P promote/tools/render_shots.py -- keyart`           | `images/keyart/<KEYART_SHOT>_<w>x<h>.png`  | `KEYART_SIZES`, 160 samples           |
 | `$B -b -P promote/tools/render_shots.py -- clip preview <shot>` | `images/preview/<shot>_clip.mp4`      | 640×360, EEVEE, `CLIP_SECONDS` (6 s) at 30 fps |
-| `$B -b -P promote/tools/render_shots.py -- clip <shot …>`    | `clips/<shot>.mp4`                         | 1920×1080, EEVEE 48 samples, same length; opt-in, for post videos only (`{baseDir}/references/video-posts.md`) |
+| `$B -b -P promote/tools/render_shots.py -- clip <shot …>`    | `clips/<shot>.mp4`                         | 1920×1080, EEVEE 16 samples (`CLIP_SAMPLES`), same length; shot names required; opt-in, for post videos only (`{baseDir}/references/video-posts.md`) |
 
 Measured on Apple Silicon (Metal + CPU)
 
@@ -19,7 +19,7 @@ The whole-interior case is the common one for Creator Hub scenes (one big GLB, t
 
 Helpers (edit only the per-scene settings and the `SHOTS` section):
 
-- `reset(aspect=1.0, exposure=-0.7)`: factory-empty scene, Cycles with denoising, AgX "High Contrast", near-black world. Tries `prefs.compute_device_type = 'METAL'`, enables every device and silently falls back to CPU.
+- `reset(aspect=1.0, exposure=-0.7)`: factory-empty scene, Cycles with denoising, AgX "High Contrast", near-black world. Tries the Cycles GPU backends in turn (METAL, OPTIX, CUDA, HIP, ONEAPI), uses the first one that has a device and prints which; otherwise it says it is rendering on CPU.
 - `haze(density)`: world volume scatter for visible light shafts. Use 0.02 for subtle, 0.05–0.07 for thick.
 - `load(path, at, rot=0, scale=1, align_long_x=False, anchor='bottom')`: imports a GLB under an empty and **normalises it by its world bounding box**, so its footprint centre sits at `at` on the floor whatever the GLB's origin is. `align_long_x` first turns long pieces (walls, benches, counters) so they run along X. Relative paths resolve under `MODELS` (`assets/Models`). Absolute paths work for asset-pack items elsewhere in `assets/`.
 - `room(floor, wall, ceiling, tile=8, back_y, centre_wall, ceiling_z=6)`: 3×3 floor tiles at −tile/0/+tile, a three-piece back wall, an optional ceiling row.
@@ -64,7 +64,7 @@ Read every preview PNG (combine them into one contact sheet with Pillow if there
 ## Logo (`make_logo.py`)
 
 - Three files in `promote/logo/`: `<slug>_wordmark.png` (transparent, hard offset shadow in `ink`; also used by `compose_social.py` and the page header), `<slug>_lockup_on_black.png` (wordmark, dashed rule, tagline), `<slug>_icon_1024.png` (glowing `icon_text` in `accent` over a dark tile checker, optional `icon_top` / `icon_bottom` labels).
-- Fonts: a bold condensed display face. macOS ships `/System/Library/Fonts/Supplemental/Impact.ttf` (wordmark and glyph) and `DIN Condensed Bold.ttf` (tagline and labels). Match the scene's cover font if it has one, and pull `text` / `accent` colours from the scene's palette.
+- Fonts: a bold condensed display face. `brand.font` / `brand.font_small` when those files exist, else the first system face found (Impact, Arial Bold, DIN Condensed Bold, Arial Narrow Bold; DejaVu / Liberation on Linux), printed on each run. macOS ships `/System/Library/Fonts/Supplemental/Impact.ttf` (wordmark and glyph) and `DIN Condensed Bold.ttf` (tagline and labels); Windows `C:\Windows\Fonts\impact.ttf` and `arialnb.ttf`. Match the scene's cover font if it has one, and pull `text` / `accent` colours from the scene's palette.
 - Long taglines shrink automatically to fit the lockup. A long name just makes a wider wordmark.
 - Expanded kit: flat `TEXT` / `INK` / `ACCENT` wordmarks (`wordmark(fill, None)`), and a themed variant built from the game's own iconography (Eeireport added a split-flap departures-board version).
 

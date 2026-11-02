@@ -1,6 +1,6 @@
 # Decentraland Foundation marketing package checklist
 
-Source: the Decentraland Foundation's public page "New Experience: Marketing Requirements", https://app.notion.com/p/decentraland/New-Experience-Marketing-Requirements-38b5f41146a580f1bd93c86f8f1ca96d (read 2026-10-19). Summarised here. Re-read the page if the creator is submitting to the Foundation, since it may change.
+Source: the Decentraland Foundation's Notion page "New Experience: Marketing Requirements", https://app.notion.com/p/decentraland/New-Experience-Marketing-Requirements-38b5f41146a580f1bd93c86f8f1ca96d (read 2026-10-19). Summarised here, so the checklist works without the page. Re-read the page if the creator is submitting to the Foundation, since it may change; if it asks for a Notion login, ask the Foundation for the current link rather than guessing.
 
 Why it matters: most people meet a game as a thumbnail, a clip or one line of text before they arrive. The package should make them picture what they'll do and want to jump in. With these assets a game can be featured and shared on Decentraland channels and by the community.
 

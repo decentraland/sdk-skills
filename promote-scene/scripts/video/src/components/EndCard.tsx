@@ -1,18 +1,16 @@
-import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, Img, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { EndCard as EndT } from "../edits";
-import { ACCENT, TEXT, textScale } from "../lib/config";
+import { ACCENT, TEXT, ramp, textScale } from "../lib/config";
 import { DISPLAY_FONT, TEXT_SHADOW } from "../lib/fonts";
-
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 /** Logo slams in on black (or over blurred key art), a line and the link below, fade to black at the end. */
 export const EndCard: React.FC<{ end: EndT }> = ({ end }) => {
   const f = useCurrentFrame();
   const { durationInFrames: d, width, height } = useVideoConfig();
   const k = textScale(width, height);
-  const settle = interpolate(f, [0, 12], [1.25, 1], { ...clamp, easing: Easing.out(Easing.exp) });
-  const reveal = interpolate(f, [10, 22], [0, 1], clamp);
-  const fadeOut = interpolate(f, [d - 20, d - 1], [0, 1], clamp);
+  const settle = ramp(f, [0, 12], [1.25, 1], { easing: Easing.out(Easing.exp) });
+  const reveal = ramp(f, [10, 22], [0, 1]);
+  const fadeOut = ramp(f, [d - 20, d - 1], [0, 1]);
   const link = (end.link || "").replace(/^https?:\/\//, "");
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: DISPLAY_FONT, color: TEXT }}>
