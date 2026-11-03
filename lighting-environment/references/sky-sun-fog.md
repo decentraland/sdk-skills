@@ -13,6 +13,7 @@ import { Color4, Vector3 } from '@dcl/sdk/math'
 
 ## Scope
 
+- **Clients**: not supported yet on mobile (Godot explorer) or the Bevy explorer; those players keep the regular sky, sun and fog. Never make the overrides gameplay-critical.
 - **Root entity only**: write them to `engine.RootEntity`. On any other entity they do nothing.
 - Every field is optional; an unset field keeps its time-of-day default.
 - Active only while the player is inside the scene. Leaving the scene, `deleteFrom`, or unsetting a field restores the defaults instantly (no fade); re-entering re-applies.
@@ -53,7 +54,8 @@ Skybox.create(engine.RootEntity, { skyboxTexture: 'images/sky.png' })
 - `skyboxTexture` is a plain `string` path (same rules as a texture `src`), not a `TextureUnion`.
 - The image must be equirectangular 2:1; a cube cross, 3x2 or six-face layout renders distorted. Sampled with horizontal wrap (Repeat) and bilinear filtering.
 - A failed load keeps the default sky.
-- The texture does not change the lighting; in the Unity Explorer, reflections follow it.
+- Size: 2048x1024 is enough for most skies; 4096x2048 at most. The whole panorama is downloaded and stays in memory while the scene is loaded. Prefer `.jpg` for photographic skies.
+- The texture does not change the lighting; on the High quality preset, reflections on shiny materials follow it.
 - While it is set, `clouds` and `stars` are ignored and `skyColors` no longer color the sky, but `skyColors` still drive the ambient light (next section): set them to match the image. `Sun` and `EnvironmentFog` still apply.
 - The sun's lens flare is screen-space and drawn on top of the texture; `Sun.visible: false` is the only way to remove it.
 
@@ -74,7 +76,7 @@ Skybox.createOrReplace(engine.RootEntity, {
 
 - `skyColors` are also the ambient light: zenith → sky ambient, horizon → equator ambient, nadir → ground ambient. There is no separate ambient field. Recoloring only the fog or the sun leaves ambient at its default, so set all three for a coherent look.
 - `rim` unset → follows the `horizon` override when set, else the default.
-- `clouds.opacity` default 1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis (0 = static, negative reverses). `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
+- `clouds.opacity` default 1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis (0 = static, negative clamps to 0). `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
 - `stars.brightness` default 4.62, a multiplier on the star texture (0 hides them). Stars only render at night.
 
 ## Sun
@@ -118,7 +120,7 @@ Sun.createOrReplace(engine.RootEntity, { intensity: 0, visible: false })
 EnvironmentFog.createOrReplace(engine.RootEntity, { color: black })
 ```
 
-Scene lights do not render on desktop *Low* or mobile *Very Low* (**lighting-environment** → *Light Limits*), so a dark scene must stay playable from emissive materials alone.
+Scene lights do not render on desktop *Low* (**lighting-environment** → *Light Limits*), so a dark scene must stay playable from emissive materials alone. On mobile and Bevy the components are ignored and the scene keeps the regular sky.
 
 ## Back to the default sky and lighting
 

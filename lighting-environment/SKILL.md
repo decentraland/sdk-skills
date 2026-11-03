@@ -209,6 +209,8 @@ Three components override the environment, written to `engine.RootEntity` only a
 - `Sun` — sun and moon light: color, intensity, a fixed direction, or hiding the discs and lens flare.
 - `EnvironmentFog` — fog color and density.
 
+Not supported yet on mobile (Godot explorer) or the Bevy explorer: players there keep the regular sky, sun and fog, so never make them gameplay-critical.
+
 Colors are `ColorGradient`s keyed on the time of day. **Read `{baseDir}/references/sky-sun-fog.md` before writing any of their fields**: gradients, defaults, the sky-image and ambient-light rules, and the recipes for complete darkness and resetting to the default sky.
 
 ## Glow + Light
