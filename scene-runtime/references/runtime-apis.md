@@ -57,20 +57,21 @@ setCommunicationsAdapter({ adapter: 'wss://custom-comms.example.com/room/my-scen
 ### openExplorerUiAndWait — `until` and `collect`
 
 ```typescript
-openExplorerUiAndWait<C extends readonly Channel[] = []>(request: OpenExplorerUiRequest, options?: WaitOptions<C>): Promise<WaitOutcome<C>>
-openExplorerUiAndWait(ui: ExplorerUi): Promise<WaitOutcome<[]>>   // bare-enum overload, no options
+openExplorerUiAndWait<const C extends readonly AnyChannel[] = []>(request: OpenExplorerUiRequest, options?: WaitOptions<C>): Promise<WaitOutcome<C>>
+openExplorerUiAndWait(ui: Exclude<ExplorerUi, ExplorerUi.EU_ITEM_PURCHASE>): Promise<WaitOutcome<[]>>   // bare-enum overload, no options
 
 type OpenExplorerUiRequest =
-  | { ui: ExplorerUi }                                                 // any panel except EU_ITEM_PURCHASE
+  | { ui: Exclude<ExplorerUi, ExplorerUi.EU_ITEM_PURCHASE>; itemPurchase?: undefined }
   | { ui: ExplorerUi.EU_ITEM_PURCHASE; itemPurchase: { urn: string } } // typed, but the explorer answers REJECTED_FEATURE_DISABLED
+type StopCondition = AnyChannel | Variant
 type WaitOptions<C> = {
   timeoutMs?: number
-  until?: Channel | Variant      // stop early when an event arrives on this channel (or this $case of it)
+  until?: StopCondition          // stop early when an event arrives on this channel (or this $case of it)
   collect?: C                    // channels whose events are returned in outcome.events; default none
 }
 ```
 
-Channels are exported by `@dcl/sdk/explorer-ui`: `ExplorerUiEvents` (the `opened` / `closed` entries of `ExplorerUiEventsResult` that belong to the panel **this call opened**, correlated by `requestId`; events of other panels and of other calls are dropped, so `until` cannot watch other panels) and `ItemPurchase` (unused: the explorer has no purchase flow). `variant(channel, '$case')` narrows a channel to one case. The panel closing always ends the wait as `closed`, even when `until` is set; `until` firing first ends it as `matched`. `outcome.events` (on `closed`, `matched` and `timedOut`) holds everything collected, each as `{ channel, event }`; the matching event is included only when its channel is also listed in `collect`.
+Channels are exported by `@dcl/sdk/explorer-ui`: `ExplorerUiEvents` (the `opened` / `closed` entries of `ExplorerUiEventsResult` that belong to the panel **this call opened**, correlated by `requestId`; events of other panels and of other calls are dropped, so `until` cannot watch other panels) and `ItemPurchase` (unused: the explorer has no purchase flow). `variant(channel, '$case')` narrows a channel to one case. `channel(name, component)` wraps any grow-only component whose entries carry `timestamp` and `requestId` into a channel, so a result component the SDK ships no channel for is usable in `collect` / `until` without waiting for an SDK release; the name must be unique within the scene. The panel closing always ends the wait as `closed`, even when `until` is set; `until` firing first ends it as `matched`. `outcome.events` (on `closed`, `matched` and `timedOut`) holds everything collected, each as `{ channel, event }`; the matching event is included only when its channel is also listed in `collect`.
 
 The promise rejects (so wrap the call in `try` / `catch`) when the `openExplorerUi` RPC throws, when a channel name is reused with a different component, or when an event carries no `requestId` and nothing else identifies its call (an explorer that does not echo `requestId` combined with a panel that can share the screen with another one). Every lifecycle outcome, `notOpened` included, resolves.
 

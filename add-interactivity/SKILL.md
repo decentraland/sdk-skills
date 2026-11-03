@@ -118,6 +118,8 @@ PointerEventType.PET_PROXIMITY_LEAVE; // Player moves out of entity's proximity 
 - A removal takes only its own registration's entry: `removeOnClick` and `onPointerDown` (both `PET_DOWN` + `CURSOR`) are independent.
 - On an older pin, a removal without `hoverText` leaves its entry behind (the interaction stays advertised and re-registering grows the array), and `onProximityDown` replaces an existing `onPointerDown` on the same entity.
 
+**Opening a client panel from a handler**: `openExplorerUi` opens the map / backpack / places / events panels, and `openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`) resolves when the player closes it. A pointer callback is the required user gesture, but only for its own tick plus one — call them **first** in the handler, before any `await`. See **scene-runtime** > "openExplorerUi -- Open Explorer Panels".
+
 ---
 
 ## Proximity Events (Nearby Interactions Without Aiming)
