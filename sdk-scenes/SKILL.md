@@ -130,7 +130,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Lighting & Environment
 
-**Skill: `lighting-environment`** — `LightSource` point/spot lights, shadows, `SkyboxTime` (day/night cycle), `Skybox` (custom sky texture, sky colors, clouds, stars), `Sun` (color, intensity, fixed direction, hiding it), `EnvironmentFog` (color, density), complete darkness; glow that also lights its surroundings.
+**Skill: `lighting-environment`** — `LightSource` point/spot lights, shadows, `SkyboxTime` (day/night cycle), `Skybox`, `Sun` and `EnvironmentFog` (custom sky image, sky/sun/fog colors, a dimmed, fixed or hidden sun, complete darkness); glow that also lights its surroundings.
 
 ### Particle Systems
 
