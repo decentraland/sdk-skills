@@ -1,0 +1,3 @@
+# Generated, and checked against a SHA-256 of its exact bytes (tests/report-sdk-issue.test.mjs):
+# never convert its line endings on checkout.
+report-sdk-issue/scripts/redaction.mjs -text

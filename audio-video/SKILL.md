@@ -1,6 +1,6 @@
 ---
 name: audio-video
-description: Add sound effects, music, audio streaming, and video players to Decentraland scenes with AudioSource, AudioStream, and VideoPlayer. Use when the user wants sound, music, video screens, radio, live streams, or media playback. Do NOT use for player emotes (see player-avatar) or screen-space UI sounds (sounds attach to entities, not UI).
+description: Sound and video in Decentraland scenes with AudioSource, AudioStream and VideoPlayer. Use when the user wants sound effects (including UI click sounds), music, ambience, radio, live streams or video screens, or needs audio clips sourced. For emotes see player-avatar; for audio-reactive visuals see audio-analysis.
 ---
 
 # Audio and Video in Decentraland
@@ -21,28 +21,29 @@ description: Add sound effects, music, audio streaming, and video players to Dec
 
 ## Audio Sourcing
 
-Before referencing any audio file path in code, check `{baseDir}/references/audio-catalog.md`. It lists 50 free Decentraland audio clips with direct downloadable URLs that cover most needs (UI clicks, ambients, music, game mechanics, sound effects).
+Before referencing any audio file path in code, check `{baseDir}/references/audio-catalog.md`: 50 free Decentraland clips with direct download URLs covering most needs (UI clicks, ambients, music, game mechanics, sound effects). Search it before suggesting external sources.
 
-The expected workflow when a user asks for sound:
+1. If the catalog has fitting clips, suggest them to the user — name the clip and what it would be used for.
+2. **Ask** how they want to proceed: some creators want catalog clips downloaded, others prefer placeholder paths so they can drop in their own files.
+3. Catalog clips, once the user confirms: download with any HTTP download, e.g. `curl -o assets/Audio/<name>.mp3 "<URL>"`. Do not tell the user you cannot download audio: `curl` works on the catalog URLs.
+4. Placeholders: use a clear path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
+5. Reference the resulting local path in `AudioSource.audioClipUrl`.
 
-1. Read this skill + `references/audio-catalog.md`.
-2. If the catalog has fitting clips, surface them to the user as suggestions — name the clip and what it would be used for.
-3. **Ask** how they want to proceed. Some creators want catalog clips downloaded; others prefer placeholder paths so they can drop in their own files later. Don't assume.
-4. If they pick catalog clips: download with `curl -o assets/Audio/<name>.mp3 "<URL>"` — these URLs work directly from `Bash`, no separate tool needed.
-5. If they want placeholders: use a clear placeholder path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
-6. Reference the resulting local path in `AudioSource.audioClipUrl`.
+Catalog lacks the sound (e.g. environmental machinery: drips, motors, fans, hum)? Source real recordings: `{baseDir}/references/audio-catalog.md` → *Beyond the catalog*.
 
-**Things to avoid:**
-
-- Telling the user "I can't download audio files." `Bash` + `curl` works fine on the catalog URLs — the capability is there if they want it.
-- Recommending external sources (freesound / mixkit / pixabay) without first checking whether the catalog already has a fitting clip.
-- Downloading clips without asking — even if the catalog has a perfect match, confirm before pulling files into the project.
+Folder: default `assets/Audio/`; reuse an existing legacy (`assets/scene/Audio/`) or asset-pack folder if the scene has one rather than creating a parallel `assets/Audio/` (**create-scene** step 3). Reference Creator Hub asset paths (`assets/asset-packs/`, `assets/custom/`) as-is.
 
 ## AudioSource (Sound Effects & Music)
 
-Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. Audio files go in `assets/Audio/`. Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time.
+Attach to any entity for positional sound. Fields: `audioClipUrl: string` (local file path, required), `playing?: boolean`, `loop?: boolean`, `volume?: number` (default 1.0), `pitch?: number` (playback speed, default 1.0), `currentTime?: number` (playback position in seconds, default 0), `global?: boolean`. `audioClipUrl` must be a **local file** in the scene (download external clips into `assets/Audio/` first). Supported formats: `.mp3` (recommended for music), `.ogg` (recommended for sound effects, smaller), `.wav`. Keep audio files small — large files increase scene load time. A 16-bit `.wav` is several times the size of the same clip as MP3/OGG — convert before dropping it in (`ffmpeg -i in.wav -b:a 128k out.mp3`).
 
 Audio is **spatial by default** — volume decreases with distance from the entity. Set `global: true` for non-spatial (same volume everywhere).
+
+**Every `AudioSource` entity needs a `Transform` — including `global: true` ones.** The Unity Explorer creates the Unity audio source only for entities that carry a `TransformComponent` (`UpdateAudioSourceSystem.CreateAudioSource` query, unity-explorer main 2026-10). Without one the SDK, the build and the headless engine all accept the component, but nothing ever plays and no error is logged. `global` changes spatialization, not this prerequisite. Create `Transform.create(entity)` (any position) before `AudioSource.create` — a silent wind bed and, later, a silent voice cue in the same project were both this (2026-10). Listed as a validation rule in `{baseDir}/../create-scene/references/entity-validation-rules.md`.
+
+**Spatial falloff is very wide — `global: false` is not "only in this room".** `PBAudioSource` has no distance fields at all, and the Explorer sets only `spatialize`/`spatialBlend`/`dopplerLevel` on the pooled Unity `AudioSource`, leaving its distance curve at Unity's defaults (logarithmic, `minDistance` 1 m, `maxDistance` 500 m) — verified in unity-explorer `AudioSourceExtensions.FromPBAudioSourceWithClip` + `AudioSourcesPlugin` and in `audio_source.gen.d.ts` (7.30.1). Several quiet room ambiences therefore all bleed into every room and read as "the sounds play everywhere" (owner-reported symptom, 2026-10-10).
+
+For a bed that must stay inside one room, gate it yourself in a system on distance from the player: set `playing: false` and `volume: 0` beyond a radius and ramp the volume up inside it. The right radius depends on the room size, the clip and its `volume` — tune it in-world. Throttle the system and write only on change. *Fix verified in code only — not re-listened in-world.*
 
 **Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
 
@@ -51,7 +52,23 @@ AudioSource.playSound(entity, 'assets/Audio/click.mp3') // retriggers from 0 eve
 AudioSource.stopSound(entity)                            // stops, resets cursor to 0
 ```
 
-Both helpers return `false` if the entity has no `AudioSource`, so create the component first (e.g. `AudioSource.create(entity, { audioClipUrl, playing: false })` at init).
+`playSound` creates the `AudioSource` if the entity has none and always returns `true`; it spreads the existing fields, so `volume`/`pitch`/`global`/`loop` set earlier carry over. `stopSound` returns `false` when there is no `AudioSource` (verified in `@dcl/ecs` 7.31.0 `components/extended/AudioSource`).
+
+**Vary pitch on repeated one-shots.** The same clip retriggered identically (footsteps, hits, coin pickups, clicks) sounds mechanical. Randomize `pitch` by about ±5–7% per play. `pitch` is `PBAudioSource` field 4 (`optional float`, default `1.0`); the Unity Explorer copies it straight onto Unity's `AudioSource.pitch` (`AudioSourceExtensions.cs`), so it shifts speed and tone together — keep the spread small. The Explorer does the same for its own UI and avatar sounds (`AudioPlaybackUtilities.GetPitchWithVariation`).
+
+```typescript
+// entity already has an AudioSource (getMutable throws otherwise)
+function playVaried(entity: Entity, clip: string, spread = 0.06) {
+  AudioSource.getMutable(entity).pitch = 1 + (Math.random() * 2 - 1) * spread // 0.94–1.06
+  AudioSource.playSound(entity, clip) // keeps the pitch just set, restarts from 0
+}
+```
+
+Skip it for music, voice lines and UI cues whose exact note matters.
+
+**One `AudioSource` plays one clip at a time.** `playSound` on an entity that is already playing replaces that clip (the retrigger test scene's URL-swap case), so cues that can overlap — a click, a verdict sting, a death sound — each need their own entity, and positional repeats that can stack (several tiles clicked in a row) need a small pool of entities used round-robin. Also check each clip's length against the moment it plays in (`ffprobe -v quiet -show_entries format=duration -of csv=p=0 file.mp3`): a 10 s sting over a 2 s gameplay beat is either cut off by the next cue or spills past it (owner-reported, 2026-10).
+
+**There is no fade or crossfade API.** `PBAudioSource` has `volume` and nothing else for levels, so ducking is a system that eases `AudioSource.getMutable(entity).volume` toward a target per frame (write only while the value is changing). To duck music and bring it back mid-track, keep it `playing: true` at volume 0 — or pause with `stopSound(entity, false)` and resume with `playSound(entity, url, false)`, since the default `resetCursor` would restart the track.
 
 **Detecting when a sound finishes:** when a non-looping clip ends on its own, the engine flips `AudioSource.playing` back to `false`. Poll it with the READ-ONLY getter and edge-detect the `true → false` transition — never poll with `getMutable` (dirties the component every frame):
 
@@ -64,23 +81,17 @@ engine.addSystem(() => {
 })
 ```
 
-The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Both features require a DCL 2.0 desktop client with playback-completion support; on older clients the flag never flips and no finish signal arrives — don't build logic that hard-blocks on it without a timeout fallback.
+The engine only flips the flag on natural completion — a scene-initiated `stopSound()` is your own write, and looping clips never flip it. Alternatively use `audioEventsSystem` for a callback per `MediaState` change (`MS_PLAYING → MS_READY` = stopped, `MS_ERROR` = file failed to load) — see the Audio Events System section below. Treat both as notifications rather than guarantees — don't build logic that hard-blocks on them without a timeout fallback. On mobile, `AudioEvent` needs app 1.14.0+; older mobile apps emit no audio events (the timeout fallback covers that case) and mix volume and spatial attenuation audibly differently from desktop.
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
-A sound started at scene startup plays **behind the Explorer's loading screen** and the player misses it. For welcome VO, an intro sting, or music that should land on the first look at the scene, wait for `EngineInfo.sceneHidden` to flip to `false` (the loading-screen fade-out) before setting `playing: true` — see the **scene-runtime** skill.
-
-**Pause audio when the scene is hidden:** the same `EngineInfo.getOrNull(engine.RootEntity)?.sceneHidden` flag is also `true` whenever any fullscreen Explorer UI (map, backpack, settings) covers the scene. Pause or mute audio sources in that state and resume when `sceneHidden` returns to `false`.
-
-> **Before adding audio**: Confirm with the user before fetching audio from external sources.
+A sound started at scene startup plays **behind the Explorer's loading screen**, and full-screen Explorer UI (map, backpack) hides the scene the same way. Gate intro audio on `EngineInfo.sceneHidden` flipping to `false`, and pause audio while it is `true`: **scene-runtime**.
 
 ## AudioStream (Streaming)
 
-Stream audio from a URL (radio, live streams). Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
+Stream audio from a URL (radio, live streams). If the user did not supply the URL, confirm the source with them before adding one. Key fields: `url` (streaming URL), `playing`, `volume`. Non-spatial by default — plays at same volume everywhere. Set `spatial: true` with `spatialMinDistance`/`spatialMaxDistance` for distance-based volume.
 
 Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`. For callback-style state changes instead of polling, `audioEventsSystem.registerAudioEventsEntity` works on AudioStream entities too (see the AudioSource finish-detection note above).
-
-> **Before adding a streaming URL**: If not provided by the user, confirm the source first.
 
 ## Audio Events System (audioEventsSystem)
 
@@ -98,7 +109,7 @@ audioEventsSystem.registerAudioEventsEntity(radioEntity, (event) => {
 })
 ```
 
-**API** (verified against `@dcl/ecs`, commit `f858f905`):
+**API:**
 - `audioEventsSystem.registerAudioEventsEntity(entity, callback)` -- registers a callback for audio state changes. The callback receives a `PBAudioEvent` with `state` (a `MediaState` enum) and `timestamp`. Fires only when state changes.
 - `audioEventsSystem.removeAudioEventsEntity(entity)` -- unregisters the callback.
 - `audioEventsSystem.hasAudioEventsEntity(entity)` -- returns `boolean`.
@@ -124,35 +135,27 @@ Monitor playback with `videoEventsSystem`:
 
 States: `VS_READY`, `VS_PLAYING`, `VS_PAUSED`, `VS_ERROR`, `VS_BUFFERING`.
 
-**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same behavior applies to `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity` — re-registering preserves the count of already-reported events, avoiding duplicate callbacks. Verified against js-sdk-toolchain commit `9055b4b4`.
+**Re-registration preserves last-reported state:** calling `registerVideoEventsEntity` on an already-registered entity replaces the callback but retains the last-reported state, so the new callback does not replay an already-reported state change. The same holds for `assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity`: re-registering keeps the count of already-reported events, so callbacks are not duplicated.
 
 Share one VideoPlayer across multiple screens by referencing the same `videoPlayerEntity` in multiple `Material.Texture.Video()` calls.
 
 To play video on a non-primitive shape (curved screens), use `GltfNodeModifiers` to swap the material of a GLTF model.
 
-## Free Audio Files
+## Scene open in the Creator Hub
 
-The audio catalog is the first place to look — see the **Audio Sourcing** section at the top of this skill. It lists 50 free Decentraland clips across music, ambient, interaction sounds, sound effects, and game mechanics, each with a `curl`-ready URL.
+Dragging an audio or `.mp4` file from **Local Assets** onto the viewport spawns a ready sound or Video Screen Smart Item pointed at it (**creator-hub-mcp**).
 
-Read `{baseDir}/references/audio-catalog.md` before recommending audio so suggestions are concrete, then check with the user whether they want those clips downloaded or prefer placeholders.
+⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
 
-> **Important**: `AudioSource` only works with **local files**. Never use external URLs for `audioClipUrl`. Always download into `assets/Audio/` first.
-
-### Asset folder conventions
-
-- **Default** for audio you download yourself: `assets/Audio/`.
-- **Legacy scenes** may already have audio under `assets/scene/Audio/` — that path still works; reuse it for any new clips in those scenes instead of creating a parallel `assets/Audio/` folder.
-- **Creator Hub assets**: audio imported directly through the Creator Hub UI lands in `assets/Audio/` (same as the standard path). Items from free DCL asset packs land in `assets/asset-packs/` and custom items in `assets/custom/`. Older scenes may also have user imports directly under `assets/scene/`. Reference these paths as-is — never move or rename them.
-
-Always check the scene's existing folders before deciding where to put a new file.
+⚠️ **Silence in the editor is not a diagnosis.** Babylon plays no scene audio and Bevy has a persistent *Mute scene audio* toggle (**creator-hub-mcp** → Gotchas); verify audio in a real preview before changing `volume` or `playing`.
 
 ## Audio-reactive scenes (visualizers, beat sync)
 
-For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component (Unity-explorer only) used for music visualizers, equalizer bars, and reactive lights/particles.
+For real-time amplitude + frequency-band data from any `AudioSource`, `AudioStream`, or `VideoPlayer`, use the dedicated `audio-analysis` skill. It covers the `AudioAnalysis` component used for music visualizers, equalizer bars, and reactive lights/particles.
 
 ## Permission for External Media
 
-`[LEGACY]` External audio/video URLs do **not** require the `ALLOW_MEDIA_HOSTNAMES` permission. The permission and its `allowedMediaHostnames` list still exist in `@dcl/schemas`, but no current client enforces them — unity-explorer's hostname check is gated behind the `CHECK_ALLOWED_MEDIA_HOSTNAMES` compile define (set in no build config, so `SceneData.TryGetMediaUrl` just does a URL syntax check), and bevy-explorer has no enforcement. Only the retired web client enforced it. Do not add it for new scenes; current clients play external media without it.
+External audio/video URLs need no scene.json permission: `{baseDir}/../create-scene/references/scene-json.md` → Required Permissions.
 
 ## Video Limits & Tips
 
@@ -171,5 +174,6 @@ Engine-team test scenes exercised against the real explorer:
 - [audio-finish](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/89,-11-audio-finish) — natural-finish detection via the `playing` flip + `audioEventsSystem` callback, and how a scene-initiated stop is distinguished from a natural finish.
 - [asset-load](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-12-asset-load) — `AssetLoad` pre-loading an mp3 alongside a texture, video and glb, with per-asset `assetLoadLoadingStateSystem` state callbacks (including a missing path resolving to `NOT_FOUND`). This is the pattern behind pre-loading audio so it is ready the instant the player first clicks.
 - [gltfnodemodifier](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/74,-8-gltfnodemodifier) — `VideoPlayer` on a GLB rather than a primitive: an HLS `.m3u8` stream driven onto specific GLTF nodes with `GltfNodeModifiers` video textures. The ground truth for the curved-screen / non-primitive case above.
+- [video-streaming](https://github.com/decentraland/sdk7-goerli-plaza/tree/main/video-streaming) — a streamed video on a scene surface (docs example catalog, `{baseDir}/../sdk-scenes/references/example-scenes.md`).
 
 For full code examples and implementation patterns, see `{baseDir}/references/media-patterns.md`. For component field details, see `{baseDir}/references/media-reference.md`.

@@ -1,15 +1,13 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (movePlayerTo, teleport, emotes, external URLs), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (teleportTo / realm change, external URLs, NFT dialog, explorer panels, clipboard), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
 ---
 
 # Scene Runtime APIs
 
-Cross-cutting runtime APIs available in every Decentraland SDK7 scene.
-
 ## Async Tasks
 
-The scene runtime is single-threaded. Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
+Scenes run in a single-threaded QuickJS sandbox with no Node.js APIs (`fs`, `http`, `path`, `process`). Wrap any async work in `executeTask()` (or an async function) — bare promises are silently dropped:
 
 ```typescript
 import { executeTask } from "@dcl/sdk/ecs";
@@ -46,7 +44,7 @@ const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 
 `signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
 
-> **Permission**: the nominal permission for external HTTP is `"USE_FETCH"` (and `"USE_WEBSOCKET"` for sockets), declared in `scene.json` `requiredPermissions`. In practice plain/signed `fetch` to non-media hosts is not hard-blocked in preview/Worlds even without it (the `66,6-signed-fetch` test scene calls `signedFetch` with an empty `requiredPermissions`). Declare `USE_FETCH` anyway for correctness and forward-compat. `signedFetch` does not require prior player interaction — restricted actions do, `fetch`/`signedFetch` do not.
+> **Permission**: a scene needs none — scenes and portable experiences run with every permission granted. Only a **smart wearable** must declare `"USE_FETCH"` for `fetch` (and `"USE_WEBSOCKET"` for sockets) in `requiredPermissions`, or the call fails with `Fetch API: permission denied`; `signedFetch` is gated by no permission (**smart-wearables** → Permissions). `fetch` and `signedFetch` need no prior player interaction.
 
 ## WebSocket
 
@@ -136,7 +134,6 @@ engine.addSystem(() => {
 | `totalRuntime` | `number` | Total runtime of this scene in seconds |
 | `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
 
-Verified against protocol commit `0b3d285` (field 4 `bool scene_hidden` in `PBEngineInfo`, component id 1048) and js-sdk-toolchain commit `ffb26183` (exposed as `sceneHidden: boolean` on `PBEngineInfo`).
 
 ### Detecting when the loading screen fades out
 
@@ -159,15 +156,12 @@ engine.addSystem(function waitForSceneRevealed() {
 - The scene keeps ticking normally while `sceneHidden` is `true` — it is not paused, just not displayed. Don't use this flag to gate scene logic, only to time presentation.
 - Always guard with `getOrNull` — the component may not exist on the very first frames.
 - Remove the system (or set a `done` flag) after it fires; otherwise it re-runs every frame.
-- On Explorer builds that predate the field, `sceneHidden` stays at its proto default `false`, so this pattern degrades to "fire as soon as possible" rather than hanging.
 
 ## System Execution Order & Priority
 
 `engine.addSystem(fn, priority?, name?)` runs `fn(dt)` every frame. The `priority` parameter controls **when** in the frame it runs relative to other systems.
 
-**HIGHER priority number = runs EARLIER in the frame.** Systems are sorted **descending** by priority (`sort((a, b) => b.priority - a.priority)` in `@dcl/ecs`). The SDK's own JSDoc states: *"a number with the priority, big number are called before smaller ones."*
-
-> **WARNING — counter-intuitive:** This is the OPPOSITE of Unity/Godot/many engines where a lower number runs first. In Decentraland SDK7, "make this run first" means giving it a **large** priority number, NOT `1`. A system with priority `1` runs almost LAST.
+**HIGHER priority number = runs EARLIER in the frame** (systems sort descending), the opposite of Unity/Godot. "Make this run first" means a **large** number; a system with priority `1` runs almost last.
 
 Key numbers:
 
@@ -186,35 +180,32 @@ engine.addSystem(lateSystem, 10);         // runs after regular systems
 
 ## Restricted Actions
 
-These require prior player interaction (e.g. a click) before they can execute. Import from `~system/RestrictedActions`:
+They run only while the player is inside the scene. `openExplorerUi` and `openExplorerUiAndWait` also need a fresh player gesture (see their sections); `openExternalUrl`, `teleportTo`, `changeRealm` and `openNftDialog` ask the player to confirm first. Player movement and emotes (`movePlayerTo`, `triggerEmote`, `triggerSceneEmote`, `stopEmote`): **player-avatar**. Import from `~system/RestrictedActions`:
 
 ```typescript
 import {
-  movePlayerTo,
   teleportTo,
-  triggerEmote,
   changeRealm,
   openExternalUrl,
   openNftDialog,
-  triggerSceneEmote,
   copyToClipboard,
   setCommunicationsAdapter,
   openExplorerUi,
 } from "~system/RestrictedActions";
 
-// Move player within scene bounds. Optional: cameraTarget (where the
-// CAMERA looks), avatarTarget (where the AVATAR faces — for rotating in
-// place), duration (seconds, for a smooth glide instead of a snap).
-movePlayerTo({
-  newRelativePosition: { x: 8, y: 0, z: 8 },
-  cameraTarget: { x: 8, y: 1, z: 12 },
-});
-
 // Teleport to coordinates in Genesis City
 teleportTo({ worldCoordinates: { x: 50, y: 70 } });
 
-// Play a built-in emote
-triggerEmote({ predefinedEmote: "wave" });
+// Teleport into another realm / World. `realm` takes a World name
+// (`foo.dcl.eth`) or a realm URL; the client does a FULL RECONNECT to
+// that realm, then lands on the parcel. Requires @dcl/sdk 7.28.0+.
+// The player is asked to confirm first ("Are you sure you want to enter
+// this World?"); the switch only happens if they accept.
+teleportTo({ realm: "foo.dcl.eth", worldCoordinates: { x: 0, y: 0 } });
+
+// Omit worldCoordinates to land on that realm's default spawn.
+// This replaces changeRealm.
+teleportTo({ realm: "foo.dcl.eth" });
 
 // Open URL in browser (prompts user)
 openExternalUrl({ url: "https://decentraland.org" });
@@ -227,15 +218,20 @@ openNftDialog({
 // Copy text to clipboard
 copyToClipboard({ text: "Hello from Decentraland!" });
 
-// Change realm. `message` is OPTIONAL: omit it to switch with no prompt,
-// include it to show the player a confirmation dialog first.
-changeRealm({ realm: "https://peer.decentraland.org" }); // no prompt
-changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" });
+// [DEPRECATED] changeRealm — use teleportTo({ realm }) instead.
+// The player always gets a confirmation dialog. `message` is OPTIONAL:
+// omit it to show the default text, include it to show custom text.
+changeRealm({ realm: "https://peer.decentraland.org" }); // default prompt text
+changeRealm({ realm: "other-realm.dcl.eth", message: "Join this realm?" }); // custom prompt text
 ```
+
+#### `changeRealm` is `[DEPRECATED]` — prefer `teleportTo({ realm })`
+
+`changeRealm` resolves when the request is *accepted*, not when the new realm is *live*, so `changeRealm(...)` followed by `teleportTo(coords)` lands on the parcel in the **old** realm. Use one `teleportTo({ realm, worldCoordinates })` call. `changeRealm` still works; it is the only one that sets custom prompt text (`message`). Signature: `{baseDir}/references/runtime-apis.md` → teleportTo.
 
 ### openExplorerUi -- Open Explorer Panels
 
-Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. Requires prior player interaction.
+Open a fullscreen explorer panel (map, backpack, settings, etc.) from scene code. The call must land in the tick of a **player gesture** or the next one, otherwise it returns `REJECTED_NO_USER_GESTURE`.
 
 ```typescript
 import { openExplorerUi } from "~system/RestrictedActions";
@@ -245,7 +241,53 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+
+**What counts as a gesture**: a click on a 3D entity (`pointerEventsSystem.onPointerDown` / `onPointerUp`), a click on scene UI (`onMouseDown` / `onMouseUp`), a pointer click with nothing under the cursor (`inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_DOWN)`), or an activation button (`E`, `F`, `1`-`4`: `IA_PRIMARY`, `IA_SECONDARY`, `IA_ACTION_3`-`IA_ACTION_6`) read with `inputSystem.isTriggered` on `PET_DOWN` / `PET_UP`. Hover, movement keys, `main()`, timers and trigger areas are not gestures. The window is the gesture's tick plus one, so call `openExplorerUi` **first** inside the handler: an `await` on a fetch, a timer or another restricted action before it pushes the call outside the window.
+
+```typescript
+import { openExplorerUi, OpenExplorerUiResult } from "~system/RestrictedActions";
+import { ExplorerUi, InputAction, pointerEventsSystem } from "@dcl/sdk/ecs";
+
+pointerEventsSystem.onPointerDown(
+  { entity: placesSign, opts: { button: InputAction.IA_POINTER, hoverText: "Places" } },
+  async () => {
+    const { openResult } = await openExplorerUi({ ui: ExplorerUi.EU_PLACES });
+    if (openResult !== OpenExplorerUiResult.OPENED) {
+      showHint("Open Places from the menu to find more scenes"); // your own UI fallback
+    }
+  },
+);
+```
+
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing. `EU_ITEM_PURCHASE` also exists in the SDK types but the explorer has no purchase flow and answers `REJECTED_FEATURE_DISABLED`; do not use it.
+
+### openExplorerUiAndWait -- Wait Until the Panel Closes
+
+`openExplorerUiAndWait` (`@dcl/sdk/explorer-ui`, SDK **7.30.0+**) opens a panel and resolves when the player closes it. Use it when the scene continues only after the player is done (sent to the backpack to equip something, to the map to pick a destination). Same gesture rule: call it first inside the handler; the `await` on its result is fine because the panel is already requested. The module re-exports `ExplorerUi` and `OpenExplorerUiResult`, and the bare-enum overload `openExplorerUiAndWait(ExplorerUi.EU_MAP)` is equivalent to `{ ui: ExplorerUi.EU_MAP }`. Every lifecycle outcome resolves, but the promise **rejects** when the underlying `openExplorerUi` RPC throws or when an event cannot be matched to this call, so wrap it in `try` / `catch`: an unhandled rejection inside an `async` pointer callback is silent.
+
+```typescript
+import { openExplorerUiAndWait, ExplorerUi, OpenExplorerUiResult } from "@dcl/sdk/explorer-ui";
+import { InputAction, pointerEventsSystem } from "@dcl/sdk/ecs";
+
+pointerEventsSystem.onPointerDown(
+  { entity: wardrobe, opts: { button: InputAction.IA_POINTER, hoverText: "Change outfit" } },
+  async () => {
+    try {
+      const outcome = await openExplorerUiAndWait({ ui: ExplorerUi.EU_BACKPACK }, { timeoutMs: 60_000 });
+      if (outcome.$case === "closed") startFashionShow();
+      else if (outcome.$case === "notOpened") {
+        // openResult is a numeric enum; index it for the name (e.g. REJECTED_FEATURE_DISABLED)
+        showHint(`Backpack unavailable (${OpenExplorerUiResult[outcome.openResult]})`);
+      }
+    } catch (error) {
+      console.error("openExplorerUiAndWait failed", error);
+    }
+  },
+);
+```
+
+`outcome.$case`: `closed` (the panel this call opened was closed, the normal end), `notOpened` (nothing opened; `outcome.openResult` is the `OpenExplorerUiResult` reason, resolves immediately), `timedOut` (`timeoutMs` elapsed with the panel still open), `matched` (an `until` condition fired first; the panel may still be open). There is no default timeout: a panel can stay open for minutes, so pass `timeoutMs` whenever the scene must move on regardless. `until` / `collect` options and event channels: `{baseDir}/references/runtime-apis.md` → openExplorerUiAndWait.
 
 ### ExplorerUiEventsResult -- Observe Panel Open/Close
 
@@ -268,11 +310,11 @@ engine.addSystem(() => {
 });
 ```
 
-Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220. Verified against protocol commit `86c4613` and js-sdk-toolchain commit `fc8cfc65`.
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `requestId` (the `requestId` of the `openExplorerUi` call that caused the event; `0` when the call passed none or the player opened the panel themselves), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
 
 ## Timers
 
-**Always use the engine-bound `timers` object from `@dcl/sdk/ecs`.** Do NOT use the native JS `setTimeout` / `setInterval` globals. Although the QuickJS runtime exposes JS-standard `setTimeout` / `clearTimeout` / `setInterval` / `clearInterval` as globals (declared in `@dcl/js-runtime/index.d.ts`), calling them in a Decentraland scene may appear to work but can introduce subtle problems — they are not bound to the scene's engine. Use `timers.setTimeout` instead.
+**Always use the engine-bound `timers` object from `@dcl/sdk/ecs`** (`timers.setTimeout`, `timers.setInterval`). QuickJS also exposes the JS-standard globals, but they are not bound to the scene's engine.
 
 ```typescript
 import { timers } from "@dcl/sdk/ecs";
@@ -293,24 +335,18 @@ timers.setInterval(callback: () => void, ms: number): number
 timers.clearInterval(timerId: number): void
 ```
 
-**Argument order is `(callback, ms)`** — not `(ms, callback)`. Do NOT write a custom helper that flips them.
+**Argument order is `(callback, ms)`**, as in standard JS.
 
-**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers. Verified against js-sdk-toolchain commit `a2ccd0b1`.
-
-**Do NOT write a custom per-frame timer system** that accumulates `dt` to fire delayed callbacks. The SDK already ships `timers`. Custom systems duplicate work, drift from the engine's own scheduling, and are the wrong abstraction for one-shot delays.
+**Timer error handling:** if a timer callback throws, subsequent timers still measure correctly. The SDK clears the internal timing context via `try/finally` so a thrown exception in one callback does not corrupt elapsed-time tracking for later timers.
 
 For a custom engine instance, use `createTimers(engineInstance)` from `@dcl/sdk/ecs` to get a `Timers` object scoped to that engine.
 
-**System-based timers** (recommended for game logic — synchronized with the frame loop):
+**Callbacks vs per-frame state.** A one-shot or periodic **callback** (do X in 2 s, every 1 s) is `timers.setTimeout` / `setInterval`; `timers` is itself an engine system that accumulates `dt`, so it is already frame-synchronized. **Per-frame game state** you update or read every tick (a cooldown bar, regeneration, a countdown shown in UI) is a `dt` accumulator inside your own system:
 
 ```typescript
-let elapsed = 0;
+let cooldown = 0; // seconds left; a UI bar reads it every frame
 engine.addSystem((dt: number) => {
-  elapsed += dt;
-  if (elapsed >= 3) {
-    elapsed = 0;
-    // Do something every 3 seconds
-  }
+  if (cooldown > 0) cooldown = Math.max(0, cooldown - dt);
 });
 ```
 
@@ -330,13 +366,11 @@ Transform.onChange(engine.PlayerEntity, (newValue) => {
 
 ### engine.removeEntity(entity): boolean
 
-Removes all components from an entity and releases its id for reuse. Returns `boolean`:
+Removes all components from an entity and releases its id for reuse. Returns `boolean` (`@dcl/sdk` 7.27.0+; earlier SDKs return `void` and can purge a live remote avatar's components):
 - `true` — entity accepted; components purged, id released for recycling.
 - `false` — entity refused; components **untouched**, id stays reserved. This happens for entity ids in the renderer-reserved range (avatar entities, numbers 3 through `reservedStaticEntities - 1` at any version). The three named static entities (`engine.RootEntity`, `engine.PlayerEntity`, `engine.CameraEntity`) are also reserved and never released, but their components **are** still purged (the renderer accepts scene deletes on those three).
 
-The return type changed from `void` to `boolean` as of js-sdk-toolchain commit `e712ef71`. Existing code that ignores the return value is unaffected.
-
-**Gotcha — avatar entity collision:** before this fix, `engine.removeEntity` could silently purge components of a live remote player's avatar entity. The engine now refuses removal of renderer-reserved ids, preventing this. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
+**Gotcha — avatar entity collision:** `engine.removeEntity` refuses renderer-reserved ids, so it cannot purge a live remote player's avatar entity. Never call `removeEntity` on an entity returned by iterating `PlayerIdentityData` unless you specifically intend to clear a named static entity.
 
 ### removeEntityWithChildren
 
@@ -348,88 +382,15 @@ import { removeEntityWithChildren } from "@dcl/sdk/ecs";
 removeEntityWithChildren(engine, parentEntity);
 ```
 
-**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result. Verified against js-sdk-toolchain commit `e712ef71`.
+**Caveat — partial completion:** `removeEntityWithChildren` can complete only partially without reporting it. If a renderer-reserved node (e.g. an avatar entity) appears anywhere in the Transform tree, that node's removal is refused by `removeEntity` while its descendants are still removed, leaving the surviving node's `Transform.parent` pointing at a removed entity. This is reachable only if a scene parents a reserved entity under a scene entity. The function returns `void` — there is no per-node result.
 
 ## Portable Experiences
 
-Scenes that persist across world navigation. Import from `~system/PortableExperiences`.
-
-```typescript
-import {
-  spawn,
-  kill,
-  exit,
-  getPortableExperiencesLoaded,
-} from "~system/PortableExperiences";
-
-// Spawn by ENS name (a deployed World) OR by pid. NOT by "urn".
-const result = await spawn({ ens: "boedo.dcl.eth" });
-// result: { pid, parentCid, name, ens }
-
-// Kill a running one by its pid (from the spawn response). NOT by urn.
-if (result.pid) await kill({ pid: result.pid });
-
-// List currently loaded portable experiences
-const { loaded } = await getPortableExperiencesLoaded({});
-
-// Exit self (only if THIS scene IS a portable experience)
-await exit({});
-```
-
-- `spawn({ ens?, pid? })` → `SpawnResponse { pid, parentCid, name, ens? }`. Field is `ens`/`pid`, **not `urn`**.
-- `kill({ pid })` returns `{ status: boolean }`; `kill({ pid })` and `getPortableExperiencesLoaded({})` both key off `pid`, never `urn`.
-- The **host scene** must enable them in `scene.json`: `"featureToggles": { "portableExperiences": "enabled" }`. Values: `"enabled"` | `"disabled"` | `"hideUi"` (spawns PX but hides their UI). With `"disabled"`, `spawn()` is a no-op / rejected.
+Spawning, listing and killing portable experiences from a scene (`~system/PortableExperiences`, keyed by `ens` / `pid`, never `urn`), and the host scene's `featureToggles.portableExperiences`: `{baseDir}/references/runtime-apis.md` → Portable Experiences. Building one that runs while a wearable is equipped: **smart-wearables**.
 
 ## Testing Framework
 
-Scenes can ship unit tests using `@dcl/sdk/testing`. Tests are generators — yielding pauses until the next frame so you can observe engine state across ticks.
-
-```typescript
-import { test } from "@dcl/sdk/testing";
-import {
-  assertComponentValue,
-  assertEquals,
-} from "@dcl/sdk/testing/assert";
-import { engine, Transform, MeshRenderer } from "@dcl/sdk/ecs";
-import { Vector3, Quaternion } from "@dcl/sdk/math";
-
-test("transform is applied after one frame", function* () {
-  const entity = engine.addEntity();
-  Transform.create(entity, { position: Vector3.One() });
-
-  // Let the engine run for a frame before asserting
-  yield;
-
-  assertComponentValue(entity, Transform, {
-    position: Vector3.One(),
-    scale: Vector3.One(),
-    rotation: Quaternion.Identity(),
-    parent: 0 as any,
-  });
-});
-
-test("five meshes are present", function* () {
-  yield;
-  assertEquals(1 + 1, 2, "basic math");
-  // No count assertion exists — count via getEntitiesWith + Array.from
-  assertEquals(
-    Array.from(engine.getEntitiesWith(MeshRenderer)).length,
-    5,
-    "should have 5 meshes"
-  );
-});
-```
-
-**Available assertions** (`@dcl/sdk/testing/assert`) — exactly these four:
-
-- `assertEquals(actual, expected, message?)` — deep-equals check
-- `assert(condition, message?)` — truthiness check
-- `assertComponentValue(entity, Component, expected)` — full component value comparison
-- `deepCloseTo(actual, expected, options?)` — deep numeric comparison with tolerance (for floats)
-
-There is NO count assertion — count entities with `assertEquals(Array.from(engine.getEntitiesWith(Comp)).length, n)`.
-
-**Running tests**: there is no CLI test command (`npx @dcl/sdk-commands test` does not exist). Tests execute only when the hosting runtime exposes the `~system/Testing` module — CI test runners or test-enabled explorers. In a normal preview the test runner is a no-op that just logs, and it's guarded behind DEBUG in production builds. Tests run inside the same QuickJS runtime as the scene, so the same restrictions apply (no Node.js APIs, use SDK timers, etc.).
+Writing scene tests with `@dcl/sdk/testing` (generator tests, the four assertions, where tests run): `{baseDir}/references/testing.md`.
 
 ## Logging
 
@@ -446,4 +407,4 @@ Engine-team test scenes exercising these APIs against the real runtime:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,9-portable-experience-disabled — same, but host `scene.json` sets `portableExperiences: "disabled"` (spawn suppressed).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — host `scene.json` sets `portableExperiences: "hideUi"` (PX run, their UI hidden).
 
-Full RestrictedActions reference — `triggerSceneEmote` (`_emote.glb` requirement), `setCommunicationsAdapter`, `movePlayerTo` rotate-in-place, predefined emote names — plus extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.
+`setCommunicationsAdapter`, `teleportTo({ realm })` details, `openExplorerUiAndWait` `until` / `collect` options and extra `executeTask` variants (error handling, sequential): `{baseDir}/references/runtime-apis.md`.
