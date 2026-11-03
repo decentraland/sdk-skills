@@ -51,7 +51,7 @@ Change the scene's communication channel (imported in SKILL.md but not detailed 
 
 ```typescript
 import { setCommunicationsAdapter } from '~system/RestrictedActions'
-setCommunicationsAdapter({ adapter: 'wss://custom-comms.example.com/room/my-scene' })
+setCommunicationsAdapter({ connectionString: 'wss://custom-comms.example.com/room/my-scene' })
 ```
 
 ### openExplorerUiAndWait — `until` and `collect`
