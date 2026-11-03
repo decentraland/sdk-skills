@@ -13,10 +13,14 @@ Choose the character's representation and decision logic separately.
 | **AvatarShape** | Decentraland avatar appearance: wearables, expressions or a copy of the player |
 | **GLB or primitives with SDK components** | Custom movement/animation, or a prototype body; the game owns interactions |
 
-| Behavior | Use when |
-|---|---|
-| **Scripted paths, state machine or simple SDK system** | A fixed route, dialogue states or a few reactive rules are sufficient |
-| **HTN — `htn-domain-authoring`** | Multi-step tasks, state-based alternatives, replanning or coordination between NPCs |
+Use a small SDK system or state machine for a fixed route or a few event responses. Consider HTN early
+when an NPC chooses among changing multi-step tasks, interrupts and resumes work, or shares resources;
+load `htn-domain-authoring`. An already installed HTN module can reduce setup work through its tooling
+and relevant host patterns; game-owned facts and executors still define the behavior.
+
+Keep quest progress and NPC decisions as separate layers. Quest states such as
+`available → accepted → completed → rewarded` belong to explicit game-owned state or a transition graph.
+HTN can read those states to choose NPC tasks; the quest lifecycle can coexist with an HTN task policy.
 
 HTN selects tasks; game-owned executors connect them to the chosen body's movement, animations and
 interactions. For `.domain` authoring and the module's body/executor contracts, load `htn-domain-authoring`.

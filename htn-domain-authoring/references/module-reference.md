@@ -70,6 +70,8 @@ automatically validate the running game or replace sensor/executor consistency c
   callterms are normally read-only; their mutations during planning survive failed search, and exceptions escape.
 - Cancellation can discard all remaining steps. Release game-owned reservations through the owning executor/host,
   not solely a pending `!release` step. Test failed/cancelled paths and re-entry with the actual state writers.
+- A shared planning snapshot does not reserve resources: executors/hosts must claim exclusive resources atomically.
+  When contention wastes work, define and test fair arbitration or backoff, including recovery and eventual progress.
 - `continueTask` and `activePlan` are opt-in host policies, not language-level plan repair. Inspect candidate
   status and committed state separately. Initial deferred steps remain lazy; do not simulate effects to validate them.
 - A `GuardSquad` spawn batch validates and stages new guards before publishing them. Factories own allocations
