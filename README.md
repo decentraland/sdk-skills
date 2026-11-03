@@ -65,7 +65,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
-| `npcs` | Non-player characters — NPC Toolkit library and manual approaches. |
+| `npcs` | NPC appearance, dialogue and simple behavior with NPC Toolkit, AvatarShape or SDK bodies; routes HTN planning to `htn-domain-authoring`. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
