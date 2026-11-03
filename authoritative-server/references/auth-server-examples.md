@@ -12,7 +12,7 @@ Install commands and the `authoritativeMultiplayer` auto-add behavior are docume
 ```
 
 - `authoritativeMultiplayer: true` (root-level) enables the headless server; it is auto-added on every build and preview — do not remove it. See `{baseDir}/SKILL.md` → Setup.
-- `logsPermissions` (root-level array) is optional — only needed to read production server logs. See `{baseDir}/references/server-patterns.md` → Production Logs.
+- `logsPermissions` (root-level array) is optional: it grants logs, live tail, metrics and executions, including all retained history under the scene key, to additional wallets. Eligible World owners/collaborators and Genesis City base-parcel owners/managers already have access. See `{baseDir}/references/server-patterns.md` → Production Logs.
 - `worldConfiguration.name` is only needed when deploying to a World — not required for Genesis City LAND. Auth server is supported on both Genesis City and Worlds (including multi-scene Worlds).
 
 ## Server/Client Branching
