@@ -22,7 +22,7 @@ No mechanic the player needs may depend on a gap below. A moving platform that i
 | `uiBackground.color` on a `uvs` atlas crop | Observed (2026-11): tint **and** alpha are ignored, so the crop draws in the atlas's own colours at full opacity. A black-tinted shadow copy rendered as a second full-colour copy; near-transparent glyphs were not drawn at all. | Pre-colour the art, one atlas per colour, and bake shadows into it. Keep shadows, fades and dimmed text off tinted crops. |
 | `UiBackground` nine-slice | Tiles instead of stretching. | Check nine-sliced panels on a device. |
 | `VirtualCamera.fov` | Observed (2026-11): ignored; scene cameras render at a fixed ~60°. | Emulate zoom by moving the camera along the aim line (**camera-control** → *VirtualCamera*). |
-| `skyboxConfig.fixedTime` in `scene.json` | Observed (2026-11): not applied; the sky shows world time. | Also set `SkyboxTime` on `engine.RootEntity` in code at startup, and keep it (**lighting-environment** → *SkyboxTime*). |
+| `skyboxConfig.fixedTime` in `scene.json` | Observed (one session, 2026-11, not checked in source): not applied; the sky shows world time. | Also set `SkyboxTime` on `engine.RootEntity` in code at startup, and keep it (**lighting-environment** → *SkyboxTime*). |
 | Smart Items | Not officially supported. | Keep them off the path a mobile player needs. |
 | Client features | Proximity voice chat and point-at-in-world are absent. | Do not design around them. |
 

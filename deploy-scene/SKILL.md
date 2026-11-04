@@ -216,7 +216,7 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 ### `.dclignore` also filters the preview
 
-`npm run start` builds the preview's scene content list from the same publishable-file set as deploy (`getProjectPublishableFilesWithHashes` in `@dcl/sdk-commands`, verified in source), so an excluded asset does not exist for the running scene. The client never requests it: no 404, no log line. An excluded `_emote.glb` makes `triggerSceneEmote` resolve `false` and the emote simply does not play (observed twice, 2026-10/11, with a whitelist-style `.dclignore` that re-included only some files under `assets/animations/`).
+`npm run start` builds the preview's scene content list from the same publishable-file set as deploy (`getProjectPublishableFilesWithHashes` in `@dcl/sdk-commands`, verified in source), so an excluded asset does not exist for the running scene. The client never requests it: no 404, no log line. An excluded `_emote.glb` makes `triggerSceneEmote` resolve `false` and the emote simply does not play (observed twice, 2026-11, with a whitelist-style `.dclignore` that re-included only some files under `assets/animations/`).
 
 - Exclude by pattern — working-file extensions and folders, as above — and let every asset folder upload by default. A whitelist (`*` plus `!` re-includes) drops each new asset until someone edits the list.
 - When an asset silently fails to load or play in preview and `.dclignore` has `!` lines, grep it for the asset's path before debugging anything else.

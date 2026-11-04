@@ -263,10 +263,10 @@ Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `
 
 The mobile app ignores `color` tint and alpha on `uvs` crops: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
-**Desktop client limits** (observed in-world, 2026-10/11):
+**Desktop client limits** (observed in-world, 2026-11):
 
 - `borderRadius` rounds colour fills but does not clip a `stretch` or `center` texture: the Unity explorer draws those as a custom mesh the radius does not reach (`DCLImage`). For a rounded image, bake the corners into the art.
-- A nine-slice PNG's transparent border margin was painted black (2026-10-28). Check nine-sliced art with transparent edges in-world before shipping it.
+- A nine-slice PNG's transparent border margin was painted black (2026-11). Check nine-sliced art with transparent edges in-world before shipping it.
 - A just-mounted texture draws one frame after the text and fills around it: `SKILL.md` → Troubleshooting.
 
 ## Opacity & zIndex (elements)

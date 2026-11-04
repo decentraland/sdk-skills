@@ -47,7 +47,7 @@ The Unity explorer supports nothing else. Every other value silently falls back 
 
 | `fontSrc` value | Unity explorer | Bevy explorer |
 |---|---|---|
-| `.ttf` in the scene content | Yes, once its asset bundle exists (deployed, or preview with optimized assets) | Yes |
+| `.ttf` in the scene content | Yes, once its asset bundle exists (deployed, or the desktop preview, which converts fonts locally) | Yes |
 | OpenType with CFF outlines (usually `.otf`), collections (`.ttc`), web fonts (`.woff`, `.woff2`) | Falls back | Not documented — do not rely on it |
 | `.ttf` over 16 MB, or with extremely complex glyph outlines | Falls back (refused by the converter) | Not documented |
 | URL to a `.ttf` | Falls back | Yes |

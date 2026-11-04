@@ -154,7 +154,7 @@ Use SkyboxTime for atmosphere — nighttime scenes with point lights create dram
 A permanent time of day needs no code: `skyboxConfig.fixedTime` in `scene.json` (top-level, or inside `worldConfiguration` for a World). Locations, time values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *Skybox fixed time*. A `SkyboxTime` component on `engine.RootEntity` overrides either JSON value at runtime.
 
 - While a fixed time applies (from `scene.json` or a runtime `SkyboxTime`), the player's own time-of-day setting in the Explorer menu is locked (observed for `scene.json`; the desktop client pushes a `SkyboxTimeUILocked` restriction for both).
-- **Mobile:** the mobile app was observed (one session, 2026-10/11) not to apply `skyboxConfig.fixedTime`. A scene that needs a fixed time on mobile also creates `SkyboxTime` on `engine.RootEntity` in `main()` and keeps it [UNVERIFIED beyond that session]. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+- **Mobile:** the mobile app was observed (one session, 2026-11, not checked in source) not to apply `skyboxConfig.fixedTime`. A scene that needs a fixed time on mobile also creates `SkyboxTime` on `engine.RootEntity` in `main()` and keeps it. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 ### Read Current World Time
 

@@ -46,9 +46,9 @@ To disable jumping in an area, use `InputModifier`'s `disableJump` flag (**advan
 
 ## GOTCHA — overlapping areas and runtime changes
 
-Verified in the desktop Explorer's `AvatarModifierAreaHandlerSystem` (unity-explorer `dev`, 2026-11-04) and observed in a scene 2026-10/11:
+Verified in the desktop Explorer's `AvatarModifierAreaHandlerSystem` (unity-explorer `dev`, 2026-11-04) and observed in a scene 2026-11:
 
-- **Each avatar holds one flag per effect, not a count of areas.** Every area writes the same per-avatar "hidden" and "nametag hidden" booleans, and the last write wins. An area whose `excludeIds` lists a player writes *visible* for that player when they enter it, overriding a hide-all area they are also in; leaving any area writes *visible* even while the avatar is still inside another hiding area. Observed: a scene-wide area excluding the local player plus a tower area hiding everyone showed the player's own body when turning around. Give each avatar one area at a time, or overlapping areas that agree.
+- **Each avatar holds one flag per effect, not a count of areas.** Every area writes the same per-avatar "hidden" and "nametag hidden" booleans, and the last write wins. An area whose `excludeIds` lists a player writes *visible* for that player when they enter it, for each effect that area itself lists (`AMT_HIDE_AVATARS` for the body, `AMT_HIDE_NAMETAGS` for the nametag), overriding a hide-all area they are also in; leaving any area writes *visible* even while the avatar is still inside another hiding area. Observed: a scene-wide area excluding the local player plus a tower area hiding everyone showed the player's own body when turning around. Give each avatar one area at a time, or overlapping areas that agree.
 - **Dropping a modifier in place leaves its effect on.** On any field change the client re-applies only the modifiers now listed to the avatars inside; nothing restores an effect whose modifier was removed. `getMutable(area).modifiers = []`, or swapping `AMT_HIDE_AVATARS` for `AMT_HIDE_NAMETAGS`, leaves the avatars hidden. Adding a modifier in place does apply.
 - Observed with the same in-place pattern: a nametag kept showing during a camera-locked killcam until the area was deleted and recreated.
 

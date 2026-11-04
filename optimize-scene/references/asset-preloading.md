@@ -41,9 +41,10 @@ Caveats:
 Keep **≤40 paths per `AssetLoad` entity**. For a longer list, split it into batches of up to 40, one entity per batch, each with its own `registerAssetLoadLoadingStateEntity` call:
 
 ```typescript
-import { timers } from '@dcl/sdk/ecs'
+import { engine, timers, AssetLoad, LoadingState, assetLoadLoadingStateSystem } from '@dcl/sdk/ecs'
 
 function preloadAll(paths: string[], timeoutMs: number, onDone: () => void) {
+	if (paths.length === 0) return onDone()
 	const pending = new Set(paths)
 	let done = false
 	const finish = () => { if (!done) { done = true; onDone() } }
@@ -64,7 +65,7 @@ function preloadAll(paths: string[], timeoutMs: number, onDone: () => void) {
 }
 ```
 
-Why: the client reports state into `AssetLoadLoadingState`, a grow-only set capped at **100 entries per entity** that evicts its oldest entries past the cap (js-sdk-toolchain `components/generated/index.gen.ts`, `maxElements: 100`; `engine/grow-only-value-set-component-definition.ts`). The client appends one entry per state change per asset, at least `LOADING` then `FINISHED`, so about 50 assets fill it. The SDK dispatcher (`systems/assetLoad.ts`) fires callbacks only when the set's `size` changes, and a full set stays at 100, so **the callback silently stops for that entity**: every later state change on it goes unreported. Observed: a 138-path preload on one entity always ran to its timeout; the same assets split into batches of ≤40 per entity all reported `FINISHED` in about 2 s. An SDK issue has been filed.
+Why: the client reports state into `AssetLoadLoadingState`, a grow-only set capped at **100 entries per entity** that evicts its oldest entries past the cap (js-sdk-toolchain `components/generated/index.gen.ts`, `maxElements: 100`; `engine/grow-only-value-set-component-definition.ts`). The client appends one entry per state change per asset, typically `LOADING` then `FINISHED` (`NOT_FOUND` and `FINISHED_WITH_ERROR` arrive as a single entry), so about 50 assets fill it. The SDK dispatcher (`systems/assetLoad.ts`) fires callbacks only when the set's `size` changes, and a full set stays at 100, so **the callback silently stops for that entity**: every later state change on it goes unreported. Observed: a 138-path preload on one entity always ran to its timeout; the same assets split into batches of ≤40 per entity all reported `FINISHED` in about 2 s. An SDK issue has been filed.
 
 Any wait-for-all needs a **timeout that logs the paths still unconfirmed**, so a silent stall shows up as a named list instead of a hang. Preload timings measured in local preview are best case, especially on a second run with the Explorer's cache warm; a player's first visit downloads every asset from the content server, so size timeouts with generous margin.
 
