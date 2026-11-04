@@ -87,7 +87,8 @@ Replanning
 
 Reuse
 10. Share repeated tails as parameterised tasks, shared behaviour through `:include` or `base` / `overrides`,
-    and repeated conditions through axioms. Keep independent teaching versions independent when that is their purpose.
+    and repeated conditions through axioms. For variants or cooperation, use [composition patterns](references/composition.md).
+    Keep independent teaching versions independent when that is their purpose.
 11. Recursion needs a base case and progress; prefer tail recursion. Runtime loops usually use a deferred `&task`
     or the next replan, so they can see the changed world.
 
@@ -107,7 +108,8 @@ Process
 
 1. **Vocabulary and strategy.** In the domain header, record priorities, entry conditions, horizons,
    facts with arity/writers/timing, and primitives with their executors. Read the actual host actions
-   and a relevant sibling domain. For execution work, record update cadence, replan triggers and retention policy.
+   and a relevant sibling domain. Distinguish required constraints from behaviour preferences.
+   For execution work, record update cadence, replan triggers and retention policy.
    Done when state changes and scheduling have owners and missing integration is explicit; label paper-host substitutes.
 2. **Root and behaviours.** Implement the strategy with the applicable rules above. Give each
    non-top-level method a `// Contract:` describing preconditions, intended result and re-entry assumptions.
@@ -128,7 +130,9 @@ Process
    can execute the behaviour, or the omitted host integration is explicitly marked unimplemented.
 5. **Independent scenarios.** Before the first execution of each case, write the complete expected status
    and plan from the strategy, with a short reason. An intentionally empty plan is explicit. Never fill
-   placeholders or derive the oracle from the planner's actual output. On mismatch, diagnose against the strategy;
+   placeholders or derive the oracle from the planner's actual output. Check intended results and forbidden behaviour,
+   not just successful decomposition; use applicable binding/generalization cases from [rule 13](references/rules.md#13-independent-expectations).
+   On mismatch, diagnose against the strategy;
    change expectations only with a recorded correction to that reasoning.
    Cover each tier's entry, relevant re-entry and a near-miss where its guard fails and the next eligible
    branch wins. Explain an impossible near-miss under valid invariants. Require `no_plan` only for an entry

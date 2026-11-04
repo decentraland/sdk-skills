@@ -1,6 +1,6 @@
 ---
 name: npcs
-description: "Create NPCs in Decentraland: GLB or primitive bodies, NPC Toolkit dialogue and paths, or AvatarShape wearables and emotes. Use for shopkeepers, guards, quest givers and other non-player characters; choose simple behavior or route HTN tasks, replanning and cooperation to htn-domain-authoring. For the live player see player-avatar."
+description: "Create NPCs in Decentraland: GLB or primitive bodies, NPC Toolkit dialogue and paths, or AvatarShape wearables and emotes. Use for shopkeepers, guards, quest givers and other non-player characters; choose SDK/FSM, HTN or hybrid behavior. For the live player see player-avatar."
 ---
 
 # NPCs in Decentraland
@@ -13,22 +13,14 @@ Choose the character's representation and decision logic separately.
 | **AvatarShape** | Decentraland avatar appearance: wearables, expressions or a copy of the player |
 | **GLB or primitives with SDK components** | Custom movement/animation, or a prototype body; the game owns interactions |
 
-Use a small SDK system or state machine for a fixed route or a few event responses. Consider HTN early
-when an NPC chooses among changing multi-step tasks, interrupts and resumes work, or shares resources;
-load `htn-domain-authoring`. An already installed HTN module can reduce setup work through its tooling
-and relevant host patterns; game-owned facts and executors still define the behavior.
+For behavior selection, extensions or integration, read [behavior-selection.md](references/behavior-selection.md).
+Choose SDK systems, FSM/HFSM, HTN or a hybrid from the actual tasks, reuse, recovery and available cost evidence.
+For chosen HTN behavior, load `htn-domain-authoring` for domain authoring, module setup and host contracts.
 
-Keep quest progress and NPC decisions as separate layers. Quest states such as
-`available → accepted → completed → rewarded` belong to explicit game-owned state or a transition graph.
-HTN can read those states to choose NPC tasks; the quest lifecycle can coexist with an HTN task policy.
-
-HTN selects tasks; game-owned executors connect them to the chosen body's movement, animations and
-interactions. For `.domain` authoring and the module's body/executor contracts, load `htn-domain-authoring`.
-Toolkit and AvatarShape integration needs game-owned adapter/executor work; there is no automatic plug-in.
-
-Give movement and rotation one owner at a time. Stop or coordinate Toolkit path-following, tweens and
-`faceUser` before an HTN body/executor drives the same Transform. Check completion and cancellation against
-the body's actual motion; AvatarShape uses engine-managed movement and has the playback limits below.
+Animation, sound and movement adapters can serve either controller. Give movement and rotation one owner at a time.
+Stop or coordinate Toolkit path-following, tweens and `faceUser` before another executor drives the same Transform.
+Check completion and cancellation against the body's actual motion; AvatarShape uses engine-managed movement
+and has the playback limits below. Toolkit and AvatarShape need game-owned adapters/executors for HTN.
 
 ---
 

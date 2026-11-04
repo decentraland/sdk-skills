@@ -7,6 +7,8 @@ A creator's game need not copy the catalogue. Promote selected code into game-ow
 Each canonical header records source, licence, deviations and omitted host features.
 Source-only discovery: `npm run htn:run -- --list`, then `--world <stem>/<scenario>` or `--story <stem>/<story>`.
 Use installed `htn:check` for game-owned manifests instead.
+For a new character variant or a task shared across goals/roles, start with [composition.md](composition.md),
+then load the matching examples below.
 
 ## Before / after pairs
 

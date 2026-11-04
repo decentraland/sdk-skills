@@ -16,7 +16,8 @@ optional `htn:measure`. Source lint/variant tools are not installed by the minim
    - guard choices under the documented backtracking policy (3), including its mode-dependent case when applicable;
    - horizons and deferred decisions (7); applicable partial-work/re-entry states (8);
    - ablations for commitment features (9);
-   - independent expectations and entry/near-miss/re-entry coverage (13).
+   - independent expectations, intended outcomes and applicable binding/generalization cases (13);
+   - reuse across changed callers/capabilities or role context when that is the task: [composition.md](composition.md).
    Done when every rule has a verdict (holds / breaks / does not apply / unverified), with a reason and evidence.
    Each break needs `file:line`, its consequence and a proposed correction. Unverified is not a pass.
 3. **Report** the consequential breaks first, with locations and supporting rule/evidence links. A review ends here.

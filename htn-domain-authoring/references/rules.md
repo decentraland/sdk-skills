@@ -26,6 +26,13 @@ Stalker's `hunt` tier deliberately declines when it cannot notice a visible targ
 reaches the next tier. Its header and `test/npc/tiered-equivalence.test.ts` record this production policy.
 Changing the mode can reveal a hidden dependency or confirm a documented one; it is not automatically a defect.
 
+Separate the two search boundaries: `mode.factsAndAxioms` tries bindings across later terms of the same condition;
+once that condition selects a branch, it commits. If its task subtree fails, `mode.branches` may try the next branch,
+but neither flag reopens that selected guard to choose a different target. Put the relevant eligibility tests in
+the guard/axiom, or have the host publish eligible ranked candidates. Test an ineligible first candidate followed
+by an eligible one. A branch whose guard fails falls through in every mode; confirm flags against the installed
+language guide. This differs from assuming arbitrary Prolog/SHOP backtracking.
+
 ## 4. Useful one-task branches
 
 Delegation, continuation and a long-running action are natural single-task branches. A short complete action
@@ -72,6 +79,9 @@ completion can advance the existing plan without a new root; failed deferred exp
 With `GuardAgent`, change the key returned by `syncFacts` or call `requestReplan` for game-owned triggers.
 Fact writes alone do not request a replan; keep unrelated clock/position changes out of the key. An equivalent
 candidate already keeps the running step and progress. A custom host must define its own adoption policy.
+Arguments compare exactly: passing a changing target position can turn every candidate into a replacement.
+Pass a stable target ID and let the executor read its live position when that matches the action's contract;
+retain invalidation checks so keeping an identity does not keep an unusable target.
 
 Bounded periodic monitoring is useful when events are insufficient; the host must schedule its requests.
 `replanThrottle` spaces pending non-urgent triggers, not periodic checks. Failure/completion bypass that throttle,
@@ -88,6 +98,8 @@ claiming a benefit. See `basics/storekeeper.domain` and `canon/sentry_turret/sen
 Share repeated tails through parameterized tasks, repeated conditions through axioms, and common behaviour
 through `:include` or `base` / `overrides`. Keep deliberately independent teaching versions independent.
 See `guard/guard_kit.domain`, used by guard and yard guard, and `canon/service_bots/bot_base.domain`.
+For a new character variant, shared task or role, read [composition.md](composition.md): choose reusable intent,
+capability-dependent methods and explicit context, then exercise the changed reuse point.
 
 ## 11. Progress and recursion
 
@@ -108,6 +120,32 @@ pass while proving nothing. Cover entry, near-miss and re-entry; an ongoing fall
 manufacture `no_plan`. If repeated repairs fail, diagnose the model/interface before restructuring.
 There is no universal repair-round limit. Invariants check consistent worlds, not the correctness of test oracles.
 
+A compiling, solvable model can still express the wrong task. Derive meaningful after-execution conditions and
+forbidden outcomes from the request, not from method comments or the emitted plan. A disabled/absent executor
+cannot establish an outcome. Alongside positive cases, choose a counterexample that would expose a plausible
+wrong model, such as moving without collecting the requested item or completing with an unpaid obligation.
+
+Match extra cases to the claim:
+
+- **Target choice:** competing eligible targets and an ineligible first candidate; test stated ranking/ties.
+- **Order independence:** permute fact rows when their order is not intended priority. For ranked sensor rows,
+  assert the host ranking instead; an arbitrary alternate winner need not be a defect.
+- **Reusable/variable-size tasks:** rename IDs, change bindings or try another object count where that is promised.
+  Preserve relevant world invariants and check semantic outcomes; require an exact plan only when its order matters.
+- **Lifecycle:** reachable partial/completed states and meaningful impossible/irrelevant/cancelled exits, including
+  obligations and affected teammates when applicable.
+
+Use a one-fact or one-event change from a known case when it isolates a boundary. For a complex new behaviour,
+validate one meaningful path before adding alternatives; retain its independent regression cases while extending.
+After extending the pieces, recheck their shared assumptions and interactions. When claiming authoring reliability,
+compare matched fresh attempts and retain failures as evidence.
+These are targeted techniques, not a fixed matrix every small domain must fill.
+
+Source basis: [Puerta-Merino et al., L2HP (2025), Experimental Considerations](https://arxiv.org/html/2511.18165v1#S5.SS2)
+distinguishes solvability from model faithfulness. [Xu and Muñoz-Avila (2025), §6.4](https://arxiv.org/html/2511.12901v1#S6.SS4)
+shows a particular learner's fixed-count limitation. These motivate our checks; their results are not guarantees
+or measured failure rates for this SDK or the current authoring agent.
+
 ## 14. Restructure at two levels
 
 Equivalent decisions on fixed worlds do not prove equivalent execution. Compare decisions first, then
@@ -122,9 +160,14 @@ renaming. The source demo reads behaviour names below the root; an extra tier ca
 
 ## 16. Cost and outcomes
 
-A new planner/host feature should be opt-in, with matched cost and outcome comparisons. Measure total work,
+A new planner/host feature should be opt-in, with matched cost and outcome comparisons. When comparing architectures
+or authoring approaches, define outcomes, author/adaptation effort and runtime CPU/work measures before the first
+matched run and collect them together. Authoring time is not a runtime CPU measurement. Measure total work,
 including upkeep, diagnostics and host scheduling where relevant. Decision counters can omit upkeep internals;
 record its calls/time separately. A smaller decision tree does not itself prove faster execution.
+Guard/condition reordering can change winning branches or bindings; treat that as a behaviour change unless
+independent comparisons establish the intended equivalence. Query caching or spreading expensive sensor work
+needs an explicit freshness/invalidation contract and a measured benefit.
 Use consumer `htn:measure` only when installed, or source measurements through the module guide. Keep warm-up,
 seeds, world size, Node/client versions and configuration. Repeat noisy wall-clock samples and state uncertainty.
 Node planning excludes real movement, rendering, raycasts and networking; check bursts and the target client

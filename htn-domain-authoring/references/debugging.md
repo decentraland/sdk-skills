@@ -8,7 +8,9 @@ Use the matching module design/NPC guides when a failure crosses domain and host
    replan reason and any available trace. For live trace/history setup, follow
    [HOW-TO: inspect a decision](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/src/htn-planner/HOW-TO.md#4-inspect-a-decision-optionally):
    use a recorder per NPC and bounded history while debugging. Compile the domain; run source lint when available.
-   A compiler failure can skip execution. Done when evidence shows the failure, rather than a design rule alone implying it.
+   Keep the exact diagnostic, source location and failing input; compare actual state/API definitions with a
+   working example when bindings or representations disagree. A compiler failure can skip execution.
+   Done when evidence shows the failure, rather than a design rule alone implying it.
 2. **Reproduce at the right level.** For a wrong plan on known facts, create a game-owned world/scenario
    with an independent expected plan. With consumer testing installed, run
    `npm run htn:check -- htn-tests/worker.tests.ts --case '<name>' --json --session ../htn-reports`.
@@ -21,13 +23,15 @@ Use the matching module design/NPC guides when a failure crosses domain and host
    Trace the values and arities the chosen guard read, selected arguments, source order/backtracking mode,
    action result, candidate status/adoption, cancellation and committed state. Initial deferred tasks are lazy;
    a candidate trace and committed orders need not be the same snapshot.
+   For a wrong winner, inspect why each relevant higher-priority branch failed, including its actual bindings,
+   checked rows and first failed term; the chosen branch alone cannot explain the choice.
    Done when evidence places the cause in the domain, host or their interface.
 
 | Symptom | Check |
 |---|---|
 | Branch never fires | Fact writer/arity, then entry guard (12, 3) |
 | Finished work repeats | Re-entry, executor fact writes (8) |
-| Same target/action repeatedly fails | Learned failure facts and target eligibility; door-helper example |
+| Same target/action repeatedly fails | Who records the failure, its scope/expiry and target eligibility; distinguish a transient obstruction from learned impossibility before suppressing retries; door-helper example |
 | Cancelled shared task leaves a reservation | Owning host/executor cleanup; pending release steps may be discarded |
 | Recovery skipped after replan | State-dependent priority (6) |
 | Tier swallows the next | Guard and intended branch backtracking mode (3) |
@@ -40,7 +44,9 @@ Use the matching module design/NPC guides when a failure crosses domain and host
 | Delayed noise updates memory incorrectly | Async event identity, observation time/order, pending query cleanup |
 
 4. **Fix and keep the reproduction.** Set expectations from strategy before running. A domain failure gets a
-   decision case; a host/interaction failure gets an execution case. Make a cause-based change and show the
+   decision case; a host/interaction failure gets an execution case. Preserve the working model and repair the
+   localized cause using its diagnostic and reproduction; broader restructuring needs evidence that shape is the cause.
+   Make a cause-based change and show the
    reproduction failing before it and passing after it. Do not demand an old-domain failure for a host-only bug.
    Regenerate the changed configured domain, build and repeat the relevant client check when presentation,
    sensors or real execution are involved. Done when relevant checks pass and remaining limits are explicit.
