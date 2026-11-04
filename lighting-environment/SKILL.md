@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, fixtures that glow and cast light, strobe and flash effects (photosensitivity limit). For emissive, metallic, roughness or transparent materials see advanced-rendering.
+description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, a custom sky image, sky, cloud, star, sun and fog colors (Skybox, Sun, EnvironmentFog), a dimmed, fixed or hidden sun, complete darkness, fixtures that glow and cast light, strobe and flash effects (photosensitivity limit). For emissive, metallic, roughness or transparent materials see advanced-rendering.
 ---
 
 # Lighting and Environment in Decentraland
@@ -201,6 +201,18 @@ function dayNightCycle(dt: number) {
 engine.addSystem(dayNightCycle)
 ```
 
+## Skybox, Sun and EnvironmentFog (custom sky, sky colors, sun, fog)
+
+Three components override the environment, written to `engine.RootEntity` only and active only while the player is inside the scene:
+
+- `Skybox` — an equirectangular 2:1 sky image (`skyboxTexture`, a path string), or procedural sky colors, clouds and stars. The sky colors also set the ambient light.
+- `Sun` — sun and moon light: color, intensity, a fixed direction, or hiding the discs and lens flare.
+- `EnvironmentFog` — fog color and density.
+
+Not supported yet on mobile (Godot explorer) or the Bevy explorer: players there keep the regular sky, sun and fog, so never make them gameplay-critical.
+
+Colors are `ColorGradient`s keyed on the time of day. **Read `{baseDir}/references/sky-sun-fog.md` before writing any of their fields**: gradients, defaults, the sky-image and ambient-light rules, and the recipes for complete darkness and resetting to the default sky.
+
 ## Glow + Light
 
 Emissive materials glow but do not illuminate surrounding entities; a `LightSource` illuminates but has no visible body. Emissive material fields (`emissiveColor` is `Color3`, `emissiveIntensity`, `emissiveTexture`): **advanced-rendering** → *Emissive (Glow Effects)*.
@@ -258,3 +270,4 @@ Engine-team test scenes (real API, exercised against the engine):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-skybox-control — `Skybox`, `Sun` and `EnvironmentFog`: sky textures (invalid src fallback), environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), hiding the sun, fog density, `SkyboxTime` row, one point `LightSource` to see in the dark.

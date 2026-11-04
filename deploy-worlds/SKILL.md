@@ -124,7 +124,7 @@ From inside Decentraland, use the chatbox command:
 
 ## World Configuration Options
 
-Beyond `name` and `placesConfig`, `worldConfiguration` takes `skyboxConfig` (fixed time of day, skybox textures) and `miniMapConfig`. Fields, `fixedTime` values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *worldConfiguration* and *Skybox fixed time*. Runtime control (`SkyboxTime`): **lighting-environment**.
+Beyond `name` and `placesConfig`, `worldConfiguration` takes `skyboxConfig` (fixed time of day, skybox textures) and `miniMapConfig`. Fields, `fixedTime` values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *worldConfiguration* and *Skybox fixed time*. Runtime control (`SkyboxTime`) and the `Skybox`, `Sun` and `EnvironmentFog` components (custom sky texture, sky colors, sun, fog): **lighting-environment**.
 
 ## Multi-Scene Worlds
 
