@@ -35,7 +35,7 @@ Use the matching module design/NPC guides when a failure crosses domain and host
 | Cancelled shared task leaves a reservation | Owning host/executor cleanup; pending release steps may be discarded |
 | Recovery skipped after replan | State-dependent priority (6) |
 | Tier swallows the next | Guard and intended branch backtracking mode (3) |
-| Decision reads pre-action state | Horizon and deferred task (7) |
+| Decision reads pre-action state | Horizon/deferred boundary (7), then host/executor result publication before deferred expansion (9) |
 | `depth_exceeded` | Base, progress, recursion (11) |
 | Upkeep cuts actions or never runs | Host wiring, fixpoint/pass budget (5) |
 | Root plans too often or useful work restarts | Update vs decision cadence, trigger keys, candidate adoption and commitment (9) |

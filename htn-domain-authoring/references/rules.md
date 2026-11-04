@@ -73,8 +73,9 @@ not the frame rate. A one-action plan or a reactive decision each logical tick i
 calls for it; state what that tick means. During review, report an unknown host schedule as a limit.
 
 Replan for relevant changed preconditions or higher-priority goals, failure or plan completion. Refresh facts
-before planning. Resolve `&task` when execution reaches it, using actual earlier effects: successful primitive
-completion can advance the existing plan without a new root; failed deferred expansion needs recovery.
+before root planning and deferred expansion. The host/executor must publish actual results before `&task` reads them,
+including in the same update as primitive completion. Resolve `&task` when execution reaches it, using actual earlier
+effects: successful primitive completion can advance the existing plan without a new root; failed deferred expansion needs recovery.
 
 With `GuardAgent`, change the key returned by `syncFacts` or call `requestReplan` for game-owned triggers.
 Fact writes alone do not request a replan; keep unrelated clock/position changes out of the key. An equivalent
