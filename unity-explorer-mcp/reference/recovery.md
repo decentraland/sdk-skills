@@ -35,6 +35,10 @@ Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
 
 Keep the brackets in the patterns, so they can't match the shell running the command (see **creator-hub-mcp**). Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
 
+## Models unoptimized or fonts on their fallback
+
+The desktop client converts every local scene to asset bundles before it loads, so a `fontSrc` font on its fallback or models loading as raw GLTFs means the converter did not serve this scene. The **AB** panel of the Explorer's debug menu says why, and `get_scene_logs` / the Explorer log carry the same milestones: a converter from another Explorer build or another scene holding the port (quit that client, or stop the pid the panel names, then relaunch), the converter not starting, or a single bundle that failed and fell back to its raw GLTF (`asset bundle unavailable (…), loading the raw GLTF instead`). A font in a format other than `.ttf` never converts and always shows the fallback. Detail: **optimize-scene** → *Local Asset Bundle Preview*.
+
 ## The connection dropped
 
 The client probably crashed or was closed — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.

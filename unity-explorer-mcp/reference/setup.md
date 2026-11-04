@@ -28,7 +28,7 @@ When the user wants to keep the already-running scene server and its Explorer un
 npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
-From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
+Run it from a different scene folder: a second dev server in the same folder rewrites the same `bin/index.js`. From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
 
 ## Launching a specific Explorer build manually
 
@@ -42,7 +42,7 @@ open /path/to/Decentraland.app --args \
   --mcp --windowed-mode --resolution 1280x720
 ```
 
-On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
+On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
 ## Registering in other clients
 
