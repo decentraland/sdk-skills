@@ -146,8 +146,9 @@ Process
    Done when cases compare against independent expectations and the facts obey their writers' state contract.
 6. **Execution across replans.** For host integration, test stable updates between decisions and a relevant
    interruption; check plan counts, action starts and progress against the chosen schedule. Cooperating agents
-   need a shared-host story for handoffs and reservations. Set expected outcomes and progress conditions before
-   the run. Derive exact traces independently or use semantic assertions. Include relevant contention,
+   need a shared-host story for handoffs and reservations. For ongoing work, include repeated competing jobs
+   with relevant resource limits and check completed deliveries or other intended results. Set expected outcomes and
+   progress conditions before the run. Derive exact traces independently or use semantic assertions. Include relevant contention,
    interruption, failed actions, cleanup and re-entry. `PaperHost.dropped` models release of reservations when
    pending cleanup steps never run. Also test the real executor/host when that integration is part of the claim.
    Record traces through installed `htn:check --session`, or source tools when available. Consumer JSON/text

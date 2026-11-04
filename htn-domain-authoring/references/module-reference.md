@@ -71,6 +71,8 @@ automatically validate the running game or replace sensor/executor consistency c
 - Cancellation can discard all remaining steps. Release game-owned reservations through the owning executor/host,
   not solely a pending `!release` step. Test failed/cancelled paths and re-entry with the actual state writers.
 - A shared planning snapshot does not reserve resources: executors/hosts must claim exclusive resources atomically.
+  If the actual host uses future committed actions to reserve resources, keep that view consistent on adoption,
+  replacement and cancellation; this is a host contract, not an automatic HTN property.
   When contention wastes work, define and test fair arbitration or backoff, including recovery and eventual progress.
 - `continueTask` and `activePlan` are opt-in host policies, not language-level plan repair. Inspect candidate
   status and committed state separately. Initial deferred steps remain lazy; do not simulate effects to validate them.

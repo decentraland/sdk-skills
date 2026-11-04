@@ -163,9 +163,12 @@ renaming. The source demo reads behaviour names below the root; an extra tier ca
 
 A new planner/host feature should be opt-in, with matched cost and outcome comparisons. When comparing architectures
 or authoring approaches, define outcomes, author/adaptation effort and runtime CPU/work measures before the first
-matched run and collect them together. Authoring time is not a runtime CPU measurement. Measure total work,
-including upkeep, diagnostics and host scheduling where relevant. Decision counters can omit upkeep internals;
-record its calls/time separately. A smaller decision tree does not itself prove faster execution.
+matched run and collect them together. Measure the whole host: world updates, sensing/fact writes, upkeep, scheduling,
+root planning, deferred expansion and execution, with diagnostics included where relevant. Separate actual CPU
+from elapsed time; nested inclusive timers overlap and must not be added. Compare equal simulation horizons
+and report outcomes with cost. For runs that stop at delivery, record frames, completed work and time-to-delivery
+before normalizing cost; raw CPU totals cover different workloads. Authoring time and a smaller decision tree
+do not establish lower runtime CPU. Record upkeep calls/time separately when decision counters omit them.
 Guard/condition reordering can change winning branches or bindings; treat that as a behaviour change unless
 independent comparisons establish the intended equivalence. Query caching or spreading expensive sensor work
 needs an explicit freshness/invalidation contract and a measured benefit.

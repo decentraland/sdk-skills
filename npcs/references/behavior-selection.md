@@ -9,8 +9,8 @@ Use the game's actual tasks and a likely next change to explain the choice.
 |---|---|---|
 | Fixed path, click response or short scripted sequence | SDK system or NPC Toolkit callbacks | Growing transition or recovery logic needs an explicit controller. |
 | Named modes with clear transitions; quest or dialogue progress | FSM; HFSM when modes share transitions or actions | Repeated multi-step methods and related choices become easier to maintain as reusable tasks. |
-| Several tasks reuse methods, keep related target/item bindings, or vary by capabilities | Consider HTN alongside a reusable HFSM | Check whether decomposition actually shares useful intent, and whether tooling and integration costs fit. |
-| Durable game lifecycle plus flexible task execution | Hybrid: explicit lifecycle with a task controller inside it | Keep one decision owner for each scope and define the events between them. |
+| Shared multi-step goals with alternative methods, bound targets/items or resource coordination | HTN for reusable task decomposition | A reusable HFSM can also fit when its transitions stay clear; check tooling and host integration costs. |
+| Durable game lifecycle plus flexible task execution | Hybrid: often HTN for goals, FSMs/executors for local actions | Keep one decision owner for each scope and define the events between them. |
 
 Interruptions, many states or several NPCs alone do not select HTN. A well-factored HFSM can share actions
 and recover from interruptions. Compare the expected extension in each design, including setup, debugging
