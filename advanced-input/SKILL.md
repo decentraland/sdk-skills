@@ -39,6 +39,12 @@ PointerLock.getMutable(engine.CameraEntity).isPointerLocked = false
 
 PITFALL: `getMutable(engine.CameraEntity)` throws if `PointerLock` was never created on the camera. Call `PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })` once in `main()` before mutating. Writing `true` is a _request_; the client/player may still control actual capture (e.g. Esc unlocks).
 
+### Desktop lock behaviour
+
+- **Right-click releases the lock exactly like Esc**, and there is no right-click `InputAction` to tell the two apart (unity-explorer `DCLInput.inputactions`: the Camera map's `Unlock` action binds `<Mouse>/rightButton` and `<Keyboard>/escape`). An "unlocked means paused" design therefore opens the pause menu on every right-click; give pause its own key or UI button and treat an unlock as a prompt to click back in.
+- **A left click on a free cursor still fires `IA_POINTER`**, including a click aimed at scene UI (observed 2026-10/11: clicking a UI music button spent ammo). On desktop, gate gameplay clicks on `PointerLock.get(engine.CameraEntity).isPointerLocked`; skip the gate on mobile (`isMobile()`), which has no cursor to lock.
+- Writing `isPointerLocked = true` from a system at round start (no click needed) locks the cursor (verified in-world).
+
 ### Pointer Lock Change Detection
 
 ```typescript

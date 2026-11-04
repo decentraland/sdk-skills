@@ -104,6 +104,7 @@ export function main() {
 	Transform.create(cameraEntity, { position: Vector3.create(8, 3, 8) })
 	VirtualCamera.create(cameraEntity, {
 		defaultTransition: { transitionMode: VirtualCamera.Transition.Time(0.5) },
+		fov: 60, // always set: an omitted fov inherits the previous camera's lens
 	})
 
 	// Click a box to enter mouselook mode
@@ -158,7 +159,7 @@ Key details (verified against the [`32,20-virtual-camera-mouse-look`](https://gi
 - `SENSITIVITY` ~0.15 deg/px is the official recommendation; adjust to taste.
 - Pitch clamped to [-85, +85] degrees prevents the camera from flipping over.
 - **`delta.y` is ADDED to pitch, not subtracted.** `screenDelta` has a **top-left origin with `y` growing downward** (same as `screenCoordinates`) — moving the mouse up reports a *negative* `y`. Adding it lowers `pitch`, and with `Quaternion.fromEulerDegrees(pitch, yaw, 0)` a lower pitch tilts the camera up, so mouse-up = camera-up. Inverted pitch means the code subtracts it.
-- The system checks `PointerLock.isPointerLocked` before reading delta -- when the player presses Esc to unlock, the camera stops responding.
+- The system checks `PointerLock.isPointerLocked` before reading delta -- when the player presses Esc or right-clicks (desktop) to unlock, the camera stops responding.
 - Always provide a clear exit (secondary button in this example). The player can also Esc to unlock, but that alone does not deactivate the VirtualCamera.
 - `screenDelta` is desktop-only. On mobile, it always reports 0. Design a touch fallback if needed (see `advanced-input` skill).
 

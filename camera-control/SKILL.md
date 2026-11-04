@@ -110,7 +110,7 @@ VirtualCamera.create(cinematicCam, {
 	defaultTransition: {
 		transitionMode: VirtualCamera.Transition.Speed(1.0),
 	},
-	// fov: 45, // optional: field of view in degrees (overrides the Explorer default)
+	fov: 60, // degrees; set it on every VirtualCamera (no default is applied, see below)
 })
 
 // Activate the virtual camera (createOrReplace on first activation:
@@ -144,6 +144,7 @@ Transform.create(target, { position: Vector3.create(8, 1, 8) })
 
 VirtualCamera.create(cinematicCam, {
 	lookAtEntity: target,
+	fov: 60,
 	defaultTransition: {
 		transitionMode: VirtualCamera.Transition.Speed(2.0),
 	},
@@ -155,15 +156,19 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 
 `lookAtEntity` can be `engine.PlayerEntity` to keep the camera aimed at the moving player (verified: `2,22-virtual-cameras`). To bake a fixed look direction into the camera's own rotation instead, use `Quaternion.fromLookAt(cameraPosition, targetPosition)` in the camera's `Transform`.
 
-`VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
+`VirtualCamera.create(entity, { fov: 60 })` with no other config is valid — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
 
-`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Defaults to `60` when omitted.** When set, the virtual camera overrides the default FOV for as long as it is the active `MainCamera.virtualCameraEntity`.
+`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Set it explicitly on every VirtualCamera.** The desktop client applies no default: when `fov` is omitted it leaves the lens alone, and virtual camera instances are pooled without a lens reset, so a camera without `fov` inherits whatever lens the last user of that instance set (observed: an aerial camera opened at the previous camera's zoomed-in lens and showed a sliver of the map).
 
 Choosing a value:
 
 - **Wider (higher, e.g. 90)** — shows more of the scene at once and creates a sense of speed. Good for racing and vehicle cameras.
 - **Narrower (lower, e.g. 35-45)** — zooms in and flattens perspective. Good for aiming down sights and cinematic shots.
-- Very wide values distort at the frame edges; keep a fixed framing camera near the default unless the distortion is the point.
+- Very wide values distort at the frame edges; keep a fixed framing camera near 60 unless the distortion is the point.
+
+**`fov` is read only when the camera becomes the active `MainCamera.virtualCameraEntity`.** Changing `fov` on the camera that is already active does nothing until the camera is switched away and back. To zoom, make one VirtualCamera per zoom level and switch `virtualCameraEntity` between them. Re-assigning the same entity is probably a no-op too: the client skips a re-assignment to the already-active entity [UNVERIFIED in-world]. Source: unity-explorer `VirtualCameraUtils.ConfigureVirtualCameraFOV` (returns early without `fov`), called only from `MainCameraSystem.TryApplyVirtualCamera`.
+
+**Mobile:** the mobile app was observed (2026-10/11) to ignore `fov` (always about 60°) and to show the local player's avatar while a scene VirtualCamera is active, even inside a hide-avatars `AvatarModifierArea`. For a mobile target, emulate zoom by moving the camera along the aim line instead of changing `fov`. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
 

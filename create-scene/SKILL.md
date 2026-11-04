@@ -129,7 +129,7 @@ Preview flags (`--web`, `--mcp`, `--multi-instance`, `--asset-bundles`, deep-lin
 ## Cross-References
 
 - Publishing: **deploy-scene** (Genesis City) or **deploy-worlds** (Worlds; a World has its own metadata separate from `scene.json`). Publish timing before live events: **deploy-scene**.
-- Parcel limits and production-quality local preview (`--asset-bundles`): **optimize-scene**.
+- Parcel limits and the local asset-bundle conversion every desktop preview runs: **optimize-scene**.
 - Targeting mobile: flat mobile limits in **optimize-scene** → *Mobile Scene Limits*; feature gaps that rule out common mechanics in `{baseDir}/../sdk-scenes/references/mobile-parity.md`. Check both before writing code.
 - Designing a game or writing a GDD: **dcl-gdd**. Building a playable prototype: **dcl-prototype**. Playtest surveys and running test rounds: **scene-feedback**.
 - Scenes edited in the Creator Hub: prefer the Script-component-first workflow (a Script component on the entity with `start()` / `update(dt)`) over free-standing systems: **script-components**.

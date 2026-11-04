@@ -242,7 +242,8 @@ Run through this before every export (scripts for each check in [`blender-patter
 5. Collider meshes named `*_collider`, no material slots, low-poly.
 6. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
 7. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
-8. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
+8. Timeline at rest: `scene.frame_set(scene.frame_start)` so animated objects export in their rest pose. The exporter writes each node's transform as it is at the current frame (observed 2026-10/11: doors exported up to 1.5 m off because the timeline sat mid-animation).
+9. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
 
 ## Cross-References
 

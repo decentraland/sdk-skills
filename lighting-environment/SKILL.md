@@ -153,6 +153,9 @@ Use SkyboxTime for atmosphere — nighttime scenes with point lights create dram
 
 A permanent time of day needs no code: `skyboxConfig.fixedTime` in `scene.json` (top-level, or inside `worldConfiguration` for a World). Locations, time values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *Skybox fixed time*. A `SkyboxTime` component on `engine.RootEntity` overrides either JSON value at runtime.
 
+- While a fixed time applies (from `scene.json` or a runtime `SkyboxTime`), the player's own time-of-day setting in the Explorer menu is locked (observed for `scene.json`; the desktop client pushes a `SkyboxTimeUILocked` restriction for both).
+- **Mobile:** the mobile app was observed (one session, 2026-10/11) not to apply `skyboxConfig.fixedTime`. A scene that needs a fixed time on mobile also creates `SkyboxTime` on `engine.RootEntity` in `main()` and keeps it [UNVERIFIED beyond that session]. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+
 ### Read Current World Time
 
 ```typescript
@@ -183,7 +186,8 @@ SkyboxTime.deleteFrom(engine.RootEntity)
 ```
 
 - `transitionMode` (optional) sets the animation direction when the time changes. Default `TM_FORWARD`.
-- The component must live on `engine.RootEntity`. Deleting it reverts to the scene.json/world time (or the global day/night cycle).
+- **Every change animates through the intermediate times; nothing snaps.** `TM_FORWARD` always runs forward and wraps past midnight, so 10:00 → 08:40 sweeps 22 h 40 min (observed: almost a full day of sky). Pick the shorter arc: `forward = (target - current + 86400) % 86400`; use `TM_BACKWARD` when `forward > 43200`. Hide a large jump behind a full-screen UI veil (fade in, change, wait, fade out). A full-day sweep takes about 4 s (desktop client setting `transitionSpeed: 0.25` of a day per second) [UNVERIFIED in-world].
+- The component must live on `engine.RootEntity`. Deleting it animates back to the scene.json/world time (or the global day/night cycle) the same way, rather than snapping.
 
 ### Day/Night Cycle System
 

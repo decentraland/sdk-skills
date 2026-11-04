@@ -170,6 +170,12 @@ Material.setPbrMaterial(entity, {
 
 - `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed.
 
+**How the desktop Explorer resolves texture transparency** — verified in its material systems and scene shaders (unity-explorer `dev`, 2026-11-04). Whether each behaviour is intended or a defect is unconfirmed, and other renderers may differ:
+
+- **PBR (`setPbrMaterial`) — the reliable recipe.** Transparency comes from `texture`'s own alpha channel × `albedoColor` alpha, given an explicit `transparencyMode` (`MTM_ALPHA_TEST` + `alphaTest`, or `MTM_ALPHA_BLEND`). With the default auto mode the texture's alpha is ignored and the material blends only when `albedoColor` alpha < 1. `alphaTexture` is loaded but never bound to the PBR shader, so it has no effect here. Observed: PBR + `alphaTexture` + `MTM_ALPHA_BLEND` worked where the basic material below failed; per the source, the texture's own alpha did the work.
+- **Basic (`setBasicMaterial`) — `alphaTexture` decides everything.** With an `alphaTexture` the material alpha-blends; without one it is opaque, and `alphaTest` is never applied. So `texture` + `alphaTest` alone renders the transparent pixels' RGB, usually black (observed under local asset bundles; the cause is the material code, not the bundles).
+- **`alphaTexture` is read from RGB brightness, not its alpha channel:** alpha × `saturate(length(rgb))`. Black is transparent, white opaque, and any single channel at full value counts as opaque. Pass a white-on-black mask; the colour texture used as its own mask cuts out every dark pixel (observed: black outlines vanished).
+
 ### Emissive (Glow Effects)
 
 ```typescript

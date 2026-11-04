@@ -28,7 +28,7 @@ AvatarModifierArea.create(modifierArea, {
 
 - `area: Vector3` — the region size. Set it to the dimensions you mean and mirror the same numbers into `Transform.scale` (see the GOTCHA). A zero or unset `area` falls back to the scale.
 - `modifiers` — an array; combine several, e.g. `[AMT_HIDE_NAMETAGS, AMT_DISABLE_PASSPORTS]`.
-- `excludeIds` — wallet addresses that stay unaffected (e.g. keep the scene owner visible). Mutate at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`.
+- `excludeIds` — wallet addresses that stay unaffected (e.g. keep the scene owner visible). Mutate at runtime via `AvatarModifierArea.getMutable(entity).excludeIds = [...]`; the change is re-applied to avatars already inside, for the modifiers still listed (see *Overlapping areas and runtime changes*).
 
 ## Available Modifiers
 
@@ -43,6 +43,16 @@ AvatarModifierType.AMT_HIDE_NAMETAGS // Hide the name tag above avatars in the a
 **Nametag hiding is head/torso based:** the nametag is hidden only while the player's head or torso is inside the area. If the area is too short, a player who double-jumps above it has their nametag briefly reappear. Make the area tall enough to cover the expected range of movement.
 
 To disable jumping in an area, use `InputModifier`'s `disableJump` flag (**advanced-input**), not an `AvatarModifierType`.
+
+## GOTCHA — overlapping areas and runtime changes
+
+Verified in the desktop Explorer's `AvatarModifierAreaHandlerSystem` (unity-explorer `dev`, 2026-11-04) and observed in a scene 2026-10/11:
+
+- **Each avatar holds one flag per effect, not a count of areas.** Every area writes the same per-avatar "hidden" and "nametag hidden" booleans, and the last write wins. An area whose `excludeIds` lists a player writes *visible* for that player when they enter it, overriding a hide-all area they are also in; leaving any area writes *visible* even while the avatar is still inside another hiding area. Observed: a scene-wide area excluding the local player plus a tower area hiding everyone showed the player's own body when turning around. Give each avatar one area at a time, or overlapping areas that agree.
+- **Dropping a modifier in place leaves its effect on.** On any field change the client re-applies only the modifiers now listed to the avatars inside; nothing restores an effect whose modifier was removed. `getMutable(area).modifiers = []`, or swapping `AMT_HIDE_AVATARS` for `AMT_HIDE_NAMETAGS`, leaves the avatars hidden. Adding a modifier in place does apply.
+- Observed with the same in-place pattern: a nametag kept showing during a camera-locked killcam until the area was deleted and recreated.
+
+**Pattern that works:** one scene-wide area hiding everyone. To switch mode, `engine.removeEntity` it and create the replacement in the same frame: deleting an area re-shows every avatar inside it, and the replacement applies its own modifiers as its trigger registers them. Whether that leaves avatars visible for a frame was not measured.
 
 ## GOTCHA — an explicit `area` wins over `Transform.scale` for the life of the component
 

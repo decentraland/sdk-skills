@@ -546,6 +546,8 @@ for path in sys.argv[1:]:
     assert len(anims) == 1,                 'must contain exactly one animation'
     assert len(g.get('meshes', [])) == 0,   'mesh leaked into the export'
     assert len(g.get('nodes', [])) == 63,   'expected Armature + 62 deform bones'
+    roots = [g['nodes'][i].get('name') for i in g['scenes'][g.get('scene', 0)]['nodes']]
+    assert 'Armature' in roots,             f'root must be named exactly Armature, got {roots}'
     assert paths['translation'] == paths['rotation'] == paths['scale'] == 62, \
         'every deform bone needs T/R/S channels'
     assert duration <= 10.0,                'max 10 s'
