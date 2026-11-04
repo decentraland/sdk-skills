@@ -46,9 +46,10 @@ An `order-dependent` lint finding is informational until checked against intende
 
 ## 7. Horizons and deferred tasks
 
-Primitive actions do not change facts during decomposition. End the plan at a changing boundary or use `&task`
-to decide after the earlier action actually ran. Keep before/after states distinct. Examples: bridge troll's
-`v6_partial_plans`, Fetcher's `!perceive` then `&fetch`, and commuter's deferred second trip.
+Known ordered steps can stay in one plan; pass selected context as task parameters. Primitive actions do not
+change facts during decomposition. End the plan or use `&task` when a later choice needs an actual execution
+result or new observation. Keep before/after states distinct. Examples: bridge troll's `v6_partial_plans`,
+Fetcher's `!perceive` then `&fetch`, and commuter's deferred second trip.
 Mutating callterms are an explicit exception: their writes happen during search and survive failed branches.
 
 ## 8. Re-entry
@@ -57,13 +58,30 @@ A replan may revisit partly or fully completed work. Handle those states before 
 paid twice and a reservation is not taken again. Stateless tasks need no invented completion flag.
 See `canon/classics/commuter.domain` and `canon/door_helper/door_helper.domain`.
 
-## 9. Commitment tradeoffs
+## 9. Execution and replanning
 
-Use the domain step `!continue` with host option `continueTask`, or an `activePlan` validator, when
-retaining progress is worth reduced responsiveness.
-Compare outcomes with and without the policy; avoiding retargeting can also lose catches.
-`basics/storekeeper.domain` checks running actions; `canon/sentry_turret/sentry_turret.domain` shows continuation.
-Validators need a branch per accepted case, not a catch-all that accepts every running action.
+The host updates executors and facts; a new root decision is a separate operation. A long-running action can
+span many updates, and a known sequence can contain several actions. Choose the horizon from what is known,
+not the frame rate. A one-action plan or a reactive decision each logical tick is valid when the host contract
+calls for it; state what that tick means. During review, report an unknown host schedule as a limit.
+
+Replan for relevant changed preconditions or higher-priority goals, failure or plan completion. Refresh facts
+before planning. Resolve `&task` when execution reaches it, using actual earlier effects: successful primitive
+completion can advance the existing plan without a new root; failed deferred expansion needs recovery.
+
+With `GuardAgent`, change the key returned by `syncFacts` or call `requestReplan` for game-owned triggers.
+Fact writes alone do not request a replan; keep unrelated clock/position changes out of the key. An equivalent
+candidate already keeps the running step and progress. A custom host must define its own adoption policy.
+
+Bounded periodic monitoring is useful when events are insufficient; the host must schedule its requests.
+`replanThrottle` spaces pending non-urgent triggers, not periodic checks. Failure/completion bypass that throttle,
+but a shared `PlanBudget` can still defer their replans. It gates whole runs, not work already inside a run;
+valid work continues while waiting. Executors or explicit validity checks must stop invalid work during a wait.
+
+Use `!continue` with `continueTask` for domain-controlled commitment. It still decomposes a candidate.
+An `activePlan` validator checks the running step every update in a separate runner, outside the planning budget;
+accept only intended cases. Choose these policies for the required response and compare costs/outcomes when
+claiming a benefit. See `basics/storekeeper.domain` and `canon/sentry_turret/sentry_turret.domain`.
 
 ## 10. Shared concepts
 

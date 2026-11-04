@@ -52,8 +52,8 @@ movement changed facts during planning.
 ## The rules
 
 A **tier** is a root branch and the behaviour it selects; **upkeep** is belief bookkeeping (expiry, focus,
-filters); the **horizon** is where a plan ends because the world will have changed. Apply these design defaults
-to the task's purpose; validators, upkeep methods and source-faithful teaching examples have different shapes.
+filters); the **horizon** is how far decisions can be made before new observations are needed. Apply these
+design defaults to the task's purpose; validators, upkeep methods and source-faithful teaching examples have different shapes.
 
 Shape
 1. Keep the root readable. Group related behaviours into named tiers when this removes complexity; a small
@@ -81,8 +81,9 @@ Replanning
    callterms (host functions invoked during planning) can change facts.
 8. Tasks that can be re-entered after partial or completed work must handle those states before fresh work.
    Use a re-entry branch where needed; stateless tasks need no synthetic "already done" state.
-9. Use the domain step `!continue` with host option `continueTask`, or an `activePlan` validator, when
-   an on/off comparison (ablation) shows retaining progress is worth reduced responsiveness.
+9. Keep valid work running between decisions. Define executor/fact updates, root-replan triggers and
+   candidate adoption separately from the horizon. See [execution and replanning](references/rules.md#9-execution-and-replanning)
+   for host scheduling and optional commitment policies.
 
 Reuse
 10. Share repeated tails as parameterised tasks, shared behaviour through `:include` or `base` / `overrides`,
@@ -106,8 +107,8 @@ Process
 
 1. **Vocabulary and strategy.** In the domain header, record priorities, entry conditions, horizons,
    facts with arity/writers/timing, and primitives with their executors. Read the actual host actions
-   and a relevant sibling domain. Identify any required sensor, executor or replanning work.
-   Done when every state change has an owner and missing integration is explicit; label paper-host substitutes.
+   and a relevant sibling domain. For execution work, record update cadence, replan triggers and retention policy.
+   Done when state changes and scheduling have owners and missing integration is explicit; label paper-host substitutes.
 2. **Root and behaviours.** Implement the strategy with the applicable rules above. Give each
    non-top-level method a `// Contract:` describing preconditions, intended result and re-entry assumptions.
    Keep the root's contract in the strategy header. Handle applicable partial/completed states before fresh work.
@@ -122,7 +123,7 @@ Process
    `.domain` or include and verify that the intended output was generated. Wait for READY; FAILED / STALE
    means the open preview may still run old code.
    In the source checkout, use its one-off `htn:compile` or example-generation route instead.
-   Wire executors, sensors, `reasoning` and any other selected host options. Preserve the configured export name,
+   Wire executors, sensors, the chosen schedule, `reasoning` and other selected host options. Preserve the configured export name,
    generated source header and game-owned files. Done when generation and the relevant build pass and the host
    can execute the behaviour, or the omitted host integration is explicitly marked unimplemented.
 5. **Independent scenarios.** Before the first execution of each case, write the complete expected status
@@ -139,8 +140,9 @@ Process
    and give each declared invariant a valid and a violating case. Invariants supplement independent
    expectations; they do not create them.
    Done when cases compare against independent expectations and the facts obey their writers' state contract.
-6. **Execution across replans.** Cooperating agents need a story with a shared host/state; static plans
-   cannot establish handoffs, reservations or progress. Set expected outcomes and progress conditions before
+6. **Execution across replans.** For host integration, test stable updates between decisions and a relevant
+   interruption; check plan counts, action starts and progress against the chosen schedule. Cooperating agents
+   need a shared-host story for handoffs and reservations. Set expected outcomes and progress conditions before
    the run. Derive exact traces independently or use semantic assertions. Include relevant contention,
    interruption, failed actions, cleanup and re-entry. `PaperHost.dropped` models release of reservations when
    pending cleanup steps never run. Also test the real executor/host when that integration is part of the claim.

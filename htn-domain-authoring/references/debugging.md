@@ -34,7 +34,7 @@ Use the matching module design/NPC guides when a failure crosses domain and host
 | Decision reads pre-action state | Horizon and deferred task (7) |
 | `depth_exceeded` | Base, progress, recursion (11) |
 | Upkeep cuts actions or never runs | Host wiring, fixpoint/pass budget (5) |
-| Target flip-flop | Candidate arguments and commitment tradeoff (9) |
+| Root plans too often or useful work restarts | Update vs decision cadence, trigger keys, candidate adoption and commitment (9) |
 | Empty plan replanned every tick | Completion policy or timed fallback (2) |
 | Figure moves/sees in wrong coordinates | Scene-space pose, parent transforms, SDK adapter contract |
 | Delayed noise updates memory incorrectly | Async event identity, observation time/order, pending query cleanup |
