@@ -16,6 +16,8 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. **A second call doe
 
 The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). The editable aggregator passes no options (`SKILL.md` → **The aggregator**); coded UI passes the size explicitly (`coded-ui.md` → DEFAULT RULE). `screenInset` defaults to `'device'`.
 
+The virtual size is a minimum, not the canvas shape. The scale factor is a contain-fit, `Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight)` (`@dcl/react-ecs` `system.ts`), so a `100%` root spans the virtual size on the tighter axis and more on the other: 1920×1200 on a 16:10 display, wider than 1920 on an ultrawide. Full-screen art stretched to `100%` distorts. Build it cover-fit around a centred stage of the virtual size, 1920×1080 on desktop (art larger than the stage, cropped by the edges), and size overlays such as a reticle in virtual units, never from `UiCanvasInformation` pixels.
+
 ⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth` / `virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `coded-ui.md`.
 
 ## UiEntity — All Props
@@ -258,6 +260,14 @@ Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `
   uiBackground={{ textureMode: 'stretch', texture: { src: 'images/card-atlas.png' }, uvs: [0, 0, 0, 1, 0.5, 1, 0.5, 0] }}
 />
 ```
+
+The mobile app ignores `color` tint and alpha on `uvs` crops: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+
+**Desktop client limits** (observed in-world, 2026-11):
+
+- `borderRadius` rounds colour fills but does not clip a `stretch` or `center` texture: the Unity explorer draws those as a custom mesh the radius does not reach (`DCLImage`). For a rounded image, bake the corners into the art.
+- A nine-slice PNG's transparent border margin was painted black (2026-11). Check nine-sliced art with transparent edges in-world before shipping it.
+- A just-mounted texture draws one frame after the text and fills around it: `SKILL.md` → Troubleshooting.
 
 ## Opacity & zIndex (elements)
 

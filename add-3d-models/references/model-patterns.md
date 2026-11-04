@@ -298,6 +298,6 @@ assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(loader, (state) 
 })
 ```
 
-- `assets` is a `string[]` of asset paths; you can push more paths onto a mutable `AssetLoad.assets` after creation to preload additional assets.
+- `assets` is a `string[]` of asset paths. Keep **≤40 paths per `AssetLoad` entity** and add another entity for more: past about 50 assets on one entity the state callback silently stops firing (**optimize-scene** → `references/asset-preloading.md` → *40 paths per entity*).
 - The callback fires once per asset per state transition; `state.asset` matches the path string exactly (useful for mapping back to an entity).
 - Preloading does not place anything in the world — you still create the `GltfContainer` / `Material` / `AudioSource` etc. when you actually want the asset shown.

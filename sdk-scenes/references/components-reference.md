@@ -80,7 +80,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **CameraMode** | `mode: CameraType` | Read-only current camera mode. `CameraType`: `CT_FIRST_PERSON` (0), `CT_THIRD_PERSON` (1), `CT_CINEMATIC` (2 — reported while a `VirtualCamera` drives the view). |
 | **CameraModeArea** | `area`, `mode` | Force camera mode in an area. |
 | **MainCamera** | `virtualCameraEntity?: Entity` | Activate a `VirtualCamera` by setting this to its entity (use `MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity })`); clear it to return control. Read the live camera pose from `Transform.get(engine.CameraEntity)`. |
-| **VirtualCamera** | `lookAtEntity?`, `defaultTransition`, `fov?: number` | Create cinematic camera angles. `fov` overrides the Explorer's default field of view (degrees) while this camera is active. |
+| **VirtualCamera** | `lookAtEntity?`, `defaultTransition`, `fov?: number` | Create cinematic camera angles. `fov` (degrees) applies while this camera is active; there is no default, so set it on every camera (**camera-control**). |
 
 ## UI Components (React-ECS)
 

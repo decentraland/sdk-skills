@@ -168,7 +168,7 @@ Spawn points: `{baseDir}/../create-scene/references/scene-json.md` → Spawn Poi
 
 ## .dclignore — Exclude Files from Upload
 
-The `.dclignore` file, always at the **project root**, lists files and patterns that are **NOT uploaded** to the content server when deploying. Everything in the project folder that isn't matched by `.dclignore` gets uploaded, and the uploaded total counts against the per-parcel MB limits — so only files the running scene actually needs should be deployed.
+The `.dclignore` file, always at the **project root**, lists files and patterns that are **NOT uploaded** to the content server when deploying, and **not served by the local preview** either (see *`.dclignore` also filters the preview* below). Everything in the project folder that isn't matched by `.dclignore` gets uploaded, and the uploaded total counts against the per-parcel MB limits — so only files the running scene actually needs should be deployed.
 
 Format: one glob pattern per line. The default from scene templates:
 
@@ -214,6 +214,13 @@ reference
 
 If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the first step: working files are often the bulk of the excess, and excluding them reduces upload size with zero impact on the scene.
 
+### `.dclignore` also filters the preview
+
+`npm run start` builds the preview's scene content list from the same publishable-file set as deploy (`getProjectPublishableFilesWithHashes` in `@dcl/sdk-commands`, verified in source), so an excluded asset does not exist for the running scene. The client never requests it: no 404, no log line. An excluded `_emote.glb` makes `triggerSceneEmote` resolve `false` and the emote simply does not play (observed twice, 2026-11, with a whitelist-style `.dclignore` that re-included only some files under `assets/animations/`).
+
+- Exclude by pattern — working-file extensions and folders, as above — and let every asset folder upload by default. A whitelist (`*` plus `!` re-includes) drops each new asset until someone edits the list.
+- When an asset silently fails to load or play in preview and `.dclignore` has `!` lines, grep it for the asset's path before debugging anything else.
+
 **Keep these uploaded:** `bin/index.js`, `scene.json`, `assets/` (composites, .glb models, textures, sounds, video), the thumbnail referenced in `scene.json`, and any file path referenced in code. The default ignores `*.ts`/`src` because only the compiled `bin/index.js` runs.
 
 ## Post-Publish: Asset Bundle Conversion
@@ -230,7 +237,7 @@ After every publish, the content servers compress all `.gltf`/`.glb` models to a
 - **`/detectabs` chat command:** in-world, tints models green (converted) or red (not yet converted).
 - **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. **Any player who already loaded the scene this session keeps seeing the cached version until they fully close and re-enter Decentraland.** That includes you: after conversion completes, quit and relaunch, then re-enter via jump link or `/goto`.
 
-You can also catch conversion issues **before** publishing by enabling local asset bundles in preview — see the **optimize-scene** skill ("Local Asset Bundle Preview").
+The desktop preview already runs the same conversion locally, so catch conversion issues **before** publishing in its AB panel — see the **optimize-scene** skill ("Local Asset Bundle Preview").
 
 ## Troubleshooting
 

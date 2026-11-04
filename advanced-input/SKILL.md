@@ -39,6 +39,12 @@ PointerLock.getMutable(engine.CameraEntity).isPointerLocked = false
 
 PITFALL: `getMutable(engine.CameraEntity)` throws if `PointerLock` was never created on the camera. Call `PointerLock.createOrReplace(engine.CameraEntity, { isPointerLocked: false })` once in `main()` before mutating. Writing `true` is a _request_; the client/player may still control actual capture (e.g. Esc unlocks).
 
+### Desktop lock behaviour
+
+- **Right-click releases the lock exactly like Esc**, and there is no right-click `InputAction` to tell the two apart (unity-explorer `DCLInput.inputactions`: the Camera map's `Unlock` action binds `<Mouse>/rightButton` and `<Keyboard>/escape`). An "unlocked means paused" design therefore opens the pause menu on every right-click; give pause its own key or UI button and treat an unlock as a prompt to click back in.
+- **A left click on a free cursor still fires `IA_POINTER`**, including a click aimed at scene UI (observed 2026-11: clicking a UI music button spent ammo). On desktop, gate gameplay clicks on `PointerLock.get(engine.CameraEntity).isPointerLocked`; skip the gate on mobile (`isMobile()`), which has no cursor to lock.
+- Writing `isPointerLocked = true` from a system at round start (no click needed) locks the cursor (verified in-world).
+
 ### Pointer Lock Change Detection
 
 ```typescript
@@ -71,7 +77,7 @@ engine.addSystem(readPointer)
 ### Field details
 
 - `screenCoordinates` _(optional Vector2)_ — cursor position in pixels. **Origin is the top-left corner of the screen** (positive Y = down — the same space as `UiTransform`/`UiCanvasInformation`, so cursor coords drop straight into a UI `position`). When the cursor is locked, freezes at the screen center.
-- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor); `screenCoordinates` and `worldRayDirection` work on both platforms.
+- `screenDelta` _(optional Vector2)_ — how many pixels the mouse moved since the last frame. Positive `x` = right, positive `y` = down (same top-left origin as `screenCoordinates`), so moving the mouse *up* reports a **negative** `y`. **Keeps reporting raw mouse movement while the cursor is locked** — unlike `screenCoordinates` and `worldRayDirection`, which freeze at screen center. This makes `screenDelta` the only way to read mouse movement during pointer lock, and the correct input for mouselook / FPS camera controls (see the **camera-control** skill's mouselook pattern). `screenDelta` is always 0 on mobile (no continuous cursor). `worldRayDirection` works on both platforms; on mobile `screenCoordinates` follows the touch only while a scene `VirtualCamera` is active and otherwise reports the screen centre (observed 2026-11, **sdk-scenes** → `references/mobile-parity.md`).
 - `worldRayDirection` _(optional Vector3)_ — direction from the camera through the cursor. Freezes at center ray while locked.
 - `pointerType` — `0` for none, `1` for mouse.
 

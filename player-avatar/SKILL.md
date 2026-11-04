@@ -279,6 +279,7 @@ triggerSceneEmote({
 **Notes:**
 
 - **`src` is the path relative to the project root, exactly as the file sits on disk** — an exact content lookup (`SceneContent.TryGetHash(src)`), with no search by file name or `_emote` suffix. A wrong path makes `triggerSceneEmote` resolve `false` with no error logged, and nothing plays. A file at `assets/animations/sit_emote.glb` needs `'assets/animations/sit_emote.glb'`; a bare `'animations/...'` only works if that folder really is at the project root. Same rule for `AvatarShape.expressionTriggerId` — see **npcs**.
+- Emote plays nothing and nothing is logged, path correct: check that `.dclignore` does not exclude the file (it filters the local preview too — **deploy-scene** → `.dclignore`) and that the GLB's armature root is named exactly `Armature` (**avatar-animations** → *Export one clip per file*).
 - Emotes play only while the player is standing still — walking or jumping interrupts them
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Neither needs a `scene.json` permission; `ALLOW_TO_TRIGGER_AVATAR_EMOTE` is ignored (**create-scene** → `references/scene-json.md` → Required Permissions).
@@ -401,7 +402,7 @@ for (const [entity, identity] of engine.getEntitiesWith(PlayerIdentityData)) {
 
 ## Avatar Modifier Areas
 
-`AvatarModifierArea` changes avatars inside a box region: `AMT_HIDE_AVATARS` (avatars and nametags), `AMT_HIDE_NAMETAGS` (nametags only), `AMT_DISABLE_PASSPORTS` (no profile on click), with `excludeIds` wallets left unaffected. Size it with the explicit `area: Vector3`, which wins over `Transform.scale` for the life of the component (scaling the entity or a parent later changes nothing); mirror the same numbers into `scale` so the Creator Hub agrees. `TriggerArea` is the opposite: it has no size field, and its volume is the `Transform`. Code, modifier combinations, the sizing GOTCHA and Creator Hub support: `{baseDir}/references/modifier-areas.md`.
+`AvatarModifierArea` changes avatars inside a box region: `AMT_HIDE_AVATARS` (avatars and nametags), `AMT_HIDE_NAMETAGS` (nametags only), `AMT_DISABLE_PASSPORTS` (no profile on click), with `excludeIds` wallets left unaffected. Size it with the explicit `area: Vector3`, which wins over `Transform.scale` for the life of the component (scaling the entity or a parent later changes nothing); mirror the same numbers into `scale` so the Creator Hub agrees. `TriggerArea` is the opposite: it has no size field, and its volume is the `Transform`. Code, modifier combinations, the sizing GOTCHA, overlapping areas, switching modes at runtime and Creator Hub support: `{baseDir}/references/modifier-areas.md`.
 
 ## Avatar Locomotion Settings
 
@@ -441,7 +442,7 @@ To freeze or restrict the player's movement (cutscenes, locked interactions, an 
 - `newRelativePosition` — where to move the player (scene-relative `Vector3`)
 - `cameraTarget` _(optional)_ — a point in space for the camera to face after moving
 - `avatarTarget` _(optional)_ — a point in space for the avatar to face after moving
-- `duration` _(optional)_ — transition time in seconds; if provided, movement can be awaited
+- `duration` _(optional)_ — transition time in seconds; if provided, movement can be awaited. Without it the promise resolves before the player has moved — see *Instant teleport*
 
 **Constraints:**
 
@@ -464,6 +465,29 @@ void movePlayerTo({
 	cameraTarget: Vector3.create(8, 1, 12),
 	avatarTarget: Vector3.create(8, 1, 12),
 })
+```
+
+**The instant form resolves before the move happens.** Without `duration` the promise resolves `true` as soon as the teleport is queued (verified in the Explorer's `GlobalWorldActions.MoveAndRotatePlayerAsync`: the instant path adds a teleport intent and returns). Code chained with `await` or `.then` runs while `Transform.get(engine.PlayerEntity)` still holds the old position, and the teleport that lands a moment later interrupts an emote started there (observed: a killcam avatar appeared aiming from its old spot, then jumped). To act after arrival, poll the player position each frame until it is within ~0.2 m of the target, capped at ~1.5 s (the recipe that worked; X/Z only, so a height difference between the target and the reported position cannot stall the wait):
+
+```typescript
+import { engine, Transform } from '@dcl/sdk/ecs'
+import { Vector3 } from '@dcl/sdk/math'
+import { movePlayerTo } from '~system/RestrictedActions'
+
+function teleportThen(target: Vector3, onArrive: () => void) {
+	void movePlayerTo({ newRelativePosition: target })
+	let waited = 0
+	const waitForArrival = (dt: number) => {
+		waited += dt
+		const pos = Transform.getOrNull(engine.PlayerEntity)?.position
+		const arrived = pos !== undefined && Math.hypot(pos.x - target.x, pos.z - target.z) < 0.2
+		if (arrived || waited > 1.5) {
+			engine.removeSystem(waitForArrival)
+			onArrive() // e.g. triggerSceneEmote, reveal the killcam
+		}
+	}
+	engine.addSystem(waitForArrival)
+}
 ```
 
 ### Smooth transition with duration

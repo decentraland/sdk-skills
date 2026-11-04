@@ -17,8 +17,12 @@ No mechanic the player needs may depend on a gap below. A moving platform that i
 | `TweenSequence` | Not implemented: sequenced tweens do not move at all, including the empty-`sequence` looping idiom (it is a `TweenSequence` too). This kills looping platforms, lifts and patrol paths. | Run one plain `Tween` at a time and start the next leg on `tweenSystem.tweenCompleted(entity)`. Recipe: **animations-tweens** → *Tween Sequences*. |
 | `AvatarNametag` | No plate is drawn. | Never make the plate the only carrier of information: mirror rank or role in a `TextShape`, a HUD list, or a color the avatar already wears (**player-avatar** → `references/avatar-nametag.md`). |
 | Draco-compressed GLB/glTF (`KHR_draco_mesh_compression`) | No runtime Draco decoder. Loads only from the scene's optimized assets (decompressed server-side). With no optimized assets (local preview, Creator Hub mobile preview, QR preview) the model fails to load with no error and no placeholder, so a published scene can look fine while every mobile preview is missing the model. | Export without Draco (**add-3d-models** → *Model Best Practices*). |
-| Custom fonts (`fontSrc`) | Ignored; the `font` fallback renders on `TextShape` and UI text. | Pick a fallback that keeps the meaning (**fonts**). |
+| Custom fonts (`fontSrc`) | Ignored; the `font` fallback renders on `TextShape` and UI text. The only faces observed (2026-11) are Noto Sans, Noto Serif and Noto Sans Mono, plus their bold variants. | Pick a fallback that keeps the meaning, or draw display text as image glyphs (**fonts**). |
+| Rich text `<size=…>` | Observed (2026-11): the tag renders literally as text. `<color=…>` works. | Size text with separate `Label`s, not inline tags. |
+| `uiBackground.color` on a `uvs` atlas crop | Observed (2026-11): tint **and** alpha are ignored, so the crop draws in the atlas's own colours at full opacity. A black-tinted shadow copy rendered as a second full-colour copy; near-transparent glyphs were not drawn at all. | Pre-colour the art, one atlas per colour, and bake shadows into it. Keep shadows, fades and dimmed text off tinted crops. |
 | `UiBackground` nine-slice | Tiles instead of stretching. | Check nine-sliced panels on a device. |
+| `VirtualCamera.fov` | Observed (2026-11): ignored; scene cameras render at a fixed ~60°. | Emulate zoom by moving the camera along the aim line (**camera-control** → *VirtualCamera*). |
+| `skyboxConfig.fixedTime` in `scene.json` | Observed (one session, 2026-11, not checked in source): not applied; the sky shows world time. | Also set `SkyboxTime` on `engine.RootEntity` in code at startup, and keep it (**lighting-environment** → *SkyboxTime*). |
 | Smart Items | Not officially supported. | Keep them off the path a mobile player needs. |
 | Client features | Proximity voice chat and point-at-in-world are absent. | Do not design around them. |
 
@@ -34,12 +38,16 @@ No mechanic the player needs may depend on a gap below. A moving platform that i
 - **UI interactable area:** reported from app 1.12.1. Older apps report no margins, so `screenInset: 'interactable'` and `InteractableArea` fall back to the whole screen (**build-ui** → `references/ui-components.md` → *InteractableArea*).
 - **UI:** the jump / E / F / pointer buttons are drawn over the bottom-right of the interactable area, and taps there go to the client. Keep interactive UI out of that corner and hide the controls behind full-screen panels (**build-ui** → *Placement*).
 - **`AudioAnalysis` reads `AudioSource` only** (app 1.14.0+). On an `AudioStream` or `VideoPlayer` it stays at 0, so a stream or video visualizer goes still on a phone. Band values differ from desktop by a constant factor; tune thresholds on both (**audio-analysis**).
+- **Full-screen UI stops at the safe area.** Under the renderer's default `screenInset: 'device'`, a layer at `width` / `height: '100%'` fills only the device safe area, leaving bands of unpainted screen at the notch and home-indicator edges (observed 2026-11 on splash, pause, veil and defeat screens). Render full-bleed backdrops in a renderer with `screenInset: 'none'` and keep their content inset (**build-ui** → `references/ui-components.md` → *screenInset*). A desktop build of the mobile client applies no insets, so this shows only on a real phone.
+- **Scene `VirtualCamera`:** the local player's own avatar stays visible while one is active, even inside a hide-avatars `AvatarModifierArea` (observed 2026-11). A scope or cutscene shot that hides the avatar on desktop shows it on a phone: place the camera so the avatar is out of frame.
+- **`PrimaryPointerInfo.screenCoordinates`** follows the touch only while a scene `VirtualCamera` is active; otherwise it reports the screen centre (observed 2026-11). Logic that reads the touch position from it works on mobile only under a scene camera (**advanced-input**).
+- **`Button`** (one local build, 2026-11, [UNVERIFIED] on a phone): the background was observed to keep a minimum height of about 78 px, and a `Label` at `height: '100%'` inside it did not centre. For compact buttons, try the plain `UiEntity` button shape instead (**build-ui** → `references/ui-components.md` → *Button*).
 - **UI borders:** from app 1.10.1, `borderRadius` and `borderWidth` accept pixels only; percentage values have no effect (desktop accepts both). Older apps draw square corners.
 - **`InputModifier`:** works from app 0.50 (`disableDoubleJump` / `disableGliding` from 0.65), but `disableAll` leaves the touch joystick and buttons on screen; hide them with `TouchScreenControls` (**advanced-input**).
 
 ## Supported, by app version
 
-Always: `PrimaryPointerInfo`, `AssetLoad`, plain `Tween`.
+Always: `PrimaryPointerInfo` (`screenCoordinates` differs, see *Behaves differently*), `AssetLoad`, plain `Tween`.
 
 - **App 1.13.0+:** `ParticleSystem`, `LightSource` (within the mobile light budget), avatar masks (upper-body emotes). Older apps draw no particles or scene lights and play masked emotes full-body.
 - **App 1.14.0+:** `AudioEvent`, `AudioAnalysis` on `AudioSource` (see *Behaves differently*), audio volume curves and spatial attenuation, pinch-to-zoom between first and third person. Older apps emit no audio events and leave analysis at 0.
