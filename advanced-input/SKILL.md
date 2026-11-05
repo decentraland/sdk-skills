@@ -272,7 +272,7 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 
 - Set it on **`engine.RootEntity`** — the client reads it nowhere else.
 - Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
-- **Every scene starts from the default button set**: `IA_JUMP`, `IA_POINTER` and `IA_PRIMARY` visible; `IA_SECONDARY` and `IA_ACTION_3`..`IA_ACTION_6` hidden. See *The default button set* below.
+- **Every scene starts from the default button set** (SDK **7.32.0+**): `IA_JUMP`, `IA_POINTER` and `IA_PRIMARY` visible; `IA_SECONDARY` and `IA_ACTION_3`..`IA_ACTION_6` hidden. On 7.26.0–7.31.x there is no default write: all eight buttons show unless the scene hides some. See *The default button set* below.
 - **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
 - Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
 - **If the scene uses the Creator Hub UI Designer, this component is the editor's.** The Creator Hub ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **build-ui** skill > "MobileHUD".
@@ -281,7 +281,7 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 
 | Field           | Type                                 | Default     | Description                                                                                  |
 | --------------- | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------- |
-| `touchInputs`   | `PBTouchScreenControls_TouchInput[]` | default set | Per-button overrides. A button not listed is **shown** with its default glyph — so a hand-written list that omits `IA_ACTION_3`..`IA_ACTION_6` reveals them. |
+| `touchInputs`   | `PBTouchScreenControls_TouchInput[]` | `[]`        | Per-button overrides. A button not listed is **shown** with its default glyph — so a hand-written list that omits `IA_ACTION_3`..`IA_ACTION_6` reveals them. The proto default is the empty list; the three-button *default set* is written by SDK startup (7.32.0+), not by the field. |
 | `mainAction`    | `InputAction \| undefined`           | `undefined` | Which action the large central button triggers. When unset, the default (`IA_JUMP`) is kept. |
 | `hideJoystick`  | `boolean`                            | `false`     | Removes the native virtual joystick.                                                         |
 | `hideCrosshair` | `boolean`                            | `false`     | Hides the on-screen crosshair / reticle.                                                     |
@@ -296,7 +296,7 @@ Convenience helpers on the component (each writes `RootEntity` and merges with t
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `TouchScreenControls.hide(actions: InputAction[])`         | Hide the given buttons, merged into the current config.                                      |
 | `TouchScreenControls.hideAll()`                            | Hide all eight gamepad buttons.                                                              |
-| `TouchScreenControls.showDefault()`                        | Restore the default set (jump + pointer + primary visible, the other five hidden).           |
+| `TouchScreenControls.showDefault()`                        | Restore the default set (jump + pointer + primary visible, the other five hidden). **7.32.0+**; on older SDKs the only restore is `showAll()`. |
 | `TouchScreenControls.showAll()`                            | Clear `touchInputs`, making **all eight** visible. Does **not** touch joystick/crosshair.    |
 | `TouchScreenControls.setMainAction(action: InputAction)`   | Set the large central button's action.                                                       |
 | `TouchScreenControls.hideJoystick()` / `.showJoystick()`   | Toggle the native virtual joystick.                                                          |
@@ -324,7 +324,7 @@ TouchScreenControls.hide([InputAction.IA_ACTION_3, InputAction.IA_ACTION_4])
 | Top level of `src/index.ts`            | Suppresses the default entirely — only what you wrote applies, every other button shows. |
 | Inside `main()`, or any later system   | Layers on top of the default — the five default-hidden buttons stay hidden.      |
 
-`TouchScreenControls.hide([InputAction.IA_POINTER])` therefore leaves six buttons on screen from the top level, and two from inside `main()`. When the exact set matters, write it in full with `createOrReplace` instead of relying on a merge.
+`TouchScreenControls.hide([InputAction.IA_POINTER])` therefore leaves seven buttons on screen from the top level (eight minus pointer), and two from inside `main()` (the default three minus pointer). When the exact set matters, write it in full with `createOrReplace` instead of relying on a merge.
 
 **To reveal `IA_SECONDARY` or the numbered buttons, name them explicitly** with `hide: false`, or call `showAll()`. Note that `createOrReplace` replaces the whole list, so any button it omits is shown.
 

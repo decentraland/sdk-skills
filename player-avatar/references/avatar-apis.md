@@ -217,6 +217,7 @@ Two gotchas make the obvious approach fail, both from the `4,26-avatarbase-talki
 
   ```typescript
   const address = PlayerIdentityData.getOrNull(player)?.address
+  if (!address) return // no id yet — an AvatarAttach without avatarId attaches to the LOCAL player
   const anchor = engine.addEntity()
   AvatarAttach.create(anchor, { avatarId: address, anchorPointId: AvatarAnchorPointType.AAPT_NAME_TAG })
   // then parent the Billboard label to `anchor`, not to `player`

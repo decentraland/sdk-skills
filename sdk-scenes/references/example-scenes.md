@@ -29,11 +29,11 @@ Entry fields: `id`, `name`, `description`, `category`, `tags`, `source` (repo UR
 | `audio-video-environment` | 4 | audio visualization, dynamic lights, skybox control, video streaming |
 | `performance-scene-systems` | 3 | asset loading, material and texture gallery, modifier areas |
 | `scene-management-feedback` | 1 | Scene Feedback (`playtest-feedback`; **scene-feedback**) |
-| `rewards` | 2 | `reward-claim-dispenser`, `clap-to-claim-dispenser` — give players a wearable through a Rewards campaign (**nft-blockchain** → *Rewards campaigns*) |
+| `rewards` | 2 | `reward-claim-dispenser`, `clap-to-claim-dispenser` — give players a wearable through a Rewards campaign. No topic skill covers Rewards yet: read the entry's `highlights[]` references. |
 
 **Most of the catalog is official now: 33 of the 48 entries are `maintenance: "decentraland"`.** Three GitHub owners count as official — `decentraland` (27 entries), `decentraland-scenes` (`npc-toolkit`) and `dcl-regenesislabs`, which the docs label **Decentraland DAO** (`cozy-farm`, `dead-surge`, `kick-off`, `my-dear-pet`, `tower-of-madness`). The remaining **15 are community, and all of them are published games**: `shroom-zoom`, `goal-legends`, `monster-recon`, `prime-drive`, `the-fortune-teller`, `clean-the-club`, `astro-crew`, `flag-tag`, `pigeon-deluxe`, `alien-scrapyard`, `fastlane-bowling`, `sky-chaser`, `slay-the-steps`, `bloom-garden`, `slide-penguin`. Outside `published-games`, every entry is official.
 
-Topic skills already link `sdk7-scene-template` (**create-scene**), `ui-animations` (**build-ui**), `video-streaming` (**audio-video**), `mini-games-library` (**multiplayer-sync**) and the two `rewards` entries (**nft-blockchain**); the rest are reached only through this catalog.
+Topic skills already link `sdk7-scene-template` (**create-scene**), `ui-animations` (**build-ui**), `video-streaming` (**audio-video**) and `mini-games-library` (**multiplayer-sync**); the rest, including the two `rewards` entries, are reached only through this catalog.
 
 ## Published games (playable in their World)
 

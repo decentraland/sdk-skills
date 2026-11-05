@@ -102,7 +102,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `showDefault()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. Scenes start from a **default set** — jump, pointer and primary visible, secondary and actions 3-6 hidden — so `showAll()` (all eight) is not the same as restoring it; `showDefault()` is (**advanced-input**). |
+| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `showDefault()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. On SDK **7.32.0+** scenes start from a **default set** — jump, pointer and primary visible, secondary and actions 3-6 hidden — so `showAll()` (all eight) is not the same as restoring it; `showDefault()` (7.32.0+) is. On 7.26.0–7.31.x all eight show by default and `showDefault()` does not exist (**advanced-input**). |
 
 ## System & Runtime
 

@@ -88,7 +88,7 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
 
 ## Worked example — declutter and re-icon
 
-Hide the joystick and give the central jump button a scene image. The numbered buttons are listed with `hide: true` even though the default set already hides them: a `createOrReplace` that lists any button counts as the scene choosing its own set, so the default is never applied and anything left out of the list shows.
+Hide the joystick and give the central jump button a scene image. The numbered buttons are listed with `hide: true` even though the default set already hides them: this runs inside `main()`, after the SDK's startup write, and `createOrReplace` replaces the whole `touchInputs` list — so any button left out of the list shows. (The "lists any button counts as choosing" check only matters for a write that runs *before* the first frame, at the top level of `src/index.ts`; see SKILL.md → *The default button set*.)
 
 ```typescript
 import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'

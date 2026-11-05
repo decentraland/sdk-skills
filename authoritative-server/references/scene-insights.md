@@ -142,7 +142,7 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 
 Gauges return `avg` and `max` per bucket; sums return `sum` (the bucket's total) and `rate` (per second). Use returned `unit`, `rateUnit` and `stepSeconds`; do not differentiate `rate` again. Compare matching windows and buckets. Use `metrics <name> --execution <id>` to isolate one run; name discovery is scene-wide. The list varies by scene and engine version: always start from `metrics --json`.
 
-**A series returns at most ~1,500 buckets.** A long window at a small `--step` is truncated rather than downsampled — raise `--step` so `window / step` stays under that, e.g. 24 h needs `--step 60` or coarser.
+**A query may span at most 1,500 buckets.** A long window at a small `--step` is **rejected** (`The range and step yield N buckets; the maximum is 1500`), not truncated or downsampled — raise `--step` so `window / step` stays under that, e.g. 24 h needs `--step 60` or coarser.
 
 Typical reads:
 - Heap growth across comparable workloads in the same execution is a leak candidate. Check whether it falls after garbage collection or players leave; a high bucket maximum alone does not prove a leak.
