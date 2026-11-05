@@ -181,9 +181,9 @@ audio-video (`{baseDir}/../audio-video/SKILL.md`).
 **Audio-reactive play:** a pulse cue or reactive installation can respond to a scene track.
 `AudioAnalysis` provides amplitude and frequency bands from an entity's audio component;
 detecting exact beats or scoring rhythm still needs game logic and timing checks.
-It does not expose the player's microphone or recognize words. The **audio-analysis**
-skill distinguishes progressive video from HLS analysis and warns that silence and missing
-support can both produce zeros. Source and implementation:
+It does not expose the player's microphone or recognize words. It reads a `VideoPlayer`
+soundtrack as readily as an `AudioSource`, for progressive files and HLS streams alike;
+the **audio-analysis** skill warns that silence and an unread source both produce zeros. Source and implementation:
 audio-analysis (`{baseDir}/../audio-analysis/SKILL.md`).
 If play must also work without audio, provide a readable alternative. Official [docs change b4d4c88](https://github.com/decentraland/docs/commit/b4d4c88191f3d65fc2214f586c86dfb9447ce55e)
 records AudioAnalysis and AudioEvent support in mobile v1.14.0; an unqualified “desktop only”

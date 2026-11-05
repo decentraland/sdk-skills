@@ -184,6 +184,46 @@ AvatarEquippedData.onChange(engine.PlayerEntity, (equipped) => {
 })
 ```
 
+## Voice activity — `AvatarBase.talking`
+
+`PBAvatarBase.talking?: boolean`, written by the engine on every player entity, local and remote. Read-only for the scene.
+
+| Value       | Meaning                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| `true`      | the player is speaking in voice chat right now                       |
+| `false`     | the player is silent                                                 |
+| `undefined` | the engine does not report voice activity (e.g. Nearby voice chat off) |
+
+Treat `undefined` as a distinct third state, not as "silent" — a scene that renders a speaking indicator should show nothing rather than a "muted" badge when there is no data.
+
+Poll it per frame across everyone in the scene:
+
+```typescript
+import { AvatarBase, engine } from '@dcl/sdk/ecs'
+
+for (const [player] of engine.getEntitiesWith(AvatarBase)) {
+	const talking = AvatarBase.getOrNull(player)?.talking // true | false | undefined
+}
+```
+
+- **`onProfileChanged` does not fire for it.** The SDK compares the `AvatarBase` value with `talking` masked out, so a change to `talking` alone is not a profile change. Watch `AvatarBase` directly (`onChange`, or the per-frame scan above) for voice activity.
+- **Not the same as `AvatarShape.talking`**, which is a scene-to-engine flag that draws the green voice bars on a scene-spawned NPC avatar (see **npcs**). `AvatarBase.talking` reports a real player's microphone; `AvatarShape.talking` fakes the indicator on a puppet. They never interact.
+
+### Marking a talking player above their head
+
+Two gotchas make the obvious approach fail, both from the `4,26-avatarbase-talking` QA scene:
+
+- **Parenting to a remote player's entity does not work.** The engine writes that entity's `Transform` for the scene to *read*; a child of it falls back to the scene root and sits at the origin. Attach by address instead:
+
+  ```typescript
+  const address = PlayerIdentityData.getOrNull(player)?.address
+  const anchor = engine.addEntity()
+  AvatarAttach.create(anchor, { avatarId: address, anchorPointId: AvatarAnchorPointType.AAPT_NAME_TAG })
+  // then parent the Billboard label to `anchor`, not to `player`
+  ```
+
+- **Player entity ids are reused.** When a player leaves and another joins, the same entity can come back with a different address. Re-check `PlayerIdentityData.address` each frame and rebuild the marker when it no longer matches the one the marker was built for.
+
 ## AvatarModifierType
 
 All values, combinations and the sizing rule: `modifier-areas.md`.

@@ -16,6 +16,7 @@ import { Color4, Vector3 } from '@dcl/sdk/math'
 - **Clients**: not supported yet on mobile (Godot explorer) or the Bevy explorer; those players keep the regular sky, sun and fog. Never make the overrides gameplay-critical.
 - **Root entity only**: write them to `engine.RootEntity`. On any other entity they do nothing.
 - Every field is optional; an unset field keeps its time-of-day default.
+- **The three are independent.** Any one of them on its own puts the scene in control of that part of the environment; they do not need to be set together, and each resets on its own when deleted.
 - Active only while the player is inside the scene. Leaving the scene, `deleteFrom`, or unsetting a field restores the defaults instantly (no fade); re-entering re-applies.
 - They never affect other scenes, but while active they are global render state: neighbouring parcels seen from inside the scene render with this sky, sun and fog.
 
@@ -41,8 +42,12 @@ const horizon: ColorGradient = {
 ```
 
 - Values above 1 are HDR; alpha is ignored.
+- A `time` outside `0`–`1` **clamps into range** rather than erroring.
+- Two keys with the same `time`: the one **later in `keys`** wins.
 - Keep gradients to 8 keys or fewer: the Explorer resamples longer ones to 8 evenly spaced keys.
 - Pair with `SkyboxTime` to pin a gradient at one time of day.
+
+Payload types are exported from `@dcl/ecs` (so also `@dcl/sdk/ecs`) — `PBSkybox`, `PBSkybox_SkyColors`, `PBSkybox_Clouds`, `PBSkybox_Stars`, `PBSun`, `PBEnvironmentFog`, `ColorGradient`, `ColorKey`. Import them directly; the `Parameters<typeof Skybox.createOrReplace>[1]` derivation used by the `2,2-skybox-control` test scene is a leftover from before they were exported.
 
 ## Skybox: sky texture
 
@@ -76,8 +81,8 @@ Skybox.createOrReplace(engine.RootEntity, {
 
 - `skyColors` are also the ambient light: zenith → sky ambient, horizon → equator ambient, nadir → ground ambient. There is no separate ambient field. Recoloring only the fog or the sun leaves ambient at its default, so set all three for a coherent look.
 - `rim` unset → follows the `horizon` override when set, else the default.
-- `clouds.opacity` default 1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis (0 = static, negative clamps to 0). `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
-- `stars.brightness` default 4.62, a multiplier on the star texture (0 hides them). Stars only render at night.
+- `clouds.opacity` default 1, range 0–1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis — one turn every ~10 minutes; `0` = static, **negative reverses the direction**. `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
+- `stars.brightness` default 4.62, a multiplier on the star texture (1 = as authored, above 1 is HDR). `0` hides them, negative clamps to 0. Stars only render at night.
 
 ## Sun
 

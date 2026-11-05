@@ -65,7 +65,7 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **PlayerIdentityData** | `address: string`, `isGuest: boolean` | Player's wallet address and guest status. |
 | **AvatarShape** | `id: string`, `name: string`, `bodyShape`, `wearables`, `emotes` | Render an avatar (for NPCs). |
-| **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
+| **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name`, `talking?: boolean` | Base avatar appearance, written by the engine on every player entity. `talking`: `true` speaking in voice chat, `false` silent, `undefined` no voice data. `onProfileChanged` ignores `talking` changes — watch the component. Not `AvatarShape.talking` (**npcs**). See `player-avatar`. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
 | **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. Not implemented on mobile. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
@@ -102,7 +102,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. |
+| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `showDefault()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. Scenes start from a **default set** — jump, pointer and primary visible, secondary and actions 3-6 hidden — so `showAll()` (all eight) is not the same as restoring it; `showDefault()` is (**advanced-input**). |
 
 ## System & Runtime
 

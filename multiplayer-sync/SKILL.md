@@ -329,6 +329,8 @@ Two ways to make a client-local visual agree across clients:
 
 In both cases: resolve the target `Entity` from the user id on **every** write. Player entity ids are recycled across disconnects, so a cached `Entity` can land the write on a different player.
 
+**To hang a marker over a remote player, use `AvatarAttach` with their address — never `Transform.parent`.** The engine writes a remote player's `Transform` only for the scene to read; an entity parented to it falls back to the scene root and sits at the origin. `AvatarAttach.create(anchor, { avatarId: address, anchorPointId: AvatarAnchorPointType.AAPT_NAME_TAG })` from `PlayerIdentityData.address` follows the avatar, and a `Billboard` label parented to that anchor rides along. Worked example and the entity-reuse rebuild loop: **player-avatar** → `references/avatar-apis.md` → *Voice activity*.
+
 ## Multiplayer Testing
 
 Every client connected to the local preview realm counts as a separate player — but **the desktop Explorer only allows one instance at a time**. Pressing **Play** a second time in the Creator Hub re-focuses the window that is already open; it does not add a second player. Two ways to get a second local client:

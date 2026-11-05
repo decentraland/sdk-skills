@@ -278,9 +278,9 @@ does not establish present memory or loading performance.
 
 **Reactive media and sound lifecycle →** pulse cues, a music-driven installation, repeated tool
 sounds or a spoken instruction followed by an action. [Audio visualization](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/88,-10-audio-visualization/src/index.ts)
-maps amplitude/eight bands from audio/video entities onto objects. Exact beat scoring and shared
-timing remain custom; progressive video analysis differs from HLS, and zeros can mean unsupported
-analysis. [Retrigger probes](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/89,-10-audio-source-retrigger-test/README.md)
+maps amplitude/eight bands from audio/video entities onto objects, with one visualizer group each
+for an `AudioSource`, a progressive MP4 and an HLS stream. Exact beat scoring and shared
+timing remain custom, and zeros can mean either silence or a source the analyzer never read. [Retrigger probes](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/89,-10-audio-source-retrigger-test/README.md)
 separate SDK write dedup from renderer cursor handling: replaying the same URL needs both paths
 to work. [Audio finish](https://github.com/decentraland/sdk7-test-scenes/blob/5606ac68816094771e5e3e393d75b433213700f1/scenes/89,-11-audio-finish/src/index.ts)
 polls a true-to-false edge and records media events. Very short, missing, stopped and interrupted
