@@ -298,7 +298,7 @@ export function openScoreboard() {
 
 export function closeScoreboard() {
   scoreboardOpen = false
-  TouchScreenControls.showAll()      // also clears any custom button icons — re-apply them here if the scene set some
+  TouchScreenControls.showDefault()  // 7.32.0+; restores the scene's starting button set, icons intact (showAll() would reveal all eight and drop the icons). Below 7.32.0 use showAll()
   TouchScreenControls.showJoystick()
   InputModifier.deleteFrom(engine.PlayerEntity)
 }

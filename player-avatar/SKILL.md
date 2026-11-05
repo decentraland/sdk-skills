@@ -536,6 +536,10 @@ async function lockedTeleport() {
 
 `AvatarBase.onChange` (appearance, name) and `AvatarEquippedData.onChange` (wearables) on `engine.PlayerEntity` or a remote player's entity: `{baseDir}/references/avatar-apis.md` → Avatar Change Listeners. Emote playback: *Detecting when an emote finishes*. Wallet checks with `getPlayer()` and `isGuest` before showing avatar items: **nft-blockchain**.
 
+## Who is talking (`AvatarBase.talking`)
+
+`AvatarBase.talking?: boolean` reports voice-chat activity for any player in the scene, local or remote: `true` speaking, `false` silent, `undefined` when the engine reports no voice activity at all. Scan it with `engine.getEntitiesWith(AvatarBase)` — `onProfileChanged` deliberately ignores it, so a profile listener will never see it flip. Distinct from `AvatarShape.talking`, the scene-to-engine flag that fakes voice bars on an NPC avatar (**npcs**). The three states, the no-parenting-to-remote-players gotcha and the `AvatarAttach` marker recipe: `{baseDir}/references/avatar-apis.md` → *Voice activity*.
+
 ## Example scenes
 
 Engine-team test scenes for attachments, emotes, masks, `movePlayerTo`, modifier areas, nametag plates and `InputModifier`: `{baseDir}/references/test-scenes.md`.

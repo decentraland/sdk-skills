@@ -84,8 +84,8 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 
 - **Never run `tail` without `--for`**: it follows until interrupted. For questions about the past use `logs`.
 - `--from`/`--to` take a duration back from now (`15m`, `2h`, `7d`), epoch milliseconds, or ISO-8601 with an offset. `logs` defaults to the last hour; `metrics` (names) and `executions` to the last 24 hours. At most 7 days.
-- `logs --level` is a minimum (`warn` includes `error`). `--source scene,engine` filters by origin.
-- The CLI handles pagination up to `--limit` and reconnect/resume within a running tail. There is no CLI `--cursor` flag. `tail` accepts level/text filters, but not `--execution`, `--source`, `--from` or `--to`; use `logs` for those filters.
+- `logs --level` is a minimum (`warn` includes `error`). `--source` filters by origin and accepts `scene`, `engine` and `stderr`, singly or comma-separated.
+- The CLI handles pagination up to `--limit` and reconnect/resume within a running tail. There is no CLI `--cursor` flag — a direct API client gets up to 1,000 rows per page and pages with a cursor instead. `tail` accepts level/text filters, but not `--execution`, `--source`, `--from` or `--to`; use `logs` for those filters.
 - `logs` returns the newest `--limit` lines (1-10000, default 100); `--order asc` returns the oldest instead.
 
 ## Reading the Output
@@ -131,20 +131,26 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 | `cpu.updates_completed`, `cpu.update_errors` | sum | Completed onUpdate calls (including errors), and failed calls |
 | `mem.heap_used`, `mem.heap_limit`, `mem.external_bytes` | gauge | JavaScript heap use/ceiling and V8 external memory; not process RSS or the Fargate limit |
 | `logs.lines`, `logs.bytes` | sum | What the scene wrote to the console (before the rate limit) |
+| `logs.dropped` | sum | Lines the engine's **per-tick** log budget discarded (1,000 lines per tick by default), counted before export. Separate from the per-second rate limit and the daily quota. |
 | `comms.msgs_out`, `comms.bytes_out` | sum | Messages and bytes the server sent to players |
 | `crdt.bytes` | sum | Bytes of component changes the scene's code wrote |
 | `fetch.started`, `fetch.completed`, `fetch.failed`, `fetch.bytes_down` | sum | HTTP requests made by the server |
+| `fetch.status_4xx`, `fetch.status_5xx` | sum | HTTP error responses. **Not counted in `fetch.failed`** — a server whose requests all return 500 shows `fetch.failed` at zero. Read all three together. |
 | `storage.requests`, `storage.completed`, `storage.failed` | sum | Storage service calls |
 | `storage.unauthorized` | sum | Storage calls refused with 401/403 (also counted as completed) |
 | `ws.opened` | sum | WebSockets opened |
 
 Gauges return `avg` and `max` per bucket; sums return `sum` (the bucket's total) and `rate` (per second). Use returned `unit`, `rateUnit` and `stepSeconds`; do not differentiate `rate` again. Compare matching windows and buckets. Use `metrics <name> --execution <id>` to isolate one run; name discovery is scene-wide. The list varies by scene and engine version: always start from `metrics --json`.
 
+**A query may span at most 1,500 buckets.** A long window at a small `--step` is **rejected** (`The range and step yield N buckets; the maximum is 1500`), not truncated or downsampled — raise `--step` so `window / step` stays under that, e.g. 24 h needs `--step 60` or coarser.
+
 Typical reads:
 - Heap growth across comparable workloads in the same execution is a leak candidate. Check whether it falls after garbage collection or players leave; a high bucket maximum alone does not prove a leak.
 - Sustained `cpu.percent` near 100%, or `cpu.run_ms` near 1000 ms/s, suggests the measured execution thread is busy. Correlate with update errors and workload; this does not measure the whole server or prove why clients lag.
 - High `logs.lines`/`logs.bytes` indicates logging pressure. Confirm actual drops with engine rate-limit/quota notices; burst allowances and deployment-specific budgets mean a short spike alone does not prove loss.
-- `fetch.failed` or `storage.failed` growing: check the errors in `logs` for the same window. `storage.unauthorized` above 0: the server's storage credential was refused.
+- `fetch.failed` or `storage.failed` growing: check the errors in `logs` for the same window. `storage.unauthorized` above 0: the server's storage credential was refused. A healthy-looking `fetch.failed` proves nothing on its own — check `fetch.status_4xx` / `fetch.status_5xx` too.
+- `logs.dropped` above 0: a single tick logged more than 1,000 lines, so the export is incomplete for that window. Treat gaps in `logs` output as missing evidence rather than as quiet periods, and cut per-frame logging before drawing conclusions.
+- **Daily quota counters live in memory**, so a server-process restart or a move to another replica resets them. The daily cap is approximate across those events — do not reconcile quota notices into an exact daily total.
 
 ## Exit Codes
 
