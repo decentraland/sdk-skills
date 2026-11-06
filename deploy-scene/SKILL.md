@@ -258,6 +258,7 @@ The desktop preview already runs the same conversion locally, so catch conversio
 | "Invalid thumbnail: size … exceeds maximum of 1048576 bytes" | Thumbnail over 1 MB (a plain 1920x1080 PNG can be) | Export JPEG or shrink to 1344x756 — see **Thumbnail image** |
 | `DEPLOY_PARTIAL_NOT_SUPPORTED` | The server can't take batched uploads and the content it is missing is over 200 MB | Shrink the scene (`.dclignore`, texture sizes) or deploy to a server that supports batches — `{baseDir}/references/deploy-cli.md` |
 | `DEPLOY_CANCEL_OUTCOME_UNCERTAIN` | A cancel landed mid-upload and the CLI couldn't tell whether the server published it | Check the scene (conversion status URL above) before deploying again |
+| `tsc`/deploy build fails on `node_modules/@dcl/js-runtime/sdk.d.ts` importing a script file that no longer exists | The bundler rewrites that file's `~sdk/script-utils` declaration only while the composite still has at least one script; removing the last Creator Hub script asset leaves the old declaration pointing at the deleted `.tsx` | Delete the `declare module '~sdk/script-utils'` block at the end of `sdk.d.ts` (or `rm -rf node_modules/@dcl/js-runtime && npm install`), then build again. Keeping one script in the scene avoids it |
 
 ### Genesis City vs Worlds
 

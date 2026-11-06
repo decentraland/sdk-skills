@@ -138,6 +138,8 @@ The Explorer ships 21 embedded emotes (sitting, interactions and more; the sitti
 - `disco` — disco dance
 - `dab` — dab
 - `headexplode` — head explode
+- `dance` — dance
+- `cry` — cry
 
 ## Player Event Callbacks
 

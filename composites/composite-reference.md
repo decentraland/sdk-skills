@@ -726,19 +726,21 @@ import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {
-	// Returns the entity or null — always check before use
+	// Returns the entity or null — log the null, never skip silently
 	const door = engine.getEntityOrNullByName(EntityNames.Door_1)
-	if (door) {
-		pointerEventsSystem.onPointerDown(
-			{
-				entity: door,
-				opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open' },
-			},
-			function () {
-				/* open door */
-			}
-		)
+	if (!door) {
+		console.error('[scene] entity Door_1 missing from main.composite')
+		return
 	}
+	pointerEventsSystem.onPointerDown(
+		{
+			entity: door,
+			opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open' },
+		},
+		function () {
+			/* open door */
+		}
+	)
 
 	// Strict variant — the <EntityNames> type parameter catches renames at
 	// COMPILE time only. At runtime it never throws: called before composite
@@ -749,7 +751,7 @@ export function main() {
 }
 ```
 
-You can also pass a plain string instead of the enum value, but the enum is preferred because it catches renames at compile time.
+Always pass the `EntityNames` member, never a string literal: renaming or deleting an entity in the Creator Hub regenerates `entity-names.ts`, so the member disappears and `tsc` fails at the exact line, whereas a string silently returns `null` and the feature just stops. Never swallow that `null`: log it and return, as above — an empty `if (door)` hides the loss. A scene the Creator Hub can edit can lose any entity your code expects.
 
 ### By Tag
 

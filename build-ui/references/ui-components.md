@@ -268,7 +268,7 @@ Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `
 />
 ```
 
-The mobile app ignores `color` tint and alpha on `uvs` crops: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+Mobile apps below 1.16.0 ignore `color` tint and alpha on `uvs` crops: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 **Desktop client limits** (observed in-world, 2026-11):
 

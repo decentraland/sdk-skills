@@ -241,11 +241,12 @@ To override the material or shadow casting of the **entire** model (`path: ''`) 
 
 - `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
 - `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
-- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
+- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`. A node override goes through the same material loader as `Material` on a primitive — avatar (`Material.Texture.Avatar`) and video textures included — and the node keeps its GLB material until the override's textures finish loading. A node that keeps its original look therefore has an unresolved `path` (check the Explorer log for `GLTF Node path '…' not found`) or a texture that never loaded: prove the texture on a `MeshRenderer.setPlane` + `Material.setPbrMaterial` first, then move the same texture into the modifier.
 - `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
 - One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
 - **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
 - Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
+- **An entity that never appears after repeated `[SomeSystem]` exceptions in the Explorer log is a suspended scene, not a material problem.** The Explorer suspends a scene's systems after three engine-side exceptions within a minute (`SceneExceptionsHandler`, state `EcsError`, a `SceneExecutionException` naming the system in the log); from then on nothing the scene creates renders. Read and fix (or report) the named exception before touching materials (observed 2026-08: a per-entity material override made the model 'invisible').
 
 Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
 

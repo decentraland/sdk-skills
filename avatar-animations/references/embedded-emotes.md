@@ -30,7 +30,7 @@ These 21 emotes ship in the Explorer client binary, so they need no catalyst fet
 | `Waving`               | Other       | no   | Wave — capital `W`, not `waving`                                                                  |
 | `fistpump_short`       | Other       | no   | Short fist pump — with the `_short` suffix, not `fistpump`                                        |
 
-**Not embedded:** the social emotes (`wave`, `fistpump`, `robot`, `raiseHand`, `clap`, `money`, `kiss`, `tik`, `hammer`, `tektonik`, `dontsee`, `handsair`, `shrug`, `disco`, `dab`, `headexplode`) are resolved as emote urns like any other wearable emote and are listed in **player-avatar** (`references/avatar-apis.md`).
+**Not embedded:** the social emotes (`wave`, `fistpump`, `robot`, `raiseHand`, `clap`, `money`, `kiss`, `tik`, `hammer`, `tektonik`, `dontsee`, `handsair`, `shrug`, `disco`, `dab`, `headexplode`, `dance`, `cry`) are resolved as emote urns like any other wearable emote and are listed in **player-avatar** (`references/avatar-apis.md`).
 
 Source: `Explorer/Assets/DCL/AvatarRendering/Emotes/EmbeddedEmotes/EmbeddedEmotes.asset` (unity-explorer `main`, read 2026-10-12).
 
