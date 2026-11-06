@@ -33,6 +33,7 @@ assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(
 Caveats:
 
 - The state callback is **per-asset**, keyed by the `asset` path string — dispatch on `state.asset` to update the right entity. There is no single "all finished" event; track completion yourself by counting per-asset `FINISHED`/error states.
+- **A client can leave an asset in `LOADING` indefinitely.** On the mobile client (a desktop debug build emulating an iPhone, 2026-11) a few GLBs of a level never reported a final state while the same scene finished on desktop, and a loading bar that waited for every model stuck at 98 % for good. Whether the client or those GLBs are at fault is not established, and the 100-entry cap below — which also leaves assets unreported once more than about 40 paths share one entity — was not ruled out first; rule it out before blaming the client. Never gate gameplay on every asset reaching `FINISHED`: count `FINISHED_WITH_ERROR` and `NOT_FOUND` as done, and start anyway when the timeout below fires, logging the stragglers by path.
 - `AssetLoad` only **adds** assets to memory. Removing a path from the `assets` list does **not** free memory — there is no unload via `AssetLoad`.
 - Preloading a path does **not** create/render anything — you still `getOrCreateMutable` the real component (`GltfContainer`, `AudioSource`, `VideoPlayer`, `Material` texture) on an entity to use it; the preload just makes that later use instant.
 
