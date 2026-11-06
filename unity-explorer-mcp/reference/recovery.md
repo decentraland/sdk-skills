@@ -37,7 +37,7 @@ Keep the brackets in the patterns, so they can't match the shell running the com
 
 ## Models load unoptimized or a custom font shows its fallback after a relaunch
 
-A stale `abgen` — the Explorer's local asset-bundle converter, a child process that survives a force-quit — is holding `127.0.0.1:5147`, so the new session degrades to raw GLTFs and the built-in font, and relaunching alone does not clear it. `pgrep -fl abgen`, stop it, then relaunch once. The **AB** panel of the Explorer's debug menu names what holds the port (**optimize-scene** → *Local Asset Bundle Preview*). Stop it before a Decentraland launcher update too: a surviving `abgen` blocked one because its files were in use (observed 2026-11).
+A stale `abgen` — the Explorer's local asset-bundle converter, a child process that survives a force-quit — is holding `127.0.0.1:5147`. The new launch adopts it only when it is the same Explorer build serving the same scene and already ready; otherwise the session degrades to raw GLTFs and the built-in font until it is stopped. `pgrep -fl abgen`, stop the pid the AB panel names, then relaunch once. The **AB** panel of the Explorer's debug menu names what holds the port (**optimize-scene** → *Local Asset Bundle Preview*). Stop it before a Decentraland launcher update too: a surviving `abgen` blocked one because its files were in use (observed 2026-11).
 
 ## The connection dropped
 
