@@ -35,6 +35,10 @@ Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
 
 Keep the brackets in the patterns, so they can't match the shell running the command (see **creator-hub-mcp**). Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
 
+## Models unoptimized or fonts on their fallback
+
+The desktop client converts every local scene to asset bundles before it loads, so a `fontSrc` font on its fallback or models loading as raw GLTFs means the converter did not serve this scene. The **AB** panel of the Explorer's debug menu says why, and `get_scene_logs` / `Player.log` carry the same milestones. The usual cause after a force-quit: a stale `abgen` — the converter, a child process on `127.0.0.1:5147` that survives a force-quit — still holds the port, and a new launch adopts it only when it is the same Explorer build serving the same scene and already ready; anything else degrades the session to raw GLTFs and the built-in font until it is stopped. `pgrep -fl abgen`, stop the pid the panel names, then relaunch once. Stop it before a Decentraland launcher update too: a surviving `abgen` blocked one because its files were in use (observed 2026-11). Other causes: the converter not starting, a single bundle that failed and fell back to its raw GLTF (`asset bundle unavailable (…), loading the raw GLTF instead`), or a font in a format other than `.ttf`, which never converts. Detail: **optimize-scene** → *Local Asset Bundle Preview*.
+
 ## The connection dropped
 
 The client probably crashed or was closed — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.

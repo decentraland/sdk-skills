@@ -15,7 +15,7 @@ The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
 Two launch errors:
 
-- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
+- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` (on a Multiplayer Server scene reinstall from the `auth-server` tag instead, never `latest`: **sdk-scenes** → *A feature that needs a newer SDK*) and retry, or launch a specific build by hand (below).
 - **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
 
 The Creator Hub's **Enable MCP Server** checkbox (**Play Options** — the dropdown arrow on the editor header's **Play** button — then hover **Desktop Client**) passes `--mcp` to this same process, and appears only when the scene's `@dcl/sdk-commands` supports the flag — a missing checkbox is the first error above in another guise.
@@ -28,7 +28,7 @@ When the user wants to keep the already-running scene server and its Explorer un
 npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
-From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
+Run it from a different scene folder: a second dev server in the same folder rewrites the same `bin/index.js`. From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
 
 ## Launching a specific Explorer build manually
 
@@ -42,7 +42,7 @@ open /path/to/Decentraland.app --args \
   --mcp --windowed-mode --resolution 1280x720
 ```
 
-On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
+On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
 ## Registering in other clients
 
