@@ -36,6 +36,8 @@ npx skills add decentraland/sdk-skills --all
 
 Don't use `npx skills update` for this: it only refreshes skills you already have installed, so it won't download newly added skills.
 
+`npx skills` records every installed skill and its source repository in `skills-lock.json` next to the skills folder; read it before guessing where a skill came from. Skills that were part of the earlier OpenDCL context package are now maintained here, so a skill missing from this repo's table was never in it rather than removed.
+
 ## Available Skills
 
 | Skill | Description |

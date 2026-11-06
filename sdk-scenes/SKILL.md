@@ -75,6 +75,10 @@ If the `explorer` MCP server is not connected (ConnectionRefused, or no `explore
 
 When the Explorer MCP is **connected**, verify every change in-world before you report it done. Don't wait for the user to ask. "Unverified in-world" is not a finished state when you could have verified it. If the MCP was set up before but the Explorer isn't running, offer to launch it, going through **unity-explorer-mcp**'s gates. Don't launch it unasked.
 
+### 8. A feature that needs a newer SDK
+
+Version floors in these skills (`fontSrc` 7.31.0+, `screenInset` 7.26.0+, …) name the stable `@dcl/sdk` release. A Multiplayer Server scene runs a prerelease from the `@dcl/sdk@auth-server` tag whose version string trails `latest` (a `7.32.1-<build>` today), so a numeric compare says "too old" for a build that already has the field. Before writing a floored feature, read the installed version from `node_modules/@dcl/sdk/package.json`; on an `auth-server` build decide from the installed typings instead (`grep -rl <field> node_modules/@dcl/react-ecs/dist node_modules/@dcl/ecs/dist`: no file listed means it does not exist). If the scene is too old, upgrade: a stable scene to `latest`, a Multiplayer Server scene to the newest `auth-server` build and never to `latest`, which has no server APIs (**authoritative-server** → Setup). The upgrade is the step to confirm with the user (it changes every dependency, and on a server scene the tag); the version check itself needs no confirmation. If the user does not want to upgrade, use the fallback the topic skill names. Never patch the SDK's generated types or serializers in `node_modules`; it breaks on the next install.
+
 ### General principle
 
 These aren't things the agent should refuse to do — they're things it should communicate about before doing them. If the user confirms, proceed confidently. The goal is transparency, not gatekeeping.
@@ -107,6 +111,8 @@ Only when the MCP is not available (no Creator Hub in play, or the user declines
 ## Individual Skills
 
 Load the topic skill that matches the request; for requests spanning several topics, load each.
+
+Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a restart is needed to load it.
 
 ### Scene Setup & Configuration
 

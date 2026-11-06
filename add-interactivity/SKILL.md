@@ -7,7 +7,7 @@ description: Event-driven interactivity on Decentraland entities - clicks and ho
 
 ## RULE: Fetch composite entities — never re-create them
 
-An entity defined in `assets/scene/main.composite` gets its handlers from code that looks it up by name (`engine.getEntityOrNullByName(EntityNames.Door_1)`) or tag (`engine.getEntitiesByTag('Crystal')`) inside `main()` or later; `engine.addEntity()` would create a duplicate. Patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code.
+An entity defined in `assets/scene/main.composite` gets its handlers from code that looks it up by name (`engine.getEntityOrNullByName(EntityNames.Door_1)`; use the `EntityNames` member and log a `null` lookup — **composites** → By Name) or tag (`engine.getEntitiesByTag('Crystal')`) inside `main()` or later; `engine.addEntity()` would create a duplicate. Patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code.
 
 ---
 

@@ -131,7 +131,7 @@ Note: replaying the **same** `expressionTriggerId` value back-to-back requires b
 
 **AvatarShape playback limits** (mechanisms and workarounds: `{baseDir}/references/avatar-shape-npcs.md`):
 
-- **Custom clips do not loop** on an `AvatarShape`; only the embedded looping emotes hold a pose. For a sustained custom pose, retrigger a long clip before it ends.
+- **Custom clips do not loop** on an `AvatarShape`; only built-in emotes whose loop flag is `yes` in the **avatar-animations** catalog (sitting poses, several social dances) hold a pose. For a sustained custom pose, retrigger a long clip before it ends.
 - **Moving the NPC cancels its emote** (Transform write or `Tween`). Bake travel during an emote into the `_emote.glb` as root motion.
 - **Hide it by scaling to `0.001`**, not by moving it away: a moved `AvatarShape` visibly walks there.
 - **No masked (upper-body) emotes**: `expressionTriggerId` is always full-body.

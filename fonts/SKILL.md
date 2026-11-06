@@ -18,7 +18,7 @@ Those three built-in faces are the only ones. There is no font name list beyond 
 
 `fontSrc` needs **`@dcl/sdk` 7.31.0** or later. On earlier versions the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
 
-Read the installed version from `node_modules/@dcl/sdk/package.json` (or `package.json`) before writing it. If the scene is older, either upgrade `@dcl/sdk` or stay with a built-in `font`. Never patch the SDK's generated serializers in `node_modules`; it breaks on the next install.
+Read the installed version from `node_modules/@dcl/sdk/package.json` before writing it; on a Multiplayer Server scene (`@dcl/sdk@auth-server`) go by the typings, not the version string — the rule is **sdk-scenes** → *A feature that needs a newer SDK*. If the scene is older, upgrade `@dcl/sdk` as that rule says, or stay with a built-in `font`.
 
 ## RULE: Always set `font` next to `fontSrc`
 
@@ -36,7 +36,7 @@ When the user adds a custom font, tell them it won't show on mobile.
 
 **A display face that must survive on mobile** needs image text: a per-glyph bitmap font, one `UiEntity` per character drawing its glyph as a `uvs` crop of an atlas (**build-ui** → `references/ui-components.md` → *Texture UVs*). It renders the same on every client, at two costs:
 
-- **One atlas per colour.** Mobile ignores `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour every variant and bake shadows and outlines into the glyph art.
+- **One atlas per colour.** Mobile apps below 1.16.0 ignore `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour every variant and bake shadows and outlines into the glyph art.
 - **Node count.** Every glyph is a node, and stacked copies multiply it: an outline faked with 17 stacked `Label`s dropped a screen to ~6 FPS, and baking shadows into the glyph art took a screen from ~23 to ~45 FPS. Keep image text to titles and short labels.
 
 ## RULE: A custom font is a `.ttf` file in the scene

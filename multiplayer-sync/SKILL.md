@@ -45,6 +45,8 @@ Signature: `syncEntity(entity, componentIds[], syncId?)`
 - `componentIds[]` — array of component IDs to keep in sync (e.g., `[Transform.componentId]`)
 - `syncId` — unique numeric identifier (required for predefined entities, optional for player-spawned entities)
 
+`componentIds` governs updates, not creation: the first write of every component on a synced entity reaches peers whatever the list says (`syncFilter`, CRDT timestamp 1), and a late joiner receives the entity's whole component state (`engineToCrdt`). List every component that changes after creation; a mesh or material set once needs no entry, and a second write to an unlisted component stays local.
+
 ### Enum Sync IDs (Predefined Entities)
 
 Every predefined synced entity MUST have a unique numeric ID. Use an enum to avoid collisions:
