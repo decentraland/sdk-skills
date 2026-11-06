@@ -256,7 +256,7 @@ Other built-in names include `'dance'`, `'fistpump'` and `'raiseHand'`; every bu
 
 `triggerEmote` has no `loop` field (only `triggerSceneEmote` does): a built-in emote loops or plays once by its own definition. `robot`, `clap`, `money`, `kiss`, `tik`, `hammer`, `tektonik`, `disco`, `dance` and `cry` hold until `stopEmote({})`, the player's own movement input, or another emote; the per-id flag is in the **avatar-animations** catalog.
 
-Pass only ids from the catalog; the Explorer does not validate `predefinedEmote`. On desktop an unknown id (e.g. `'idle'`) parks an emote request that waits for a load that never succeeds (up to 60 s); while it is parked the emote wheel, further `triggerEmote` / `triggerSceneEmote` calls and `stopEmote` do nothing, and a looping emote already playing keeps playing until the player moves or jumps. On mobile an unknown id is logged and ignored.
+Pass only ids from the catalog; the Explorer does not validate `predefinedEmote`. On desktop an unknown id (e.g. `'idle'`) parks an emote request that waits for a load that never succeeds (up to 60 s); while it is parked the emote wheel and `stopEmote` do nothing (a later `triggerEmote` / `triggerSceneEmote` with a valid id replaces the parked request), and a looping emote already playing keeps playing until the player moves or jumps. On mobile an unknown id is logged and ignored.
 
 ### Custom Scene Emotes
 

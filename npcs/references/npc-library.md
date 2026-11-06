@@ -100,7 +100,7 @@ AvatarShape.getMutable(npc).expressionTriggerId = 'clap'
 ### Available Predefined Emotes
 ```typescript
 // Social emotes
-'wave', 'fistpump', 'robot', 'raiseHand', 'clap', 'money', 'kiss', 'tik', 'hammer', 'tektonik', 'dontsee', 'handsair', 'shrug', 'disco', 'dab', 'headexplode'
+'wave', 'fistpump', 'robot', 'raiseHand', 'clap', 'money', 'kiss', 'tik', 'hammer', 'tektonik', 'dontsee', 'handsair', 'shrug', 'disco', 'dab', 'headexplode', 'dance', 'cry'
 
 // Action emotes
 'buttonDown', 'buttonFront', 'getHit', 'knockOut', 'lever', 'openChest', 'openDoor', 'punch', 'push', 'swingWeaponOneHand', 'swingWeaponTwoHands', 'throw'

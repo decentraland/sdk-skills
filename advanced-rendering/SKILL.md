@@ -246,7 +246,7 @@ To override the material or shadow casting of the **entire** model (`path: ''`) 
 - One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
 - **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
 - Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
-- **An entity that never appears after repeated `[SomeSystem]` exceptions in the Explorer log is a suspended scene, not a material problem.** The Explorer suspends a scene's systems after three engine-side exceptions within a minute (`SceneExceptionsHandler`, state `EcsError`, a `SceneExecutionException` naming the system in the log); from then on nothing the scene creates renders. Read and fix (or report) the named exception before touching materials (observed 2026-08: a per-entity material override made the model 'invisible').
+- **An entity that never appears after repeated `[SomeSystem]` exceptions in the Explorer log is a suspended scene, not a material problem.** The Explorer suspends a scene's systems on the next engine-side exception once three have landed within a minute (`SceneExceptionsHandler`, state `EcsError`, a `SceneExecutionException` naming the system in the log); from then on nothing the scene creates renders. Read and fix (or report) the named exception before touching materials (observed 2026-08: a per-entity material override made the model 'invisible').
 
 Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
 
