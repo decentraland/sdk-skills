@@ -35,6 +35,10 @@ Wait-Process -Name Decentraland -Timeout 30 -ErrorAction SilentlyContinue
 
 Keep the brackets in the patterns, so they can't match the shell running the command (see **creator-hub-mcp**). Ask first when the user owns that window. Full detail in **creator-hub-mcp** → "Preview lifecycle".
 
+## Models load unoptimized or a custom font shows its fallback after a relaunch
+
+A stale `abgen` — the Explorer's local asset-bundle converter, a child process that survives a force-quit — is holding `127.0.0.1:5147`. The new launch adopts it only when it is the same Explorer build serving the same scene and already ready; otherwise the session degrades to raw GLTFs and the built-in font until it is stopped. `pgrep -fl abgen`, stop the pid the AB panel names, then relaunch once. The **AB** panel of the Explorer's debug menu names what holds the port (**optimize-scene** → *Local Asset Bundle Preview*). Stop it before a Decentraland launcher update too: a surviving `abgen` blocked one because its files were in use (observed 2026-11).
+
 ## The connection dropped
 
 The client probably crashed or was closed — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.
