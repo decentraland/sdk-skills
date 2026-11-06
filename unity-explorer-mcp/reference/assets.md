@@ -1,5 +1,9 @@
 # 3D asset reference
 
+## Asset-file churn while the Explorer runs
+
+Every file added, removed or renamed under `assets/` triggers its own hot reload — the watcher counts files, not commands, so a single `rm` of seven GLBs still produced seven reloads in 30 s and, once, an Explorer restart (observed 2026-10-10). Do asset-file work **before** launching the preview where possible, keep it to one command so the burst is short, and never run it while someone is mid-playtest.
+
 ## Picking from the sdk-skills catalog
 
 - Fetch the `preview:` thumbnail BEFORE downloading — some models render near-black or broken even in their own previews (e.g. arcade-cabinet-atari). Use the exact `[anim: ...]` clip names; a wrong clip name fails silently (no error, no motion) — cross-examine: burst-capture (`-n 3 -i 1`) and diff frames to prove an animation is actually running.

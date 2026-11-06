@@ -44,6 +44,10 @@ open /path/to/Decentraland.app --args \
 
 On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
+## The Explorer running inside the Unity Editor
+
+A developer may run the client in Unity Editor play mode (`--mcp` in `Main Scene Loader → Debug Settings → App Parameters`) instead of an installed build. The MCP endpoint is the same, but the server belongs to the `Unity` process: the Setup probe answers, `pgrep` for the Explorer app finds nothing, and launching, killing or relaunching is the user's — never run the recipes in [`recovery.md`](recovery.md) against the Editor. In-session, the Game view is unfocused whenever you type in a terminal, so the device-path UI tools refuse and the OS cursor sits off the Game view; both are covered in [`interaction.md`](interaction.md) (the device path, and `get_reticle`'s `cursor.onScreen`).
+
 ## Registering in other clients
 
 Claude Code registers with the command in SKILL.md Setup step 2. Every other client takes these connection details in its own config format. After registering, reload or restart the client, or start a new session, so it connects. The Explorer must already be running at that point (see the bind gate).
