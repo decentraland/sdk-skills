@@ -2,6 +2,15 @@
 
 Reached when the scene, the client, or the connection has gone wrong.
 
+## The Explorer's own log
+
+When the Explorer shows a scene error, or the MCP is not answering, `Player.log` holds the scene's exception text and the asset-bundle lines the in-world console drops — read it before forming a theory:
+
+- macOS: `~/Library/Logs/Decentraland/Explorer/Player.log`
+- Windows: `%USERPROFILE%\AppData\LocalLow\Decentraland\Explorer\Player.log`
+
+The chat command `/logs` opens the folder from inside the client.
+
 ## Torn bundle (an unrecoverable scene drop)
 
 Two saves seconds apart can make the Explorer load a mid-write bundle → `SyntaxError: Invalid or unexpected token` at scene start → the scene drops out and `get_scene_state` reports `scene: null` while you are standing on the parcel. Nothing recovers it in-session: `reload_scene` errors ("no scene at the current parcel"), `/reload` hangs, the minimap RELOAD SCENE button no-ops, and moving off-parcel and back does not bring it back. Only relaunching the Explorer restores it: have the user close the client, then relaunch the stack the way it was started.
@@ -41,4 +50,8 @@ The desktop client converts every local scene to asset bundles before it loads, 
 
 ## The connection dropped
 
-The client probably crashed or was closed — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.
+The client probably crashed or was closed (`Player.log` above says why) — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same.
+
+## Regression rig: `149,149-synthetic-input-showcase`
+
+`sdk7-test-scenes/scenes/149,149-synthetic-input-showcase` is a 2x2-parcel scene built to be driven by this MCP: ten stations (S1-S10) exercise the whole synthetic-input surface — `walk`, `camera_look`, `look_at`, `click_entity`, `click_at`, `hover_entity`, `press_input`, and the `ui_*` tools — each with an in-world readout, so a wrong result is visible rather than inferred. Run it to **sanity-check the MCP itself** before concluding a scene under test is broken: if a station misbehaves, the tool or the Explorer is the suspect, not your scene. Its `MCP_SHOWCASE.md` lists the known-open client issues and per-station driving notes.
