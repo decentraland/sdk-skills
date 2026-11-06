@@ -15,7 +15,7 @@ The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
 Two launch errors:
 
-- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
+- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` (on a Multiplayer Server scene reinstall from the `auth-server` tag instead, never `latest`: **sdk-scenes** → *A feature that needs a newer SDK*) and retry, or launch a specific build by hand (below).
 - **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
 
 The Creator Hub's **Enable MCP Server** checkbox (**Play Options** — the dropdown arrow on the editor header's **Play** button — then hover **Desktop Client**) passes `--mcp` to this same process, and appears only when the scene's `@dcl/sdk-commands` supports the flag — a missing checkbox is the first error above in another guise.
