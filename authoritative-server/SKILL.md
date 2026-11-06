@@ -35,7 +35,7 @@ The validator callback receives `{ entity, currentValue, newValue, senderAddress
 
 - **Pattern 1 — Server-only writes** (strictest): `Score.validateBeforeChange((v) => v.senderAddress === AUTH_SERVER_PEER_ID)`
 - **Pattern 2 — Validate the value itself**: reject impossible values (e.g. `value.newValue.position.y > 0`)
-- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`. Server-read player `Transform.position` is **scene-local** metres — the same frame the client sees and the same frame scene entities use — so compare it directly to entity positions with `Vector3.distance()`, no base-parcel offset math. Canonical example: the official `90,-9-authoritative-server-leaderboard` test scene (deployed at non-origin parcels) compares server-read player position directly to a scene-local target.
+- **Pattern 3 — Proximity validation** (anti-cheat): check player is near the object via `PlayerIdentityData` + `Transform`. Server-read player `Transform.position` is **scene-local** metres — the same frame the client sees and the same frame scene entities use — so compare it directly to entity positions with `Vector3.distance()`, no base-parcel offset math. Canonical example: the official `90,-9-authoritative-server-leaderboard` test scene (deployed at non-origin parcels) compares server-read player position directly to a scene-local target. A `null` player `Transform` is its own failure, not "too far": *Server Reading Player Positions* below.
 - **Pattern 4 — Admin-only writes**: use `getSceneAdmins()` from `@dcl/asset-packs/dist/admin-toolkit-ui/ModerationControl/api` to restrict to admins. For a lightweight fixed allow-list, gate the message handler on the **server-verified** sender instead: keep a lower-cased `ADMINS: string[]` in shared config and check `ADMINS.includes(context.from.toLowerCase())` inside `room.onMessage(...)` (never trust a client-reported role). Clients may read the same list to decide whether to *show* a privileged button, but only the server's check is authoritative.
 
 Use `isPreview()` from `@dcl/asset-packs/dist/admin-toolkit-ui/fetch-utils` (sync, no args, returns `boolean`) to relax validation during local development. The deep `dist/...` import path is the only working one — the package has no top-level re-export.
@@ -76,6 +76,8 @@ Message and component schemas use the same `Schemas.*` types as **multiplayer-sy
 ## Server Reading Player Positions
 
 Read actual server-verified positions via `engine.getEntitiesWith(PlayerIdentityData)` + `Transform.getOrNull(entity)`. Never trust client-reported positions.
+
+**`Transform.getOrNull` can return `null` for a player the server lists.** Observed 2026-11 in local preview (SDK `7.32.1` auth-server build, one scene): the server saw two `PlayerIdentityData` entities and no `Transform` on either, so every proximity check failed as "too far" and the scene saved no progress for a day before anyone looked. Not checked on a deployed World. Treat a missing transform as its own case — log it by name, never as a distance failure — so a server that receives no player transforms shows up in the logs instead of looking like cheating. If it reproduces in a minimal scene, file it (**report-sdk-issue**).
 
 ## Storage
 

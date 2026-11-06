@@ -23,6 +23,7 @@ Both are ordinary React-ECS and run anywhere; the editable contract is a *subset
 | Open a web page | `openExternalUrl` | **scene-runtime** |
 | Clickable objects in 3D space | pointer events | **add-interactivity** |
 | On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
+| A custom font (`fontSrc`) on any text | Load **fonts** before writing it: its first rule is an SDK-version check (`fontSrc` needs 7.31.0+ and fails silently below), and it says which clients show the font | **fonts** |
 | Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | `{baseDir}/../create-scene/references/platform-provided.md` |
 
 ## Choosing the mode
@@ -308,6 +309,8 @@ Verified in-world with side-by-side screenshots: a 720-px dialog whose two label
 - **No emoji or decorative Unicode in any text value** (`Label` / `Button` `value`, `uiText.value`, `Input` `placeholder`, `Dropdown` options, bound strings). Glyph coverage comes from the fonts each explorer bundles, not the SDK, and the Unity explorer ships no emoji glyphs — verified in-world: `value="✨ Particles"` lost its sparkle. Use a small `UiEntity` with `uiBackground={{ texture: { src: 'images/icon.png' } }}` beside the label, or an atlas sprite via `uvs`; `texture.src` is a binding, so the icon stays editable. Stick to ASCII plus the accented letters the copy needs.
 - Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `src/`.
 - On mobile (app 1.10.1+), `borderRadius` and `borderWidth` accept pixels only; percentages have no effect. Older mobile apps draw square corners. Hover layers do nothing on touch — never the only affordance or the only way to read a value.
+- **Translucent colours on built-up shapes band on mobile.** A chamfered or rounded shape assembled from overlapping `UiEntity` pieces (rectangles plus triangle images, the workaround for fixed-size nine-slice corners) blends a translucent `uiBackground.color` once per overlap, so the overlaps show as lighter bands on the Godot client (observed 2026-11: a 4 % white fill with a 25 % white edge). Use opaque colours pre-blended against the known background, or tile the pieces edge to edge. Unity was not checked with overlapping pieces.
+- **Testing on the mobile client:** the godot-explorer repo ships a `mobile-dev-debug-tool` skill (`.claude/skills/mobile-dev-debug-tool`) that drives a desktop debug build of the app, and a phone over the `scene-inspector` deeplink: scene state, logs, screenshots and taps. A production app opened by deeplink gives scene state and logs only, no screenshots or input (observed 2026-11). The preview's interactable area is also smaller than production's: `{baseDir}/references/ui-components.md` → InteractableArea.
 
 ## Placement: never anchor to the top-left; keep mobile UI off the action buttons
 
