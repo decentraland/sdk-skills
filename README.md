@@ -91,6 +91,8 @@ The source of truth for these skills is maintained in the [sdk-skills](https://g
 
 The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
 
+Write each `SKILL.md` frontmatter `description` as one double-quoted line (`description: "..."`, with any inner `"` as `\"`). The skills CLI parses the frontmatter as strict YAML and silently skips a skill it cannot parse, and an unquoted description that contains `: `, ` #`, or starts with a YAML indicator fails that parse. `tests/skill-frontmatter.test.mjs` checks every skill for this.
+
 ## License
 
 See [LICENSE](./LICENSE).
