@@ -117,6 +117,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 | **AssetLoad** | `assets: string[]` | Pre-request loading of asset files (paths). Loading state is reported separately via `AssetLoadLoadingState`. |
 | **AssetLoadLoadingState** | Read-only | Loading state of external assets. |
 | **MapPin** | `position: Vector2`, `iconSize: number`, `title: string`, `description: string`, `texture?: TextureUnion` | Place a marker on the world/mini-map at parcel coordinates. |
+| **ExplorerUiEventsResult** | Read-only grow-only value set on `engine.RootEntity`: `ui: ExplorerUi`, `timestamp` (scene tick), `requestId`, `event` (oneof `{ $case: 'opened' }` / `{ $case: 'closed' }`) | Lifecycle events of the explorer panels **this scene** opened via `openExplorerUi`; a panel the player opens by hand emits nothing. Max 100 entries, never cleared — drain it with a `timestamp` watermark. See `scene-runtime`. |
 
 ## Physics (player forces)
 
