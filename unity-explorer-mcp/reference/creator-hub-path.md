@@ -14,4 +14,4 @@ From an *external* client connected to the Creator Hub (Claude Code terminal, Cu
 
 ## The Explorer is the creator's own window
 
-The instance you drive is the one they are playing in: `move_to`, `reload_scene`, camera-mode changes and asset-file churn all land on their playtest. Before driving it, read `get_player_state` (position, velocity) and recent `get_scene_logs` for signs they are mid-session; prefer `set_camera_pose` (free camera — it does not move the avatar) over `move_to` for a look-check; and afterwards restore the camera mode you **found** (`first_person` / `drone_view`), not blindly `third_person`. Ask before killing their window. Observed 2026-10-10.
+Always so on this path: the playtest-window rule in SKILL.md (after the iteration loop) applies to every save, move, reload and camera change. Ask before killing their window. Observed 2026-10-10.

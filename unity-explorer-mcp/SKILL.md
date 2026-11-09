@@ -9,7 +9,7 @@ description: "Set up, launch and drive a Decentraland Explorer through its MCP a
 
 **Any MCP client works** — Claude Code, Codex, Cursor, Gemini CLI, VS Code with Copilot, or another one that speaks Streamable HTTP. This skill writes tool names the way Claude Code prefixes them (`mcp__explorer__get_scene_state`); other clients show the bare name (`get_scene_state`) or their own prefix. Where a step differs per client, the Claude Code command comes first and the others follow or are linked.
 
-**Coming in through the Creator Hub MCP** (`mcp__creator-hub__*` tools connected; skill **creator-hub-mcp**)? Its `launch_preview` starts the Explorer and re-publishes the runtime tools as `explorer_<name>`. Skip **Setup** entirely, and read [`reference/creator-hub-path.md`](reference/creator-hub-path.md) before `launch_preview`: the pre-launch process check, and the rules for driving a window that is the creator's own.
+**Coming in through the Creator Hub MCP** (`mcp__creator-hub__*` tools connected; skill **creator-hub-mcp**)? Its `launch_preview` starts the Explorer and re-publishes the runtime tools as `explorer_<name>`. Skip **Setup** entirely, and read [`reference/creator-hub-path.md`](reference/creator-hub-path.md) before `launch_preview`: the pre-launch process check, and the external-client case where those tools never appear.
 
 **Read before:**
 
