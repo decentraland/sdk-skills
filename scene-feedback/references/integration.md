@@ -12,9 +12,11 @@ Preserve creator-owned questions and existing event wiring unless the task chang
 ## Prerequisites and shape of an installation
 
 - **Requires an authoritative Multiplayer Server.** The scene must be on `@dcl/sdk@auth-server`
-  with `"authoritativeMultiplayer": true` in `scene.json`, and `USE_FETCH` in
-  `requiredPermissions`. Server setup and the append-only CSV-in-Storage pattern the module
-  relies on: **authoritative-server**.
+  with `"authoritativeMultiplayer": true` in `scene.json`. The module README also asks for
+  `USE_FETCH` in `requiredPermissions`; adding it is harmless, but scenes already run with every
+  permission granted (**create-scene** → `references/scene-json.md` → Required Permissions).
+  Server setup and the write-once CSV-in-Storage pattern the module relies on:
+  **authoritative-server**.
 - **Install = copy two folders.** Copy `src/scene-feedback/` and `assets/scene-feedback/`
   from the module into the scene, then configure `questions.ts` (question bank, scales,
   Intro). Keep the demo game code out.

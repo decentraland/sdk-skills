@@ -1,8 +1,10 @@
 # 3D asset reference
 
-## Asset-file churn while the Explorer runs
+## Files under `assets/` and hot reload
 
-Every file added, removed or renamed under `assets/` triggers its own hot reload — the watcher counts files, not commands, so a single `rm` of seven GLBs still produced seven reloads in 30 s and, once, an Explorer restart (observed 2026-10-10). Do asset-file work **before** launching the preview where possible, keep it to one command so the burst is short, and never run it while someone is mid-playtest.
+- **Asset files churn harder than `src/`:** every file added, removed or renamed under `assets/` triggers its own hot reload — the watcher counts files, not commands, so a single `rm` of seven GLBs still produced seven reloads in 30 s and, once, an Explorer restart (observed 2026-10-10). Do asset-file work **before** launching the preview where possible, keep it to one command so the burst is short, and keep it clear of anyone mid-playtest (SKILL.md → *playtest window*).
+- Downloaded GLBs into the scene folder hot-load without restarting the dev server — the server re-walks the project per request and serves current bytes. **The Explorer's own asset cache is the weak link**: observed 2026-10-08 (under the Creator Hub's `launch_preview`), GLBs added or renamed after launch were missing in-world until `reload_scene` or a preview restart, and a GLB **overwritten in place under the same name** kept rendering its old contents. Symptom: the mesh you just exported is absent or visibly stale while `get_scene_logs` shows no load error. Re-bake to a **new file name** and repoint `src` rather than debugging the cache.
+- A model that loads but looks unoptimized, or a font on its fallback, is the local asset-bundle converter not serving the scene: [`recovery.md`](recovery.md) → *Models unoptimized or fonts on their fallback*.
 
 ## Picking from the sdk-skills catalog
 
@@ -12,7 +14,6 @@ Every file added, removed or renamed under `assets/` triggers its own hot reload
 ## Downloading models
 
 - Free CC0 model sources that download cleanly via curl: kenney.nl (zip URL is on the asset page, FBX+OBJ+GLTF inside), and itch.io free packs via the scripted flow: POST `<game>/download_url` with the page's csrf_token → GET the returned key URL → grab `data-upload_id` → POST `<game>/file/<id>?source=game_download` → signed CDN URL (expires ~60s, download immediately).
-- Downloaded GLBs into the scene folder hot-load without restarting the dev server — the server re-walks the project per request and serves current bytes. **The Explorer's own asset cache is the weak link**: observed 2026-10-08 (under the Creator Hub's `launch_preview`), GLBs added or renamed after launch were missing in-world until `reload_scene` or a preview restart, and a GLB **overwritten in place under the same name** kept rendering its old contents. Symptom: the mesh you just exported is absent or visibly stale while `get_scene_logs` shows no load error. Re-bake to a **new file name** and repoint `src` rather than debugging the cache.
 - Many props ship with no colliders — cross-examine solidity: walk onto them and check the player's `y` via `get_player_state`; add `visibleMeshesCollisionMask: 3` for anything that should be solid.
 
 ## Blender authoring & conversion

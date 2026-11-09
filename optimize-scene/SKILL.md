@@ -5,6 +5,8 @@ description: Optimize Decentraland scene performance and fit scene limits — pe
 
 # Optimizing Decentraland Scenes
 
+For a deployed authoritative multiplayer scene's server performance, use the **authoritative-server** skill, which must also be installed, and read its `references/scene-insights.md`: inspect execution-scoped CPU, heap and workload metrics before changing code. This skill's rendering budgets do not diagnose server CPU or memory. For client FPS/rendering, continue below and use Explorer performance diagnostics.
+
 ## Scene Limits (Per Parcel Count)
 
 All limits below scale with parcel count `n`. Triangles, entities, and bodies scale linearly. Materials and textures scale logarithmically. The height limit does **not** scale — it is a flat 330 m for every scene (see below).
@@ -266,18 +268,18 @@ engine.removeSystem(systemFn)
 
 ## Asset Preloading (AssetLoad Component)
 
-Preload assets needed later, not at startup (things that appear on interaction or in a spawn burst) with `AssetLoad`, so they display instantly. Assets used at startup need no preload. API, the per-asset loading-state callback, `LoadingState` values and caveats (no unload, preload renders nothing): `{baseDir}/references/asset-preloading.md`.
+Preload assets needed later, not at startup (things that appear on interaction or in a spawn burst) with `AssetLoad`, so they display instantly. Assets used at startup need no preload. Keep **≤40 paths per `AssetLoad` entity**: past about 50 assets on one entity the loading-state callback silently stops firing. API, the per-asset loading-state callback, batching recipe, `LoadingState` values and caveats (no unload, preload renders nothing): `{baseDir}/references/asset-preloading.md`.
 
 ## Local Asset Bundle Preview
 
-Reproduce the server-side asset bundle conversion locally before publishing. This catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models.
+The Desktop Explorer converts every local scene's `.gltf`/`.glb` models and `.ttf` fonts to asset bundles on your machine, on every `npm run start` or Creator Hub Play, with no flag. This is gated by a remote feature flag (`alfa-lsd-forced-ab`, on at the time of writing); with the flag off or unreachable the session loads raw GLTFs and the built-in font, silently. That reproduces the server-side conversion before publishing: it catches conversion issues (missing textures, broken models after compression) and makes the preview render with production-quality optimized models. Desktop Client only (not Bevy Web).
 
-- **Creator Hub:** **Play Options** (the dropdown arrow on the **Play** button) > hover **Desktop Client** > check **Compress Assets**. The toggle is hidden on Linux and for scenes whose `@dcl/sdk-commands` predates 7.26.0 (update the SDK to get it).
-- **CLI:** `npm run start -- --asset-bundles` (forwarded into the Explorer deep link as `local-ab=true`; `--local-ab` is the deep-link param, not a CLI flag)
+- The Explorer starts an embedded converter and holds scene loading until the whole scene is converted. The first run on a heavy scene takes minutes; results are cached, so later previews reconvert only new or changed files. Progress and per-file verdicts are in the **AB** panel of the Explorer's debug menu. [UNVERIFIED: a texture edited in place next to an unchanged GLB can keep showing the cached conversion while the same change under a new GLB file name shows at once (observed 2026-11-07, mechanism not confirmed).] When an in-place texture edit does not appear, rename the GLB (or embed the texture) before suspecting the file.
+- A bundle that fails to convert or load falls back to that model's raw GLTF, with a warning in the Explorer log (`asset bundle unavailable (…), loading the raw GLTF instead`). If the converter cannot start or its manifest cannot be fetched, the whole session degrades to raw GLTFs and the built-in font.
+- Two Explorers on the same scene share one converter. A converter left on the port by another Explorer build or another scene is not touched: the session degrades to raw GLTFs and the **AB** panel names what holds the port and what to do (quit that client, or stop the pid it names, then relaunch). The converter is the `abgen` sidecar on `127.0.0.1:5147`, a child process the Explorer stops on a normal quit; after a force-kill or crash it can survive. The next launch adopts a survivor that is the same Explorer build, serves the same scene and reports ready (`AbgenSidecar.ReconcileResidentServerAsync`); any other resident blocks the port until it is stopped (`pgrep -fl abgen`, stop the pid the panel names, relaunch once; observed 2026-11). A surviving `abgen` also blocked a Decentraland launcher update because its files were in use — stop it before updating. Check that panel first when models load unoptimized or a `fontSrc` font shows its fallback.
+- `npm run start -- --asset-bundles`, the `local-ab` deep-link param and the Creator Hub's **Compress Assets** toggle are still accepted but change nothing: conversion is always on. To preview raw GLTFs instead, pass `lsd-raw-gltf` through to the Explorer (`npm run start -- -- --lsd-raw-gltf`; a manual launch takes `--lsd-raw-gltf`).
 
-The Desktop Explorer converts all `.gltf`/`.glb` models to asset bundles on your machine. The first run may take several minutes on large scenes; converted models are cached, so subsequent previews only reconvert new or modified assets. If an asset fails to convert, the preview falls back to the raw model. Only available with the Desktop Client (not Bevy Web).
-
-This is the local equivalent of the server-side conversion that runs after every publish (see the **deploy-scene** skill). Use it routinely before publishing, especially before live events.
+This is the local equivalent of the server-side conversion that runs after every publish (see the **deploy-scene** skill). Read the AB panel before publishing, especially before live events.
 
 ## Loading Time Optimization
 
@@ -376,6 +378,5 @@ Engine-team stress-test scenes (treat as ground truth for API shape):
 
 - **deploy-scene** — post-publish asset bundle conversion timing, troubleshooting, `/detectabs` command
 - **add-3d-models** — model loading, colliders, file organization, and driving Blender to fix or author models (`references/blender-authoring.md`)
-- **game-design** — design patterns and MVP planning
 - **advanced-rendering** — texture modes, material reuse, and LOD with VisibilityComponent
 - **scene-runtime** — `EngineInfo.sceneHidden` to pause expensive systems when the scene is hidden behind fullscreen Explorer UI

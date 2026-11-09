@@ -1,6 +1,6 @@
 ---
 name: lighting-environment
-description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, fixtures that glow and cast light. For emissive, metallic, roughness or transparent materials see advanced-rendering.
+description: Lights and sky in Decentraland scenes - LightSource point and spot lights, shadows and gobos, a light that does not show, light budgets on desktop and mobile, SkyboxTime and day/night cycles, a custom sky image, sky, cloud, star, sun and fog colors (Skybox, Sun, EnvironmentFog), a dimmed, fixed or hidden sun, complete darkness, fixtures that glow and cast light, strobe and flash effects (photosensitivity limit). For emissive, metallic, roughness or transparent materials see advanced-rendering.
 ---
 
 # Lighting and Environment in Decentraland
@@ -100,7 +100,8 @@ LightSource.create(spotlight, {
 ```
 
 - Shadows render only for **spot** lights; `shadow` on a point light has no effect.
-- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
+- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights suit dramatic effects such as flashlights; add `shadow: true` to one only after a screenshot shows its beam.
+- **Flashlight / first-person lamp:** parent the spot to `engine.CameraEntity`, offset about 0.5 m along local +Z, and start around 100,000-150,000 cd with `innerAngle`/`outerAngle` near 28/48. The default 16,000 cd is invisible on dark materials, and the beam reads only on surfaces with albedo above roughly 0.2. A shadow-casting spot exactly at the camera origin read as a dim pool; moving it 0.5 m forward and turning `shadow` off produced the beam (in-world, 2026-11-04). [UNVERIFIED: the offset and the shadow change were made together; in first person the avatar's renderers are disabled (source), so the player's own body is not the cause]
 - Shadow quality/culling follows the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
 
 | Distance from player | Result |
@@ -153,6 +154,9 @@ Use SkyboxTime for atmosphere — nighttime scenes with point lights create dram
 
 A permanent time of day needs no code: `skyboxConfig.fixedTime` in `scene.json` (top-level, or inside `worldConfiguration` for a World). Locations, time values and precedence: `{baseDir}/../create-scene/references/scene-json.md` → *Skybox fixed time*. A `SkyboxTime` component on `engine.RootEntity` overrides either JSON value at runtime.
 
+- While a fixed time applies (from `scene.json` or a runtime `SkyboxTime`), the player's own time-of-day setting in the Explorer menu is locked (observed for `scene.json`; the desktop client pushes a `SkyboxTimeUILocked` restriction for both).
+- **Mobile:** the mobile app was observed (one session, 2026-11, not checked in source) not to apply `skyboxConfig.fixedTime`. A scene that needs a fixed time on mobile also creates `SkyboxTime` on `engine.RootEntity` in `main()` and keeps it. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+
 ### Read Current World Time
 
 ```typescript
@@ -183,7 +187,8 @@ SkyboxTime.deleteFrom(engine.RootEntity)
 ```
 
 - `transitionMode` (optional) sets the animation direction when the time changes. Default `TM_FORWARD`.
-- The component must live on `engine.RootEntity`. Deleting it reverts to the scene.json/world time (or the global day/night cycle).
+- **Every change animates through the intermediate times; nothing snaps.** `TM_FORWARD` always runs forward and wraps past midnight, so 10:00 → 08:40 sweeps 22 h 40 min (observed: almost a full day of sky). Pick the shorter arc: `forward = (target - current + 86400) % 86400`; use `TM_BACKWARD` when `forward > 43200`. Hide a large jump behind a full-screen UI veil (fade in, change, wait, fade out). A full-day sweep takes about 4 s (desktop client setting `transitionSpeed: 0.25` of a day per second) [UNVERIFIED in-world].
+- The component must live on `engine.RootEntity`. Deleting it animates back to the scene.json/world time (or the global day/night cycle) the same way, rather than snapping.
 
 ### Day/Night Cycle System
 
@@ -200,6 +205,18 @@ function dayNightCycle(dt: number) {
 
 engine.addSystem(dayNightCycle)
 ```
+
+## Skybox, Sun and EnvironmentFog (custom sky, sky colors, sun, fog)
+
+Three components override the environment, written to `engine.RootEntity` only and active only while the player is inside the scene:
+
+- `Skybox` — an equirectangular 2:1 sky image (`skyboxTexture`, a path string), or procedural sky colors, clouds and stars. The sky colors also set the ambient light.
+- `Sun` — sun and moon light: color, intensity, a fixed direction, or hiding the discs and lens flare.
+- `EnvironmentFog` — fog color and density.
+
+Not supported yet on mobile (Godot explorer) or the Bevy explorer: players there keep the regular sky, sun and fog, so never make them gameplay-critical.
+
+Colors are `ColorGradient`s keyed on the time of day. **Read `{baseDir}/references/sky-sun-fog.md` before writing any of their fields**: gradients, defaults, the sky-image and ambient-light rules, and the recipes for complete darkness and resetting to the default sky.
 
 ## Glow + Light
 
@@ -242,6 +259,10 @@ On top of that, each mobile **graphics profile** only activates a budget of the 
 
 Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
 
+## RULE: Photosensitivity — no strobing by default
+
+Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flickering `LightSource`, full-screen UI flashes, video) can trigger seizures. Keep any flash to **at most 3 per second** (WCAG 2.3.1 "Three Flashes or Below Threshold"), keep flashing regions small, and avoid saturated red and large high-contrast full-view flashes. If the design depends on intense effects (club strobes, lightning, damage flashes), add an in-scene toggle to turn them off or tone them down.
+
 ## Gotchas
 
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
@@ -254,3 +275,4 @@ Engine-team test scenes (real API, exercised against the engine):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-skybox-control — `Skybox`, `Sun` and `EnvironmentFog`, each created and deleted independently from its own UI row: two equirectangular sky textures with an orientation-marker panorama, environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), sun visibility / intensity / direction, fog density, a `SkyboxTime` row, and one point `LightSource` to see in the dark. Shows that any one of the three on its own puts the scene in control of the environment.

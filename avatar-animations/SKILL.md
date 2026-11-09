@@ -11,7 +11,7 @@ This skill covers **making the animation file**: posing the official Decentralan
 
 When the user asks for an avatar animation, go through these in order and stop at the first fit — authoring is the last resort, not the default:
 
-1. **Built-in emotes** — 32 ids playable by name (`triggerEmote({ predefinedEmote })`, or `AvatarShape.expressionTriggerId`), nothing to download: wave, clap, dances, sitting poses (looping), button/lever/door/chest interactions, punch, throw… Catalogued with animated previews in `{baseDir}/references/animation-catalog.md` §1; loop flags and the 5 embedded-only ids in `{baseDir}/references/embedded-emotes.md`. In the Creator Hub they sit inside the Avatar Animations pack with a **Built-in** badge, cannot be dragged into the scene, and offer **Copy name** — there is no file, by design (§1 of the catalog has the editor details).
+1. **Built-in emotes** — 32 ids playable by name (`triggerEmote({ predefinedEmote })`, or `AvatarShape.expressionTriggerId`), nothing to download: wave, clap, dances, sitting poses, button/lever/door/chest interactions, punch, throw… Catalogued with animated previews and a loop column (sitting poses and several social dances loop) in `{baseDir}/references/animation-catalog.md` §1; the 5 embedded-only ids in `{baseDir}/references/embedded-emotes.md`. In the Creator Hub they sit inside the Avatar Animations pack with a **Built-in** badge, cannot be dragged into the scene, and offer **Copy name** — there is no file, by design (§1 of the catalog has the editor details).
 2. **Avatar Animations asset pack** — 45 ready-made `_emote.glb` clips (sitting on stools, puffs, bean bags and ledges; chess; a full fishing set; carry, pick up, drink, craft, water plants, whack, sword, magic, fly, dance…). `{baseDir}/references/animation-catalog.md` §2 has every row with duration, download and the `triggerSceneEmote` path. Fetch the `preview:` webp to confirm the motion.
 3. **Custom clip** — only when nothing above matches (or the user explicitly wants their own): the Blender workflow below.
 
@@ -35,7 +35,7 @@ Say which of the three you picked and why. A built-in or pack clip usually reads
 3. **Author** — pose `CTRL_` bones only, in Pose mode, keyframing every bone you touch at every keyframe.
 4. **Verify while authoring** — print world positions (clipping, floor, animation area) *and* render four angles per keyframe into a contact sheet. If the clip poses the fingers, add hand close-ups and the fingertip decomposition.
 5. **Export** — one clip per file, armature only, `export_def_bones=True`, `ACTIVE_ACTIONS`.
-6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB. Done when every row of *File requirements* below holds for the exported file.
+6. **Verify the GLB** — parse the JSON chunk: 1 animation, 0 meshes, 63 nodes, root node named exactly `Armature`, 62 channels per path, duration = `(frames − 1) / 30`. If the clip poses the fingers, also run the fingertip decomposition on the re-imported GLB. Done when every row of *File requirements* below holds for the exported file.
 7. **Hand off** — rename to `*_emote.glb`, drop under `assets/animations/`, play it (see **player-avatar**).
 
 Ready-made `bpy` helpers for every step — the helper module, sign detection, render/contact-sheet setup, the export call, and the GLB verifier — are in `{baseDir}/references/blender-emote-patterns.md`.
@@ -179,13 +179,15 @@ Legs, arms, head and props may leave the root cylinder — a kick or a cartwheel
 
 Delete every other object first — meshes, `WGT_*` widgets, reference planes, `Armature_Prop`, cameras, lights — and remove the `Starting_Pose` action, or the exporter emits two clips. `export_animation_mode='ACTIVE_ACTIONS'` is what guarantees exactly one animation per file. Full export call in `{baseDir}/references/blender-emote-patterns.md`.
 
+**Name the armature object exactly `Armature`.** Blender renames a second rig in the file `Armature.001`, `.002`, and a clip exported from such a root plays nothing, with no error, both through `triggerSceneEmote` on the player and through `AvatarShape.expressionTriggerId` on an NPC (observed 2026-11 on the desktop client; renaming the root to `Armature` fixed every clip). Likely mechanism, consistent with the Explorer source but not traced down to the curve paths: the clip plays as a legacy `AnimationClip` on the avatar's own skeleton, and legacy clips bind bones by transform path. Before the strip step, delete or rename any other object already named `Armature`, then set `arm.name = 'Armature'`; the strip step in the export call keeps only an object with that exact name, and if the name is still taken Blender suffixes the rig again and the strip keeps the wrong one.
+
 **Exception — emotes with props:** a clip that carries a prop or bone particles keeps `Armature_Prop` and its meshes and exports two clips (`*_Avatar` + `*_Prop`) with `NLA_TRACKS`. See `{baseDir}/references/emote-props.md`.
 
 Save an editable `.blend` (meshes included) **before** stripping, so the user can tweak the actions by hand afterwards.
 
 ## RULE: Verify the exported GLB before handing it over
 
-Parse the GLB's JSON chunk and assert: **1 animation, 0 meshes, 63 nodes** (`Armature` + 62 deform bones), **1 skin**, **62 channels each** for translation/rotation/scale, and `duration == (last_frame − first_frame) / 30`. Verifier script in `{baseDir}/references/blender-emote-patterns.md`. A duration mismatch means the scene FPS wasn't 30.
+Parse the GLB's JSON chunk and assert: **1 animation, 0 meshes, 63 nodes** (`Armature` + 62 deform bones), a scene root node named exactly **`Armature`**, **1 skin**, **62 channels each** for translation/rotation/scale, and `duration == (last_frame − first_frame) / 30`. Verifier script in `{baseDir}/references/blender-emote-patterns.md`. A duration mismatch means the scene FPS wasn't 30.
 
 If the clip poses the fingers, also run the fingertip decomposition on the **exported** GLB: re-import it, assign the avatar clip, and measure. Blender's glTF importer leaves each clip on a **muted** NLA track with no active action. Measured without assigning it, the skeleton sits in its T-pose rest, so the check passes on the wrong pose.
 

@@ -56,7 +56,7 @@ The MCP is what makes model work collaborative; a silent fallback removes that c
 
 When walls, floors, furniture or props need to go into the scene, the Creator Hub MCP is not in the session (no `mcp__creator-hub__*` tools), and the scene **is or may be open in the Creator Hub**, **stop and let the user choose** — never fall back to `engine.addEntity()` in `src/` on your own. Signs the scene is open or Hub-managed:
 
-- `pgrep -fl 'sdk-commands start'` lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
+- `ps -ef | grep '[-]-data-layer'` (the bracket keeps grep from matching itself; Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object CommandLine -match 'data-laye[r]'`) lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. Not `pgrep -fl`: on Linux `-l` prints only the process name, so a grep on the arguments never matches. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
 - `.editor/project.json` exists, or `assets/scene/main.composite` contains `inspector::*` components — the Hub has opened the scene at least once.
 
 Ask:
@@ -74,6 +74,10 @@ Before working around an SDK, Explorer or Creator Hub defect, or a capability th
 If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone.
 
 When the Explorer MCP is **connected**, verify every change in-world before you report it done. Don't wait for the user to ask. "Unverified in-world" is not a finished state when you could have verified it. If the MCP was set up before but the Explorer isn't running, offer to launch it, going through **unity-explorer-mcp**'s gates. Don't launch it unasked.
+
+### 8. A feature that needs a newer SDK
+
+Version floors in these skills (`fontSrc` 7.31.0+, `screenInset` 7.26.0+, …) name the stable `@dcl/sdk` release. A Multiplayer Server scene runs a prerelease from the `@dcl/sdk@auth-server` tag whose version string trails `latest` (a `7.32.1-<build>` today), so a numeric compare says "too old" for a build that already has the field. Before writing a floored feature, read the installed version from `node_modules/@dcl/sdk/package.json`; on an `auth-server` build decide from the installed typings instead (`grep -rl <field> node_modules/@dcl/react-ecs/dist node_modules/@dcl/ecs/dist`: no file listed means it does not exist). If the scene is too old, upgrade: a stable scene to `latest`, a Multiplayer Server scene to the newest `auth-server` build and never to `latest`, which has no server APIs (**authoritative-server** → Setup). The upgrade is the step to confirm with the user (it changes every dependency, and on a server scene the tag); the version check itself needs no confirmation. If the user does not want to upgrade, use the fallback the topic skill names. Never patch the SDK's generated types or serializers in `node_modules`; it breaks on the next install.
 
 ### General principle
 
@@ -108,6 +112,11 @@ Only when the MCP is not available (no Creator Hub in play, or the user declines
 
 Load the topic skill that matches the request; for requests spanning several topics, load each.
 
+Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a new session is needed to load it: the skill list and the MCP tool list are fixed at session start.
+
+- `npx skills add … --all` and the Creator Hub's skills update overwrite every released skill's folder, locally patched copies included, so install an unreleased skill from a PR under its own folder name and leave the released folders (`sdk-scenes`, `npcs`, …) unpatched.
+- The installer skips a skill whose frontmatter it cannot parse and still exits 0, and the Hub reports success on exit 0 (creator-hub `skills.ts`), so when a skill seems missing, compare `skills-lock.json` with the upstream skill list.
+
 ### Scene Setup & Configuration
 
 **Skill: `create-scene`** — Scaffolding a new project, and editing `scene.json` (parcels, spawn points, permissions, tags, feature toggles). Field reference: `{baseDir}/../create-scene/references/scene-json.md`.
@@ -130,7 +139,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Lighting & Environment
 
-**Skill: `lighting-environment`** — `LightSource` point/spot lights, shadows, `SkyboxTime` (day/night cycle); glow that also lights its surroundings.
+**Skill: `lighting-environment`** — `LightSource` point/spot lights, shadows, `SkyboxTime` (day/night cycle), `Skybox`, `Sun` and `EnvironmentFog` (custom sky image, sky/sun/fog colors, a dimmed, fixed or hidden sun, complete darkness); glow that also lights its surroundings.
 
 ### Particle Systems
 
@@ -174,7 +183,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, integrate or debug the module, analyze exported CSV responses.
+**Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, organize test rounds and find testers, integrate or debug the module, analyze exported CSV responses.
 
 ### Audio & Video
 
@@ -194,7 +203,7 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Multiplayer Server
 
-**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Requires `@dcl/sdk@auth-server`.
+**Skill: `authoritative-server`** — Headless server, `isServer()`, `registerMessages()`, `Storage`, `EnvVar`. Also investigate deployed multiplayer scenes automatically using persisted log search, bounded live tail, executions and CPU/memory metrics (`scene-insights`). Read-only diagnostics reuse an existing session; they do not require adding a server. First check the installed `node_modules/.bin/sdk-commands scene-insights --help`, including stderr; if unavailable, explain the required SDK update. Do not upgrade automatically. Older installations may need updating, and granting log access requires redeploying. Authoring requires `@dcl/sdk@auth-server`.
 
 ### Script Components (Creator Hub)
 
@@ -218,12 +227,18 @@ Load the topic skill that matches the request; for requests spanning several top
 
 ### Game Design
 
-**Skill: `game-design`** — DCL design philosophy, platform-provided features, core loop and MVP, game archetypes, onboarding, playtests, spatial layout, engagement.
+- **Skill: `dcl-gdd`** — Design a game or experience with the creator: brainstorm, core loop, audience, readability, social play, retention, mobile, scope; audit an idea; write or revise a GDD.
+- **Skill: `dcl-prototype`** — Small playable prototypes and greyboxes that answer a design question; owner self-tests, registered experiments and their verdicts.
+- What a scene in a shared world can and cannot do, and what the Explorer already provides (login, chat, name tags, emotes, loading screen): `{baseDir}/../create-scene/references/platform-provided.md`. Rules and instruction text: **build-ui** → *Rules: show, don't tell*. Organizing playtest rounds: **scene-feedback**.
 
 ### Deployment
 
 - **Skill: `deploy-scene`** — Genesis City (LAND) deployment with `npx @dcl/sdk-commands deploy`: pre-deploy checklist, thumbnail spec, `.dclignore`, post-publish conversion, troubleshooting.
 - **Skill: `deploy-worlds`** — Personal Worlds, `worldConfiguration`, ENS/DCL NAME requirements.
+
+### Promotion & Marketing Kit
+
+**Skill: `promote-scene`** — Audience-first marketing kit for a finished or upcoming scene: names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, logo/wordmark/icon, Blender hero renders of the scene's own GLBs, key art, quote cards, a footage shot list, a first-20-players plan with a stop rule, and an offline HTML kit page to copy/download everything; on request, a Remotion-cut video for one footage post or Short (from the creator's recordings, gameplay it records itself in the Explorer, Blender clips or stills). Not for deploying or for the scene thumbnail alone.
 
 ### Wearables & Smart Wearables
 
@@ -261,7 +276,7 @@ Current names: Creator Hub, Scene Editor, SDK7, SDK Skills.
 ## Shared References
 
 - **Components:** `{baseDir}/references/components-reference.md` — key fields, types and defaults of common SDK7 components. A component's complete field list lives in its topic skill or the SDK typings.
-- **Mobile parity:** `{baseDir}/references/mobile-parity.md` — what the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, colliders, movement). Read it before designing anything a mobile player depends on.
+- **Mobile parity:** `{baseDir}/references/mobile-parity.md` — what the mobile app does not support or does differently (TweenSequence, Draco, AvatarNametag, custom fonts, UI tint and safe area, VirtualCamera FOV, colliders, movement). Read it before designing anything a mobile player depends on.
 - **Example scenes:** `{baseDir}/references/example-scenes.md` — the docs' machine-readable catalog of 45 worked examples (20 published community games plus Decentraland references), with commit-pinned code highlights and licence status. Read it before designing a mechanic from scratch or when the user asks for an example or template.
 - **Entity validation** (component combinations that require or exclude each other, for composite and TypeScript entities): **create-scene**.
 - **Asset catalogs:** see Agent Behavioral Guidelines, item 2.

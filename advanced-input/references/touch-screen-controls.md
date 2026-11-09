@@ -2,7 +2,7 @@
 
 Details extracted from the `advanced-input` SKILL.md. Read this file when a task needs the button ordering rules, custom button icons, or a full configuration example. The API surface (fields + helpers) stays in SKILL.md.
 
-Available from `@dcl/ecs` **7.26.0**; not present in 7.25.0 or earlier. Component id `1218` (`PBTouchScreenControls`).
+Available from `@dcl/ecs` **7.26.0**; not present in 7.25.0 or earlier. Component id `1218` (`PBTouchScreenControls`). `showDefault()` and the default-button-set behavior arrived in **7.32.0**.
 
 ## How the button layout works
 
@@ -22,13 +22,13 @@ The on-screen slots are fixed too. Visible buttons fill those slots from the top
 | Action | Result |
 | --- | --- |
 | Hide a button (any, including `IA_JUMP`) | Every lower-priority button moves up to fill the gap. Hide jump and `IA_POINTER` takes the central spot. |
-| Change nothing | `IA_JUMP` is the large central button; the rest fill the surrounding slots in stack order. |
+| Change nothing | The default set applies: `IA_JUMP` central, `IA_POINTER` and `IA_PRIMARY` beside it, the other five hidden. Three visible buttons, no "+" overflow. |
 | Set `mainAction` | That action moves to the front of the stack and becomes the central button; the others keep their relative order. |
 | Set `mainAction` on a button that is also hidden | Hiding wins — the button stays hidden. |
 | Leave 5 or fewer buttons visible | All show directly (central button + up to 4 around it); no "+" overflow toggle. |
 | Leave more than 5 buttons visible | The "+" takes the last slot: 4 show directly (central + 3), the rest sit behind the "+" overflow. |
 
-This is also how to surface the `1`/`2`/`3`/`4` buttons (`IA_ACTION_3`..`IA_ACTION_6`), which otherwise sit behind the "+": hide enough higher-priority buttons to bring the visible count to five or fewer.
+The `1`/`2`/`3`/`4` buttons (`IA_ACTION_3`..`IA_ACTION_6`) and `IA_SECONDARY` (F) are hidden by the default set, so a scene that wants them must name them with `hide: false` (or call `showAll()`). Showing all eight brings back the "+" overflow; to get them all on screen directly, keep the visible count to five or fewer — see *The default button set* in SKILL.md.
 
 **It is a stack, not a swap.** `mainAction` pulls one action to the front, and everything else re-packs in priority order behind it — it does not trade places with the old main button. Making `IA_PRIMARY` (E) the main action puts E in the big central slot and lands `IA_JUMP` in the **first cluster slot**, not in E's old position. Hiding buttons re-packs the rest with no gaps.
 
@@ -60,6 +60,7 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
 - Only scene-content paths — not external URLs, `avatarTexture`, or `videoTexture`.
 - If the path cannot be resolved, the built-in glyph is used (silent fallback).
 - On `IA_JUMP` the icon replaces **all** of that button's dynamic states (jump / double-jump / glide), so one static image covers all three.
+- The icon also appears in the hover hint of every pointer event bound to that `InputAction`: the mobile client's hint pill reads the same icon table as the touch buttons and applies the scene's override so the two always match (godot-explorer `ui/tooltip_label.rs`, `apply_custom_icon_override`; observed 2026-11: a crosshair on `IA_POINTER` showed on a gun's "Pick Up" hint). Without an override the hint shows the default glyph for `IA_POINTER` / `IA_JUMP`, a keycap letter for `IA_PRIMARY`, `IA_SECONDARY` and `IA_ACTION_3`–`6` (E, F, 1–4), the mapped key for any other action, and "Any" for `IA_ANY`. When `IA_POINTER` carries a weapon icon, keep pickups, talk and other non-shooting interactions on another action, such as `IA_SECONDARY`, and give it an icon of its own if a letter does not read.
 
 ## Raw form with state-driven icons
 
@@ -88,7 +89,7 @@ TouchScreenControls.createOrReplace(engine.RootEntity, {
 
 ## Worked example — declutter and re-icon
 
-Hide the joystick, tuck away the numbered buttons (dropping the visible count to 4, which removes the "+"), and give the central jump button a scene image:
+Hide the joystick and give the central jump button a scene image. The numbered buttons are listed with `hide: true` even though the default set already hides them: this runs inside `main()`, after the SDK's startup write, and `createOrReplace` replaces the whole `touchInputs` list — so any button left out of the list shows. (The "lists any button counts as choosing" check only matters for a write that runs *before* the first frame, at the top level of `src/index.ts`; see SKILL.md → *The default button set*.)
 
 ```typescript
 import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
@@ -98,6 +99,7 @@ export function main() {
     hideJoystick: true,
     hideCrosshair: false,
     touchInputs: [
+      { inputAction: InputAction.IA_SECONDARY, hide: true },
       { inputAction: InputAction.IA_ACTION_3, hide: true },
       { inputAction: InputAction.IA_ACTION_4, hide: true },
       { inputAction: InputAction.IA_ACTION_5, hide: true },
@@ -151,6 +153,8 @@ All helpers read the current `RootEntity` value, mutate a copy, and `createOrRep
 
 - `hide(actions)` merges per-action: an existing entry for that action keeps its `icon` and only flips `hide` to `true`.
 - `hideAll()` is `hide(ALL_BUTTONS)` over the eight gamepad actions.
-- `showAll()` sets `touchInputs` to `[]` — it does not flip `hide` to `false`. **Any custom `icon` set through `touchInputs` is discarded.** Re-apply icons after calling it.
-- `showAll()` never touches `hideJoystick` / `hideCrosshair`; use `showJoystick()` / `showCrosshair()`.
+- `showAll()` sets `touchInputs` to `[]` — it does not flip `hide` to `false`. **Any custom `icon` set through `touchInputs` is discarded.** Re-apply icons after calling it. With the empty list, all eight buttons show.
+- `showDefault()` merges instead: existing entries keep their `icon` and their position in the list, every entry is flipped to `hide: false`, then `IA_SECONDARY` and `IA_ACTION_3`..`IA_ACTION_6` are set to `hide: true` (appended if they were absent). This is the one helper that restores the scene's starting HUD without losing icons.
+- `showAll()` and `showDefault()` never touch `hideJoystick` / `hideCrosshair`; use `showJoystick()` / `showCrosshair()`.
+- All four button-visibility helpers (`hide`, `hideAll`, `showAll`, `showDefault`) also mark the scene as having chosen its buttons, which suppresses the SDK's default write when they run before the first frame — see SKILL.md → *The default button set*.
 - No helper clears `mainAction`; `setMainAction` only sets it. To go back to the default central button, write the component directly with `mainAction` omitted.

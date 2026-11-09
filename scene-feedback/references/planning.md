@@ -30,7 +30,8 @@ qualify. For uncertain exposure, use an observable event or answerable wording. 
 participation and skipping voluntary with ordinary progress intact. Fold requested device
 considerations into low-effort answer formats. Describe effort from known question/comment
 choices; give time estimates only when checked in that flow. For finding testers or organizing
-a session, offer the [Playtests guide][playtests] as a brief relevant link.
+a session, offer the [Playtests guide][playtests] as a brief relevant link and use
+[Run test rounds](planning-details.md#run-test-rounds).
 
 When attracting responses or the requested effort makes an in-game perk relevant, inspect
 the actual economy/mechanics and read [Participation rewards](participation-rewards.md).

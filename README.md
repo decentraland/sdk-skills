@@ -36,6 +36,8 @@ npx skills add decentraland/sdk-skills --all
 
 Don't use `npx skills update` for this: it only refreshes skills you already have installed, so it won't download newly added skills.
 
+`npx skills` records every installed skill and its source repository in `skills-lock.json` next to the skills folder; read it before guessing where a skill came from. Skills that were part of the earlier OpenDCL context package are now maintained here, so a skill missing from this repo's table was never in it rather than removed.
+
 ## Available Skills
 
 | Skill | Description |
@@ -49,17 +51,18 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `animations-tweens` | GLTF model animations with Animator, SDK tweens for position/rotation/scale. |
 | `audio-analysis` | Real-time amplitude and frequency data from audio sources to drive reactive visuals. |
 | `audio-video` | Sound effects, music, audio streaming, and video players. |
-| `authoritative-server` | Headless Multiplayer Server for multiplayer scenes. |
+| `authoritative-server` | Build multiplayer servers and diagnose deployed scenes with log search, bounded live tail, executions and resource metrics. |
 | `avatar-animations` | Find or author avatar animations (scene emotes): built-in emotes and the Creator Hub Avatar Animations pack first (catalogued with previews), then custom clips in Blender on the official Decentraland rig — posing, export to `*_emote.glb`, verification, upper-body masks. |
 | `build-ui` | 2D screen-space UI with React-ECS (JSX) — HUDs, menus, dialogs, toasts, sliders. Editable in the Creator Hub's UI Designer by default; free-form coded UI for data-driven corner cases. |
 | `camera-control` | Camera mode detection, cinematic camera, virtual cameras. |
 | `composites` | Composite file format reference for static scene content. |
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
+| `dcl-gdd` | Design a game or experience with the creator — brainstorm, core loop, audience, retention, mobile, scope — and write or revise a GDD. Pairs with `dcl-prototype`. |
+| `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. Requires `dcl-gdd`. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
-| `game-design` | Game design patterns, MVP planning, playtests. |
-| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
+| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles, custom sky texture, sky colors, clouds, stars, sun color/intensity/direction, fog color and density. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
@@ -68,8 +71,9 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
 | `player-physics` | Physics forces — impulses, knockback, continuous forces. |
+| `promote-scene` | Audience-first marketing kit for a scene — names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, logo, renders of the scene's own models, key art, quote cards, footage shot list, a first-20-players plan with a stop rule, and an offline kit page; on request, a Remotion-cut video for one footage post or Short, from the creator's recordings, gameplay it records itself in the Explorer, Blender clips or stills. |
 | `report-sdk-issue` | Report SDK/engine bugs and limitations to the Decentraland team before working around them (asks for consent once per scene). |
-| `scene-feedback` | Help creators choose playtest questions and timing, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
+| `scene-feedback` | Help creators choose playtest questions and timing, organize test rounds, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
 | `scene-retro` | Retrospective of a scene's build sessions: turns real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only; saves a report. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
 | `script-components` | Script component classes for the Creator Hub. |
@@ -86,6 +90,8 @@ Skills are markdown files that give AI coding assistants the context they need t
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
 
 The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
+
+Write each `SKILL.md` frontmatter `description` as one double-quoted line (`description: "..."`, with any inner `"` as `\"`). The skills CLI parses the frontmatter as strict YAML and silently skips a skill it cannot parse, and an unquoted description that contains `: `, ` #`, or starts with a YAML indicator fails that parse. `tests/skill-frontmatter.test.mjs` checks every skill for this.
 
 ## License
 

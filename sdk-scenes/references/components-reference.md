@@ -65,7 +65,7 @@ All components are imported from `@dcl/sdk/ecs`.
 |-----------|-----------|-------------|
 | **PlayerIdentityData** | `address: string`, `isGuest: boolean` | Player's wallet address and guest status. |
 | **AvatarShape** | `id: string`, `name: string`, `bodyShape`, `wearables`, `emotes` | Render an avatar (for NPCs). |
-| **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name` | Base avatar appearance. |
+| **AvatarBase** | `skinColor`, `eyesColor`, `hairColor`, `bodyShapeUrn`, `name`, `talking?: boolean` | Base avatar appearance, written by the engine on every player entity. `talking`: `true` speaking in voice chat, `false` silent, `undefined` no voice data. `onProfileChanged` ignores `talking` changes — watch the component. Not `AvatarShape.talking` (**npcs**). See `player-avatar`. |
 | **AvatarAttach** | `avatarId: string`, `anchorPointId` | Attach an entity to a player's avatar. |
 | **AvatarModifierArea** | `area: Vector3`, `modifiers: Array<AvatarModifierType>` | Modify avatars in an area. Modifiers: `AMT_HIDE_AVATARS` (0), `AMT_DISABLE_PASSPORTS` (1), `AMT_HIDE_NAMETAGS` (2). |
 | **AvatarNametag** | `label: string`, `labelColor?`, `backgroundColor?`, `borderColor?` (all `Color3`) | Plate with scene-provided text above an avatar's native nametag (rank/role). Valid only on `engine.PlayerEntity`, a remote player entity, or an entity with `AvatarShape` — other writes are ignored. Client-local, never relayed. Not implemented on mobile. `@dcl/sdk` 7.28.0+. See `player-avatar`. |
@@ -80,7 +80,7 @@ All components are imported from `@dcl/sdk/ecs`.
 | **CameraMode** | `mode: CameraType` | Read-only current camera mode. `CameraType`: `CT_FIRST_PERSON` (0), `CT_THIRD_PERSON` (1), `CT_CINEMATIC` (2 — reported while a `VirtualCamera` drives the view). |
 | **CameraModeArea** | `area`, `mode` | Force camera mode in an area. |
 | **MainCamera** | `virtualCameraEntity?: Entity` | Activate a `VirtualCamera` by setting this to its entity (use `MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity })`); clear it to return control. Read the live camera pose from `Transform.get(engine.CameraEntity)`. |
-| **VirtualCamera** | `lookAtEntity?`, `defaultTransition`, `fov?: number` | Create cinematic camera angles. `fov` overrides the Explorer's default field of view (degrees) while this camera is active. |
+| **VirtualCamera** | `lookAtEntity?`, `defaultTransition`, `fov?: number` | Create cinematic camera angles. `fov` (degrees) applies while this camera is active; there is no default, so set it on every camera (**camera-control**). |
 
 ## UI Components (React-ECS)
 
@@ -102,7 +102,7 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 
 | Component | Key Fields | Description |
 |-----------|-----------|-------------|
-| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. |
+| **TouchScreenControls** | `touchInputs: TouchInput[]`, `mainAction?: InputAction`, `hideJoystick: boolean`, `hideCrosshair: boolean` | Customize on-screen touch controls. Written to `engine.RootEntity`. `TouchInput`: `{ inputAction: InputAction, hide: boolean, icon?: TextureUnion }`. Convenience helpers on the extended component: `hideAll()`, `showAll()`, `showDefault()`, `hide(actions)`, `setMainAction(action)`, `hideJoystick()`, `showJoystick()`, `hideCrosshair()`, `showCrosshair()`. On SDK **7.32.0+** scenes start from a **default set** — jump, pointer and primary visible, secondary and actions 3-6 hidden — so `showAll()` (all eight) is not the same as restoring it; `showDefault()` (7.32.0+) is. On 7.26.0–7.31.x all eight show by default and `showDefault()` does not exist (**advanced-input**). |
 
 ## System & Runtime
 
@@ -111,6 +111,9 @@ These are the underlying ECS UI components (from `@dcl/sdk/ecs`). You normally d
 | **EngineInfo** | Read-only: `tickNumber`, `totalRuntime`, `frameNumber`, `sceneHidden` | Engine timing information. `sceneHidden` is `true` while the Explorer's fullscreen UI (the loading screen) covers the scene — watch for it flipping to `false` to time intros to the loading screen fade-out. See `scene-runtime`. |
 | **RealmInfo** | Read-only: `realmName`, `networkId`, `baseUrl` | Current realm/server info. |
 | **SkyboxTime** | `fixedTime: number`, `transitionMode?: TransitionMode` | Fix the time of day (seconds since 00:00; 43200 = noon, 86400 = full day). |
+| **Skybox** | `skyboxTexture?: string` (image path, equirect 2:1), `skyColors?: { zenith?, horizon?, nadir?, rim? }`, `clouds?: { opacity?, speed?, color? }`, `stars?: { brightness? }` | Not supported yet on mobile or Bevy. `engine.RootEntity` only, active while the player is in the scene. Sky image, or procedural sky colors, clouds and stars; `skyColors` also set the ambient light, even under a sky image. Colors are `ColorGradient = { keys: { time: 0..1 (time of day), color: Color4 }[] }`. See `lighting-environment`. |
+| **Sun** | `color?: ColorGradient`, `visible?: boolean`, `intensity?: number`, `direction?: Vector3` | Not supported yet on mobile or Bevy. `engine.RootEntity` only, active while the player is in the scene. Tints, scales, fixes the direction of, or hides (discs and lens flare; the light stays) the sun/moon light. See `lighting-environment`. |
+| **EnvironmentFog** | `color?: ColorGradient`, `density?: number` | Not supported yet on mobile or Bevy. `engine.RootEntity` only, active while the player is in the scene. Fog color and exponential `density` (default 0.0005); fog on/off is a player setting. See `lighting-environment`. |
 | **AssetLoad** | `assets: string[]` | Pre-request loading of asset files (paths). Loading state is reported separately via `AssetLoadLoadingState`. |
 | **AssetLoadLoadingState** | Read-only | Loading state of external assets. |
 | **MapPin** | `position: Vector2`, `iconSize: number`, `title: string`, `description: string`, `texture?: TextureUnion` | Place a marker on the world/mini-map at parcel coordinates. |

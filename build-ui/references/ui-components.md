@@ -16,6 +16,8 @@ Only call `ReactEcsRenderer.setUiRenderer()` once per scene. **A second call doe
 
 The options arg is `{ virtualWidth?, virtualHeight?, screenInset?, zIndex? }` — every field optional. Omitting the virtual size does **not** disable scaling: a platform default applies (`1920x1080`, or `1600x720` on mobile). The editable aggregator passes no options (`SKILL.md` → **The aggregator**); coded UI passes the size explicitly (`coded-ui.md` → DEFAULT RULE). `screenInset` defaults to `'device'`.
 
+The virtual size is a minimum, not the canvas shape. The scale factor is a contain-fit, `Math.min(canvasWidth / virtualWidth, canvasHeight / virtualHeight)` (`@dcl/react-ecs` `system.ts`), so a `100%` root spans the virtual size on the tighter axis and more on the other: 1920×1200 on a 16:10 display, wider than 1920 on an ultrawide. Full-screen art stretched to `100%` distorts. Build it cover-fit around a centred stage of the virtual size, 1920×1080 on desktop (art larger than the stage, cropped by the edges), and size overlays such as a reticle in virtual units, never from `UiCanvasInformation` pixels.
+
 ⚠️ **This describes SDK 7.26.0+.** Below 7.26.0 there is no `screenInset` field (passing it is a type error), `virtualWidth` / `virtualHeight` are required when options are passed, and omitting the options means no scaling at all. Check `@dcl/sdk` in the scene's `package.json` — see the version gate in `coded-ui.md`.
 
 ## UiEntity — All Props
@@ -249,6 +251,13 @@ Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `
   uiBackground={{ textureMode: 'center', avatarTexture: { userId } }} />
 ```
 
+**Nine-slice borders are a fixed number of virtual pixels, not a share of the element.** The desktop client sets each border to `textureSlices` fraction × the texture's pixel size and hands it to UI Toolkit as a slice (`DCLImage.SetSliced`), so the corner cells draw at that size whatever the element measures: a 128 px texture with `left: 0.125` gives a 16 px corner on a 100 px button and the same 16 px on a 1,400 px panel. A chamfer drawn to read on a mockup's big panel is nearly invisible once the same texture skins every panel (observed 2026-11 across a full screen set). Rules:
+
+- Keep the virtual canvas fixed (the default: `1920x1080`, `1600x720` on mobile — **coded-ui.md** → DEFAULT RULE). Then the border is a known number of virtual px, the same unit as `width` / `height`, and you can author to it: decide the chamfer in virtual px from the design, and draw the texture so that `fraction × texture px` equals it.
+- One texture per **size class** when the design cuts buttons and panels differently (a 16 px cut for buttons, 48 px for cards and full panels): the diagonal lives inside the corner cell, so a larger `textureSlices` on the same art does not enlarge it. Two or three textures cover a whole UI kit.
+- Geometry (plain rectangles plus a triangle image sized in code) only where the cut must follow a bound, continuously varying size. Translucent colours on such built-up shapes band on mobile: `SKILL.md` → **Sizing and mobile**.
+- The same textures serve mobile: the corner cells are fixed-size there too (a `NinePatchRect` with the same margins), and the virtual px count is the same on both platforms — the phone only draws each virtual px larger. The one difference is that the mobile client tiles the edge and centre cells instead of stretching them (`SKILL.md` → Gotchas), so keep those cells uniform.
+
 **Texture UVs.** `uvs` selects a region of a texture: 8 numbers (4 UV pairs) in the order bottom-left, top-left, top-right, bottom-right, values 0–1, with `textureMode: 'stretch'`. A literal crop round-trips in the editor; computed UVs (sprite-sheet helpers, rotation) are in `coded-ui.md`, and in editable UI a driver writes a `number[]` state variable.
 
 ```tsx
@@ -258,6 +267,14 @@ Texture `src` paths are relative to the scene root (`'images/panel.png'`), not `
   uiBackground={{ textureMode: 'stretch', texture: { src: 'images/card-atlas.png' }, uvs: [0, 0, 0, 1, 0.5, 1, 0.5, 0] }}
 />
 ```
+
+Mobile apps below 1.16.0 ignore `color` tint and alpha on `uvs` crops: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+
+**Desktop client limits** (observed in-world, 2026-11):
+
+- `borderRadius` rounds colour fills but does not clip a `stretch` or `center` texture: the Unity explorer draws those as a custom mesh the radius does not reach (`DCLImage`). For a rounded image, bake the corners into the art.
+- A nine-slice PNG's transparent border margin was painted black (2026-11). Check nine-sliced art with transparent edges in-world before shipping it.
+- A just-mounted texture draws one frame after the text and fills around it: `SKILL.md` → Troubleshooting.
 
 ## Opacity & zIndex (elements)
 
@@ -371,6 +388,8 @@ Wraps children so they stay inside the renderer-reported **interactable area** �
 **For a whole coded UI, prefer `screenInset: 'interactable'` on the renderer.** Use the component to inset a single subtree, or when the renderer sits in a different area. In the editable aggregator it is the wrapper for roots whose Scene Inset is `interactable`.
 
 **Client support.** Either form needs an explorer that reports the area: desktop does, and mobile from app 1.12.1. Older mobile apps report no margins, so the area falls back to the whole screen and the inset silently does nothing. 1.12.1 also normalizes the `'device'` area between Android and iOS, so treat it as the floor for any inset-sensitive mobile layout.
+
+**The preview's interactable area is smaller than production's.** In a local preview the mobile client adds developer buttons (console, stats, reload) to the top-left cluster beside the profile button, so the reported left inset is much larger than players get in the production app, where only the profile and chat buttons sit there (observed 2026-11 in the desktop emulator and on an iPhone running the preview; [UNVERIFIED] — no client code was found that ties the inset to preview mode, so this rests on the observation alone). Panels sized from the preview's area come out small and pushed right for players. Do not tune sizes against the preview's inset alone: cap the left margin at the room the production icons take, or check against a production build.
 
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, InteractableArea } from '@dcl/sdk/react-ecs'

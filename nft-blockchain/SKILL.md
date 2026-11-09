@@ -68,6 +68,8 @@ Code for every row below: `{baseDir}/references/blockchain-patterns.md` → dcl-
 
 **By MANA balance:** Check `crypto.mana.myBalance()` (or `crypto.currency.balance(contractAddress, address)` for other ERC20 tokens) to gate access based on holdings.
 
+**Keep a free path.** A paid or gated area sits beside free gameplay, and a free area shows what the paid one offers; paid upgrades add to the game rather than unlock it.
+
 ### Quick Decision Guide
 
 | Task | Use |

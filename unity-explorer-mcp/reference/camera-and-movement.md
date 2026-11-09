@@ -19,6 +19,7 @@
 ## Camera modes
 
 - `set_camera_mode` respects scene locks and errors truthfully — check `get_player_state` → `camera.modeChangeAllowed` first; `false` inside a `CameraModeArea`/scene virtual camera is correct behavior worth verifying, not a tool failure. A refusal names the `CameraModeArea` holding the lock — its scene, base parcel, entity `crdtId`, the mode it forces and its size (and, for nested areas, how many and that the newest is in effect) — so it says which area to leave rather than which hotkey failed. `screenshot` works in any mode.
+- **A scene-driven `VirtualCamera` leaves you no camera to turn** (observed 2026-10/11): `camera_look` does not rotate the scene's camera, and a `CameraModeArea` blocks the free camera. When a look-around check is needed in such a scene, add a debug hook to the scene itself (a key handler or a dev-only UI button) that rotates the game camera, and drive that with `press_input` or `ui_click`.
 
 ## Precise navigation
 

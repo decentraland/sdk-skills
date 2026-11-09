@@ -32,8 +32,9 @@ check. Identify devices actually tested and leave untested keyboard behavior exp
 ## End-to-end Storage check
 
 For end-to-end Storage verification, follow [Review][review] and [Stored CSV][csv]: submit
-a known answer and find its question and trigger in the downloaded CSV after the documented
-write delay. A call result or server acknowledgement does not establish persistence.
+a known answer and find its question and trigger after the documented write delay, in the
+newest file of the latest part (a part can hold several files: check them all before calling a
+row missing). A call result or server acknowledgement does not establish persistence.
 Deploy when authorized; otherwise explain the remaining World verification.
 
 Report checks run, configured handlers or fixes, and whether a matching CSV row was verified

@@ -298,7 +298,7 @@ export function openScoreboard() {
 
 export function closeScoreboard() {
   scoreboardOpen = false
-  TouchScreenControls.showAll()      // also clears any custom button icons — re-apply them here if the scene set some
+  TouchScreenControls.showDefault()  // 7.32.0+; restores the scene's starting button set, icons intact (showAll() would reveal all eight and drop the icons). Below 7.32.0 use showAll()
   TouchScreenControls.showJoystick()
   InputModifier.deleteFrom(engine.PlayerEntity)
 }
@@ -323,7 +323,7 @@ const Scoreboard = () => {
 }
 ```
 
-Always route every close path (close button, timer, leaving the area) through `closeScoreboard()` so the controls are never left hidden. If the modal is a **rules card**, keep its content to 3–5 short lines or a diagram image (**game-design** → "Rules: show, don't tell").
+Always route every close path (close button, timer, leaving the area) through `closeScoreboard()` so the controls are never left hidden. If the modal is a **rules card**, keep its content to 3–5 short lines or a diagram image (`{baseDir}/SKILL.md` → *Rules: show, don't tell*).
 
 ### Timed announcement
 
@@ -445,6 +445,8 @@ function getFrameUVs(col: number, row: number, totalCols: number, totalRows: num
 />
 ```
 
+**Rotating a UI image.** `uiTransform` has no rotation, so rotate the *sampled texture* instead: the explorer draws a stretched background as one 4-vertex quad that takes the four UV pairs verbatim, so spinning the UV quad around (0.5, 0.5) spins the image inside a box that never moves. Only the picture turns: the element's bounds, hit area, children and text stay axis-aligned. Keep the element square (the texture would squash on a non-square box) and keep the art inside the inscribed circle with a transparent margin: past 45° the corners of the quad sample outside 0–1 and the explorer clamps to the edge pixels (`wrapMode` defaults to `'clamp'` in the Unity explorer and is forwarded when set), so an opaque edge smears. Pattern from the [ui-animations](https://github.com/decentraland/sdk7-goerli-plaza/tree/main/ui-animations) example (`ui_components/UISpinner.tsx`, degrees); radians below.
+
 ```tsx
 function rotate2D(angle: number, x: number, y: number, cx: number, cy: number): number[] {
   const cos = Math.cos(angle)
@@ -452,6 +454,7 @@ function rotate2D(angle: number, x: number, y: number, cx: number, cy: number): 
   return [cos * (x - cx) - sin * (y - cy) + cx, sin * (x - cx) + cos * (y - cy) + cy]
 }
 
+// Rotates the full-texture quad around its center; same 8-float order as a static crop
 function rotateUVs(angle: number): number[] {
   const uv00 = rotate2D(angle, 0, 0, 0.5, 0.5)
   const uv01 = rotate2D(angle, 0, 1, 0.5, 0.5)
@@ -461,11 +464,16 @@ function rotateUVs(angle: number): number[] {
 }
 
 let spinnerAngle = 0
-engine.addSystem((dt: number) => { spinnerAngle += dt * 5 })
+engine.addSystem((dt: number) => { spinnerAngle = (spinnerAngle + dt * 5) % (Math.PI * 2) })
 
+// Square element, square texture with transparent corners (e.g. a ring on a 128x128 transparent PNG)
 <UiEntity
   uiTransform={{ width: 128, height: 128 }}
-  uiBackground={{ textureMode: 'stretch', texture: { src: 'images/spinner.png' }, uvs: rotateUVs(spinnerAngle) }}
+  uiBackground={{
+    textureMode: 'stretch',
+    texture: { src: 'images/spinner.png', wrapMode: 'clamp' },
+    uvs: rotateUVs(spinnerAngle)
+  }}
 />
 ```
 

@@ -1,6 +1,6 @@
-# In-scene checks: build the assertion into the scene
+# In-scene checks reference
 
-Reached when a behaviour cannot be read back through any MCP tool. Put the assertion in scene code and read the verdict off an in-world panel. [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) is the reusable shape (`src/qaPanelUi.tsx`):
+Read when no MCP tool reads back the thing you must prove — whether an avatar is hidden, whether a modifier area applies, whether a collider has the right size. Put the assertion in scene code and read the verdict off an in-world panel. [`9,99-modifier-areas`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas) is the reusable shape (`src/qaPanelUi.tsx`):
 
 - A **QA info panel** pinned in a corner holds the instructions, a **Run** button per check, and a PASS (green) / FAIL (red) / NOT RUN result per check. One `screenshot` then reports the whole suite.
 - Each check **drives itself**: it creates its own probe entities, `movePlayerTo`s the player to a position that discriminates pass from fail, waits for the state to settle, reads an *observable* proxy, prints the verdict, and tears the probes down so it can be re-run.
