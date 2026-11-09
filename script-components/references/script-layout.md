@@ -7,8 +7,10 @@ Read this only when setting `asset-packs::Script` by hand (MCP `set_component` o
 The component value is `{ value: [{ path: string, priority: number, layout?: string }] }`. `layout` is a JSON string:
 
 ```json
-{"params":{"paramName":{"type":"string|number|boolean|action","value":<value>}}}
+{"params":{"paramName":{"type":"<type>","value":<value>,"optional":true,"tooltip":"…"}}}
 ```
+
+`type` is one of `string`, `number`, `boolean`, `slider` (+ `min`, `max`, `step`), `enum` (+ `options: string[]`), `entity` (+ optional `components: string[]`), `action`, `object` (+ `fields`: one param per member) or `array` (+ `item`: the element's param). `optional` and `tooltip` (from `@param`) are optional on every param. Object, list and tag details: [`script-params.md`](script-params.md).
 
 `layout` also carries `actions` (from `@action` methods) and `events` (from `@event` tags), plus an `error` string when parsing failed. Only `params` feeds the constructor; the other keys drive editor features (the action dropdown, the Reactions section), so spread the existing layout and overwrite only the param you change.
 

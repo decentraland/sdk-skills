@@ -36,6 +36,8 @@ npx skills add decentraland/sdk-skills --all
 
 Don't use `npx skills update` for this: it only refreshes skills you already have installed, so it won't download newly added skills.
 
+**In the Creator Hub** you don't need to run anything: when you open a scene, the Hub checks its `skills-lock.json` against this repository and offers **Install** (scene has no skills yet) or **Update** (some are out of date), following the *Scene Dependencies* setting (*Auto-update all my scenes* installs silently, *Do nothing* skips the check). It installs every skill except `create-scene`, `deploy-scene`, `deploy-worlds` and `migrate-sdk6-to-sdk7`, whose flows the Hub handles itself, into the scene's `.claude/skills/` and `.agents/skills/`.
+
 `npx skills` records every installed skill and its source repository in `skills-lock.json` next to the skills folder; read it before guessing where a skill came from. Skills that were part of the earlier OpenDCL context package are now maintained here, so a skill missing from this repo's table was never in it rather than removed.
 
 ## Available Skills

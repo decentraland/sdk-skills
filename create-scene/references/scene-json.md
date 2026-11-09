@@ -1,6 +1,6 @@
 # scene.json reference
 
-Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file — except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0` (**creator-hub-mcp** → *Tool catalog*, Settings row; spawn points: *RULE — confirm a batch landed on disk*; thumbnail: *Gotchas*).
+Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file (spawn points: **creator-hub-mcp** → *RULE — confirm a batch landed on disk*). The exception is `thumbnail`: write it with `set_component` on entity `0` (**creator-hub-mcp** → *Gotchas*).
 
 ## Fields
 
@@ -25,6 +25,8 @@ All valid `scene.json` fields:
 | `worldConfiguration`      | Optional     | World settings: name, Places opt-out, skybox, minimap (see worldConfiguration below; deploying: **deploy-worlds**) |
 | `landscapeTerrain`        | Optional     | Boolean, default `true`. Root-level field. **Worlds only** (single-scene Worlds; ignored in Genesis City). Set `false` to disable the auto-generated grassland/trees/sea landscape around the scene — for open-water/space settings and to free rendering budget. Also applies in local preview. In the Creator Hub, it is a toggle in the Scene Inspector settings (and a preview menu option); a scene-level `false` overrides the preview preference. |
 | `creator`                 | Optional     | Root-level wallet address (`"0x…"`) that receives MANA tips. When set, visitors get a **piggy bank icon** at the top left that opens a MANA tip modal (showing the address's Decentraland NAME if it has one), and the creator gets an in-app notification per tip. Creator Hub: scene Settings → Details → **Creator wallet address** |
+| `authoritativeMultiplayer` | Optional | Root-level boolean. `true` enables the scene's headless Multiplayer Server; needs the `@dcl/sdk@auth-server` build, whose sdk-commands adds it when absent. Creator Hub: Scene → SETTINGS → Advanced → **Enable Multiplayer Server** (installs the SDK and writes the field, `false` when off). See **authoritative-server** → Setup |
+| `logsPermissions` | Optional | Root-level `string[]` of wallet addresses allowed to read the Multiplayer Server's production logs and manage its storage. Creator Hub: **Log Access & Storage** under Enable Multiplayer Server (validated, 0x-prefixed, de-duplicated, omitted when empty). See **authoritative-server** |
 
 ## Tags (scene categories)
 

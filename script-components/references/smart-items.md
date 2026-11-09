@@ -12,9 +12,40 @@ Read this before inspecting, extending or copying a catalog Smart Item. Most cat
 
 ## Items that are not Script-based
 
-- **Still on `Actions`/`Triggers`:** `click_area`, `audio_stream`, the health/combat family (`first_aid`, `healing_pad`, `health_bar`, `respawn_pad`, `robot`, `spikes`, `sword`, `barrel`, `wooden_wall`), and `camera` (Actions + Config, no Triggers).
-- **Still have an `inspector::Config` panel:** the lights, the screen/media family, `camera`, `admin_toolkit`, `image`, `nft`, `text`, and the health/combat family. Do not state that Config was removed everywhere; it was removed only from the migrated items.
+- **No Script at all:** plain props (primitives, invisible walls, signposts), the ambient music/sound items, the modifier areas, `particle_system`, the screen/media family, `image`, `nft`, `text`, and `camera` (Actions + Config).
+- **Still have an `inspector::Config` panel:** the lights (with their Script), the screen/media family, `camera`, `image`, `nft`, `text`, `photo_mural`, `wearable_scanner`. Do not state that Config was removed everywhere; it was removed only from the migrated items.
 - `video_player` is **`[DEPRECATED]`** (in the `deprecated` category); use one of the video screen items instead.
+- **Already-placed items keep their component copy.** Placing an item copies its composite into the scene, and nothing migrates it later: a Health Bar or Admin Tools placed before the item became a script still runs on its `asset-packs::` components (`Counter`, `Triggers`, `asset-packs::AdminTools`, …). Read the entity before assuming which form it has.
+
+## Health and combat items
+
+Eight items ship as scripts: Health Bar (`health_bar/HealthBar.ts`), First Aid (`first_aid/FirstAid.ts`), Spikes (`spikes/Spikes.ts`), Healing Pad (`healing_pad/HealingPad.ts`), Exploding Barrel (`barrel/Barrel.ts`), Wooden Fence (`wooden_wall/WoodenWall.ts`), Robot Enemy (`robot/Robot.ts`), Sword (`sword/Sword.ts`); Respawn Pad is a Script too. Placing one copies its folder to `assets/asset-packs/<item_slug>/`.
+
+- **Composite shape:** `core::GltfContainer` + `asset-packs::Script` (`path: "{assetPath}/Spikes.ts"`, `layout` with params, actions and events) + `asset-packs::Actions` entries of `type: "call_script_method"`. No `inspector::Config`, no `Counter`. **Health Bar** additionally keeps `core::VisibilityComponent` and an `asset-packs::Triggers` that routes `on_damage` → its *Damage* action and `on_heal_player` → *Heal*, so built-in damage/heal actions reach it.
+- **Params, actions, events** (defaults from the shipped composites):
+
+| Item | Params | Actions | `@event` |
+| --- | --- | --- | --- |
+| Health Bar | `maxHealth=100`, `startHealth=100`, `primaryColor='#00FF00'`, `secondaryColor='#FF0000'`, `showBar=true` | `heal`, `damage`, `reset`, `remove` | `damaged`, `healed`, `death` |
+| First Aid | `healingPoints=100`, `hoverText='Heal'`, `removeOnUse=true` | `heal` | `healed` |
+| Spikes | `damagePoints=15`, `radius=5`, `interval=2`, `damageTarget: 'all'\|'player'\|'non_player'='player'`, `sound='spikes.mp3'` | `damage` | none |
+| Healing Pad | `healPoints=5`, `interval=0.5`, `sound='heal.mp3'` | `heal` | none |
+| Exploding Barrel | `health=30`, `explosionRadius=10`, `explosionDamage=30`, `explosionTarget='all'`, `animation='Animation'`, `removeAfter=1` | `explode` | `exploded` |
+| Wooden Fence | `health=30`, `hitAnimation='Hit'`, `fallAnimation='Fall'`, `fallSound='fall.mp3'` | `destroy` | `destroyed` |
+| Robot Enemy | `health=30`, `speed=1`, `followDistance=2`, `attackRadius=3`, `attackDamage=10`, `attackInterval=1`, `attackAnimation='Attack'`, `deathAnimation='explode'`, `removeAfter=0.5` | `die` | `death` |
+| Sword | `hoverText='Pick up'`, `radius=3`, `damagePoints=10`, `damageTarget='non_player'`, `cooldown=0.5`, `attackEmote='sword_attack_emote.glb'` | `pickUp`, `attack` | none |
+
+- **Health Bar attaches itself to the player** (`Transform.parent = engine.PlayerEntity` in `start()`): place it, do not parent it by hand. Its value is a synced `Counter`, drawn by the shared `CounterBar` renderer.
+- **Script and component items interoperate.** Scripts damage through the shared `damageTargets` registry and `ON_DAMAGE` trigger events from `@dcl/asset-packs`; the built-in `DAMAGE` / `HEAL_PLAYER` actions, `Counter` and `CounterBar` still exist, so a scripted Spikes damages a component-based Health Bar and the reverse.
+- Files the scripts play (`sound`, `fallSound`, `attackEmote`) are paths relative to the item's folder ([`script-params.md`](script-params.md) → File params).
+
+## Admin Tools
+
+`admin_toolkit/AdminTools.ts` + `admin_toolkit/AdminPanel.tsx` (+ `assets/` icons). Composite: `asset-packs::Placeholder` (`admin_toolkit.glb`, editor-only cube) + `asset-packs::Script`; no `asset-packs::AdminTools` component and no Config panel. **Needs `@dcl/sdk` 7.33.0+**: the script imports `setAdminConfig` / `clearAdminConfig` and the panel API from the `@dcl/asset-packs` that ships with that SDK's inspector, so a newly placed Admin Tools fails to build on an older pin (upgrade per **sdk-scenes** → item 8).
+
+- **Configuration is the Script params** in the right panel (nested objects and lists, [`script-params.md`](script-params.md)): `adminPermissions: 'PUBLIC'|'PRIVATE'='PUBLIC'`; `authorizedAdminUsers {me, sceneOwners, allowList, adminAllowList: string[] (@format wallet)}`; `moderationControl {isEnabled, kickCoordinates {x,y,z}, allowNonOwnersManageAdminAllowList}`; `textAnnouncementControl {isEnabled, playSoundOnEachAnnouncement, showAuthorOnEachAnnouncement}`; `videoControl {isEnabled, disableVideoPlayersSound, showAuthorOnVideoPlayers, linkAllVideoPlayers, videoPlayers: Array<{entity (@components asset-packs::VideoScreen), customName}>}`; `smartItemsControl {isEnabled, linkAllSmartItems, smartItems: Array<{entity (@components asset-packs::Actions), customName, defaultAction (@actionsOf entity)}>}`. There is no rewards section.
+- **`AdminPanel.tsx` is the editable in-world panel** (plain `@dcl/react-ecs`): add links, tabs or branding there. Tab contents and the backend (moderation, video, smart items, announcements) still come from `@dcl/asset-packs/dist/admin-toolkit-ui/panel-api`.
+- The panel mounts on clients only (`isServer` guard), as an extra UI renderer at `zIndex` 1000 (**build-ui** → `references/ui-components.md` → Renderer zIndex). Removing the item unmounts the panel and clears its config.
 
 ## Item behaviors worth knowing
 
