@@ -300,8 +300,8 @@ import { engine, ExplorerUiEventsResult, ExplorerUi } from "@dcl/sdk/ecs";
 
 let lastHandledTick = -1;
 engine.addSystem(() => {
-  const results = ExplorerUiEventsResult.getOrNull(engine.RootEntity);
-  if (!results) return;
+  if (!ExplorerUiEventsResult.has(engine.RootEntity)) return; // grow-only set: no getOrNull
+  const results = ExplorerUiEventsResult.get(engine.RootEntity);
   let newestTick = lastHandledTick;
   for (const entry of results.values()) {
     if (entry.timestamp <= lastHandledTick) continue; // already handled

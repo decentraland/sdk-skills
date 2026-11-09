@@ -1,6 +1,6 @@
 # scene.json reference
 
-Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file (spawn points: **creator-hub-mcp** → *RULE — confirm a batch landed on disk*). The exception is `thumbnail`: write it with `set_component` on entity `0` (**creator-hub-mcp** → *Gotchas*).
+Every `scene.json` field, the scene categories, permissions, feature toggles, spawn points, skybox fixed time, `worldConfiguration` and parcel layouts. Read it when writing or editing `scene.json`. In a scene open in the Creator Hub, change these settings through the Creator Hub MCP (`set_scene_settings`, **creator-hub-mcp**), not by editing the file (spawn points: **creator-hub-mcp** → *RULE — confirm a batch landed on disk*). The tool takes only the fields in its schema and drops the rest silently: `thumbnail`, `creator`, `logsPermissions` and `authoritativeMultiplayer` go through `set_component` on entity `0` or the Hub UI (**creator-hub-mcp** → *Gotchas*).
 
 ## Fields
 
