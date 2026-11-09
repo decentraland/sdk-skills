@@ -241,7 +241,9 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (a panel is already showing, not necessarily the one asked for), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+
+**All panels share one slot** -- they are sections of a single explorer panel view. Any open panel therefore refuses any other with `WAS_ALREADY_OPEN`, including one the player opened by hand before the click, which makes `openExplorerUiAndWait` resolve `notOpened`.
 
 **What counts as a gesture**: a click on a 3D entity (`pointerEventsSystem.onPointerDown` / `onPointerUp`), a click on scene UI (`onMouseDown` / `onMouseUp`), a pointer click with nothing under the cursor (`inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_DOWN)`), or an activation button (`E`, `F`, `1`-`4`: `IA_PRIMARY`, `IA_SECONDARY`, `IA_ACTION_3`-`IA_ACTION_6`) read with `inputSystem.isTriggered` on `PET_DOWN` / `PET_UP`. Hover, movement keys, `main()`, timers and trigger areas are not gestures. The window is the gesture's tick plus one, so call `openExplorerUi` **first** inside the handler: an `await` on a fetch, a timer or another restricted action before it pushes the call outside the window.
 
@@ -291,14 +293,21 @@ pointerEventsSystem.onPointerDown(
 
 ### ExplorerUiEventsResult -- Observe Panel Open/Close
 
-Scenes can observe when explorer panels are opened or closed. `ExplorerUiEventsResult` is a grow-only value set (APPEND semantics, max 100 entries) on `engine.RootEntity`. Each entry reports which panel and whether it opened or closed.
+The stream is owner-only: only the panels **this scene** opened report back. A panel the player opens by hand emits nothing at all, and neither does a call answered anything but `OPENED`. `ExplorerUiEventsResult` is a grow-only value set (APPEND semantics, max 100 entries) on `engine.RootEntity`. Each entry reports which panel and whether it opened or closed.
+
+`get()` returns the whole accumulated set, which is never cleared, so a plain loop re-processes every past event on every tick. Keep a `timestamp` watermark and handle only what is newer:
 
 ```typescript
 import { engine, ExplorerUiEventsResult, ExplorerUi } from "@dcl/sdk/ecs";
 
+let lastTimestamp = -1;
+
 engine.addSystem(() => {
   const results = ExplorerUiEventsResult.get(engine.RootEntity);
-  for (const entry of results.values()) {
+  let maxTimestamp = lastTimestamp;
+  for (const entry of results) {
+    if (entry.timestamp <= lastTimestamp) continue; // already handled on an earlier tick
+    if (entry.timestamp > maxTimestamp) maxTimestamp = entry.timestamp;
     if (entry.ui === ExplorerUi.EU_MAP) {
       if (entry.event?.$case === "opened") {
         console.log("Map was opened");
@@ -307,10 +316,13 @@ engine.addSystem(() => {
       }
     }
   }
+  lastTimestamp = maxTimestamp; // after the loop, so events sharing a tick are all handled
 });
 ```
 
-Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `requestId` (the `requestId` of the `openExplorerUi` call that caused the event; `0` when the call passed none or the player opened the panel themselves), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `requestId` (the `requestId` of the `openExplorerUi` call that caused the event; `0` when that call passed none), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
+
+`openExplorerUi({ ui, requestId })` takes a `requestId` too: any non-zero number the scene picks, echoed on the events that call produced (`0` means no correlation was asked for). It is the only way to tell two of the scene's own calls apart when draining the component by hand -- `openExplorerUiAndWait` mints and matches one for you.
 
 ## Timers
 
