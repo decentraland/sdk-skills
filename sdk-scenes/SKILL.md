@@ -112,7 +112,10 @@ Only when the MCP is not available (no Creator Hub in play, or the user declines
 
 Load the topic skill that matches the request; for requests spanning several topics, load each.
 
-Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a restart is needed to load it.
+Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a new session is needed to load it: the skill list and the MCP tool list are fixed at session start.
+
+- `npx skills add … --all` and the Creator Hub's skills update overwrite every released skill's folder, locally patched copies included, so install an unreleased skill from a PR under its own folder name and leave the released folders (`sdk-scenes`, `npcs`, …) unpatched.
+- The installer skips a skill whose frontmatter it cannot parse and still exits 0, and the Hub reports success on exit 0 (creator-hub `skills.ts`), so when a skill seems missing, compare `skills-lock.json` with the upstream skill list.
 
 ### Scene Setup & Configuration
 

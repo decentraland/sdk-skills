@@ -100,7 +100,8 @@ LightSource.create(spotlight, {
 ```
 
 - Shadows render only for **spot** lights; `shadow` on a point light has no effect.
-- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
+- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights suit dramatic effects such as flashlights; add `shadow: true` to one only after a screenshot shows its beam.
+- **Flashlight / first-person lamp:** parent the spot to `engine.CameraEntity`, offset about 0.5 m along local +Z, and start around 100,000-150,000 cd with `innerAngle`/`outerAngle` near 28/48. The default 16,000 cd is invisible on dark materials, and the beam reads only on surfaces with albedo above roughly 0.2. A shadow-casting spot exactly at the camera origin read as a dim pool; moving it 0.5 m forward and turning `shadow` off produced the beam (in-world, 2026-11-04). [UNVERIFIED: the offset and the shadow change were made together; in first person the avatar's renderers are disabled (source), so the player's own body is not the cause]
 - Shadow quality/culling follows the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
 
 | Distance from player | Result |

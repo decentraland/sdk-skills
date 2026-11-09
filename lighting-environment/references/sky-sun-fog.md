@@ -110,6 +110,10 @@ EnvironmentFog.create(engine.RootEntity, {
 - `density` default 0.0005 (≈ 2 km); negative clamps to 0. Exponential only: there is no linear start/end range.
 - Fog on/off is a player quality setting the scene cannot force.
 
+## Dark but readable
+
+For a night scene players must still read, start from a dim ambient rather than complete darkness: keep all three `skyColors` (the ambient light, see above) around 0.08-0.2 grey-blue and judge from a screenshot with every scene light off; values below about 0.05 read as black (in-world screenshots and owner reports, 2026-11-05; values settled by the owner, 2026-11-06). Expect the owner to retune, and a preview-only slider panel for sky brightness saves round trips.
+
 ## Complete darkness
 
 The scene's own `LightSource`s become the only illumination:

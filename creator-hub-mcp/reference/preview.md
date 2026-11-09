@@ -1,6 +1,6 @@
 # Preview lifecycle: details and recipes
 
-Read this when `launch_preview` fails, `preview_status` disagrees with what you see, or you need to close a stale Explorer. The rules are in `SKILL.md` → Preview lifecycle; the source-level mechanism is in [`internals.md`](internals.md) → Preview lifecycle.
+Read this when `launch_preview` fails or hangs, `preview_status` disagrees with what you see, you need to close a stale Explorer, or you pass positions to `explorer_*` tools. The rules are in `SKILL.md` → Preview lifecycle; the source-level mechanism is in [`internals.md`](internals.md) → Preview lifecycle.
 
 ## Why a second `launch_preview` fails
 
@@ -9,6 +9,15 @@ Each launch passes a fresh MCP port, and the single-instance desktop Explorer ha
 > The preview launched but its MCP server never answered. The Explorer may still be starting, or this build has no MCP support. (TypeError: fetch failed)
 
 That failure path **also kills the dev server it just started**, leaving the Explorer orphaned on a dead realm. `preview_status` can block up to **90 s** polling an Explorer that is up but not ready, so a long hang there is not a crash.
+
+## `launch_preview` blocks; `package.json` lifecycle scripts do not run
+
+- `launch_preview` returns only once the scene is ready: up to 45 s for the Explorer's MCP to connect plus a 90 s ready timeout, and `preview_status` can block up to 90 s (above). A hand-rolled MCP client needs a per-call timeout well above the MCP SDK's 60 s default (creator-hub `explorer-gateway.ts`, `CONNECT_TIMEOUT_MS` / `READY_TIMEOUT_MS`; observed 2026-11-06).
+- Creator Hub **Play** and `launch_preview` invoke sdk-commands directly, so `package.json` `prestart` / `prebuild` scripts do not run (they run only under `npm run start` / `npm run build`). A generated file the scene needs must be produced by another route, such as committing it or running the generator before Play.
+
+## Runtime tool positions are world metres
+
+Every position passed to an `explorer_*` tool (`explorer_move_to`, `explorer_teleport`, `explorer_look_at`, click aims) is in world metres: scene-local x/z plus `scene.base` × 16 (parcel mapping: **unity-explorer-mcp** → Scene health). A scene-local position sends the player off-parcel, and every runtime tool then answers "No scene world found at the current parcel" (in-world, 2026-11-06).
 
 ## `Tool call interrupted: the session ended…`
 

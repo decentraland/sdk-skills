@@ -205,11 +205,18 @@ objs = [o for o in objs if o.animation_data and o.animation_data.action]  # skip
 for ob in objs:
     ad = ob.animation_data
     track = ad.nla_tracks.new(); track.name = 'walk'
-    track.strips.new('walk', 1, ad.action)       # same strip name on every object
-    ad.action = None                             # clear, or it exports twice
+    strip = track.strips.new('walk', 1, ad.action)  # same strip name on every object
+    strip.action_slot = ad.action.slots[0]          # slotted actions: the strip needs the slot
+    ad.action = None                                # clear, or it exports twice
 bpy.ops.export_scene.gltf(filepath=..., export_format='GLB',
     export_animation_mode='NLA_TRACKS', export_force_sampling=True)
 ```
+
+In Blender 5 actions are slotted and `Action.fcurves` is gone, so read and write curves through the slot API (shown in **avatar-animations** → *RULE: One new action per clip*).
+
+### Mirrored bones: key both with the same sign
+
+Mirrored bones placed by hand with roll 0 have opposite local X axes (one points to world −Y, the other to +Y), so keying them with opposite signs about local X, the intuitive mirror, moves one wing up and the other down. Key both with the same sign, then verify after re-import by sampling both bone tails per frame: their Y and Z must match (headless Blender 5.1.1 test, 2026-11-07; observed on a rigged model, 2026-11-04).
 
 ## Conversion traps (FBX/OBJ → GLB)
 

@@ -32,6 +32,7 @@ MONO = None                                       # font file for in-scene 3D te
 CLIP_SECONDS = 6                                  # length of every -- clip
 CLIP_FPS = 30                                     # matches the Remotion project in promote/video/
 CLIP_SAMPLES = 16                                 # EEVEE TAA samples per frame; 48 looked no better and cost 3x
+TIME_LIMIT = 600                                  # seconds per Cycles still (0 = none): a runaway shot stops here instead of running for hours
 CLIP_MOVE = dict(dolly=-0.10, orbit=4.0, rise=0.0)   # default move: push in 10 % of dist, orbit 4 deg, no rise
 CLIP_MOVES = {}                                   # per-shot overrides, e.g. {'hero': dict(orbit=12, dolly=0)}
 
@@ -77,6 +78,7 @@ def reset(aspect=1.0, exposure=-0.7):
     else:
         scn.render.engine = 'CYCLES'
         scn.cycles.samples = SAMPLES
+        scn.cycles.time_limit = TIME_LIMIT   # whichever of samples or seconds comes first
         scn.cycles.use_denoising = True
         # GPU: the first Cycles backend that lists a device of its own kind (Apple METAL, NVIDIA OPTIX/CUDA,
         # AMD HIP, Intel ONEAPI); else CPU. Each backend is asked for its own list: prefs.devices holds every
