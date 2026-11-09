@@ -32,7 +32,8 @@ MONO = None                                       # font file for in-scene 3D te
 CLIP_SECONDS = 6                                  # length of every -- clip
 CLIP_FPS = 30                                     # matches the Remotion project in promote/video/
 CLIP_SAMPLES = 16                                 # EEVEE TAA samples per frame; 48 looked no better and cost 3x
-TIME_LIMIT = 600                                  # seconds per Cycles still (0 = none): a runaway shot stops here instead of running for hours
+TIME_LIMIT = 600                                  # seconds per Cycles still (0 = none): a runaway shot stops here instead of running for hours,
+                                                  # saved with fewer samples (noisier) and a WARNING line after its RENDERED line
 CLIP_MOVE = dict(dolly=-0.10, orbit=4.0, rise=0.0)   # default move: push in 10 % of dist, orbit 4 deg, no rise
 CLIP_MOVES = {}                                   # per-shot overrides, e.g. {'hero': dict(orbit=12, dolly=0)}
 
@@ -282,14 +283,23 @@ def render(name):
         for w, h in KEYART_SIZES:
             scn.render.resolution_x, scn.render.resolution_y = (w // 4, h // 4) if DRAFT else (w, h)
             scn.render.filepath = OUT + '%s_%dx%d.png' % (name, w, h)
-            t0 = time.time()
-            bpy.ops.render.render(write_still=True)
-            print('RENDERED %s (%.0f s)' % (scn.render.filepath, time.time() - t0))
+            still()
         return
     scn.render.filepath = OUT + name + '.png'
+    still()
+
+
+def still():
+    """One Cycles still to scn.render.filepath. Cycles stops silently at TIME_LIMIT with fewer samples than
+    SAMPLES, so a shot that took that long gets a WARNING: lower its cost or raise TIME_LIMIT before shipping it."""
+    scn = bpy.context.scene
     t0 = time.time()
     bpy.ops.render.render(write_still=True)
-    print('RENDERED %s (%.0f s)' % (scn.render.filepath, time.time() - t0))
+    took = time.time() - t0
+    print('RENDERED %s (%.0f s)' % (scn.render.filepath, took))
+    if TIME_LIMIT and took >= TIME_LIMIT:
+        print('WARNING: %s hit TIME_LIMIT (%d s): fewer samples than SAMPLES=%d, expect noise. Lower the shot cost or raise TIME_LIMIT.'
+              % (scn.render.filepath, TIME_LIMIT, SAMPLES))
 
 
 # ------------------------------------------------------------------ SHOTS (rewrite per scene)

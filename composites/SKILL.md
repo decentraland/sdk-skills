@@ -90,7 +90,7 @@ Before writing a fresh composite, verify:
 
 - [ ] **The Creator Hub MCP is NOT available.** If its tools are in the session, stop here and use them: `create_entity` / `set_component` do every item below for you (see the Gate).
 - [ ] **The scene is NOT currently open in the Creator Hub — checked again before *every* write to `main.composite` or `scene.json`, not once per session**: the owner can reopen it at any time, and its autosave reverts external edits. Ask the user to close the scene before you write and to reopen it afterwards. Open, with no MCP: stop and ask (**sdk-scenes** → Agent Behavioral Guidelines, item 5, which also lists the signs that the scene is open).
-- [ ] Right before a script writes `main.composite`: `pgrep -fl 'sdk-commands start' | grep -- --data-layer` prints nothing (the editor's data layer autosaves over the file; signs: **sdk-scenes** → item 5).
+- [ ] Right before a script writes `main.composite`: `pgrep -f 'sdk-commands start.*--data-layer'` prints nothing (Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object CommandLine -match 'data-layer'`) (the editor's data layer autosaves over the file; signs: **sdk-scenes** → item 5).
 
 For every NEW entity `<id>` you add, in addition to the authoring-from-scratch rules above (with the relaxation that `inspector::*` etc. are kept, not stripped):
 

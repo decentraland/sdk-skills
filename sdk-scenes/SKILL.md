@@ -56,7 +56,7 @@ The MCP is what makes model work collaborative; a silent fallback removes that c
 
 When walls, floors, furniture or props need to go into the scene, the Creator Hub MCP is not in the session (no `mcp__creator-hub__*` tools), and the scene **is or may be open in the Creator Hub**, **stop and let the user choose** — never fall back to `engine.addEntity()` in `src/` on your own. Signs the scene is open or Hub-managed:
 
-- `pgrep -fl 'sdk-commands start'` lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
+- `ps -ef | grep '[-]-data-layer'` (the bracket keeps grep from matching itself; Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object CommandLine -match 'data-layer'`) lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. Not `pgrep -fl`: on Linux `-l` prints only the process name, so a grep on the arguments never matches. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
 - `.editor/project.json` exists, or `assets/scene/main.composite` contains `inspector::*` components — the Hub has opened the scene at least once.
 
 Ask:
