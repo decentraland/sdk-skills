@@ -220,6 +220,7 @@ Always check the scene's local asset folder first. Before fetching any model, co
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set the masks per RULE: Always check for built-in colliders  |
 | Click through walls         | CL_POINTER not on visible mesh | Same rule: put `CL_POINTER` on the mesh players click         |
+| Click through walls         | Wall/floor/door collider is `CL_PHYSICS` only; the pointer ray ignores that layer | Give enclosing geometry mask `3` (`CL_PHYSICS \| CL_POINTER`) so it blocks the ray (see **add-interactivity** → *Colliders*) |
 | Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
 
 ## RULE: 3D model light fixtures do not emit real light

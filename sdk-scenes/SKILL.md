@@ -56,7 +56,7 @@ The MCP is what makes model work collaborative; a silent fallback removes that c
 
 When walls, floors, furniture or props need to go into the scene, the Creator Hub MCP is not in the session (no `mcp__creator-hub__*` tools), and the scene **is or may be open in the Creator Hub**, **stop and let the user choose** — never fall back to `engine.addEntity()` in `src/` on your own. Signs the scene is open or Hub-managed:
 
-- `pgrep -fl 'sdk-commands start'` lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
+- `ps -ef | grep '[-]-data-layer'` (the bracket keeps grep from matching itself; Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object CommandLine -match 'data-laye[r]'`) lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. Not `pgrep -fl`: on Linux `-l` prints only the process name, so a grep on the arguments never matches. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
 - `.editor/project.json` exists, or `assets/scene/main.composite` contains `inspector::*` components — the Hub has opened the scene at least once.
 
 Ask:
@@ -112,7 +112,10 @@ Only when the MCP is not available (no Creator Hub in play, or the user declines
 
 Load the topic skill that matches the request; for requests spanning several topics, load each.
 
-Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a restart is needed to load it.
+Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a new session is needed to load it: the skill list and the MCP tool list are fixed at session start.
+
+- `npx skills add … --all` and the Creator Hub's skills update overwrite every released skill's folder, locally patched copies included, so install an unreleased skill from a PR under its own folder name and leave the released folders (`sdk-scenes`, `npcs`, …) unpatched.
+- The installer skips a skill whose frontmatter it cannot parse and still exits 0, and the Hub reports success on exit 0 (creator-hub `skills.ts`), so when a skill seems missing, compare `skills-lock.json` with the upstream skill list.
 
 ### Scene Setup & Configuration
 
