@@ -147,7 +147,7 @@ Dragging an audio or `.mp4` file from **Local Assets** onto the viewport spawns 
 
 ⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
 
-⚠️ **Silence in the editor is not a diagnosis.** Babylon plays no scene audio and Bevy has a persistent *Mute scene audio* toggle (**creator-hub-mcp** → Gotchas); verify audio in a real preview before changing `volume` or `playing`.
+⚠️ **Silence in the editor is not a diagnosis.** Babylon plays no scene audio and the Bevy editor opens every scene muted (viewport speaker toggle, *Unmute scene audio*) (**creator-hub-mcp** → Gotchas); verify audio in a real preview before changing `volume` or `playing`.
 
 ## Audio-reactive scenes (visualizers, beat sync)
 

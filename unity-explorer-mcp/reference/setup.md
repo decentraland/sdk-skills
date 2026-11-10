@@ -48,7 +48,7 @@ open /path/to/Decentraland.app --args \
   --mcp --windowed-mode --resolution 1280x720
 ```
 
-On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
+On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs (the Creator Hub's App Preferences → EDITOR → Play Options → **Load Raw GLTFs** passes the same flag). Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
 ## Registering in other clients
 

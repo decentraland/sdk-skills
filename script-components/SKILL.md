@@ -72,8 +72,13 @@ Parameters declared in the constructor are exposed in the Creator Hub UI and can
 | `Entity` | entity picker (lets the user pick another entity from the scene) |
 | `ActionCallback` | action picker — see "ActionCallback parameters" |
 | `Slider<Min, Max, Step>` | **slider plus a number box** — see below |
+| string-literal union (`'box' \| 'sphere'`) | dropdown; the first member is the default unless you give one |
+| inline object literal (`{ x: number; y: number }`) | collapsible group of fields |
+| `T[]` / `Array<T>` | list of rows with Add / remove |
 
 Both `public` and `private` parameters are exposed to Creator Hub. Use `this.<paramName>` to access values in your code.
+
+**Nested shapes must be written inline** — a named interface or type alias is not resolved and renders as an empty text field. Object and list rules, the `@components` / `@actionsOf` / `@format wallet` JSDoc tags that narrow entity and action pickers, and how file-name params are checked and follow renames: `{baseDir}/references/script-params.md`.
 
 ### `Slider<Min, Max, Step>` — a number edited with a slider
 
@@ -148,7 +153,7 @@ When the scene is open in the Creator Hub, write the script file and call the MC
 
 If your script uses additional assets that are only loaded via code (sound files, textures, models, etc.), they won't be automatically included in the custom item folder. You must add those files manually.
 
-Always use `this.src` to build the path to bundled asset files, because the actual file location may differ when the item is used in another scene:
+Always use `this.src` to build the path to bundled asset files, because the actual file location may differ when the item is used in another scene. A param that names a file holds a path **relative to the script's folder** (`'click.mp3'`); the inspector flags it when the file is missing and rewrites it when the file is renamed in Local Assets (`{baseDir}/references/script-params.md` → File params):
 
 ```ts
 import { AudioSource } from '@dcl/sdk/ecs'
@@ -307,7 +312,7 @@ const allByPath = getScriptInstancesByPath('assets/scripts/Padlock.ts')
 
 ## Script-based Smart Items
 
-Most catalog Smart Items are `asset-packs::Script` code with `@action` methods, not an Actions/Triggers graph: their "When X" hooks are optional `ActionCallback` params, and their state is a synced `asset-packs::States` component. Before inspecting, extending or copying one (which items are Script-based, hook names, reference items, seat and teleport behavior, the first-item preview error): `{baseDir}/references/smart-items.md`.
+Most catalog Smart Items are `asset-packs::Script` code with `@action` methods, not an Actions/Triggers graph: their "When X" hooks are optional `ActionCallback` params, and their state is a synced `asset-packs::States` component. Before inspecting, extending or copying one (which items are Script-based, the health/combat scripts and their params, the Admin Tools script and its editable `AdminPanel.tsx`, hook names, reference items, seat and teleport behavior, the first-item preview error): `{baseDir}/references/smart-items.md`. Items placed before a catalog item became a script keep their old component form.
 
 ## `@event` — declaring hooks for reaction scripts
 

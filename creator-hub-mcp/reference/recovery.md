@@ -4,7 +4,7 @@ Read this when `assets/scene/main.composite`'s mtime did not advance across a ba
 
 ## Symptoms of a dead data layer
 
-Observed 2026-10-08; check these when the mtime is stale:
+Under Bevy the Hub notices the exit itself: the tools answer *"The scene's data layer stopped unexpectedly…"* and the editor reloads the scene (`SKILL.md` → RULE — confirm a batch landed on disk). The silent case is the one this file covers (Babylon, or an exit the Hub did not catch; observed 2026-10-08); check these when the mtime is stale:
 
 - `set_component`, `create_entity`, `place_smart_item` and friends all still return success.
 - `scene_state` / `entity_detail` keep returning the **pre-crash** values: a read-back "confirming" your write is confirming the old snapshot.
@@ -23,4 +23,4 @@ No tool restarts the data layer.
 
 ## Spawn points that came out as `"position": {}`
 
-Close the scene in the Hub and fix `scene.json` by hand. On the next open the data layer re-seeds the scene metadata from `scene.json`, so the hand edit wins; the same holds for any other scene setting edited with the scene closed. The shape mismatch is a Hub bug; report it with **report-sdk-issue**.
+Close the scene in the Hub and fix `scene.json` by hand. On the next open the data layer re-seeds the scene metadata from `scene.json`, so the hand edit wins; the same holds for any other scene setting edited with the scene closed. `set_scene_settings` converts spawn axes, so a fresh `{}` after a write through it is a Hub bug: report it with **report-sdk-issue**.
