@@ -137,6 +137,8 @@ stat -f '%m %N' "assets/scene/main.composite"   # macOS; coreutils: stat -c '%Y 
 
 Then read `scene.json` back after the next autosave: **done when** every `spawnPoints[].position` holds numbers. A `"position": {}` there: [`reference/recovery.md`](reference/recovery.md) → Spawn points.
 
+**Creator Hub 0.52.0 and earlier** store these positions unconverted, so a `spawnPoints` write through `set_scene_settings` kills the data layer or writes `"position": {}`. There, write spawn points with `set_component` on entity `0` (versioned component name from `entity_detail(0)`, only the `spawnPoints` key), each axis in `$case` shape: `{"$case": "single", "value": 8}` or `{"$case": "range", "value": [6, 10]}`.
+
 ## Preview lifecycle
 
 Details, kill recipes, failure analysis, client timeouts and the world-metre positions `explorer_*` tools take: [`reference/preview.md`](reference/preview.md).
