@@ -10,7 +10,7 @@
 # Usage: screenshot.sh [options]
 #   -o, --out FILE        output file (single capture; extension follows quality; relative to cwd)
 #   -d, --dir DIR         output dir (default: $TMPDIR/mcp-shots, outside the scene folder; used for bursts and when -o is omitted)
-#   -n, --count N         number of frames to capture (default: 1; a burst runs in chunks of 20, the tool's maximum per call)
+#   -n, --count N         number of frames to capture (default: 1; a burst runs in chunks of at most 20 frames and 20 s, the tool's maximum per call)
 #   -i, --interval SEC    seconds between frames in a burst (default: 0.5; min 0.05, max 2)
 #   -w, --max-width PX    maxWidth passed to the tool (default: 1280; use 640 for cheap sanity checks)
 #       --png             capture PNG instead of JPG
@@ -113,8 +113,9 @@ if [[ -n "$OUT" && "$COUNT" -eq 1 ]]; then
     exit 0
 fi
 
-# Burst: one capture_sequence call per chunk of up to 20 frames. The frames land in the Explorer's
-# cache; each is copied to OUT_DIR as shot-<stamp>-NNN.<ext> and its new path printed.
+# Burst: one capture_sequence call per chunk. The tool takes at most 20 frames per call and caps the
+# count further so that (count - 1) * interval stays within 20 s, so the chunk honours both. The frames
+# land in the Explorer's cache; each is copied to OUT_DIR as shot-<stamp>-NNN.<ext> and its new path printed.
 capture_burst() {
     local chunk="$1" first_index="$2" stamp="$3"
 
@@ -125,7 +126,7 @@ capture_burst() {
     local response_file
     response_file=$(mktemp)
 
-    # The call lasts count * interval plus the captures; 90 s covers the 20 * 2 s worst case with margin.
+    # The call lasts at most 20 s of interval plus the captures; the tool itself gives up at 30 s.
     curl -sS --max-time 90 -X POST "http://127.0.0.1:${PORT}/unity-explorer-mcp" \
         -H 'Content-Type: application/json' \
         -H 'Accept: application/json, text/event-stream' \
@@ -177,10 +178,13 @@ PY
 mkdir -p "$OUT_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 
+# Frames per call: 20, or fewer when the interval would push (count - 1) * interval past the tool's 20 s cap.
+max_chunk=$(python3 -c "import math,sys; print(min(20, 1 + math.floor(20 / float(sys.argv[1]))))" "$INTERVAL")
+
 captured=0
 while (( captured < COUNT )); do
     chunk=$(( COUNT - captured ))
-    (( chunk > 20 )) && chunk=20
+    (( chunk > max_chunk )) && chunk=$max_chunk
     capture_burst "$chunk" "$(( captured + 1 ))" "$stamp"
     captured=$(( captured + chunk ))
 done
