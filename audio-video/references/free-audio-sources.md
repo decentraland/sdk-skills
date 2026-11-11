@@ -28,7 +28,7 @@ Huge, searchable, licence on every sound. Use the **CC0** filter first, **CC BY*
 **Key**
 
 1. Ask the user for their key; they create it. Never search the machine, the scene or the environment for one. They log in to freesound.org and apply at `https://freesound.org/apiv2/apply`; the key is the **"Client secret/Api key"** value.
-2. Keep it in an environment variable (`export FREESOUND_API_KEY=...` in their shell) or a local untracked file outside the scene. Keep it out of the scene repo, the scene code, `.mcp.json`, notes and any skill example; examples use the placeholder `FREESOUND_API_KEY=example123`. The API terms require keys to be kept secret and revoke shared ones.
+2. Keep it in an environment variable (`export FREESOUND_API_KEY=...` in their shell) or a local untracked file outside the scene. Keep it out of the scene repo, the scene code, `.mcp.json`, notes and any skill example; examples use the placeholder `FREESOUND_API_KEY=example123`. The API terms require keys to be kept secret and revoke shared ones. Put the `export` in the startup file of the shell your Bash tool runs: Claude Code on macOS can run `/bin/bash`, which never reads `~/.zshrc`, so a key exported only there is missing from the agent's shell (observed 2026-11-11). Check with `[ -n "$FREESOUND_API_KEY" ] && echo set`, never by printing the value.
 3. Send it as a header, `Authorization: Token $FREESOUND_API_KEY`, which keeps it out of URLs and logs. The docs also allow a `token=` query parameter.
 
 **What a plain token allows, and what needs OAuth2** (APIv2 docs):
@@ -55,7 +55,7 @@ curl -sSL --fail -o sound-design/src/freesound/<id>.ogg "<previews.preview-hq-og
 ```
 
 - `filter` uses Solr syntax: `license:"Attribution"` for CC BY, ranges as `duration:[1 TO 30]`, words as `tag:wind`. `page_size` up to 150 (default 15).
-- `license` values per the docs: `"Creative Commons 0"`, `"Attribution"`, `"Attribution NonCommercial"`. [UNVERIFIED without a key: whether responses return these strings or a licence URL; read the version (3.0/4.0) from the sound page `url` before writing a CC BY credit.]
+- The `filter` takes licence *names*: `"Creative Commons 0"`, `"Attribution"`, `"Attribution NonCommercial"`. Responses return the licence as a *URL* (e.g. `http://creativecommons.org/publicdomain/zero/1.0/`), which carries the version (3.0/4.0) a CC BY credit needs. Verified with a key, 2026-11-11.
 - **Rate limits**: 60 requests/min and 2,000/day; original downloads (and uploads, rating, commenting) 30/min and 500/day. Over the limit: HTTP 429 with a `detail` naming the limit.
 - **API terms**: retrieve only what you use; no full copies of the database, no scraping. The terms say commercial use *of the API* is negotiated case by case with UPF (Freesound's operator). Each sound's own licence governs its use in the scene. [UNVERIFIED: whether a commercial studio searching the API to build a scene counts as commercial API use; ask Freesound if that matters to the user.]
 
