@@ -27,7 +27,7 @@ const bedVolume = BED * opening * (1 - hush)
 
 - **Place them inside the silences**: after ~4 s of full hush, a small chance per second (~7 %). With the bed alive, a far one every 60–120 s at most.
 - **Gate every stinger**: a cooldown (~16 s between stingers), none during scripted scenes, none within ~4 s of the creature's own cue, none indoors or in the opening.
-- **Far** ones (distance baked into the file: `sound-design.md` → *Recipes*) play 16–22 m from the player at a random bearing, clamped inside the scene bounds. **Close** ones play ~5 m behind the camera and a little to one side, so the player has to turn round.
+- **Far** ones (distance baked into the file: `sound-recipes.md`) play 16–22 m from the player at a random bearing, clamped inside the scene bounds. **Close** ones play ~5 m behind the camera and a little to one side, so the player has to turn round.
 - Play them from a small round-robin pool of emitter entities; vary pitch; avoid the same file twice running.
 
 ## Emitters: where a sound lives

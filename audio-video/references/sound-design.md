@@ -6,8 +6,8 @@ Build every scene sound the catalog does not cover from **real field recordings*
 
 1. **Catalog first** for generic UI, music and game cues (`audio-catalog.md`). For anything specific (a creature, a place, a machine, an animal, weather), build it from recordings (steps 2–6) even when a catalog clip is close.
 2. **Suggest REAPER to the user**, every time you make or rework sounds: what it gives them, how to get it and the MCP (→ *REAPER*). Carry on with whichever path they have: REAPER (MCP or headless) or plain `ffmpeg`.
-3. **Source** recordings (→ *Sources*). Confirm downloads with the user first (**sdk-scenes** → confirmation rules). Write each credit as you download.
-4. **Shape** each sound from layers (→ *Processing*, *Recipes*).
+3. **Source** recordings (`free-audio-sources.md`). Confirm downloads with the user first (**sdk-scenes** → confirmation rules). Record each credit as you download (`free-audio-sources.md` → *Attribution*).
+4. **Shape** each sound from layers (→ *Processing*; recipes in `sound-recipes.md`).
 5. **Verify by measurement** (→ *Verifying without ears*). Tell the user plainly the renders were checked by measurement, not by listening.
 6. **Deliver**: level-match, crossfade loops, encode, keep the kit out of the deploy (→ *Delivery*). Wiring the sounds into the scene: `ambience-design.md`.
 
@@ -15,31 +15,7 @@ Done when every new file in the scene's audio folder has a credit line, a measur
 
 ## Sources
 
-Licence filter: **public domain or CC0**. CC BY / CC BY-SA also work but need a credit wherever the scene is published; offer the choice to the user (one owner chose PD/CC0 only).
-
-### NPS Yellowstone sound library
-
-`https://www.nps.gov/yell/learn/photosmultimedia/soundlibrary.htm`. Terms (verified 2026-11-11): "recorded in the park and are in the public domain. They may be downloaded and used without limitation; however, please credit the 'National Park Service' where appropriate."
-
-- Contents: birds (raven, sandhill crane, common loon, Canada goose, …), other animals (red fox, elk, coyotes, wolves, grizzly bear, bison, mountain lion, frogs and toads), geothermal (fumaroles, Black Growler steam vent, geysers, mud pots), natural phenomena (thunder, wildfire, singing lake), soundscapes (night lake, dawn chorus, wind in trees).
-- Each sound has its own page (`/yell/learn/photosmultimedia/sounds-<name>.htm`, e.g. `sounds-redfox.htm`; the grizzly page is `grizzlysounds.htm`). The library page links pages, not files. Get the MP3 from the page:
-  `curl -sL -A "<tool-name>/1.0" <page-url> | grep -o 'avElement/[^"]*\.mp3' | sort -u`
-- MP3 URL pattern: `https://www.nps.gov/nps-audiovideo/legacy/mp3/imr/avElement/yell-<Name>.mp3`.
-- Geothermal vents slowed down are excellent drones and hums; slowed animals are excellent creature voices (→ *Recipes*).
-
-### Wikimedia Commons
-
-- Search: `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=<terms>+filetype:audio&format=json`, then `action=query&prop=imageinfo&iiprop=url|extmetadata&titles=File:<name>` to read `LicenseShortName`, `Artist` and the file `url`.
-- Commons also hosts copies of the NPS Yellowstone recordings (`Yellowstone sound library - <animal> - 001.mp3`), sometimes ones the NPS page lacks.
-- Files named `LL-Q…` are Lingua Libre word pronunciations, not sound effects; skip them.
-- Rate limits: the API returned HTTP 429 after ~8 rapid requests; the file server (`upload.wikimedia.org`) returned 429 after ~20 quick downloads and locked out for ~15 minutes. Pace downloads **10 s or more apart**.
-
-### Download hygiene
-
-- Use `curl` (`-sSL --fail`). On macOS the system Python's `urllib` failed SSL certificate verification against both hosts; `curl` worked.
-- Send an honest, descriptive `User-Agent` naming a generic tool (`-A "scene-audio-research/1.0"`), never a browser string and never the user's personal details.
-- Keep raw downloads in a source folder outside the deploy (e.g. `sound-design/src/`), not in `assets/`.
-- Write the credit **while downloading**: title, author, licence, source URL, into the scene's notes (e.g. `design/audio-sources.md`), plus one line per game sound naming what it is made from.
+Free real recordings, ordered by usefulness and safety (Freesound with an API key, NPS, Wikimedia Commons, Sonniss, Kenney, NASA, Internet Archive, …), with licences, search and `curl` download recipes and the sources to avoid: `free-audio-sources.md`. Default licence filter: **public domain or CC0**. CC BY works with a credit; offer the user the choice (one owner chose PD/CC0 only). Every file that needs a credit gets one: `free-audio-sources.md` → *Attribution*.
 
 ## Processing
 
@@ -92,27 +68,7 @@ Layers on tracks, filters per layer, shared reverb buses, varispeed per item, an
 
 ## Recipes
 
-Approved by a creator, several called "excellent" (2026-11). Rates are varispeed (pitch follows speed).
-
-| Sound | Made from |
-|---|---|
-| Creature scream | red fox screams at 0.7–0.8×, around an elk bugle's rising squeal, light saturation |
-| Creature call | raven croaks at ~0.6× |
-| Deep rolling croak | sandhill crane bugle at 0.5×, over a grizzly roar at 0.8× |
-| Close threat | grizzly jaw pops at 0.7×, a breath after |
-| Roar / chest rumble | grizzly roar at 0.85× |
-| Moans | elk chorus at 0.25× |
-| Drone | steam vent at 0.35×, long vast reverb |
-| Breath | fumarole steam burst at 0.6×, shaped fades |
-| Electrical hum | 50 Hz mains-hum recording at 1.2× = 60 Hz |
-| Wingbeat | short shaped bursts of real wind at 0.55× over a slowed thud |
-| Far one-shot (scream, knock, creak) | distance baked in: band-limited (no highs, e.g. HP 350 Hz / LP 3.5 kHz) and heavy reverb |
-| Tree groan | a door-hinge creak at 0.5× |
-| Drip | single glass ticks at 1.5–2.0×, irregular spacing, bright concrete reverb |
-
-- **Steep high-pass on every field recording** (two cascaded filters) to remove wind and traffic rumble.
-- **One reverb bus per space**, fed by sends from each layer: open night (long, dark, pre-delay), wooden room (short), vast (for a voice), concrete bunker (bright, ringing).
-- **Hear it, don't narrate it.** Where a caption says something is happening (a dog howling, something moving in the trees), the creator wanted the sound instead of the text.
+Layer recipes a creator approved (slowed fox, raven, crane, grizzly and elk for creature voices; steam vents for drones; real wind for wingbeats; far one-shots with distance baked in), plus the high-pass, reverb-bus and "hear it, don't narrate it" notes: `sound-recipes.md`.
 
 ## Verifying without ears
 
@@ -130,4 +86,4 @@ You cannot listen. Measure instead:
 - **Loops**: equal-power crossfade the tail into the head (render the loop with a few seconds of tail; `head = x[:X]·sin(t) + x[L:L+X]·cos(t)`, t from 0 to π/2, keep `x[:L]`).
 - **Encode** Ogg Vorbis, `-c:a libvorbis -q:a 4` (mono) to `5` (stereo). Mono for spatial sources; stereo only for `global: true` beds.
 - **Keep the kit out of the deploy**: add its folder (`sound-design/`, sources, project, renders) to `.dclignore` (**deploy-scene** → `.dclignore`). Keep large WAV caches and renders out of git (`.gitignore`); commit the recipe scripts, the `.rpp` and the credits.
-- **Credit line** for the scene description when sources ask for it, e.g. *Sound recordings: National Park Service (Yellowstone sound library) and Wikimedia Commons contributors, public domain / CC0.*
+- **Credits**: every file that needs one has a TASL line in the scene's record and a credit players can see (`free-audio-sources.md` → *Attribution*).

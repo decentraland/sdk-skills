@@ -115,5 +115,5 @@ Free audio files from the official Decentraland Creator Hub asset packs. All sou
 
 ## Beyond the catalog
 
-The catalog has no environmental machinery (drips, motors, fans, hum), few animals and nothing scene-specific. Build those from real public-domain/CC0 field recordings (NPS Yellowstone sound library, Wikimedia Commons): `sound-design.md`.
+The catalog has no environmental machinery (drips, motors, fans, hum), few animals and nothing scene-specific. Build those from real free recordings: sources and licences in `free-audio-sources.md`, the workflow in `sound-design.md`.
 

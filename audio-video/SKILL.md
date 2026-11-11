@@ -29,7 +29,13 @@ Before referencing any audio file path in code, check `{baseDir}/references/audi
 4. Placeholders: use a clear path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
 5. Reference the resulting local path in `AudioSource.audioClipUrl`.
 
-**Sounds the catalog lacks, or that must fit this scene** (a creature, a place, machinery, weather, animals): build them from **real public-domain/CC0 field recordings** (NPS Yellowstone sound library, Wikimedia Commons), trimmed, layered and re-pitched. This is the regular route, not a last resort: a real recording trimmed with `ffmpeg` beats anything generated from tones or noise, and creators rejected synthesized sounds as "too synthetic" twice (2026-10, 2026-11). Whenever you make or rework sounds, **suggest REAPER** to the user (free, fully functional 60-day evaluation; an MCP server lets you drive it). Sources, the `ffmpeg` and REAPER paths, REAPER and MCP setup, proven recipes, verifying by measurement and delivery: `{baseDir}/references/sound-design.md`.
+**Sounds the catalog lacks, or that must fit this scene** (a creature, a place, machinery, weather, animals): build them from **real free recordings** (Freesound CC0, NPS, Wikimedia Commons, …), trimmed, layered and re-pitched. This is the regular route, not a last resort: a real recording trimmed with `ffmpeg` beats anything generated from tones or noise, and creators rejected synthesized sounds as "too synthetic" twice (2026-10, 2026-11). Whenever you make or rework sounds, **suggest REAPER** to the user (free, fully functional 60-day evaluation; an MCP server lets you drive it).
+
+- Workflow (the `ffmpeg` and REAPER paths, REAPER and MCP setup, verifying by measurement, delivery): `{baseDir}/references/sound-design.md`.
+- Sources ranked by usefulness and safety, licences, the Freesound API, sources to avoid: `{baseDir}/references/free-audio-sources.md`.
+- Proven layer recipes (slowed animals, vents, wind): `{baseDir}/references/sound-recipes.md`.
+
+**Credit what needs it.** Every file under CC BY, CC BY-SA or terms that ask for credit (Freesound "Attribution", NASA, NOAA) gets a TASL line (title, author, source, licence, "modified" if processed) in the scene's sources record (e.g. `design/audio-sources.md`) and a credit players can see: an in-scene credits sign or UI, or a line in `display.description`. CC BY-SA makes the edited sound BY-SA too. Public domain and CC0 need none; a courtesy credit is fine. Detail: `{baseDir}/references/free-audio-sources.md` → *Attribution*.
 
 Folder: default `assets/Audio/`; reuse an existing legacy (`assets/scene/Audio/`) or asset-pack folder if the scene has one rather than creating a parallel `assets/Audio/` (**create-scene** step 3). Reference Creator Hub asset paths (`assets/asset-packs/`, `assets/custom/`) as-is.
 
