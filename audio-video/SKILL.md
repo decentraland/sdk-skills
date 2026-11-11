@@ -1,6 +1,6 @@
 ---
 name: audio-video
-description: Sound and video in Decentraland scenes with AudioSource, AudioStream and VideoPlayer. Use when the user wants sound effects (including UI click sounds), music, ambience, radio, live streams or video screens, or needs audio clips sourced. For emotes see player-avatar; for audio-reactive visuals see audio-analysis.
+description: "Sound and video in Decentraland scenes with AudioSource, AudioStream and VideoPlayer. Use when the user wants sound effects (including UI click sounds), music, ambience, radio, live streams or video screens, needs audio clips sourced or sound designed (real recordings, REAPER), or wants a soundscape with silences and stingers. For emotes see player-avatar; for audio-reactive visuals see audio-analysis."
 ---
 
 # Audio and Video in Decentraland
@@ -29,7 +29,7 @@ Before referencing any audio file path in code, check `{baseDir}/references/audi
 4. Placeholders: use a clear path (e.g. `assets/Audio/<name>.mp3`) and tell the user which files to drop in where.
 5. Reference the resulting local path in `AudioSource.audioClipUrl`.
 
-Catalog lacks the sound (e.g. environmental machinery: drips, motors, fans, hum)? Source real recordings: `{baseDir}/references/audio-catalog.md` → *Beyond the catalog*.
+**Sounds the catalog lacks, or that must fit this scene** (a creature, a place, machinery, weather, animals): build them from **real public-domain/CC0 field recordings** (NPS Yellowstone sound library, Wikimedia Commons), trimmed, layered and re-pitched. This is the regular route, not a last resort: a real recording trimmed with `ffmpeg` beats anything generated from tones or noise, and creators rejected synthesized sounds as "too synthetic" twice (2026-10, 2026-11). Whenever you make or rework sounds, **suggest REAPER** to the user (free, fully functional 60-day evaluation; an MCP server lets you drive it). Sources, the `ffmpeg` and REAPER paths, REAPER and MCP setup, proven recipes, verifying by measurement and delivery: `{baseDir}/references/sound-design.md`.
 
 Folder: default `assets/Audio/`; reuse an existing legacy (`assets/scene/Audio/`) or asset-pack folder if the scene has one rather than creating a parallel `assets/Audio/` (**create-scene** step 3). Reference Creator Hub asset paths (`assets/asset-packs/`, `assets/custom/`) as-is.
 
@@ -44,6 +44,8 @@ Audio is **spatial by default** — volume decreases with distance from the enti
 **Spatial falloff is very wide — `global: false` is not "only in this room".** `PBAudioSource` has no distance fields at all, and the Explorer sets only `spatialize`/`spatialBlend`/`dopplerLevel` on the pooled Unity `AudioSource`, leaving its distance curve at Unity's defaults (logarithmic, `minDistance` 1 m, `maxDistance` 500 m) — verified in unity-explorer `AudioSourceExtensions.FromPBAudioSourceWithClip` + `AudioSourcesPlugin` and in `audio_source.gen.d.ts` (7.30.1). Several quiet room ambiences therefore all bleed into every room and read as "the sounds play everywhere" (owner-reported symptom, 2026-10-10).
 
 For a bed that must stay inside one room, gate it yourself in a system on distance from the player: set `playing: false` and `volume: 0` beyond a radius and ramp the volume up inside it. The right radius depends on the room size, the clip and its `volume` — tune it in-world. Throttle the system and write only on change. *Fix verified in code only — not re-listened in-world.*
+
+Designing a whole soundscape (sparse opening, silence and stingers, camera-attached loops, biome zones, one-shots synced to animation, creature voice pools): `{baseDir}/references/ambience-design.md`.
 
 **Retriggering (play a sound again on every click):** use the helper `AudioSource.playSound(entity, clipUrl, resetCursor?)` — do NOT hand-mutate `getMutable().playing`. `playSound` writes a full component (via `createOrReplace`/`getMutableOrNull`), so it reliably re-emits even with identical params. Hand-setting `getMutable(entity).playing = true` (or the old "playing=false then playing=true" trick) can be silently swallowed by LWW-CRDT dedup when the values are unchanged — the second and later triggers may do nothing. `stopSound(entity, resetCursor?)` stops it. `resetCursor` defaults to `true` on both (start/stop at 0); pass `false` to resume/pause at the current `currentTime`.
 
