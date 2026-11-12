@@ -2,12 +2,6 @@
 
 The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
-## Via the Creator Hub MCP
-
-When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). Nothing in SKILL.md's Setup applies — no registration, no bind gate, no port 8123 probe — and the reference files apply unchanged with those tool names.
-
-**Before `launch_preview`, check `preview_status` *and* the OS process list** (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows): `stop_preview` can return `{ok: true}` while the Explorer keeps running, and the next launch then never connects — see "Preview lifecycle" in **creator-hub-mcp** and "The preview launched but its MCP server never answered" in [`recovery.md`](recovery.md).
-
 ## Launch flags and errors
 
 `npm run start -- --mcp --skip-auth-screen true` takes these extra flags:
@@ -49,6 +43,10 @@ open /path/to/Decentraland.app --args \
 ```
 
 On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs (the Creator Hub's App Preferences → EDITOR → Play Options → **Load Raw GLTFs** passes the same flag). Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
+
+## The Explorer running inside the Unity Editor
+
+A developer may run the client in Unity Editor play mode (`--mcp` in `Main Scene Loader → Debug Settings → App Parameters`) instead of an installed build. The MCP endpoint is the same, but the server belongs to the `Unity` process: the Setup probe answers, `pgrep` for the Explorer app finds nothing, and launching, killing or relaunching is the user's — never run the recipes in [`recovery.md`](recovery.md) against the Editor. In-session, the Game view is unfocused whenever you type in a terminal, so the device-path UI tools refuse and the OS cursor sits off the Game view; both are covered in [`interaction.md`](interaction.md) (the device path, and `get_reticle`'s `cursor.onScreen`).
 
 ## Registering in other clients
 

@@ -1,0 +1,17 @@
+# The Creator Hub path
+
+Reached when the Explorer arrives through the Creator Hub's MCP (`mcp__creator-hub__*` tools; skill **creator-hub-mcp**) instead of a server registration of your own.
+
+## Tool names, and why Setup is skipped
+
+`launch_preview` starts the scene preview with this MCP server on, and the runtime tools are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …); `explorer_call(tool, arguments)` is the fallback while they bind, and the route in a client that never picks up dynamically registered tools. SKILL.md's Setup does not apply — no registration, no bind gate, no port 8123 probe — so go straight to the iteration loop with those tool names. The reference files apply unchanged.
+
+This holds for the embedded assistant and for an external client alike (Claude Code terminal, Cursor, connected per **creator-hub-mcp** → `reference/connect.md`): every Hub tool, `launch_preview` included, binds to the scene open in the editor, so `No scene is open.` means the creator is on the scene list — ask them to open the scene; no reconnect, and no fallback to another route. The Hub's **Play** button with **Enable MCP Server** ticked launches the same server for a session with no Creator Hub MCP connected at all; there SKILL.md's Setup applies in full.
+
+## Before `launch_preview`: check the OS, not just the tool
+
+`stop_preview` returns `{ok: true}` while the Explorer keeps running — it kills only the Hub's `sdk-commands` child — and `preview_status` reports that child, not the app. A surviving single-instance window never binds the next launch's port, so the Hub times out after ~45 s with "The preview launched but its MCP server never answered". Check `preview_status` *and* the process list (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows), close a stale instance, confirm it exited, then launch **once**. Kill recipes: "Counting and killing Explorer processes" in [`recovery.md`](recovery.md). The full lifecycle — why, the inverse case where the creator closes the window while `preview_status` still says running, and the "session ended" interruption that is not a failure — is "Preview lifecycle" in **creator-hub-mcp**.
+
+## The Explorer is the creator's own window
+
+Always so on this path: the playtest-window rule in SKILL.md (after the iteration loop) applies to every save, move, reload and camera change. Ask before killing their window. Observed 2026-10-10.
