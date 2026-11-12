@@ -4,9 +4,9 @@ Reached when the Explorer arrives through the Creator Hub's MCP (`mcp__creator-h
 
 ## Tool names, and why Setup is skipped
 
-`launch_preview` starts the scene preview with this MCP server on, and the runtime tools are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …); `explorer_call(tool, arguments)` is the fallback while they bind. SKILL.md's Setup does not apply — no registration, no bind gate, no port 8123 probe — so go straight to the iteration loop with those tool names. The reference files apply unchanged.
+`launch_preview` starts the scene preview with this MCP server on, and the runtime tools are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …); `explorer_call(tool, arguments)` is the fallback while they bind, and the route in a client that never picks up dynamically registered tools. SKILL.md's Setup does not apply — no registration, no bind gate, no port 8123 probe — so go straight to the iteration loop with those tool names. The reference files apply unchanged.
 
-From an *external* client connected to the Creator Hub (Claude Code terminal, Cursor) the `explorer_*` tools never appear and `launch_preview` answers `No scene is open.`: there the route is the Hub's **Play** button with **Enable MCP Server** ticked, and SKILL.md's Setup applies in full (see **creator-hub-mcp** → Gotchas).
+This holds for the embedded assistant and for an external client alike (Claude Code terminal, Cursor, connected per **creator-hub-mcp** → `reference/connect.md`): every Hub tool, `launch_preview` included, binds to the scene open in the editor, so `No scene is open.` means the creator is on the scene list — ask them to open the scene; no reconnect, and no fallback to another route. The Hub's **Play** button with **Enable MCP Server** ticked launches the same server for a session with no Creator Hub MCP connected at all; there SKILL.md's Setup applies in full.
 
 ## Before `launch_preview`: check the OS, not just the tool
 
