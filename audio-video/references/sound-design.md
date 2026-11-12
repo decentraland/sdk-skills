@@ -39,7 +39,19 @@ asetrate=48000*0.8,aresample=48000" -ac 1 -c:a libvorbis -q:a 4 scream.ogg
 
 Layers on tracks, filters per layer, shared reverb buses, varispeed per item, and the user can open the project to listen and tweak.
 
-**Get it** (reaper.fm, checked 2026-11-11): download from `https://www.reaper.fm/download.php` (Windows, macOS, Linux; v7.85 at the time). "Free, fully functional 60-day evaluation", no registration. Licences (`https://www.reaper.fm/purchase.php`): **$60 discounted** for an individual's personal use, an individual or business with yearly gross revenue up to USD 20,000, or an educational/non-profit organization; **$225 commercial** otherwise. The site does not state what happens after the 60 days; don't claim either way.
+**Get it** (reaper.fm, checked 2026-11-11): download from `https://www.reaper.fm/download.php` (Windows, macOS, Linux; v7.85 at the time). "Free, fully functional 60-day evaluation", no registration. Licences (`https://www.reaper.fm/purchase.php`): **$60 discounted** for an individual's personal use, an individual or business with yearly gross revenue up to USD 20,000, or an educational/non-profit organization; **$225 commercial** otherwise. The site does not state what happens after the 60 days.
+
+**After the evaluation.** If the user has had REAPER for more than 60 days, mention that the evaluation may have expired and that a licence is available. Don't push the purchase, and don't block them from working around the reminder dialogs. Reports differ on what happens after day 60:
+- Second-hand sources (the REAPER accessibility wiki, forum posts) describe a reminder at launch with a few-second countdown, dismissed with **Still evaluating**.
+- A user remembered a blocking reminder every 30 minutes, cleared by closing and reopening REAPER.
+
+Neither was checked on a current build.
+
+**When REAPER stops responding** (MCP calls time out, or a headless render hangs with no output), warn the user. You cannot see or click REAPER dialogs, so ask them to look at REAPER and do what it needs: wait out a dialog's countdown and dismiss it, or close and reopen REAPER. Then continue.
+
+**Keep work safe across a REAPER restart** (crash, reminder, user quitting).
+- *Headless path:* nothing lives in REAPER. Each render is a fresh process, and the recipe script and `.rpp` on disk hold the state, so a restart loses nothing. [UNVERIFIED: whether a reminder dialog blocks `-renderproject` after day 60.]
+- *MCP path:* unsaved edits live only in the open project. Call `save_project` after each batch of edits. After a restart, the bridge must run again (`--autostart` does this), and the user reopens the project (→ `open_project` rule below).
 
 **REAPER MCP** ([TwelveTake-Studios/reaper-mcp](https://github.com/TwelveTake-Studios/reaper-mcp), MIT, PyPI `twelvetake-reaper-mcp`; README checked 2026-11-11). Needs Python 3.10+ and [`uv`](https://docs.astral.sh/uv/).
 

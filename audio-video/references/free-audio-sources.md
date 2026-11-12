@@ -1,6 +1,6 @@
 # Free audio sources: real recordings
 
-Where to get real recordings that a published, possibly commercial, Decentraland scene can use. Licences were checked at each source on 2026-11-11; re-check the licence of **each file** you download, since most sites mix licences. Deployed scene files are publicly downloadable from the content servers, so a sound ships to anyone who loads the scene.
+Where to get real recordings that a published, possibly commercial, Decentraland scene can use. Licences were checked at each source on 2026-11-11 (ElevenLabs 2026-11-12); re-check the licence of **each file** you download, since most sites mix licences. Deployed scene files are publicly downloadable from the content servers, so a sound ships to anyone who loads the scene.
 
 Confirm downloads with the user first (**sdk-scenes** → confirmation rules), and record the credit as you download (→ *Attribution*).
 
@@ -20,6 +20,7 @@ Ordered by usefulness and safety for scene sound design.
 | 8 | OpenGameArt (CC0 filter) | per entry: CC0, CC-BY, OGA-BY, CC-BY-SA, GPL | CC0 no | CC0 yes | `curl` | game SFX packs; few field recordings |
 | 9 | Pixabay sound effects | Pixabay Content License | not required | yes (no standalone resale) | browser only | quick generic SFX; quality and provenance vary |
 | 10 | NOAA Fisheries "Sounds in the Sea" | US federal work [UNVERIFIED for audio, see below] | asks "NOAA" credit | [UNVERIFIED] | direct MP3/WAV links | whale and seal calls (raw material for creature voices and drones) |
+| 11 | ElevenLabs sound-effects library (last resort) | site FAQ vs Terms of Use disagree, see below | yes, "elevenlabs.io" | [UNVERIFIED] | `curl`, no account or key | sounds the others lack: cartoon, sci-fi, UI, stylised monsters. AI-generated, uncurated |
 
 ## Freesound (with an API key)
 
@@ -116,6 +117,29 @@ Pixabay Content License: use free, commercial or not, without attribution, and m
 
 `https://www.fisheries.noaa.gov/national/science-data/sounds-ocean`: baleen and toothed whales, dolphins, seals, sea lions, walruses, with direct MP3/WAV links; sibling pages hold fish and invertebrate, environmental and human-made sounds. The page has no explicit rights statement; it shows how to credit ("NOAA …"). NOAA Fisheries' website policy says NOAA-created images are not subject to US copyright, while other material on its sites came from contractors or third parties. [UNVERIFIED for audio: confirm a recording is NOAA-created before shipping it in a commercial scene.]
 
+## ElevenLabs sound-effects library (last resort)
+
+`https://elevenlabs.io/sound-effects` links about 350 category pages (`/sound-effects/<slug>`, e.g. `owl`, `wolf`, `monster-growl`, `horror-ambience`, `thunderclap`, `game-ui`), each with about 11 clips. Take slugs from that index page; guessed ones failed (`door-creak` returned 404, `thunder` a page with no clips; 2026-11-12).
+
+**Why last:** the clips are AI-generated, not recordings, and nobody curates them. Quality varies from clip to clip and some sound synthetic, which is the problem real recordings solve. Use it when the sources above have nothing for a sound, mostly stylised ones (cartoon, sci-fi, UI). Check every clip's spectrogram and have the user listen before it goes into the kit.
+
+**Download** (verified 2026-11-12: no account, no key, plain `curl`). The category page's HTML holds each clip's CDN URL:
+
+```bash
+curl -sSL -A "scene-audio-research/1.0" https://elevenlabs.io/sound-effects/owl \
+  | grep -oE 'https://eleven-public-cdn\.elevenlabs\.io/payloadcms/[a-z0-9-]+\.mp3' | sort -u
+curl -sSL --fail -o sound-design/src/elevenlabs/owl-8.mp3 "<one of those URLs>"
+```
+
+Files are MP3 at 128 kbps, 44.1 kHz stereo, with no metadata. The test cowbell clip started with about 0.35 s of silence: trim it.
+
+**Licence: unclear, so always credit.**
+
+- Category-page FAQ: "all ElevenLabs Sound Effects are royalty free and can be used in commercial projects", but "do not sell or license our tools or use the output to develop competitive products or services". Same FAQ: "our free plan requires attribution to elevenlabs.io. Our paid plans do not require attribution".
+- Terms of Use §1(c)(i): free users "may only use the Services for non-commercial purposes". The Terms do not mention the library.
+- [UNVERIFIED: whether downloads made without an account count as free-plan use, and so as non-commercial only.]
+- So credit "Sound effects: elevenlabs.io" in every scene that uses one (→ *Attribution*). For a commercial scene (paid entry, sales, sponsorship), prefer another source, or have the user confirm with ElevenLabs or use a paid plan.
+
 ## Not suitable for a published scene
 
 - **BBC Sound Effects archive** (`sound-effects.bbcrewind.co.uk`): free only for "personal/educational projects"; other use must be licensed. Secondary sources name it the RemArc licence (personal, educational, research). Use it only if the user buys a licence.
@@ -130,7 +154,7 @@ Pixabay Content License: use free, commercial or not, without attribution, and m
 
 ## Attribution
 
-**Rule:** every file whose licence or terms ask for credit gets one: CC BY, CC BY-SA, OGA-BY, Freesound "Attribution", NASA ("should be acknowledged"), NOAA. Add it when the file enters the kit, not at release.
+**Rule:** every file whose licence or terms ask for credit gets one: CC BY, CC BY-SA, OGA-BY, Freesound "Attribution", NASA ("should be acknowledged"), NOAA, ElevenLabs ("elevenlabs.io"). Add it when the file enters the kit, not at release.
 
 **Where**
 
