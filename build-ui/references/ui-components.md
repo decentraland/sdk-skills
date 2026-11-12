@@ -103,17 +103,6 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 
 **Track hover with an open count (`enters - leaves`), not a boolean.** The count is 0 (idle) or 1 (hovered); any other value is a delivery defect you can see on screen. A boolean set on enter and cleared on leave survives a lost leave — the next enter sets it again — so it hides the bug instead of showing it. **Removing a hovered element delivers no leave**, so a close/unmount path clears the count itself (otherwise the element paints as hovered the next time it mounts).
 
-**A press can be dropped while its release still arrives.** When the scene tick runs slower than the render frame — heavy per-tick work, plus UI that re-renders every tick — an `onMouseDown` is silently lost while the `onMouseUp` of the same click still fires, so the handler that opens a panel or spends a resource never runs. Keep per-tick work and re-render churn down: throttle live readouts instead of rebuilding the panel every frame, and keep long loops out of systems. To measure it, count the entity-less pointer stream beside the element's own handlers — `ups > downs` on an element is a lost press:
-
-```ts
-// in a system: the click reached the client (every-entity scan, advanced-input → Global Input Checks)
-if (inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_DOWN)) state.globalDowns++
-// per element, from its own onMouseDown / onMouseUp counters
-const lost = Math.max(0, target.ups - target.downs)
-```
-
-Repro scene with both conditions on toggles: `81,-4-ui-dropped-pointer-events`.
-
 ## Label
 
 ```tsx
@@ -454,5 +443,4 @@ Engine-team test scenes exercised against the real renderer (ground truth for th
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-2-ui-screen-inset-area — the three `screenInset` modes of `setUiRenderer` / `addUiRenderer` (`'none'`, `'device'`, `'interactable'`) as three coexisting renderers, each framing the area it is positioned in and printing the live `UiCanvasInformation.screenInsetArea` / `.interactableArea` values.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-4-ui-dropped-pointer-events — dropped `onMouseDown` under a slow scene tick: a tick-stall toggle (0/40/120 ms busy-wait inside a system), a UI-churn toggle (re-render every tick), three targets counting their own down/up/enter/leave, and the entity-less pointer counter beside them.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — `src/stations/ui_root.tsx` composes three panels (centered / left / right so they never overlap) under the scene's single `setUiRenderer`; `s11_ui_hover.tsx` is the open-count hover tracker, including the nested-child scope case and clearing the count when the panel closes.

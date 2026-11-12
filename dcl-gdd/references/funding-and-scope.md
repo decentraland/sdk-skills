@@ -71,7 +71,8 @@ pays rather than a metric to design backwards from.
 checked November 12, 2026). A Reward is a **proportional share, never a guaranteed amount** — it
 depends on how the scene compares with every other enrolled one. Amounts under **USD 5 per Cycle**
 across all of a creator's experiences are not paid out. Payment is in USDC within 14 days of a
-Cycle ending, to a Payout Wallet set in Creator Hub.
+Cycle ending, to a Payout Wallet set in Creator Hub. **A creator with no Payout Wallet set within
+7 days after a Cycle ends loses that Cycle's Reward.**
 
 **Who is eligible.** 18 or older; owns the LAND, NAME or World the scene is deployed to; complies
 with the Terms of Use and Content Policy, with no gambling or other 18+ restricted content.

@@ -96,8 +96,6 @@ Sun.create(engine.RootEntity, {
 ```
 
 - `visible` default true. `intensity` default 1; negative clamps to 0.
-- **`intensity` never touches the lens flare.** `intensity: 0` puts the directional light out while the sun/moon discs and their screen-space lens flare keep drawing at full strength (`0.5` draws the flare unchanged too). Only `visible: false` removes them, so a starry night built on `intensity: 0` alone still shows a moon flare over the sky — set both. Verified in `2,2-skybox-control` → *Starry night (lens flare repro)*, which copies a creator's reported setup.
-- **The flare already varies with the time of day**, so pin `SkyboxTime.fixedTime` before judging whether a flare change worked: the default look draws no flare at all around 03:30–06:30 and 18:15–20:45, the moon flare is at 0.6 at 00:00, and the sun flare at 1 at 12:00.
 - `direction` is the direction the light travels in scene space (`(0,-1,0)` = overhead; the renderer normalizes it). Set → the sun stays fixed at every time of day, while color and intensity still follow the time of day. Unset or zero → normal path.
 
 ## EnvironmentFog

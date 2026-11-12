@@ -77,7 +77,7 @@ Scenes of **50 MiB or more** upload in 32 MiB batches (`@dcl/sdk-commands` 7.31.
 
 Every screen, message, the Places-continuity rule and the **Manage → LANDs** pages: `{baseDir}/references/creator-hub-publish.md`.
 
-**The Hub records each accepted publish in `.editor/project.json`** under `info.deployments`, a map keyed `land:<x,y>` or `world:<name>:<x,y>` whose entries hold `publishedAt`, `deploymentHash`, `parcel` and an optional `worldName` (Creator Hub 0.53.1+). One entry per target — the latest publish to it. Read it to tell a published scene from an unpublished one, or to recover where a scene went; it is editor state, so never hand-write it.
+**The Hub records each accepted publish in `.editor/project.json`** under `info.deployments`, a map keyed `land:<x,y>` or `world:<name>:<x,y>` whose entries hold `publishedAt`, `deploymentHash`, `parcel` and an optional `worldName` (Creator Hub 0.53.0+). One entry per target — the latest publish to it. Read it to tell a published scene from an unpublished one, or to recover where a scene went; it is editor state, so never hand-write it.
 
 **A redeploy that keeps neither the base parcel nor the parcel set creates a new Places listing**: the old one keeps the likes, favorites, ranking and analytics, and its Multiplayer Server storage may be erased. Keep one of the two when moving or growing a published scene, or tell the creator before changing both.
 
