@@ -77,6 +77,8 @@ Scenes of **50 MiB or more** upload in 32 MiB batches (`@dcl/sdk-commands` 7.31.
 
 Every screen, message, the Places-continuity rule and the **Manage → LANDs** pages: `{baseDir}/references/creator-hub-publish.md`.
 
+**The Hub records each accepted publish in `.editor/project.json`** under `info.deployments`, a map keyed `land:<x,y>` or `world:<name>:<x,y>` whose entries hold `publishedAt`, `deploymentHash`, `parcel` and an optional `worldName` (Creator Hub 0.53.1+). One entry per target — the latest publish to it. Read it to tell a published scene from an unpublished one, or to recover where a scene went; it is editor state, so never hand-write it.
+
 **A redeploy that keeps neither the base parcel nor the parcel set creates a new Places listing**: the old one keeps the likes, favorites, ranking and analytics, and its Multiplayer Server storage may be erased. Keep one of the two when moving or growing a published scene, or tell the creator before changing both.
 
 ### The link to share after publishing
@@ -274,6 +276,8 @@ The desktop preview already runs the same conversion locally, so catch conversio
 
 To deploy to a World, use **deploy-worlds**.
 
-## Scene Tipping
+## Earning from the published scene
 
-To let visitors tip the scene creator in MANA, set the root-level `creator` wallet address in `scene.json`: `{baseDir}/../create-scene/references/scene-json.md` → Fields.
+**Tipping:** to let visitors tip the scene creator in MANA, set the root-level `creator` wallet address in `scene.json`: `{baseDir}/../create-scene/references/scene-json.md` → Fields.
+
+**Creator Fund:** a published scene can be enrolled for USDC rewards based on the new players, playtime and return visits it generates. Publishing is the prerequisite; the creator opts in from the **Earn** tab in Creator Hub, signing with the wallet that owns the LAND, NAME or World. Program facts, eligibility and the current Season: `{baseDir}/../dcl-gdd/references/funding-and-scope.md` → Creator Fund.
