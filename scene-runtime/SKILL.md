@@ -241,7 +241,7 @@ import { ExplorerUi } from "@dcl/sdk/ecs";
 openExplorerUi({ ui: ExplorerUi.EU_MAP });
 ```
 
-The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (the slot that panel uses is already taken; panels sharing a slot exclude each other, so another panel or section may be the one showing), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client hides or does not support that panel), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
+The call resolves to `{ openResult }`, an `OpenExplorerUiResult` (also from `~system/RestrictedActions`): `OPENED`, `WAS_ALREADY_OPEN` (another panel is already on screen: the panels share one slot, and the player may have opened that one by hand, so this is a normal outcome, not a bug), `REJECTED_NOT_CURRENT_SCENE` (the player is not in this scene), `REJECTED_FEATURE_DISABLED` (the client has that panel turned off, or the `ui` value is not a panel it knows), `REJECTED_NO_USER_GESTURE` (not called from a player interaction), plus the default `UNSPECIFIED`. Treat only `OPENED` as success: on anything else, show the information another way or tell the player what to open.
 
 **What counts as a gesture**: a click on a 3D entity (`pointerEventsSystem.onPointerDown` / `onPointerUp`), a click on scene UI (`onMouseDown` / `onMouseUp`), a pointer click with nothing under the cursor (`inputSystem.isTriggered(InputAction.IA_POINTER, PointerEventType.PET_DOWN)`), or an activation button (`E`, `F`, `1`-`4`: `IA_PRIMARY`, `IA_SECONDARY`, `IA_ACTION_3`-`IA_ACTION_6`) read with `inputSystem.isTriggered` on `PET_DOWN` / `PET_UP`. Hover, movement keys, `main()`, timers and trigger areas are not gestures. The window is the gesture's tick plus one, so call `openExplorerUi` **first** inside the handler: an `await` on a fetch, a timer or another restricted action before it pushes the call outside the window.
 
@@ -289,28 +289,30 @@ pointerEventsSystem.onPointerDown(
 
 `outcome.$case`: `closed` (the panel this call opened was closed, the normal end), `notOpened` (nothing opened; `outcome.openResult` is the `OpenExplorerUiResult` reason, resolves immediately), `timedOut` (`timeoutMs` elapsed with the panel still open), `matched` (an `until` condition fired first; the panel may still be open). There is no default timeout: a panel can stay open for minutes, so pass `timeoutMs` whenever the scene must move on regardless. `until` / `collect` options and event channels: `{baseDir}/references/runtime-apis.md` → openExplorerUiAndWait.
 
-### ExplorerUiEventsResult -- Observe Panel Open/Close
+### ExplorerUiEventsResult -- Follow the Panels Your Scene Opened
 
-Scenes can observe when explorer panels are opened or closed. `ExplorerUiEventsResult` is a grow-only value set (APPEND semantics, max 100 entries) on `engine.RootEntity`. Each entry reports which panel and whether it opened or closed.
+`ExplorerUiEventsResult` is a grow-only value set (APPEND semantics) on `engine.RootEntity`. **It carries only panels your own scene opened** with `openExplorerUi` / `openExplorerUiAndWait`: one `opened` entry when the panel appears, one `closed` when it goes away (the player's *Esc* included). A panel the player opens from the Explorer's own menus produces no entry, so a scene that never calls `openExplorerUi` never sees one: this is not a scene-wide view of the Explorer UI.
+
+**`get()` returns the whole accumulated set (up to the 100 most recent), not what arrived since the last frame.** A system that iterates it blindly re-handles every past event on every tick. Keep a watermark on `timestamp`, or use `onChange`, which runs once per new entry:
 
 ```typescript
 import { engine, ExplorerUiEventsResult, ExplorerUi } from "@dcl/sdk/ecs";
 
+let lastHandledTick = -1;
 engine.addSystem(() => {
+  if (!ExplorerUiEventsResult.has(engine.RootEntity)) return; // grow-only set: no getOrNull
   const results = ExplorerUiEventsResult.get(engine.RootEntity);
+  let newestTick = lastHandledTick;
   for (const entry of results.values()) {
-    if (entry.ui === ExplorerUi.EU_MAP) {
-      if (entry.event?.$case === "opened") {
-        console.log("Map was opened");
-      } else if (entry.event?.$case === "closed") {
-        console.log("Map was closed");
-      }
-    }
+    if (entry.timestamp <= lastHandledTick) continue; // already handled
+    if (entry.timestamp > newestTick) newestTick = entry.timestamp;
+    if (entry.ui === ExplorerUi.EU_MAP && entry.event?.$case === "closed") onMapClosed();
   }
+  lastHandledTick = newestTick; // after the loop, so several entries on one tick are all handled
 });
 ```
 
-Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (scene tick), `requestId` (the `requestId` of the `openExplorerUi` call that caused the event; `0` when the call passed none or the player opened the panel themselves), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220.
+Each entry has: `ui` (`ExplorerUi` enum), `timestamp` (the scene tick it happened on), `requestId` (the `requestId` your `openExplorerUi` call passed, `0` when it passed none; tells several calls in flight apart), `event` (oneof: `{ $case: 'opened' }` or `{ $case: 'closed' }`). Component id 1220. Test scene with every verdict, the gesture gate, a panel already open, `requestId` correlation and each `openExplorerUiAndWait` outcome: [sdk7-test-scenes `80,-6-explorer-ui-events`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-6-explorer-ui-events).
 
 ## Timers
 

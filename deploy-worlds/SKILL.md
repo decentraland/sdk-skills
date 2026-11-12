@@ -24,7 +24,7 @@ Scenes deployed to Worlds count against a storage budget shared across all World
 - Every **2,000 MANA** held in the wallet grants another **100 MB**.
 - **ENS-domain Worlds** have a fixed limit of **36 MB** that cannot be expanded.
 
-The budget can be distributed across multiple Worlds however the user likes. Check usage in the **Manage** section of the Creator Hub (click **View Details** for a breakdown), or in the **Worlds** tab of the [Builder](https://decentraland.org/builder/worlds).
+The budget can be distributed across multiple Worlds however the user likes. Check usage in the **Manage** section of the Creator Hub (**Worlds** tab, **View Details →** for a breakdown; a World's **Scenes** tab has **Manage Storage**), or in the **Worlds** tab of the [Builder](https://decentraland.org/builder/worlds).
 
 If the budget is exceeded (e.g. after selling/transferring assets), there is a **48-hour grace period** to free space before Worlds become inaccessible. Regain access by acquiring more MANA/NAMEs/LAND or undeploying scenes.
 
@@ -82,7 +82,9 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 1. Open the scene project in Creator Hub
 2. Click the **Publish** button (top-right corner)
 3. Select **PUBLISH TO WORLD**
-4. Choose which NAME or ENS domain to publish to
+4. Choose which NAME or ENS domain to publish to; the Deploy step shows `Total Size {size} / {limit}` against that World's limit and disables Publish over it.
+
+A placement that overlaps two or more of the World's scenes, or a single-scene publish that removes scenes the new one does not cover, starts a new Places listing; the Hub warns before confirming. Screens, messages and the World detail page: **deploy-scene** → `references/creator-hub-publish.md`.
 
 ## 3. Access the World
 
@@ -144,7 +146,7 @@ npm run deploy -- --multi-scene --target-content https://worlds-content-server.d
 After enabling, the World Owner can:
 - Publish additional scenes to different parcels of the same World
 - Add **Collaborators** with deploy rights (all parcels or specific coordinates)
-- Manage layout via the **Layout** tab in World Settings (remove scenes, view the World map)
+- Manage layout on the World detail page's **Scenes** tab (Manage → Worlds → the World; unpublish scenes, World Map toggle)
 - Set a **World Spawn Position** (which parcel players enter on)
 
 **Collaborator note:** Collaborators with "All Parcels" access can overwrite any scene in the World, including those published by the owner.
@@ -162,7 +164,7 @@ A World and each scene published to it carry **two separate sets** of name, desc
 | | Scene metadata | World metadata |
 |---|---|---|
 | Stored in | the scene project's `scene.json` | the World itself |
-| Edited via | scene settings in the Scene Editor | the World's **Settings**, under the Creator Hub's **Manage** tab |
+| Edited via | scene settings in the Scene Editor | the World detail page's **Details** tab (Creator Hub → **Manage** → **Worlds**) |
 | Uploaded | with the scene, on every publish | only when you edit it there (or as described below) |
 | Shown in | the scene | Decentraland Places and the in-world World information |
 

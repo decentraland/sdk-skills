@@ -159,7 +159,9 @@ customer or enemy logic. Player emotes, AvatarShape expressions and GLB Animator
 clips are different playback paths. The **npcs** skill records limitations on custom looping
 and upper-body masks for AvatarShape; inspect them before choosing an animation-dependent design.
 Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: npcs (`{baseDir}/../npcs/SKILL.md`).
-For planned behavior, follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic).
+For planned behavior (patrol, notice, chase, search, give up), follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic);
+its NPCs run per client, so a shared enemy still needs a synced owner, and obstacle-aware pathfinding is not established.
+Implementation: **npcs** → *Behaviour: the HTN planner module*.
 
 The NPC patterns (`{baseDir}/../npcs/references/npc-library.md`)
 include authored waypoint movement and direct following. Those are useful for a customer route

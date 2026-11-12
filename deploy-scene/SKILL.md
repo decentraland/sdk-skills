@@ -71,11 +71,13 @@ Scenes of **50 MiB or more** upload in 32 MiB batches (`@dcl/sdk-commands` 7.31.
 
 ### Using Creator Hub
 
-1. Open Creator Hub
-2. Select your scene
-3. Click "Publish"
-4. Connect wallet
-5. Confirm transaction
+1. Open the scene in the Creator Hub and click **Publish** (it saves pending edits first).
+2. Pick **Publish to LAND**, then the parcel: only LAND the wallet can deploy to is listed, and the scene deploys there, not to the parcels still in `scene.json`.
+3. Check the Deploy step's `Total Size {size} / {limit}` (15 MiB per parcel; over it, Publish is disabled) and any **"Your scene will lose its Places listing"** warning, then **Publish** and sign with the wallet. Progress and **Cancel** need `@dcl/sdk` 7.31.0+.
+
+Every screen, message, the Places-continuity rule and the **Manage → LANDs** pages: `{baseDir}/references/creator-hub-publish.md`.
+
+**A redeploy that keeps neither the base parcel nor the parcel set creates a new Places listing**: the old one keeps the likes, favorites, ranking and analytics, and its Multiplayer Server storage may be erased. Keep one of the two when moving or growing a published scene, or tell the creator before changing both.
 
 ### The link to share after publishing
 
