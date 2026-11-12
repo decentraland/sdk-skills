@@ -292,7 +292,7 @@ triggerSceneEmote({
 
 ### Stopping an emote
 
-`stopEmote({})` from `~system/RestrictedActions` stops the local player's currently playing emote (built-in or scene emote). Useful to end a looping scene emote (`triggerSceneEmote({ src, loop: true })`) on demand — e.g. a "pick up / put down" toggle.
+`stopEmote({})` from `~system/RestrictedActions` stops the local player's currently playing emote (built-in or scene emote). Useful to end a looping scene emote (`triggerSceneEmote({ src, loop: true })`) on demand — e.g. a "pick up / put down" toggle. To swap one emote for another, call `triggerSceneEmote` again directly (see "Emote masks" → *Re-triggering replaces in place*).
 
 ```typescript
 import { stopEmote } from '~system/RestrictedActions'
@@ -348,6 +348,7 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 - `mask` applies to `triggerEmote` and `triggerSceneEmote` only. `stopEmote({})` takes no arguments (`StopEmoteRequest` is empty).
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
 - **Mobile:** masked emotes work from app 1.13.0, and from 1.15.0 other mobile players see them as upper-body too. Older mobile apps play them full-body, so keep the full-body fallback acceptable. Other mobile gaps, including emotes from other clients: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
+- **Re-triggering replaces in place:** `triggerSceneEmote` called while a masked emote is playing (a looping hold, or a short clip about to end) swaps the clip without passing through locomotion. Chain swings, or go from a hold to an action, with a plain `triggerSceneEmote` call and keep `stopEmote({})` for the moment the mechanic ends. A `stopEmote({})` before each trigger returns the upper body to locomotion for a couple of frames plus the 0.1 s blend-in, visible as an idle flicker between clips.
 - **A masked emote survives scene-driven movement:** an upper-body emote is meant to keep playing while the scene moves the player with `movePlayerTo`, instant or with `duration` (a strike combined with a lunge). Test cases: sdk7-test-scenes `88,-13-avatar-masks`, the cube row at z = 12. [UNVERIFIED: expected behaviour as encoded by that test scene; not confirmed in Explorer source.] A full-body emote is still cancelled by the move on desktop (above).
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 
