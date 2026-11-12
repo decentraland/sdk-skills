@@ -56,12 +56,15 @@ The MCP is what makes model work collaborative; a silent fallback removes that c
 
 When walls, floors, furniture or props need to go into the scene, the Creator Hub MCP is not in the session (no `mcp__creator-hub__*` tools), and the scene **is or may be open in the Creator Hub**, **stop and let the user choose** — never fall back to `engine.addEntity()` in `src/` on your own. Signs the scene is open or Hub-managed:
 
-- `pgrep -fl 'sdk-commands start'` lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
+- `ps -ef | grep '[-]-data-layer'` (the bracket keeps grep from matching itself; Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object CommandLine -match 'data-laye[r]'`) lists `sdk-commands start … --data-layer` with the scene folder in its path — the strong signal. Not `pgrep -fl`: on Linux `-l` prints only the process name, so a grep on the arguments never matches. A `tsc … --watch` on the scene folder is a hint only (a plain preview runs one too).
+- A `.mcp.json` holding only a `creator-hub` entry on `http://127.0.0.1:…` — the Hub wrote it for this scene with outside access on. A crashed Hub leaves it behind, so it means *open right now* only when its URL and token match a `<userData>/mcp-server.json` whose `pid` is alive (**creator-hub-mcp** → `reference/connect.md`).
 - `.editor/project.json` exists, or `assets/scene/main.composite` contains `inspector::*` components — the Hub has opened the scene at least once.
+
+**Before asking, try to connect yourself:** **creator-hub-mcp** → `reference/connect.md` → Connect. A live `<userData>/mcp-server.json` (its `pid` alive) means the server is up and only your session lacks it: register from it, or from the scene's `.mcp.json` when that file's URL and token match (never print the token) and ask the user only for what your client cannot do itself, usually one `/mcp` reconnect or a new session. Neither file: create `<userData>/mcp-server.request` and ask the creator to click **Allow** in the Creator Hub. Do the editor work through the tools once they bind; until they do, the rule below still holds. Ask the three-option question when the creator declines access or the connection still fails.
 
 Ask:
 
-> "Your scene is open in the Creator Hub, so I can't safely add the room to the scene file — the editor would overwrite my changes. Three ways forward: (1) close the scene in the Creator Hub and I'll add everything to the scene file; (2) turn on Settings > AI > *Expose AI assistant MCP server* and connect me, so I place everything live in the editor; or (3) I build the room in code — it shows in the preview but not in the editor, so you can't select or move any of it there. Which do you prefer?"
+> "Your scene is open in the Creator Hub, so I can't safely add the room to the scene file — the editor would overwrite my changes. Three ways forward: (1) close the scene in the Creator Hub and I'll add everything to the scene file; (2) let me connect to the Creator Hub (click **Allow** when it asks, or turn on Settings > AI > *Allow other AI apps to edit your scenes*), so I place everything live in the editor; or (3) I build the room in code — it shows in the preview but not in the editor, so you can't select or move any of it there. Which do you prefer?"
 
 Option 3 is legitimate only as the user's explicit choice. Building static entities in `src/` without that decision is never acceptable — not as a greybox, a prototype or a "temporary" stand-in, and not because the session is non-interactive or autonomous (put the question in your final message). Do all the work that does not depend on the answer first (scripts, behaviour, asset files), then stop with the question. Reporting code-built geometry in a summary after the fact is not asking. This is the canonical statement; **composites** and **creator-hub-mcp** point here.
 
@@ -74,6 +77,10 @@ Before working around an SDK, Explorer or Creator Hub defect, or a capability th
 If the `explorer` MCP server is not connected (ConnectionRefused, or no `explorer_*` / `mcp__explorer__*` tools), say so once and offer to set it up per **unity-explorer-mcp** — a refused connection only means the Explorer is not running. Until then, label every visual claim as unverified ("should now fit the bezel — not seen") and never report a visual fix as done on the strength of the code alone.
 
 When the Explorer MCP is **connected**, verify every change in-world before you report it done. Don't wait for the user to ask. "Unverified in-world" is not a finished state when you could have verified it. If the MCP was set up before but the Explorer isn't running, offer to launch it, going through **unity-explorer-mcp**'s gates. Don't launch it unasked.
+
+### 8. A feature that needs a newer SDK
+
+Version floors in these skills (`fontSrc` 7.31.0+, `screenInset` 7.26.0+, …) name the stable `@dcl/sdk` release. A Multiplayer Server scene runs a prerelease from the `@dcl/sdk@auth-server` tag whose version string trails `latest` (a `7.32.1-<build>` today), so a numeric compare says "too old" for a build that already has the field. Before writing a floored feature, read the installed version from `node_modules/@dcl/sdk/package.json`; on an `auth-server` build decide from the installed typings instead (`grep -rl <field> node_modules/@dcl/react-ecs/dist node_modules/@dcl/ecs/dist`: no file listed means it does not exist). If the scene is too old, upgrade: a stable scene to `latest`, a Multiplayer Server scene to the newest `auth-server` build and never to `latest`, which has no server APIs (**authoritative-server** → Setup). The upgrade is the step to confirm with the user (it changes every dependency, and on a server scene the tag); the version check itself needs no confirmation. If the user does not want to upgrade, use the fallback the topic skill names. Never patch the SDK's generated types or serializers in `node_modules`; it breaks on the next install.
 
 ### General principle
 
@@ -95,7 +102,7 @@ Composite entities load faster, are editable in the Creator Hub, and keep the co
 
 ## CRITICAL RULE — Editing an existing composite
 
-**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `spawnPoints` and `thumbnail`: write those with `set_component` on entity `0`, see **creator-hub-mcp**). Tools, connection and the decision ladder: **creator-hub-mcp**. A file edit made while the scene is open in the Creator Hub is lost silently: the inspector rewrites `main.composite` wholesale from memory on its next autosave and never re-reads the file (mechanism: **composites** → `composite-reference.md` → Editing an existing composite (edit mode)).
+**If the Creator Hub MCP is available, use it — never hand-edit the file**, and that includes `scene.json` (`set_scene_settings`, except `thumbnail`: write it with `set_component` on entity `0`, see **creator-hub-mcp**). Tools, connection and the decision ladder: **creator-hub-mcp**. A file edit made while the scene is open in the Creator Hub is lost silently: the inspector rewrites `main.composite` wholesale from memory on its next autosave and never re-reads the file (mechanism: **composites** → `composite-reference.md` → Editing an existing composite (edit mode)).
 
 Only when the MCP is not available (no Creator Hub in play, or the user declines to connect it) fall back to editing `assets/scene/main.composite` directly, and then:
 
@@ -107,6 +114,11 @@ Only when the MCP is not available (no Creator Hub in play, or the user declines
 ## Individual Skills
 
 Load the topic skill that matches the request; for requests spanning several topics, load each.
+
+Every skill named below ships in the same `decentraland/sdk-skills` package. If one you need is not in your skills list, check the scene's `.claude/skills` / `.agents/skills` and the user-level `~/.claude/skills` / `~/.agents/skills` (symlinks — use `grep -R`) before installing; install with `npx skills add decentraland/sdk-skills --skill <name>` (or `--all`; `npx skills update` never adds new skills), then tell the user a new session is needed to load it: the skill list and the MCP tool list are fixed at session start.
+
+- `npx skills add … --all` and the Creator Hub's skills update overwrite every released skill's folder, locally patched copies included, so install an unreleased skill from a PR under its own folder name and leave the released folders (`sdk-scenes`, `npcs`, …) unpatched.
+- The installer skips a skill whose frontmatter it cannot parse and still exits 0, and the Hub reports success on exit 0 (creator-hub `skills.ts`), so when a skill seems missing, compare `skills-lock.json` with the upstream skill list.
 
 ### Scene Setup & Configuration
 

@@ -2,7 +2,7 @@
 
 Ready-made avatar animations for the **player** (`triggerEmote` / `triggerSceneEmote`, API in **player-avatar**) and for `AvatarShape` NPCs (**npcs**). Check here **before** authoring a custom clip in Blender. Order of preference:
 
-1. **Built-in emote** (section 1) — play by name, nothing to download, works in every scene. 32 names, plus 5 embedded-only ids.
+1. **Built-in emote** (section 1) — play by name, nothing to download, works in every scene. 32 names, plus `cry`, `dance` and 5 embedded-only ids.
 2. **Avatar Animations pack file** (section 2) — 45 `_emote.glb` clips from the Creator Hub asset packs, available to every Creator Hub user. Download into the scene and play with `triggerSceneEmote`.
 3. **Custom clip** — only when neither fits: author it on the official rig (**avatar-animations** SKILL.md).
 
@@ -16,9 +16,9 @@ triggerEmote({ predefinedEmote: 'wave' })               // one-shot
 triggerEmote({ predefinedEmote: 'sittingChair1' })      // loops: holds the pose until stopEmote({}) or the player moves
 ```
 
-These 32 ids are the ones the Creator Hub lists as **Built-in** (its *Play Default Emote* action and the Avatar Animations pack).
+These 32 ids are the ones the Creator Hub lists as **Built-in** (its *Play Default Emote* action and the Avatar Animations pack), plus the social `cry` and `dance`, which the Creator Hub does not list.
 
-**How they appear in the editor:** each built-in is a catalog entry carrying only a thumbnail and an animated preview, marked by a `builtInEmote: "<id>"` field in its `data.json` — that field is what distinguishes it from a downloadable clip. They are **spread across the Actions / Sitting / Expressions categories** alongside the real files, each with a **Built-in** badge and the tooltip *"Built-in: available in every scene."* They **cannot be dragged** (from the catalog or from Local Assets) — trying shows a notice that the animation is already available in every scene — and their context action is **Copy name**, not *Add to filesystem*. Local Assets lists them in a read-only **Built-in animations** folder (nothing on disk) under the **Avatar Animations** filter. So: when a user points at one of these in the editor, **there is no file to look for** — play it by name with `triggerEmote({ predefinedEmote })`. `Loop` = holds the pose indefinitely; the others play once and return to idle. *Embedded* ids ship inside the Explorer binary; *social* ids resolve as emote URNs (need the content server, like any wearable emote). Use the ids with the casing listed (the Explorer matches them ignoring case — `MemoryEmotesStorage` uses `URNIgnoreCaseEqualityComparer` — but the listed form is the canonical one). Loop flags and the 5 embedded-only ids (`crafting`, `handsintheair`, `Victory`, `Waving`, `fistpump_short`, not listed by the Creator Hub) are verified in `embedded-emotes.md`, the single source of truth for the embedded set. The 16 social ids are one-shot gestures and dances; their loop flag is not verified against the Explorer asset.
+**How they appear in the editor:** each built-in is a catalog entry carrying only a thumbnail and an animated preview, marked by a `builtInEmote: "<id>"` field in its `data.json` — that field is what distinguishes it from a downloadable clip. They are **spread across the Actions / Sitting / Expressions categories** alongside the real files, each with a **Built-in** badge and the tooltip *"Built-in: available in every scene."* They **cannot be dragged** (from the catalog or from Local Assets) — trying shows a notice that the animation is already available in every scene — and their context action is **Copy name**, not *Add to filesystem*. Local Assets lists them in a read-only **Built-in animations** folder (nothing on disk) under the **Avatar Animations** filter. So: when a user points at one of these in the editor, **there is no file to look for** — play it by name with `triggerEmote({ predefinedEmote })`. `Loop` = holds the pose indefinitely; the others play once and return to idle. *Embedded* ids ship inside the Explorer binary; *social* ids resolve as emote URNs (need the content server, like any wearable emote). Use the ids with the casing listed (the Explorer matches them ignoring case — `MemoryEmotesStorage` uses `URNIgnoreCaseEqualityComparer` — but the listed form is the canonical one). Loop flags and the 5 embedded-only ids (`crafting`, `handsintheair`, `Victory`, `Waving`, `fistpump_short`, not listed by the Creator Hub) are verified in `embedded-emotes.md`, the single source of truth for the embedded set. Social ids' loop flags are read from the deployed base-emote entities (`emoteDataADR74.loop`, Catalyst, 2026-11-06); the Explorer plays them as defined.
 
 | Id (`predefinedEmote`) | Creator Hub name | Group | Loop | Kind | Preview (animated) |
 | --- | --- | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ These 32 ids are the ones the Creator Hub lists as **Built-in** (its *Play Defau
 | `buttonDown` | Button Down | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreifbeqjhl3lieb2i3jgvlk6g3yzzhbxelak6dcxttwl4ti7dcswnd4 |
 | `buttonFront` | Button Front | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreiehm7n5zx4p4apkd4t34p73vmvqxevnwdnh63em67hs4sqqmsebyu |
 | `getHit` | Get Hit | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreiaaq4ofcymhk3izzhth4kf3ecfaurguxtfwojldheijyhmtwykzja |
-| `hammer` | Hammer | actions | no | social | https://builder-items.decentraland.org/contents/bafkreiatdzga2lc2sawrqxiswbd7gfjswtrngfaadbrqtkk4cbnmf2qoku |
+| `hammer` | Hammer | actions | yes | social | https://builder-items.decentraland.org/contents/bafkreiatdzga2lc2sawrqxiswbd7gfjswtrngfaadbrqtkk4cbnmf2qoku |
 | `knockOut` | Knock Out | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreifkrizil6k267udfo6fl4z6c7rrtaczjhp7pnaw2hfdbxcp6swwha |
 | `lever` | Lever | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreigksv6d25zbbdagebam2y7fuqz5urmnfftv3ahpsdxdt43ltoa6he |
 | `openChest` | Open Chest | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreiasmbtxbkzunmriaksmxuqnkxbfhdlymm45c4hkkcprfxmkojmiku |
@@ -39,20 +39,22 @@ These 32 ids are the ones the Creator Hub lists as **Built-in** (its *Play Defau
 | `swingWeaponOneHand` | Swing Weapon One Hand | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreigmedhblhvpjeu5kpaftxxquifei5reg3dgdverdaynjcgaj6a3d4 |
 | `swingWeaponTwoHands` | Swing Weapon Two Hands | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreiajbjndksmirjsytpwiy2lbmopu5j2njfwr5hqxhb7coiwblmykza |
 | `throw` | Throw | actions | no | embedded | https://builder-items.decentraland.org/contents/bafkreif6fnpj4n3ajdtvkilcolyq7qfi5zjtd6dfavyzf3ao5z4ifanocq |
-| `clap` | Clap | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreibf5mpdq3fhvmfztiw3agvczth7notfv7xzukxjclob43uzr3e4zm |
+| `clap` | Clap | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreibf5mpdq3fhvmfztiw3agvczth7notfv7xzukxjclob43uzr3e4zm |
+| `cry` | — (not listed) | expressions | yes | social | — |
 | `dab` | Dab | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreigqvjouvoown5svch6ko7g3gvvrb3ljkuyjtz4w6fzima5pievbdi |
-| `disco` | Disco | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreig5t6d5c3qhz2z752zrmihj7tilk7vxz3x6i2co4ps5hviatoy3ke |
+| `dance` | — (not listed) | expressions | yes | social | — |
+| `disco` | Disco | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreig5t6d5c3qhz2z752zrmihj7tilk7vxz3x6i2co4ps5hviatoy3ke |
 | `dontsee` | Don't See | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreiekfkiexevb6est3dhvy6kozuqcg5bpcosylcoxoyhtf24xkgps3i |
 | `fistpump` | Fistpump | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreiaeuuz4lx7nfs5sk4gyqapfoe6fem4nasa3q33bprej3w275a6hpq |
 | `handsair` | Hands Air | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreig4vxjdg6vdqe4qctrxugg4eoiyviua6b7qt7dmly7qekxj26tb4m |
 | `headexplode` | Head Explode | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreihj4g3pjwm3aakw6v3rcvrgci4f2kybffdlilrcp234wpxlaccnra |
-| `kiss` | Kiss | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreifyal26k5jdg5lzremtpbpifh6htetiknpmctgzwe23tpqfx5eyce |
-| `money` | Money | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreieidfbjgq6npuiaxsqzpp4npqzmqoheduwxmdmeamutpbulfj4esm |
+| `kiss` | Kiss | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreifyal26k5jdg5lzremtpbpifh6htetiknpmctgzwe23tpqfx5eyce |
+| `money` | Money | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreieidfbjgq6npuiaxsqzpp4npqzmqoheduwxmdmeamutpbulfj4esm |
 | `raiseHand` | Raise Hand | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreig32rp6jahpqeybrdygryimahgneogf6in7bhogca4jbxnxi337xq |
-| `robot` | Robot | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreiffohifwoprn5ayybhqhbrpp6t3xfpft7rrwxim5eczsftyrolwue |
+| `robot` | Robot | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreiffohifwoprn5ayybhqhbrpp6t3xfpft7rrwxim5eczsftyrolwue |
 | `shrug` | Shrug | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreib6fuyhf24lgy4xue4gp4ipjmxomdz5zefeeyu2ijzofbaegsc63y |
-| `tektonik` | Tektonik | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreibgx4lw22wrvfpy6kfq2iec4z5b3nucshuxm3mv55s43jgnmenm64 |
-| `tik` | Tik | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreid5h27mchvstkdo5rvrq72txe45jejd65tghcaob3lalf6icahnza |
+| `tektonik` | Tektonik | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreibgx4lw22wrvfpy6kfq2iec4z5b3nucshuxm3mv55s43jgnmenm64 |
+| `tik` | Tik | expressions | yes | social | https://builder-items.decentraland.org/contents/bafkreid5h27mchvstkdo5rvrq72txe45jejd65tghcaob3lalf6icahnza |
 | `wave` | Wave | expressions | no | social | https://builder-items.decentraland.org/contents/bafkreihwm5jpm7zawgvznll6dup3fsh7emyy7ixzljnevcqq2mtbrs7hci |
 
 ## 2. Avatar Animations pack — downloadable `_emote.glb` clips (45)

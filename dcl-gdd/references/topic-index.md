@@ -15,6 +15,7 @@ read the whole library, turn it into an agenda, or wait for a later stage to use
 | Questions for players, survey timing or interpreting their answers | [player-feedback](player-feedback.md) |
 | Audience, communities, first players, sharing or preparing promotion | [acquisition](acquisition.md) |
 | Finding and comparing candidate communities, for a game or before one | [audience-discovery](audience-discovery.md) |
+| Earning from the game — the Creator Fund, Creator Success funding, affordability, effort estimates | [funding-and-scope](funding-and-scope.md) |
 
 Before writing or revising an IP status, load the [IP self-check](scope-and-evidence.md#ip-and-content-declaration--now-a-header-self-check), even for a header-only edit.
 

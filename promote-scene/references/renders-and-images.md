@@ -15,7 +15,7 @@ All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacO
 
 Measured on Apple Silicon (Metal + CPU)
 
-The whole-interior case is the common one for Creator Hub scenes (one big GLB, the scene's own lamp rig reproduced). Plan on 2–3 minutes per final and split the pass into one or two shots per command, or background it. Two Blender processes (finals and key art) ran side by side without trouble. Each `RENDERED` line reports its seconds, so time the first final before launching the rest.
+The whole-interior case is the common one for Creator Hub scenes (one big GLB, the scene's own lamp rig reproduced). Plan on 2–3 minutes per final and split the pass into one or two shots per command, or background it. Run one Blender process at a time: two or three Cycles renders of a large outdoor region side by side crashed the creator's machine twice and the key-art plate alone took three hours (owner report, 2026-11-06). Each `RENDERED` line reports its seconds, so time the first final before launching the rest; `TIME_LIMIT` in the script caps every Cycles still, so a runaway shot stops and prints its time instead of holding the machine.
 
 Helpers (edit only the per-scene settings and the `SHOTS` section):
 

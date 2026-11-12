@@ -24,9 +24,11 @@ Scenes deployed to Worlds count against a storage budget shared across all World
 - Every **2,000 MANA** held in the wallet grants another **100 MB**.
 - **ENS-domain Worlds** have a fixed limit of **36 MB** that cannot be expanded.
 
-The budget can be distributed across multiple Worlds however the user likes. Check usage in the **Manage** section of the Creator Hub (click **View Details** for a breakdown), or in the **Worlds** tab of the [Builder](https://decentraland.org/builder/worlds).
+The budget can be distributed across multiple Worlds however the user likes. Check usage in the **Manage** section of the Creator Hub (**Worlds** tab, **View Details →** for a breakdown; a World's **Scenes** tab has **Manage Storage**), or in the **Worlds** tab of the [Builder](https://decentraland.org/builder/worlds).
 
 If the budget is exceeded (e.g. after selling/transferring assets), there is a **48-hour grace period** to free space before Worlds become inaccessible. Regain access by acquiring more MANA/NAMEs/LAND or undeploying scenes.
+
+For a DCL NAME World the server sizes each upload as the wallet's budget minus everything it has deployed, crediting back only the scenes on the parcels this deploy covers — other scenes in the same World still count — clamped at 0 and capped per scene (worlds-content-server `limits-manager`). An over-budget wallet therefore gets an allowance of **0 bytes** and refuses every upload, however small — see Troubleshooting. Other ENS names (36 MB) and whitelisted Worlds have a fixed cap instead, independent of the wallet.
 
 **Size the upload before publishing**, not after: run the size pass in the **deploy-scene** pre-deployment checklist (heavy GLBs with embedded 2048 px texture maps are the usual surprise, and the project's `bin/index.js` is a dev build several MB larger than the minified bundle `deploy` uploads).
 
@@ -80,7 +82,9 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 1. Open the scene project in Creator Hub
 2. Click the **Publish** button (top-right corner)
 3. Select **PUBLISH TO WORLD**
-4. Choose which NAME or ENS domain to publish to
+4. Choose which NAME or ENS domain to publish to; the Deploy step shows `Total Size {size} / {limit}` against that World's limit and disables Publish over it.
+
+A placement that overlaps two or more of the World's scenes, or a single-scene publish that removes scenes the new one does not cover, starts a new Places listing; the Hub warns before confirming. Screens, messages and the World detail page: **deploy-scene** → `references/creator-hub-publish.md`.
 
 ## 3. Access the World
 
@@ -142,7 +146,7 @@ npm run deploy -- --multi-scene --target-content https://worlds-content-server.d
 After enabling, the World Owner can:
 - Publish additional scenes to different parcels of the same World
 - Add **Collaborators** with deploy rights (all parcels or specific coordinates)
-- Manage layout via the **Layout** tab in World Settings (remove scenes, view the World map)
+- Manage layout on the World detail page's **Scenes** tab (Manage → Worlds → the World; unpublish scenes, World Map toggle)
 - Set a **World Spawn Position** (which parcel players enter on)
 
 **Collaborator note:** Collaborators with "All Parcels" access can overwrite any scene in the World, including those published by the owner.
@@ -160,7 +164,7 @@ A World and each scene published to it carry **two separate sets** of name, desc
 | | Scene metadata | World metadata |
 |---|---|---|
 | Stored in | the scene project's `scene.json` | the World itself |
-| Edited via | scene settings in the Scene Editor | the World's **Settings**, under the Creator Hub's **Manage** tab |
+| Edited via | scene settings in the Scene Editor | the World detail page's **Details** tab (Creator Hub → **Manage** → **Worlds**) |
 | Uploaded | with the scene, on every publish | only when you edit it there (or as described below) |
 | Shown in | the scene | Decentraland Places and the in-world World information |
 
@@ -176,7 +180,8 @@ How they interact depends on how many scenes the World holds:
 |-------|-------|----------|
 | "NAME not found" or "NAME not owned" | The wallet signing the deployment doesn't own the NAME/ENS in `worldConfiguration.name` | Verify NAME ownership at `https://builder.decentraland.org/names`. The wallet used for signing must own the exact NAME |
 | ENS resolution fails | ENS domain not registered or expired | Check ENS registration at `https://app.ens.domains` |
-| "Scene too large" | Scene exceeds the World storage budget (see **Storage Budget** above) | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Check remaining budget in the Creator Hub **Manage** tab or the Builder **Worlds** tab |
+| "Scene too large" / "The deployment is too big. The maximum total size allowed is N bytes" with a non-zero N | Scene exceeds the World storage budget (see **Storage Budget** above) | First add all working files (Blender/FBX sources, concept art, docs) to `.dclignore` at the project root so they aren't uploaded — see the `.dclignore` section in **deploy-scene**. Then reduce asset sizes. Check remaining budget in the Creator Hub **Manage** tab or the Builder **Worlds** tab |
+| "The deployment is too big. The maximum total size allowed is **0 bytes** for scenes" | The wallet's deployed Worlds — everything except the scenes this deploy replaces — already use its whole budget, so the remaining allowance is 0: this scene's size is irrelevant and shrinking it cannot help (observed 2026-11: budget ~944 MB, Worlds using ~1,035 MB, every upload refused). DCL NAME Worlds only; other ENS and whitelisted Worlds have a fixed cap | Check usage in the Creator Hub **Manage** tab or the Builder **Worlds** tab, then free space by undeploying another World or another scene of this one (the owner undeployed a 266 MB World and the next deploy went through), or add NAMEs, LAND or MANA. Being over budget also starts the 48-hour grace period for the wallet's other Worlds |
 | Deploy succeeds but world is empty | `main` field misconfigured | Ensure `main` is `"bin/index.js"` and code compiles |
 | World not showing on Places | Propagation delay | Wait a few minutes after deployment. If opted out via `placesConfig.optOut`, it won't appear |
 

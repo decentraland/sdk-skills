@@ -254,6 +254,10 @@ triggerEmote({ predefinedEmote: 'clap' })
 
 Other built-in names include `'dance'`, `'fistpump'` and `'raiseHand'`; every built-in emote with a preview is in `{baseDir}/../avatar-animations/references/animation-catalog.md`.
 
+`triggerEmote` has no `loop` field (only `triggerSceneEmote` does): a built-in emote loops or plays once by its own definition. `robot`, `clap`, `money`, `kiss`, `tik`, `hammer`, `tektonik`, `disco`, `dance` and `cry` hold until `stopEmote({})`, the player's own movement input, or another emote; the per-id flag is in the **avatar-animations** catalog.
+
+Pass only ids from the catalog; the Explorer does not validate `predefinedEmote`. On desktop an unknown id (e.g. `'idle'`) parks an emote request that waits for a load that never succeeds (up to 60 s); while it is parked the emote wheel and `stopEmote` do nothing (a later `triggerEmote` / `triggerSceneEmote` with a valid id replaces the parked request), and a looping emote already playing keeps playing until the player moves or jumps. On mobile an unknown id is logged and ignored.
+
 ### Custom Scene Emotes
 
 **Need a clip?** Before authoring one, check `{baseDir}/../avatar-animations/references/animation-catalog.md`: animated previews of every built-in emote, and 45 ready-made `_emote.glb` files from the Creator Hub's Avatar Animations pack (sitting on stools/puffs/bean bags, chess, fishing, carry, drink, dance…) with their download and the exact `src` path to play them.
@@ -280,7 +284,7 @@ triggerSceneEmote({
 
 - **`src` is the path relative to the project root, exactly as the file sits on disk** — an exact content lookup (`SceneContent.TryGetHash(src)`), with no search by file name or `_emote` suffix. A wrong path makes `triggerSceneEmote` resolve `false` with no error logged, and nothing plays. A file at `assets/animations/sit_emote.glb` needs `'assets/animations/sit_emote.glb'`; a bare `'animations/...'` only works if that folder really is at the project root. Same rule for `AvatarShape.expressionTriggerId` — see **npcs**.
 - Emote plays nothing and nothing is logged, path correct: check that `.dclignore` does not exclude the file (it filters the local preview too — **deploy-scene** → `.dclignore`) and that the GLB's armature root is named exactly `Armature` (**avatar-animations** → *Export one clip per file*).
-- Emotes play only while the player is standing still — walking or jumping interrupts them
+- Emotes play only while the player is standing still — the player's own walking or jumping input interrupts them (a scene-driven `movePlayerTo` cancels them on desktop only: `{baseDir}/../sdk-scenes/references/mobile-parity.md`)
 - If you don't want a player to interrupt an emote, use the `InputModifier` component to freeze the player for the duration of the emote
 - Neither needs a `scene.json` permission; `ALLOW_TO_TRIGGER_AVATAR_EMOTE` is ignored (**create-scene** → `references/scene-json.md` → Required Permissions).
 - Both accept an optional `mask` (upper-body-only animation) — see "Emote masks" below.
@@ -300,7 +304,7 @@ stopEmote({}).then(({ success }) => {
 
 If `typeof success` reads `'object'` rather than `'boolean'`, the runtime handed the scene an unresolved promise instead of the value — a client/SDK defect, not a scene bug. Verified in the `80,-6-explorer-ui-events` test scene, which exists partly to catch it.
 
-**Mobile:** `stopEmote` needs app 1.15.0+, as does the handling of scene-started **upper-body** emotes: they pause when the player leaves the scene, resume on return, and stop on scene unload. On older mobile apps a looping scene emote cannot be stopped from the scene, so never make `stopEmote` the only way out of a mechanic; give the player an action that also restores the pose.
+**Mobile:** `stopEmote` needs app 1.15.0+, as does the handling of scene-started **upper-body** emotes: they pause when the player leaves the scene, resume on return, and stop on scene unload. On older mobile apps a looping scene emote cannot be stopped from the scene, so never make `stopEmote` the only way out of a mechanic; give the player an action that also restores the pose. On older apps the `~system/RestrictedActions` module has no `stopEmote` export, so the call itself throws (`stopEmote is not a function`) before any promise exists — a `.catch` never sees it. Guard the call with `typeof stopEmote === 'function'` and do the scene's own state reset (held item, pose flag, UI) outside that call so it runs on every app version.
 
 ### Detecting when an emote finishes
 
@@ -316,7 +320,7 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 			break
 		case EmoteState.ES_FINISHED:    // non-looping emote played to its natural end
 			break
-		case EmoteState.ES_INTERRUPTED: // cut short: movement/jump, teleport, another emote, stopEmote(), or scene exit
+		case EmoteState.ES_INTERRUPTED: // cut short: movement/jump, teleport (desktop), another emote, stopEmote(), or scene exit
 			break
 	}
 })
@@ -328,7 +332,7 @@ AvatarEmoteCommand.onChange(engine.PlayerEntity, (cmd) => {
 
 ### Emote masks (upper-body only)
 
-Full-body emotes are interrupted when the player walks or jumps — the default locomotion animations take over. `AvatarMask.AM_UPPER_BODY` limits the animation to the waist up, leaving the legs controlled by locomotion. This means the player can keep walking, running, and jumping while the upper body plays your animation. Use cases: carrying a crate, holding a torch, juggling, cheering while running.
+Full-body emotes are interrupted by the player's own walking or jumping input — the default locomotion animations take over. `AvatarMask.AM_UPPER_BODY` limits the animation to the waist up, leaving the legs controlled by locomotion. This means the player can keep walking, running, and jumping while the upper body plays your animation. Use cases: carrying a crate, holding a torch, juggling, cheering while running.
 
 `triggerEmote` and `triggerSceneEmote` both accept an optional `mask` (enum `AvatarMask`, imported from `@dcl/sdk/ecs`) that limits which bones the animation drives.
 
@@ -345,6 +349,7 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 - **Loop + mask interaction:** `loop: false` with `mask: AM_UPPER_BODY` plays the upper-body animation exactly once, then returns the upper body to locomotion. `loop: true` with the mask repeats until `stopEmote({})` is called. The loop flag is respected regardless of the mask. Examples: sdk7-test-scenes `88,-13-avatar-masks` and `80,-1-scene-emotes`.
 - **Mobile:** masked emotes work from app 1.13.0, and from 1.15.0 other mobile players see them as upper-body too. Older mobile apps play them full-body, so keep the full-body fallback acceptable. Other mobile gaps, including emotes from other clients: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 - **Re-triggering replaces in place:** `triggerSceneEmote` called while a masked emote is playing (a looping hold, or a short clip about to end) swaps the clip without passing through locomotion. Chain swings, or go from a hold to an action, with a plain `triggerSceneEmote` call and keep `stopEmote({})` for the moment the mechanic ends. A `stopEmote({})` before each trigger returns the upper body to locomotion for a couple of frames plus the 0.1 s blend-in, visible as an idle flicker between clips.
+- **A masked emote survives scene-driven movement:** an upper-body emote is meant to keep playing while the scene moves the player with `movePlayerTo`, instant or with `duration` (a strike combined with a lunge). Test cases: sdk7-test-scenes `88,-13-avatar-masks`, the cube row at z = 12. [UNVERIFIED: expected behaviour as encoded by that test scene; not confirmed in Explorer source.] A full-body emote is still cancelled by the move on desktop (above).
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 
 ## NPC Avatars
@@ -454,6 +459,7 @@ To freeze or restrict the player's movement (cutscenes, locked interactions, an 
 - Needs no `scene.json` permission; `ALLOW_TO_MOVE_PLAYER_INSIDE_SCENE` is ignored
 - All fields except `newRelativePosition` are optional — `cameraTarget` and `avatarTarget` may each be omitted or used independently
 - The target Y may be elevated (e.g. `y: 12`) to place the player on a raised platform, not just ground level
+- The desktop Explorer keeps a flat ground collider at y = 0 under every parcel of the scene, so the player never falls below 0 (mobile not checked). A fall-reset for a raised island or platform must test a height above the ground and below the island's underside (e.g. `y < islandY - 1`); a `y < 0` check never fires, the player just lands on the ground.
 - To rotate the avatar without moving it, pass the current position as `newRelativePosition` and a facing point as `avatarTarget` (the [`80,-4-restricted-actions`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/80,-4-restricted-actions) "Rotate Avatar" buttons)
 
 ### Instant teleport
@@ -468,7 +474,7 @@ void movePlayerTo({
 })
 ```
 
-**The instant form resolves before the move happens.** Without `duration` the promise resolves `true` as soon as the teleport is queued (verified in the Explorer's `GlobalWorldActions.MoveAndRotatePlayerAsync`: the instant path adds a teleport intent and returns). Code chained with `await` or `.then` runs while `Transform.get(engine.PlayerEntity)` still holds the old position, and the teleport that lands a moment later interrupts an emote started there (observed: a killcam avatar appeared aiming from its old spot, then jumped). To act after arrival, poll the player position each frame until it is within ~0.2 m of the target, capped at ~1.5 s (the recipe that worked; X/Z only, so a height difference between the target and the reported position cannot stall the wait):
+**The instant form resolves before the move happens.** Without `duration` the promise resolves `true` as soon as the teleport is queued (verified in the Explorer's `GlobalWorldActions.MoveAndRotatePlayerAsync`: the instant path adds a teleport intent and returns). Code chained with `await` or `.then` runs while `Transform.get(engine.PlayerEntity)` still holds the old position, and the teleport that lands a moment later interrupts an emote started there (desktop; the mobile app keeps the emote playing. Observed: a killcam avatar appeared aiming from its old spot, then jumped). To act after arrival, poll the player position each frame until it is within ~0.2 m of the target, capped at ~1.5 s (the recipe that worked; X/Z only, so a height difference between the target and the reported position cannot stall the wait):
 
 ```typescript
 import { engine, Transform } from '@dcl/sdk/ecs'
@@ -536,6 +542,10 @@ async function lockedTeleport() {
 ## Avatar Change Listeners
 
 `AvatarBase.onChange` (appearance, name) and `AvatarEquippedData.onChange` (wearables) on `engine.PlayerEntity` or a remote player's entity: `{baseDir}/references/avatar-apis.md` → Avatar Change Listeners. Emote playback: *Detecting when an emote finishes*. Wallet checks with `getPlayer()` and `isGuest` before showing avatar items: **nft-blockchain**.
+
+## Who is talking (`AvatarBase.talking`)
+
+`AvatarBase.talking?: boolean` reports voice-chat activity for any player in the scene, local or remote: `true` speaking, `false` silent, `undefined` when the engine reports no voice activity at all. Scan it with `engine.getEntitiesWith(AvatarBase)` — `onProfileChanged` deliberately ignores it, so a profile listener will never see it flip. Distinct from `AvatarShape.talking`, the scene-to-engine flag that fakes voice bars on an NPC avatar (**npcs**). The three states, the no-parenting-to-remote-players gotcha and the `AvatarAttach` marker recipe: `{baseDir}/references/avatar-apis.md` → *Voice activity*.
 
 ## Example scenes
 

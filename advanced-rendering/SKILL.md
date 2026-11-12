@@ -106,6 +106,7 @@ TextShape.create(label, {
 - **Free-standing labels go in open air:** solid geometry occludes world-space text, so keep no solid model within 2 m horizontally, leave height clearance, and add `Billboard` with `billboardMode: BillboardMode.BM_Y`. A sign mounted flat on a wall needs no Billboard.
 - For a custom typeface, set `fontSrc` to a `.ttf` in the scene, with `font` as the fallback. See **fonts** for the SDK version, explorer and mobile support, and previewing it.
 - **A TextShape faces its local -Z.** It reads correctly for a viewer standing on the entity's **-Z side**, so to label the **+Z face** of a model, parent the label to it at a small `+Z` offset and rotate it **180° about Y**. Observed in-world twice (SDK 7.30.1, 2026-10-12); get it wrong and the sign is mirrored or invisible from the side players approach.
+- **TextShape is unlit.** The Explorer renders it with TextMeshPro's Distance Field SSD shader (`Lighting Off`, transparent queue, no shadow-caster pass), and a custom `fontSrc` font copies that material, so `LightSource`s and the skybox ambient never touch it: white text stays full white in a dark scene, reads as glowing, and casts no shadow (source: unity-explorer font assets in `Font List.asset`, which set the shader, and `SceneFontAssetsFactory.cs`, which copies it for custom fonts; in-world, 2026-11-05). For text that darkens with the scene, put a dark `textColor` on a lit `MeshRenderer.setPlane` board, or bake the text into a PBR texture.
 - **Spaces do not align columns — not even with `Font.F_MONOSPACE`.** Padding a row with spaces to build a table renders with collapsed gaps (observed in-world on a 3-column board, SDK 7.30.1, 2026-10-12). Use **one TextShape per column**, each positioned at its own x and aligned with `TAM_MIDDLE_LEFT` / `TAM_MIDDLE_RIGHT`, and keep the rows as `\n`-separated lines inside each column.
 
 ### Text Alignment Options
@@ -241,11 +242,12 @@ To override the material or shadow casting of the **entire** model (`path: ''`) 
 
 - `path` is the GLTF node hierarchy path, `/`-separated (e.g. `Scene_root/shark_skeleton/Sphere/Sphere.001`). `path: ''` targets the whole model; a nested path targets one node and its descendants.
 - `material` accepts either `$case: 'pbr'` (full PBR: `albedoColor`, `emissiveColor`, `emissiveIntensity`, textures, …) or `$case: 'unlit'` (`diffuseColor`, …). Different nodes in the same `modifiers` array can use different cases.
-- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`.
+- Textures work here too, including video: `pbr: { texture: Material.Texture.Video({ videoPlayerEntity: someEntityWithVideoPlayer }) }`. A node override goes through the same material loader as `Material` on a primitive — avatar (`Material.Texture.Avatar`) and video textures included — and the node keeps its GLB material until the override's textures finish loading. A node that keeps its original look therefore has an unresolved `path` (check the Explorer log for `GLTF Node path '…' not found`) or a texture that never loaded: prove the texture on a `MeshRenderer.setPlane` + `Material.setPbrMaterial` first, then move the same texture into the modifier.
 - `castShadows: false` per node (no `material` needed) disables shadow casting for that node only.
 - One `modifiers` array can contain many entries, each targeting a different `path` in a single call.
 - **Debug trick**: passing a `path` that does not exist logs the model's full GLTF node hierarchy to the scene console — use a deliberately wrong path to discover the correct node names.
 - Update with `GltfNodeModifiers.createOrReplace(entity, { modifiers: [...] })`; remove all overrides with `GltfNodeModifiers.deleteFrom(entity)`.
+- **An entity that never appears after repeated `[SomeSystem]` exceptions in the Explorer log is a suspended scene, not a material problem.** The Explorer suspends a scene's systems on the next engine-side exception once three have landed within a minute (`SceneExceptionsHandler`, state `EcsError`, a `SceneExecutionException` naming the system in the log); from then on nothing the scene creates renders. Read and fix (or report) the named exception before touching materials (observed 2026-08: a per-entity material override made the model 'invisible').
 
 Node paths are engine-visible names baked into the GLB, not arbitrary — if a target node has no material of the requested kind, the override may be ignored.
 
@@ -327,7 +329,7 @@ Wrap modes: `TWM_REPEAT` (tile), `TWM_CLAMP` (stretch edges), `TWM_MIRROR` (mirr
 
 So any texture with an orientation — lettering, brick courses, wood grain, a floor pattern — comes out turned on two of the four walls and on floors and ceilings. Yawing the box 90° only moves the problem to the other pair of walls. Fixes, best first: pass explicit `uvs` — 48 floats, 6 faces × 4 corners × (u, v), see *Set UVs* on the docs' Materials page for the helper; or build the surface from `setPlane` entities, one per face; or ship a GLB.
 
-A **plane** is two-sided: u runs along local +x and v along local +y, so the texture reads upright and unmirrored from the −z side and mirrored left-to-right from the +z side. [DERIVED, not checked in-world: laid flat with `Quaternion.fromEulerDegrees(90, 0, 0)`, the unmirrored side faces up and the texture's top points to world +z.]
+A **plane** is two-sided: u runs along local +x and v along local +y, so the texture reads upright and unmirrored from the −z side and mirrored left-to-right from the +z side (in-world, 2026-11-05, on a wall-mounted plane). Laid flat with `Quaternion.fromEulerDegrees(90, 0, 0)`, the unmirrored side faces up and the texture's top points to world +z [DERIVED, not checked in-world].
 
 ### Texture Tweens
 

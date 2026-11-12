@@ -100,7 +100,8 @@ LightSource.create(spotlight, {
 ```
 
 - Shadows render only for **spot** lights; `shadow` on a point light has no effect.
-- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights with shadows suit dramatic effects such as flashlights.
+- Max **3** shadow-casting lights render at a time — disable `shadow` on lights that don't need it. Spot lights suit dramatic effects such as flashlights; add `shadow: true` to one only after a screenshot shows its beam.
+- **Flashlight / first-person lamp:** parent the spot to `engine.CameraEntity`, offset about 0.5 m along local +Z, and start around 100,000-150,000 cd with `innerAngle`/`outerAngle` near 28/48. The default 16,000 cd is invisible on dark materials, and the beam reads only on surfaces with albedo above roughly 0.2. A shadow-casting spot exactly at the camera origin read as a dim pool; moving it 0.5 m forward and turning `shadow` off produced the beam (in-world, 2026-11-04). [UNVERIFIED: the offset and the shadow change were made together; in first person the avatar's renderers are disabled (source), so the player's own body is not the cause]
 - Shadow quality/culling follows the light's distance from the player. Exact distances vary by light type and the player's quality settings; general rule:
 
 | Distance from player | Result |
@@ -274,4 +275,4 @@ Engine-team test scenes (real API, exercised against the engine):
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,0-skybox-scene-json — fixed skybox time via top-level `skyboxConfig.fixedTime`; reads it back with `getSceneInformation`.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,0-skybox-world-json — fixed skybox time via `worldConfiguration.skyboxConfig.fixedTime` (World variant); demonstrates the worldConfiguration-wins precedence.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,1-skybox-sdk-scene-a and https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/3,1-skybox-sdk-scene-b — runtime `SkyboxTime` on `RootEntity` with `TransitionMode`, plus `deleteFrom` to return to global time.
-- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-skybox-control — `Skybox`, `Sun` and `EnvironmentFog`: sky textures (invalid src fallback), environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), hiding the sun, fog density, `SkyboxTime` row, one point `LightSource` to see in the dark.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/2,2-skybox-control — `Skybox`, `Sun` and `EnvironmentFog`, each created and deleted independently from its own UI row: two equirectangular sky textures with an orientation-marker panorama, environment presets (Mars, clear night, storm, day-ramp gradients, true darkness), sun visibility / intensity / direction, fog density, a `SkyboxTime` row, and one point `LightSource` to see in the dark. Shows that any one of the three on its own puts the scene in control of the environment.

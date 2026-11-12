@@ -62,9 +62,9 @@ LOGO_MAXW = 900
 # (avatars cannot be rendered). Always written first in the shot list.
 # https://app.notion.com/p/decentraland/New-Experience-Marketing-Requirements-38b5f41146a580f1bd93c86f8f1ca96d
 DEFAULT_TIPS = [
-    'Required: one clean in-world 16:9 screenshot, 1920x1080 or larger, with no UI and no text, just gameplay with people playing.',
+    'Required: one clean in-world 16:9 screenshot, 1920x1080 or larger, with no text or overlays, just gameplay with people playing.',
     'Recommended: 2-4 more 16:9 gameplay stills, at least 1920x1080, for social posts, the newsletter and press.',
-    'Optional trailer: under 30 s, 16:9 1920x1080, with people in motion in the first three seconds.',
+    'Trailer (strongly recommended): under 30 s, 16:9 1920x1080, with people in motion in the first three seconds.',
     'Trailer vertical cut: 9:16 1080x1920, under 30 s, for mobile and social.',
     'Trailer captions or on-screen text so it works with the sound off.',
 ]

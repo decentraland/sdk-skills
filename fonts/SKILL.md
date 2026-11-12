@@ -18,7 +18,7 @@ Those three built-in faces are the only ones. There is no font name list beyond 
 
 `fontSrc` needs **`@dcl/sdk` 7.31.0** or later. On earlier versions the field does not exist: it is a TypeScript error, and even forced past the types the SDK never sends it to the explorer.
 
-Read the installed version from `node_modules/@dcl/sdk/package.json` (or `package.json`) before writing it. If the scene is older, either upgrade `@dcl/sdk` or stay with a built-in `font`. Never patch the SDK's generated serializers in `node_modules`; it breaks on the next install.
+Read the installed version from `node_modules/@dcl/sdk/package.json` before writing it; on a Multiplayer Server scene (`@dcl/sdk@auth-server`) go by the typings, not the version string — the rule is **sdk-scenes** → *A feature that needs a newer SDK*. If the scene is older, upgrade `@dcl/sdk` as that rule says, or stay with a built-in `font`.
 
 ## RULE: Always set `font` next to `fontSrc`
 
@@ -36,7 +36,7 @@ When the user adds a custom font, tell them it won't show on mobile.
 
 **A display face that must survive on mobile** needs image text: a per-glyph bitmap font, one `UiEntity` per character drawing its glyph as a `uvs` crop of an atlas (**build-ui** → `references/ui-components.md` → *Texture UVs*). It renders the same on every client, at two costs:
 
-- **One atlas per colour.** Mobile ignores `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour every variant and bake shadows and outlines into the glyph art.
+- **One atlas per colour.** Mobile apps below 1.16.0 ignore `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour every variant and bake shadows and outlines into the glyph art.
 - **Node count.** Every glyph is a node, and stacked copies multiply it: an outline faked with 17 stacked `Label`s dropped a screen to ~6 FPS, and baking shadows into the glyph art took a screen from ~23 to ~45 FPS. Keep image text to titles and short labels.
 
 ## RULE: A custom font is a `.ttf` file in the scene
@@ -117,7 +117,7 @@ Editable UI (**build-ui**): write `fontSrc` on the element by hand. The Creator 
 
 The desktop client (Unity explorer) loads scene fonts only from asset bundles, never from the raw font file. So the custom font shows only where bundles exist:
 
-- **Local preview** (`npm run start` or Creator Hub Play, no flag needed): the Desktop Explorer converts the scene's assets itself before the scene loads, `.ttf` fonts included, so the font shows. Only `.ttf` converts: any other font format keeps the `font` fallback. If the font still shows its fallback, the converter did not run or could not serve this scene; the **AB** panel of the Explorer's debug menu says why (**optimize-scene** → *Local Asset Bundle Preview*).
+- **Local preview** (`npm run start` or Creator Hub Play, no flag needed): the Desktop Explorer converts the scene's assets itself before the scene loads, `.ttf` fonts included, so the font shows. Only `.ttf` converts: any other font format keeps the `font` fallback. If the font still shows its fallback, the converter did not run or could not serve this scene; the **AB** panel of the Explorer's debug menu says why (**optimize-scene** → *Local Asset Bundle Preview*). The converter is a separate `abgen` process on `127.0.0.1:5147` that can outlive a force-quit Explorer. The next launch adopts it when it is the same Explorer build serving the same scene and already ready; any other leftover blocks the port, the session degrades to raw GLTFs and the built-in font, and the **AB** panel names the pid — stop that `abgen` (`pgrep -fl abgen`) and relaunch once (observed 2026-11).
 - **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
 - **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.
 - **Mobile app:** always the fallback (see the mobile rule).

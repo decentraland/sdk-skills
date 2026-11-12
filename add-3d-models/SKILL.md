@@ -158,6 +158,8 @@ Always check the scene's existing folders before deciding where to put a new mod
 
 In a scene open in the Creator Hub, the user can also drag a `.glb` from the Local Assets tab onto the viewport to place it as a plain model (media files: **creator-hub-mcp**).
 
+**Rename or move a model the scene already uses from Local Assets, not from the shell.** A Local Assets rename, move or drag onto a folder rewrites the component fields that reference it (`src`, `audioClipUrl`, Script `path`, the paths inside Actions payloads, script file params), carries a `.gltf`'s sidecar files and a `.glb`'s external textures along, and undoes in one Ctrl+Z; `mv` on disk rewrites nothing and leaves broken `src` paths. `assets/scene` and *Built-in animations* are read-only there, and case-only renames are refused (deploys match paths case-sensitively). Its preview pane shows a selected model's triangle, mesh, material and texture counts and animation clips, a quick check before placing it.
+
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 
 When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
@@ -220,6 +222,7 @@ Always check the scene's local asset folder first. Before fetching any model, co
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set the masks per RULE: Always check for built-in colliders  |
 | Click through walls         | CL_POINTER not on visible mesh | Same rule: put `CL_POINTER` on the mesh players click         |
+| Click through walls         | Wall/floor/door collider is `CL_PHYSICS` only; the pointer ray ignores that layer | Give enclosing geometry mask `3` (`CL_PHYSICS \| CL_POINTER`) so it blocks the ray (see **add-interactivity** → *Colliders*) |
 | Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
 
 ## RULE: 3D model light fixtures do not emit real light

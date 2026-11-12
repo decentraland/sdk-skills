@@ -198,18 +198,26 @@ The scene preview hot-reloads the file on write. If the model's bounding box or 
 
 ### One clip from a model animated as many objects
 
-For a non-armature model whose motion lives on several objects (a figure built from parented empties + meshes), `ACTIVE_ACTIONS` exports **one clip per object** — `Animator` then sees a dozen clips and plays none of them as a whole. Push every object's action into an NLA track sharing **one name**, clear the active action, and export in `NLA_TRACKS` mode to get a single clip. Verified by parsing the exported GLB (one `walk` animation, 11 channels) and playing it with `Animator` in-world, 2026-10-10.
+For a non-armature model whose motion lives on several objects (a figure built from parented empties + meshes), `ACTIVE_ACTIONS` exports **one clip per object** — `Animator` then sees a dozen clips and plays none of them as a whole. Push every object's action into an NLA track sharing **one name**, clear the active action, and export in `NLA_TRACKS` mode to get a single clip. Verified by parsing the exported GLB (one `walk` animation, 11 channels) and playing it with `Animator` in-world, 2026-10-10 (the `action_slot` lines were added for Blender 5.1 on 2026-11-09 and are not covered by that verification).
 
 ```python
 objs = [o for o in objs if o.animation_data and o.animation_data.action]  # skip objects with no action
 for ob in objs:
     ad = ob.animation_data
     track = ad.nla_tracks.new(); track.name = 'walk'
-    track.strips.new('walk', 1, ad.action)       # same strip name on every object
-    ad.action = None                             # clear, or it exports twice
+    strip = track.strips.new('walk', 1, ad.action)  # same strip name on every object
+    if hasattr(strip, 'action_slot'):                # Blender 4.4+/5 slotted actions: the strip needs the slot
+        strip.action_slot = ad.action_slot or ad.action.slots[0]
+    ad.action = None                                # clear, or it exports twice
 bpy.ops.export_scene.gltf(filepath=..., export_format='GLB',
     export_animation_mode='NLA_TRACKS', export_force_sampling=True)
 ```
+
+In Blender 4.4+/5 actions are slotted and `Action.fcurves` is gone, so read and write curves through the slot API (shown in **avatar-animations** → *RULE: One new action per clip*).
+
+### Mirrored bones: key both with the same sign
+
+Mirrored bones placed by hand with roll 0 have opposite local X axes (one points to world −Y, the other to +Y), so keying them with opposite signs about local X, the intuitive mirror, moves one wing up and the other down. Key both with the same sign, then verify after re-import by sampling both bone tails per frame: their Y and Z must match (headless Blender 5.1.1 test, 2026-11-07; observed on a rigged model, 2026-11-04).
 
 ## Conversion traps (FBX/OBJ → GLB)
 

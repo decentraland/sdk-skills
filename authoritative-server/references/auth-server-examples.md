@@ -318,6 +318,8 @@ await Storage.player.delete(playerAddress, 'highScore')
 ```
 
 ### CLI Storage Commands
+The CLI signs each request through the linker dApp in the browser with the user's wallet; `DCL_PRIVATE_KEY` in the environment signs directly (CI only). Never ask a user for a private key.
+
 ```bash
 # Scene storage
 npx sdk-commands storage scene set high_score --value 100

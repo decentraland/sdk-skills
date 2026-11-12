@@ -127,7 +127,7 @@ Notes on the structure:
 - **There are THREE independent tree roots**, not one: entity `0` (RootEntity), entity `1` (PlayerEntity), entity `2` (CameraEntity). The Inspector renders them as separate top-level trees.
 - **Entities `1` and `2` are NOT in entity `0`'s `children` array.** They are their own top-level entries in `value` — conventionally placed immediately after entity `0`'s entry, before the first scene entity — and their `children` is always `[]`. The Inspector's hierarchy builder explicitly skips `0`/`1`/`2` when filling entity `0`'s `children`. Never add `1` or `2` to any `children` array.
 - **New entity IDs are appended to the END** of the owning parent's `children` array (no trailing reserved IDs to insert before), and a matching `{ "entity": <id>, "children": [] }` entry is appended to the END of the top-level `value` array.
-- `"open"` is an optional per-node editor flag (tree row expanded). Entity `0` normally has `"open": true`, and so does **any** parent node the user has expanded in the entity panel — it is not exclusive to entity `0`. Omit it for new entities; it has no effect on the running scene.
+- `"open"` is an optional per-node editor flag (tree row expanded). Entity `0` normally has `"open": true`, and so does **any** parent node the user has expanded in the entity panel — it is not exclusive to entity `0`. Omit it for new entities; it has no effect on the running scene. Exception: the empty parent that groups a generated family (more than a few dozen entities of one kind, members listed in its `children`) gets `"open": false`, so the tree opens with the family collapsed (**composites** SKILL.md → authoring checklist).
 - **`value` order and `children` order are independent.** `value` order is insertion history; `children` order is what the entity panel displays. The Inspector's reorder/reparent operations splice `children` only and never move an entry inside `value`, so in a real saved composite the two orders drift apart. Do not try to keep them aligned — only append.
 - Every entity that exists in the composite must have its own `{ "entity": <id>, "children": [...] }` entry, even if `children` is empty.
 - If your new entity has `Transform.parent` set to another entity (e.g. `512`), append your entity ID to the `children` of that parent's entry instead of entity `0`'s.
@@ -684,7 +684,7 @@ All components that start with `asset-packs::` or `inspector::` are non-core. Th
 
 These components only exist on the RootEntity (ID 0). Whether you include `inspector::Nodes` / `inspector::SceneMetadata-*` depends on the mode — see "Authoring-from-scratch vs editing-an-existing-composite" above: omit them when authoring fresh, keep and update them in edit mode.
 
-**Migrated Smart Items carry no `asset-packs::Triggers`.** Most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers`. Do not "repair" such an item by adding a trigger graph. See **script-components**.
+**Migrated Smart Items carry no `asset-packs::Triggers`.** Most catalog Smart Items implement their behavior as `asset-packs::Script` code; a composite containing them shows `Script` + `Actions` (whose entries are `call_script_method` pointers) + a synced `asset-packs::States`, and no `Triggers` (the Health Bar keeps one `Triggers` entry so built-in damage/heal reach its script). Do not "repair" such an item by adding a trigger graph, and do not convert an item placed in its older component form (it keeps working as is). See **script-components** → `references/smart-items.md`.
 
 If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data. This Counter is the id allocator: the Creator Hub assigns each new action, trigger, and state an `id` via `++counter.value`, so a `value` lower than an existing id would cause duplicate ids.
 
@@ -726,19 +726,8 @@ import { engine, pointerEventsSystem, InputAction } from '@dcl/sdk/ecs'
 import { EntityNames } from '../assets/scene/entity-names'
 
 export function main() {
-	// Returns the entity or null — always check before use
-	const door = engine.getEntityOrNullByName(EntityNames.Door_1)
-	if (door) {
-		pointerEventsSystem.onPointerDown(
-			{
-				entity: door,
-				opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open' },
-			},
-			function () {
-				/* open door */
-			}
-		)
-	}
+	setupDoor()
+	// ...one setup function per feature, so a missing entity disables only its own feature
 
 	// Strict variant — the <EntityNames> type parameter catches renames at
 	// COMPILE time only. At runtime it never throws: called before composite
@@ -747,9 +736,27 @@ export function main() {
 	const box = engine.getEntityByName<EntityNames>(EntityNames.MyBox)
 	console.log(Transform.get(box).position.x)
 }
+
+function setupDoor() {
+	// Returns the entity or null — log the null, never skip silently
+	const door = engine.getEntityOrNullByName(EntityNames.Door_1)
+	if (!door) {
+		console.error('[scene] entity Door_1 missing from main.composite')
+		return // only this feature is off; main() keeps wiring the rest
+	}
+	pointerEventsSystem.onPointerDown(
+		{
+			entity: door,
+			opts: { button: InputAction.IA_PRIMARY, hoverText: 'Open' },
+		},
+		function () {
+			/* open door */
+		}
+	)
+}
 ```
 
-You can also pass a plain string instead of the enum value, but the enum is preferred because it catches renames at compile time.
+Always pass the `EntityNames` member, never a string literal: renaming or deleting an entity in the Creator Hub regenerates `entity-names.ts`, so the member disappears and `tsc` fails at the exact line, whereas a string silently returns `null` and the feature just stops. Never swallow that `null`: log it and return from that feature's own setup function, as above — an empty `if (door)` hides the loss, and a `return` from `main()` would take every later feature down with it. A scene the Creator Hub can edit can lose any entity your code expects.
 
 ### By Tag
 

@@ -54,7 +54,8 @@ function startBurn() {
 
 function stopBurn() {
   burning = false
-  stopEmote({}).catch(console.error)
+  // older mobile apps (< 1.15.0) have no stopEmote export: the call itself would throw
+  if (typeof stopEmote === 'function') stopEmote({}).catch(console.error)
   AudioSource.getMutable(soundEntity).playing = false
 }
 
