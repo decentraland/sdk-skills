@@ -97,6 +97,12 @@ The virtual size is a minimum, not the canvas shape. The scale factor is a conta
 
 Editable-UI note: in an editable file every value here is a literal or a bare `state.x` / `props.x` reference (`Color4.White()` and `Color4.create(...)` are calls → use `{ r, g, b, a }` literals or a bound color).
 
+## Pointer events on UI elements
+
+**Hover is scoped to the element under the cursor.** Entering a child does not fire `onMouseEnter` on its parent container, so a parent that must know its subtree is hovered tracks it from the children's handlers.
+
+**Track hover with an open count (`enters - leaves`), not a boolean.** The count is 0 (idle) or 1 (hovered); any other value is a delivery defect you can see on screen. A boolean set on enter and cleared on leave survives a lost leave — the next enter sets it again — so it hides the bug instead of showing it. **Removing a hovered element delivers no leave**, so a close/unmount path clears the count itself (otherwise the element paints as hovered the next time it mounts).
+
 ## Label
 
 ```tsx
@@ -437,3 +443,4 @@ Engine-team test scenes exercised against the real renderer (ground truth for th
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/76,-10-UiCanvasInformation — reading `UiCanvasInformation` each frame into a module variable to size UI responsively.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/81,-2-ui-screen-inset-area — the three `screenInset` modes of `setUiRenderer` / `addUiRenderer` (`'none'`, `'device'`, `'interactable'`) as three coexisting renderers, each framing the area it is positioned in and printing the live `UiCanvasInformation.screenInsetArea` / `.interactableArea` values.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/8,7-portable-experience-hide-ui — hiding a portable experience's UI via `featureToggles.portableExperiences: "hideUi"` in `scene.json` (scene-config, not React-ECS).
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — `src/stations/ui_root.tsx` composes three panels (centered / left / right so they never overlap) under the scene's single `setUiRenderer`; `s11_ui_hover.tsx` is the open-count hover tracker, including the nested-child scope case and clearing the count when the panel closes.

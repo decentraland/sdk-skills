@@ -118,6 +118,7 @@ Anything that is an `AvatarShape` in the scene (NPCs, copies of the player, the 
 - **Social images are not the scene thumbnail.** The Worlds thumbnail limits (16:9 ±1 %, PNG/JPEG, ≤ 1,048,576 bytes, see **deploy-scene** > Thumbnail image) apply only to `display.navmapThumbnail`. Never overwrite the scene's thumbnail from this skill.
 - **Asset credits** (e.g. CC BY audio from Wikimedia Commons listed in `design/references.md`) belong in the scene description, not in posts. Flag them in the README if the scene description lacks them.
 - **Hashtags**: core = game name + `#Decentraland` + genre. The rest go in `extra`. Do not put hashtags in the post text unless they are part of the joke (the page appends them).
+- **The new players this kit brings in can also pay.** A published scene whose creator owns the LAND, NAME or World can be enrolled in the Creator Fund, which rewards exactly what the kit works on — new Decentraland players, playtime and return visits. Worth one line when handing the kit over (opt in from the **Earn** tab in Creator Hub); facts and eligibility: `{baseDir}/../dcl-gdd/references/funding-and-scope.md` → Creator Fund. Never promise an amount.
 - Renders are batch work, so headless Blender is the default here. If a Blender MCP is connected and the creator wants to watch or adjust shots live, offer it (the no-silent-fallback rule in **add-3d-models** applies when the user is working in the MCP).
 
 ## References
