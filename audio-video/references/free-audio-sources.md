@@ -2,7 +2,7 @@
 
 Where to get real recordings that a published, possibly commercial, Decentraland scene can use. Licences were checked at each source on 2026-11-11 (ElevenLabs 2026-11-12); re-check the licence of **each file** you download, since most sites mix licences. Deployed scene files are publicly downloadable from the content servers, so a sound ships to anyone who loads the scene.
 
-Confirm downloads with the user first (**sdk-scenes** → confirmation rules), and record the credit as you download (→ *Attribution*).
+Confirm downloads with the user first (**sdk-scenes** → *Agent Behavioral Guidelines* → *Fetching assets from external sources*), and record the credit as you download (→ *Attribution*).
 
 ## Pick a source
 
@@ -138,7 +138,7 @@ Files are MP3 at 128 kbps, 44.1 kHz stereo, with no metadata. The test cowbell c
 - Category-page FAQ: "all ElevenLabs Sound Effects are royalty free and can be used in commercial projects", but "do not sell or license our tools or use the output to develop competitive products or services". Same FAQ: "our free plan requires attribution to elevenlabs.io. Our paid plans do not require attribution".
 - Terms of Use §1(c)(i): free users "may only use the Services for non-commercial purposes". The Terms do not mention the library.
 - [UNVERIFIED: whether downloads made without an account count as free-plan use, and so as non-commercial only.]
-- So credit "Sound effects: elevenlabs.io" in every scene that uses one (→ *Attribution*). For a commercial scene (paid entry, sales, sponsorship), prefer another source, or have the user confirm with ElevenLabs or use a paid plan.
+- So credit "Sound effects: elevenlabs.io" in every scene that uses one (→ *Attribution*). Before any ElevenLabs clip goes into a commercial scene (paid entry, sales, sponsorship), **get the user's explicit confirmation**: explain that the Terms limit free use to non-commercial purposes, that keyless downloads likely count as free use, and that they can check with ElevenLabs or use a paid plan. Without that confirmation, use another source.
 
 ## Not suitable for a published scene
 

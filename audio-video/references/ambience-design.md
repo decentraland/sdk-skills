@@ -1,6 +1,6 @@
 # Ambience and cue design at runtime
 
-How to wire beds, stingers and creature cues so a scene sounds alive without fatiguing the player. Builds on SKILL.md: distance gating for room-local beds (*Spatial falloff*), `playSound` retriggering, pitch variation, one clip per `AudioSource`, and volume easing in place of a fade API. From a horror scene whose creator approved the result (2026-11); the numbers are that scene's tuning, a starting point for yours.
+How to wire beds, stingers and creature cues so a scene sounds alive without fatiguing the player. Builds on SKILL.md: distance gating for room-local beds (*AudioSource* → **Spatial falloff is very wide**), `playSound` retriggering, pitch variation, one clip per `AudioSource`, and volume easing in place of a fade API. From a horror scene whose creator approved the result (2026-11); the numbers are that scene's tuning, a starting point for yours.
 
 ## Structure
 
@@ -32,7 +32,7 @@ const bedVolume = BED * opening * (1 - hush)
 
 ## Emitters: where a sound lives
 
-- **A loop parented to the camera or player is heard everywhere, at constant level.** Glass ticks inside a moth-flutter loop on the flashlight read as "a drip heard everywhere". Keep camera-attached loops free of place-specific elements; put drips, room tone and machinery on fixed emitters with distance gating (SKILL.md → *Spatial falloff*).
+- **A loop parented to the camera or player is heard everywhere, at constant level.** Glass ticks inside a moth-flutter loop on the flashlight read as "a drip heard everywhere". Keep camera-attached loops free of place-specific elements; put drips, room tone and machinery on fixed emitters with distance gating (SKILL.md → *AudioSource* → **Spatial falloff is very wide**).
 - **Biome zones** (frogs at a pond, a stream, a generator yard): a group of fixed emitters gated by distance from the zone centre (e.g. full within 12 m, silent by 45 m), and the global living bed ducked while inside (−60 % at the pond). Start emitters that share a clip at different `currentTime` offsets so they never line up.
 - **Continuous tonal loops at the listener's head fatigue.** A high-pitched electrical whine loop on the camera, and an electrical sound on every light flicker, were both rejected. Keep tonal loops on fixed emitters in their place, at low level, and keep repeated one-shots sparse.
 
@@ -53,7 +53,7 @@ function tickEvents(clip: string, duration: number, loop: boolean, dt: number) {
     const at = base + b
     if ((at > before && at <= after) || (loop && at + duration > before && at + duration <= after)) {
       AudioSource.getMutable(flapEmitter).pitch = 0.93 + Math.random() * 0.12
-      AudioSource.playSound(flapEmitter, 'assets/audio/flap.ogg')
+      AudioSource.playSound(flapEmitter, 'assets/Audio/flap.ogg')
       return
     }
   }
@@ -73,7 +73,7 @@ function say(pool: string[], volume = 1) {
   const a = AudioSource.getMutable(voiceEmitter) // its own entity, parented to the creature
   a.volume = volume
   a.pitch = 0.94 + Math.random() * 0.1
-  AudioSource.playSound(voiceEmitter, `assets/audio/${name}.ogg`)
+  AudioSource.playSound(voiceEmitter, `assets/Audio/${name}.ogg`)
   shared.sinceCue = 0 // ambient stingers keep clear of it
 }
 ```

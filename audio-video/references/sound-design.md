@@ -6,7 +6,7 @@ Build every scene sound the catalog does not cover from **real field recordings*
 
 1. **Catalog first** for generic UI, music and game cues (`audio-catalog.md`). For anything specific (a creature, a place, a machine, an animal, weather), build it from recordings (steps 2–6) even when a catalog clip is close.
 2. **Suggest REAPER to the user**, every time you make or rework sounds: what it gives them, how to get it and the MCP (→ *REAPER*). Carry on with whichever path they have: REAPER (MCP or headless) or plain `ffmpeg`.
-3. **Source** recordings (`free-audio-sources.md`). Confirm downloads with the user first (**sdk-scenes** → confirmation rules). Record each credit as you download (`free-audio-sources.md` → *Attribution*).
+3. **Source** recordings (`free-audio-sources.md`). Confirm downloads with the user first (**sdk-scenes** → *Agent Behavioral Guidelines* → *Fetching assets from external sources*). Record each credit as you download (`free-audio-sources.md` → *Attribution*).
 4. **Shape** each sound from layers (→ *Processing*; recipes in `sound-recipes.md`).
 5. **Verify by measurement** (→ *Verifying without ears*). Tell the user plainly the renders were checked by measurement, not by listening.
 6. **Deliver**: level-match, crossfade loops, encode, keep the kit out of the deploy (→ *Delivery*). Wiring the sounds into the scene: `ambience-design.md`.

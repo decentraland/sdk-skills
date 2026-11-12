@@ -34,7 +34,7 @@ MARKER 1 3.8 "" 1
 ```
 
 - `RENDER_RANGE 3 …` = all regions; `RENDER_PATTERN $region` = one file per region, named after it.
-- `<RENDER_CFG` `ZXZhdxgAAA==` = WAV, 24-bit (base64 of `evaw` + byte 0x18).
+- `<RENDER_CFG` `ZXZhdxgAAA==` = WAV, 24-bit (base64 of `evaw` + bytes 0x18 0x00 0x00).
 - A region is two `MARKER` lines with the same id and trailing flag `1`: start with the name, end with `""`.
 
 ## Track, FX chain, sends, items
