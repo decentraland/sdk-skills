@@ -157,8 +157,6 @@ onLeaveScene((userId) => {
 })
 ```
 
-These track other players. The local player is added once at scene start and never removed: `onEnterScene` fires for it at startup, even from parcels away, and `onLeaveScene` never does. To detect the local player walking in or out, compare `Transform.get(engine.PlayerEntity).position` (relative to the base parcel) with the scene bounds in a system.
-
 ### Avatar Change Listeners
 
 ```typescript

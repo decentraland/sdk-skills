@@ -309,8 +309,6 @@ onLeaveScene((userId) => {
 })
 ```
 
-These track other players. The local player is added once at scene start and never removed, so `onLeaveScene` never fires for it: see **player-avatar** for detecting the local player walking in or out.
-
 ### SDK Observables (low-level)
 
 The SDK also exposes lower-level observables (`onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable`, `onProfileChangedObservable`) from `@dcl/sdk/observables`. These are the primitives underlying the `onEnterScene`/`onLeaveScene` helpers above.
