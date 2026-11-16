@@ -86,6 +86,8 @@ CameraModeArea.create(fpArea, {
 
 When the player leaves the area, the camera reverts to their preferred mode.
 
+**The volume is invisible and has no collider** — the player walks in and the camera changes with nothing on screen to explain it. Where the switch is part of the experience (a doorway, a crawlspace, a cockpit), give the footprint its own visual: a translucent plate or box entity on the same centre and size, or the room geometry itself (`9,99-modifier-areas` and `149,149-synthetic-input-showcase` S7 both draw one).
+
 **Resize the region through `area`.** A non-zero `area` fixes the region size for the life of the component: scaling the entity or its parents does not resize it (an axis scaled to 0 still collapses it), so write `CameraModeArea.getMutable(e).area`. Full rule: **player-avatar** → Avatar Modifier Areas.
 
 **A whole-experience restriction needs whole-experience coverage.** An area that covers only the spawn route proves nothing once the scene teleports, respawns, jumps the player to an alternate height, or hands the camera back after a cinematic. Size the area to the full horizontal *and* vertical play space (including debug jumps and death/restart positions), then test every transition in-world: spawn, teleport, death/restart, alternate height, unlock/relock and cinematic handback. When handing control back, restore the mode the scene intends (first person for a first-person scene), not a generic third person.
@@ -110,7 +112,7 @@ VirtualCamera.create(cinematicCam, {
 	defaultTransition: {
 		transitionMode: VirtualCamera.Transition.Speed(1.0),
 	},
-	// fov: 45, // optional: field of view in degrees (overrides the Explorer default)
+	fov: 60, // degrees; set it on every VirtualCamera (no default is applied, see below)
 })
 
 // Activate the virtual camera (createOrReplace on first activation:
@@ -144,6 +146,7 @@ Transform.create(target, { position: Vector3.create(8, 1, 8) })
 
 VirtualCamera.create(cinematicCam, {
 	lookAtEntity: target,
+	fov: 60,
 	defaultTransition: {
 		transitionMode: VirtualCamera.Transition.Speed(2.0),
 	},
@@ -155,15 +158,19 @@ MainCamera.createOrReplace(engine.CameraEntity, { virtualCameraEntity: cinematic
 
 `lookAtEntity` can be `engine.PlayerEntity` to keep the camera aimed at the moving player (verified: `2,22-virtual-cameras`). To bake a fixed look direction into the camera's own rotation instead, use `Quaternion.fromLookAt(cameraPosition, targetPosition)` in the camera's `Transform`.
 
-`VirtualCamera.create(entity)` with no config is valid (defaults) — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
+`VirtualCamera.create(entity, { fov: 60 })` with no other config is valid — useful for a camera whose Transform you drive manually (see the controllable-camera pattern below).
 
-`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Defaults to `60` when omitted.** When set, the virtual camera overrides the default FOV for as long as it is the active `MainCamera.virtualCameraEntity`.
+`VirtualCamera` accepts an optional `fov?: number` field (field of view in **degrees**). **Set it explicitly on every VirtualCamera.** The desktop client applies no default: when `fov` is omitted it leaves the lens alone, and virtual camera instances are pooled without a lens reset, so a camera without `fov` inherits whatever lens the last user of that instance set (observed: an aerial camera opened at the previous camera's zoomed-in lens and showed a sliver of the map).
 
 Choosing a value:
 
 - **Wider (higher, e.g. 90)** — shows more of the scene at once and creates a sense of speed. Good for racing and vehicle cameras.
 - **Narrower (lower, e.g. 35-45)** — zooms in and flattens perspective. Good for aiming down sights and cinematic shots.
-- Very wide values distort at the frame edges; keep a fixed framing camera near the default unless the distortion is the point.
+- Very wide values distort at the frame edges; keep a fixed framing camera near 60 unless the distortion is the point.
+
+**`fov` is read only when the camera becomes the active `MainCamera.virtualCameraEntity`.** Changing `fov` on the camera that is already active does nothing until the camera is switched away and back. To zoom, make one VirtualCamera per zoom level and switch `virtualCameraEntity` between them. Re-assigning the same entity is a no-op too: the client skips a re-assignment to the already-active entity (`MainCameraSystem.HandleVirtualCameraChange`). Source: unity-explorer `VirtualCameraUtils.ConfigureVirtualCameraFOV` (returns early without `fov`), called only from `MainCameraSystem.TryApplyVirtualCamera`.
+
+**Mobile:** the mobile app was observed (2026-11) to ignore `fov` (always about 60°) and to show the local player's avatar while a scene VirtualCamera is active, even inside a hide-avatars `AvatarModifierArea`. For a mobile target, emulate zoom by moving the camera along the aim line instead of changing `fov`. Other mobile gaps: `{baseDir}/../sdk-scenes/references/mobile-parity.md`.
 
 You cannot move the player's real camera directly. To move a camera under scene control, drive the Transform of an active VirtualCamera entity each frame; while it is the `MainCamera.virtualCameraEntity`, the player sees through it (verified: `2,22-virtual-cameras` controllable camera). Pair with `InputModifier` (advanced-input) to disable avatar movement so WASD drives the camera instead.
 
@@ -188,6 +195,8 @@ function endShot() {
 	}, 1000)
 }
 ```
+
+**Give every player-triggered camera an auto-release deadline.** A toggle, a cutscene or a spectate mode that only releases on a second click, an end event or a trigger exit strands the player's view whenever that path is missed — a closed panel, an early exit, a thrown handler — and from an overhead or detached camera they cannot play or reach the control that would release it. Record a deadline when you activate and release on it in a system or `timers.setTimeout`, alongside the normal release path (`149,149-synthetic-input-showcase` S7 uses an 8 s auto-off, and its reset releases too). Make the deadline longer than the longest intended shot so it never cuts a legitimate one.
 
 **Write only `undefined` or an entity that has a `VirtualCamera` into `virtualCameraEntity`; never `0`.** The engine releases the player camera only when the field is *absent*: `undefined` is omitted from the message, and `MainCameraSystem` then clears the binding. A *present* value whose entity carries no `VirtualCamera` (`0` is `engine.RootEntity`) makes the engine retry every frame and keep the **currently active** virtual camera: if a rig was active, the view stays stuck on it even after input is restored (if none was active, nothing changes). This bites save/restore code: the field is `optional`, so a fresh `MainCamera` reads `undefined` — you only ever get `0` from a saved value scene code wrote, typically a `?? 0` / `|| 0` fallback — and writing that `0` back later sticks the camera. Treat both `undefined` and `0` as "no previous camera":
 
@@ -235,4 +244,5 @@ For full worked patterns, see `{baseDir}/references/camera-patterns.md`:
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/0,5-primary-cursor-info — activating/deactivating VirtualCameras with `MainCamera` toggled by key input, combined with InputModifier.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/32,20-virtual-camera-mouse-look — mouselook camera: `PrimaryPointerInfo.screenDelta` driving VirtualCamera yaw/pitch while pointer is locked, with `InputModifier` disableAll and PointerLock control. Reference implementation for the mouselook pattern.
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/33,20-spectate-mode — spectate mode: free-roaming / player-following camera in one self-contained module (`src/spectate.ts`): two-entity yaw/pitch rig, player roster, WASD/E/F/1/2 controls, parcel-bounds clamping, the delayed-teardown sequence in Handing control back, and full `TouchScreenControls` mobile parity (its README documents only the desktop bindings — the mobile handling is in the source). Reference implementation for the spectate pattern.
+- https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/149,149-synthetic-input-showcase — `src/stations/s7_camera.ts`: a `CameraModeArea` with a translucent plate drawn over its footprint, and a `VirtualCamera` toggle with an auto-release deadline and a reset path (`Transition.Time(0.5)`, hand-back by writing `undefined` through `MainCamera.getMutableOrNull`).
 - https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/9,99-modifier-areas — `CameraModeArea` forcing `CameraType.CT_FIRST_PERSON` inside a rotated 4x4x4 volume, rendered as a translucent box so the trigger volume is visible. A click handler moves the area's `Transform` to show the area follows the entity; a commented-out branch shows mutating `mode` in place via `CameraModeArea.getMutable()`. Sits alongside an `AvatarModifierArea` in the same scene.

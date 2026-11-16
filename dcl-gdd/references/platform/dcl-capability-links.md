@@ -112,15 +112,16 @@ offers a starting point for choosing actions from sensed conditions; the game's 
 and quality of cooperation still need design and integration.
 
 **Implementation evidence:** [sdk7-test-scenes PR #116](https://github.com/decentraland/sdk7-test-scenes/pull/116)
-was open on 2026-10-25, inspected head **3c15eb2144a22093fe0bb7145de13cc415614cd8**. This is an
-experimental reusable implementation, not an SDK7 built-in or proof of a published package.
-Its [module README](https://github.com/decentraland/sdk7-test-scenes/blob/3c15eb2144a22093fe0bb7145de13cc415614cd8/scenes/96,-11-htn-planner/src/htn-planner/README.md)
+merged to `main` on 2026-10-30 as **122a3ff2e87b7e89a6c6ea415eb140dd51716125**. This is a
+reusable test-scene module, not an SDK7 built-in or proof of a published package; the
+implementation side is **npcs** → *Behaviour: the HTN planner module*.
+Its [module README](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/src/htn-planner/README.md)
 documents copying the planning/NPC module and authoring tools into an existing scene. Preserve
 the included license notices; inspect code/assets separately before the actual transfer.
 
 **Reuse:** use this as a concrete candidate when proposing planned NPC behavior or bot teammates,
 instead of starting a general search for whether DCL can run HTN. The
-[NPC guide](https://github.com/decentraland/sdk7-test-scenes/blob/3c15eb2144a22093fe0bb7145de13cc415614cd8/scenes/96,-11-htn-planner/src/htn-planner/npc/README.md)
+[NPC guide](https://github.com/decentraland/sdk7-test-scenes/blob/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner/src/htn-planner/npc/README.md)
 separates behavior domains, sensed facts, action executors and replanning. Guard/stalker examples
 provide starting logic; they do not supply a cook's understanding of orders or teammate intent.
 

@@ -159,7 +159,9 @@ customer or enemy logic. Player emotes, AvatarShape expressions and GLB Animator
 clips are different playback paths. The **npcs** skill records limitations on custom looping
 and upper-body masks for AvatarShape; inspect them before choosing an animation-dependent design.
 Implementation: `AvatarShape`, or a GLB with the NPC Toolkit. Source: npcs (`{baseDir}/../npcs/SKILL.md`).
-For planned behavior, follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic).
+For planned behavior (patrol, notice, chase, search, give up), follow the [HTN finding](dcl-capability-links.md#htn-bots-and-reusable-logic);
+its NPCs run per client, so a shared enemy still needs a synced owner, and obstacle-aware pathfinding is not established.
+Implementation: **npcs** → *Behaviour: the HTN planner module*.
 
 The NPC patterns (`{baseDir}/../npcs/references/npc-library.md`)
 include authored waypoint movement and direct following. Those are useful for a customer route
@@ -181,9 +183,11 @@ audio-video (`{baseDir}/../audio-video/SKILL.md`).
 **Audio-reactive play:** a pulse cue or reactive installation can respond to a scene track.
 `AudioAnalysis` provides amplitude and frequency bands from an entity's audio component;
 detecting exact beats or scoring rhythm still needs game logic and timing checks.
-It does not expose the player's microphone or recognize words. The **audio-analysis**
-skill distinguishes progressive video from HLS analysis and warns that silence and missing
-support can both produce zeros. Source and implementation:
+It does not expose the player's microphone or recognize words. On desktop it reads a `VideoPlayer`
+soundtrack as readily as an `AudioSource`, for progressive files and HLS streams alike; on mobile
+only `AudioSource` is analysed and a stream or video visualizer stays at zero (see
+`{baseDir}/../sdk-scenes/references/mobile-parity.md`). The **audio-analysis** skill
+warns that silence and an unread source both produce zeros. Source and implementation:
 audio-analysis (`{baseDir}/../audio-analysis/SKILL.md`).
 If play must also work without audio, provide a readable alternative. Official [docs change b4d4c88](https://github.com/decentraland/docs/commit/b4d4c88191f3d65fc2214f586c86dfb9447ce55e)
 records AudioAnalysis and AudioEvent support in mobile v1.14.0; an unqualified “desktop only”

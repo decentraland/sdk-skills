@@ -2,6 +2,12 @@
 
 The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
+## Via the Creator Hub MCP
+
+When the Creator Hub's editor MCP is connected (skill **creator-hub-mcp**; tools `mcp__creator-hub__*`), the Explorer is reached through it: `launch_preview` starts the scene preview with this MCP server on, and the runtime tools are re-published live as `explorer_<name>` (`explorer_screenshot`, `explorer_walk`, …; `explorer_call(tool, arguments)` is the fallback while they bind). Nothing in SKILL.md's Setup applies — no registration, no bind gate, no port 8123 probe — and the reference files apply unchanged with those tool names.
+
+**Before `launch_preview`, check `preview_status` *and* the OS process list** (`pgrep -fl '[M]acOS/Explorer'` on macOS, `Get-Process Decentraland` on Windows): `stop_preview` can return `{ok: true}` while the Explorer keeps running, and the next launch then never connects — see "Preview lifecycle" in **creator-hub-mcp** and "The preview launched but its MCP server never answered" in [`recovery.md`](recovery.md).
+
 ## Launch flags and errors
 
 `npm run start -- --mcp --skip-auth-screen true` takes these extra flags:
@@ -15,7 +21,7 @@ The paths a minority of sessions take, reached from Setup steps 1 and 2.
 
 Two launch errors:
 
-- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` and retry, or launch a specific build by hand (below).
+- **`--mcp` rejected as an unknown option**: the scene's `@dcl/sdk-commands` predates the flag and the MCP server does not exist yet. Update from the scene folder with `npm install @dcl/sdk@latest` (on a Multiplayer Server scene reinstall from the `auth-server` tag instead, never `latest`: **sdk-scenes** → *A feature that needs a newer SDK*) and retry, or launch a specific build by hand (below).
 - **"Please download & install the Decentraland Desktop Client"**: the dev server is fine but no client is installed — install one, or launch a specific build by hand (below).
 
 The Creator Hub's **Enable MCP Server** checkbox (**Play Options** — the dropdown arrow on the editor header's **Play** button — then hover **Desktop Client**) passes `--mcp` to this same process, and appears only when the scene's `@dcl/sdk-commands` supports the flag — a missing checkbox is the first error above in another guise.
@@ -28,7 +34,7 @@ When the user wants to keep the already-running scene server and its Explorer un
 npm install && npm run start -- --port 8666 --multi-instance --mcp-port 8124 --skip-auth-screen true
 ```
 
-From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
+Run it from a different scene folder: a second dev server in the same folder rewrites the same `bin/index.js`. From here on use the chosen ports instead of 8000/8123 — including registration, which needs a distinct server name, e.g. `explorer2` at `http://127.0.0.1:8124/unity-explorer-mcp` (in Claude Code: `claude mcp add --transport http --scope user explorer2 http://127.0.0.1:8124/unity-explorer-mcp`, and the tools surface as `mcp__explorer2__*`; other clients: the shapes below with the new name and port).
 
 ## Launching a specific Explorer build manually
 
@@ -42,7 +48,7 @@ open /path/to/Decentraland.app --args \
   --mcp --windowed-mode --resolution 1280x720
 ```
 
-On Windows call `Decentraland.exe` with the same arguments. Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
+On Windows call `Decentraland.exe` with the same arguments. Local asset-bundle conversion is always on and needs no argument (`--local-ab` is accepted and ignored); add `--lsd-raw-gltf` to skip it and load raw GLTFs (the Creator Hub's App Preferences → EDITOR → Play Options → **Load Raw GLTFs** passes the same flag). Add `--disable-hud --skybox-time-enabled false --landscape-terrain-enabled false` when you want deterministic screenshots without HUD noise.
 
 ## Registering in other clients
 

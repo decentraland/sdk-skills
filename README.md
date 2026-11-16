@@ -36,6 +36,10 @@ npx skills add decentraland/sdk-skills --all
 
 Don't use `npx skills update` for this: it only refreshes skills you already have installed, so it won't download newly added skills.
 
+**In the Creator Hub** you don't need to run anything: when you open a scene, the Hub checks its `skills-lock.json` against this repository and offers **Install** (scene has no skills yet) or **Update** (some are out of date), following the *Scene Dependencies* setting (*Auto-update all my scenes* installs silently, *Do nothing* skips the check). It installs every skill except `create-scene`, `deploy-scene`, `deploy-worlds` and `migrate-sdk6-to-sdk7`, whose flows the Hub handles itself, into the scene's `.claude/skills/` and `.agents/skills/`.
+
+`npx skills` records every installed skill and its source repository in `skills-lock.json` next to the skills folder; read it before guessing where a skill came from. Skills that were part of the earlier OpenDCL context package are now maintained here, so a skill missing from this repo's table was never in it rather than removed.
+
 ## Available Skills
 
 | Skill | Description |
@@ -60,7 +64,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
-| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles. |
+| `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles, custom sky texture, sky colors, clouds, stars, sun color/intensity/direction, fog color and density. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
@@ -88,6 +92,8 @@ Skills are markdown files that give AI coding assistants the context they need t
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
 
 The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).
+
+Write each `SKILL.md` frontmatter `description` as one double-quoted line (`description: "..."`, with any inner `"` as `\"`). The skills CLI parses the frontmatter as strict YAML and silently skips a skill it cannot parse, and an unquoted description that contains `: `, ` #`, or starts with a YAML indicator fails that parse. `tests/skill-frontmatter.test.mjs` checks every skill for this.
 
 ## License
 

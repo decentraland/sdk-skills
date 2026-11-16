@@ -45,6 +45,8 @@ Signature: `syncEntity(entity, componentIds[], syncId?)`
 - `componentIds[]` — array of component IDs to keep in sync (e.g., `[Transform.componentId]`)
 - `syncId` — unique numeric identifier (required for predefined entities, optional for player-spawned entities)
 
+`componentIds` governs updates, not creation: the first write of every component on a synced entity reaches peers whatever the list says (`syncFilter`, CRDT timestamp 1), and a late joiner receives the entity's whole component state (`engineToCrdt`). List every component that changes after creation; a mesh or material set once needs no entry, and a second write to an unlisted component stays local.
+
 ### Enum Sync IDs (Predefined Entities)
 
 Every predefined synced entity MUST have a unique numeric ID. Use an enum to avoid collisions:
@@ -328,6 +330,8 @@ Two ways to make a client-local visual agree across clients:
 2. **Replicate the *input*, not the visual.** Sync the assignment (a synced component or a `MessageBus` message), then have every client apply it locally to the player entity it resolves for that user id.
 
 In both cases: resolve the target `Entity` from the user id on **every** write. Player entity ids are recycled across disconnects, so a cached `Entity` can land the write on a different player.
+
+**To hang a marker over a remote player, use `AvatarAttach` with their address — never `Transform.parent`.** The engine writes a remote player's `Transform` only for the scene to read; an entity parented to it falls back to the scene root and sits at the origin. `AvatarAttach.create(anchor, { avatarId: address, anchorPointId: AvatarAnchorPointType.AAPT_NAME_TAG })` from `PlayerIdentityData.address` follows the avatar, and a `Billboard` label parented to that anchor rides along. Worked example and the entity-reuse rebuild loop: **player-avatar** → `references/avatar-apis.md` → *Voice activity*.
 
 ## Multiplayer Testing
 

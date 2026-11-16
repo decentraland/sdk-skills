@@ -100,7 +100,7 @@ AvatarShape.getMutable(npc).expressionTriggerId = 'clap'
 ### Available Predefined Emotes
 ```typescript
 // Social emotes
-'wave', 'fistpump', 'robot', 'raiseHand', 'clap', 'money', 'kiss', 'tik', 'hammer', 'tektonik', 'dontsee', 'handsair', 'shrug', 'disco', 'dab', 'headexplode'
+'wave', 'fistpump', 'robot', 'raiseHand', 'clap', 'money', 'kiss', 'tik', 'hammer', 'tektonik', 'dontsee', 'handsair', 'shrug', 'disco', 'dab', 'headexplode', 'dance', 'cry'
 
 // Action emotes
 'buttonDown', 'buttonFront', 'getHit', 'knockOut', 'lever', 'openChest', 'openDoor', 'punch', 'push', 'swingWeaponOneHand', 'swingWeaponTwoHands', 'throw'
@@ -148,7 +148,9 @@ function copyPlayerAppearance(npcEntity: Entity) {
 // Update NPC name
 AvatarShape.getMutable(npc).name = 'New Name'
 
-// Update talking status
+// Update talking status. This is scene -> engine: it draws the green voice bars on the puppet.
+// The read-only player-side counterpart is AvatarBase.talking (real microphone activity,
+// see player-avatar); the two are unrelated.
 AvatarShape.getMutable(npc).talking = true
 
 // Update wearables

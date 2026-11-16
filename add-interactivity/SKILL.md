@@ -7,7 +7,7 @@ description: Event-driven interactivity on Decentraland entities - clicks and ho
 
 ## RULE: Fetch composite entities — never re-create them
 
-An entity defined in `assets/scene/main.composite` gets its handlers from code that looks it up by name (`engine.getEntityOrNullByName(EntityNames.Door_1)`) or tag (`engine.getEntitiesByTag('Crystal')`) inside `main()` or later; `engine.addEntity()` would create a duplicate. Patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code.
+An entity defined in `assets/scene/main.composite` gets its handlers from code that looks it up by name (`engine.getEntityOrNullByName(EntityNames.Door_1)`; use the `EntityNames` member and log a `null` lookup — **composites** → By Name) or tag (`engine.getEntitiesByTag('Crystal')`) inside `main()` or later; `engine.addEntity()` would create a duplicate. Patterns: `{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code.
 
 ---
 
@@ -31,6 +31,7 @@ Use `pointerEventsSystem.onPointerDown()` to add click handlers to entities. Als
 ### Colliders
 
 - Pointer events reach only an entity with a collider on `ColliderLayer.CL_POINTER`. Primitive or invisible hitbox: `MeshCollider.setBox(entity)`. GLB: set its collision masks per **add-3d-models** → *RULE: Always check for built-in colliders* (`visibleMeshesCollisionMask` defaults to `0`, so a GLB without `_collider` meshes is not clickable until you set it).
+- **Occluders need `CL_POINTER` too.** The pointer ray stops at the closest collider on `CL_POINTER` (alone, or with `CL_PHYSICS` = mask `3`); a `CL_PHYSICS`-only collider goes to a character-only layer the ray ignores, so a physics-only wall, floor or door is transparent to clicks and a clickable behind it stays reachable. Give enclosing geometry mask `3` (`CL_PHYSICS | CL_POINTER`) (source: unity-explorer `PhysicsLayers.cs`; in-world, 2026-11-05).
 - **Register the handler on the entity that owns the collider.** Pointer events reach the entity whose collider the ray hits — a handler on a parent group, or on a child that has no collider of its own, never fires. When a model is an empty parent with the collider mesh on a child entity, register on the child (or give the parent its own `MeshCollider`).
 - Skinned / armature-rigged GLB (NPCs, characters) with no `_collider` mesh: the visible-mesh mask does not make it clickable — see *Skinned-mesh exception* below.
 

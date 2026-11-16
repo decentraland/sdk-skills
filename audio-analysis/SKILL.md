@@ -137,7 +137,7 @@ For a complete music visualizer (audio source + amplitude sphere + 8-band equali
 
 - **Throttled updates.** The renderer runs analysis under a frame-time budget — values update each frame in normal conditions but can skip frames under heavy load. Drive smooth animations with `dt` interpolation rather than assuming a fixed update cadence.
 - **Multi-source scenes.** Each audio-emitting entity needs its own `AudioAnalysis` if you want to react to that specific source. There is no global mix-down; you pick the entity to analyze.
-- **Works on `VideoPlayer` audio too** — call `AudioAnalysis.createAudioAnalysis(videoEntity)` on the same entity that has `VideoPlayer`. The renderer taps the video's audio frame buffer the same way it does for `AudioSource`. **IMPORTANT: the video must be a progressive file (MP4/WebM with direct URL), not an HLS stream (.m3u8).** HLS streams play with audible sound but the renderer writes zeros to the AudioAnalysis component (its audio decodes on a path the analyzer does not tap).
+- **Works on `VideoPlayer` audio too** — call `AudioAnalysis.createAudioAnalysis(videoEntity)` on the same entity that has `VideoPlayer`. The renderer taps the video's audio frame buffer the same way it does for `AudioSource`. This holds for both progressive files (MP4/WebM at a direct URL) and **HLS streams (`.m3u8`)**; the `88,-10-audio-visualization` test scene drives a third visualizer group from a live HLS stream.
 - **No `pitch` interaction.** `AudioSource.pitch` changes playback speed; the analysis runs on the actual played audio frames, so a higher pitch shifts perceived band energy upward. This is expected, not a bug.
 
 ## Permissions
@@ -146,7 +146,7 @@ No scene permission or hostname whitelist is needed: `ALLOW_MEDIA_HOSTNAMES` / `
 
 ## Example scenes
 
-- [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — engine-team test scene: two independent visualizer groups side by side. Group 0: `AudioSource` + `AudioAnalysis.createAudioAnalysis()` driving 8 bars + amplitude sphere. Group 1: `VideoPlayer` (progressive MP4) + `AudioAnalysis.createAudioAnalysis()` driving its own bars + sphere from the video's soundtrack. Each group has its own pre-allocated `AudioAnalysisView` and its own `readIntoView` call per frame. Demonstrates that AudioAnalysis works identically on VideoPlayer entities, and documents the progressive-video requirement (HLS streams write zeros).
+- [audio-visualization](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/88,-10-audio-visualization) — engine-team test scene: three independent visualizer groups side by side, each 8 bars + an amplitude sphere driven by its own `AudioAnalysis`. Group 0: `AudioSource` (local mp3). Group 1: `VideoPlayer` on a progressive MP4. Group 2: `VideoPlayer` on an HLS `.m3u8` stream. Each group owns a pre-allocated `AudioAnalysisView` and gets its own `readIntoView` call in a single read system. Demonstrates that `AudioAnalysis` behaves identically across all three source kinds. Each amplitude sphere is also the play/pause button for its source — `MeshCollider.setSphere` makes it clickable, and the handler flips `playing` on `AudioSource.getMutable` / `VideoPlayer.getMutable` (the same toggle works for MP4 and HLS).
 
 ## Resources
 

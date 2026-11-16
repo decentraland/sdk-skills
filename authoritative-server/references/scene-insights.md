@@ -24,7 +24,9 @@ When asked to diagnose a deployed authoritative scene, use these read-only comma
 
 ## Access and Signing In
 
-The signed-in wallet must be in the deployed `scene.json` **`logsPermissions`**, or be the **World's owner or a deployment collaborator whose grant covers the whole World or every deployed parcel of the scene**. Adding an address to `logsPermissions` takes a redeploy; report missing access and leave permission changes and redeployment to the user unless explicitly authorized.
+The signed-in wallet must be in the deployed `scene.json` **`logsPermissions`**, or be the **World's owner or a deployment collaborator whose grant covers the whole World or every deployed parcel of the scene**. For **Genesis City**, ownership or delegated LAND management permission (`operator`, `updateOperator`, `updateManager`, or `approvedForAll`) on the **resolved scene base parcel** also grants access. A caller-selected coordinate elsewhere in the footprint does not change which parcel is checked. Eligible owners/managers need no `logsPermissions` edit or scene redeploy. Adding an address to `logsPermissions` takes a redeploy; report missing access and leave permission changes and redeployment to the user unless explicitly authorized.
+
+These permissions cover logs, live tail, metrics and executions. **Anyone currently authorized can read all retained history under that scene key**, including telemetry from earlier operators, tenants or deployments. Do not recommend adding a wallet to `logsPermissions` without explaining that it also exposes retained history. Revocation is not immediate: permission caches last 60 seconds by default, and open tails reauthorize every 5 minutes. Allow roughly 6 minutes for an open tail to observe a change, rather than promising instant revocation. These are default timings, not a strict deadline: deployments can change them, and temporary capacity failures can extend reauthorization through a bounded grace period.
 
 The **user** signs in with their wallet when the session is missing or expired (up to 12 hours, bounded by the parent session):
 
@@ -41,7 +43,7 @@ Rules for agents:
 - `npx sdk-commands scene-insights session --json` checks local credentials: exit 0 with `{address, expiration, source}`, or exit 3. `DCL_PRIVATE_KEY` takes precedence over a saved browser session and reports `source: "DCL_PRIVATE_KEY"`, `expiration: null`. If `source` is `DCL_PRIVATE_KEY`, report the signing address. Use it only when the user or workflow has explicitly authorized that key for this investigation; otherwise ask for confirmation before the first query. An inherited environment variable alone is not authorization, including in non-interactive runs. EOA credentials validate locally; contract-wallet sessions also require Ethereum RPC validation in CLIs that support them. This does not verify service acceptance or scene access; a later request can still fail with 401 (exit 3). RPC outages are retryable exit 6, including during browser login; the saved credential is kept, so retry rather than logging out or signing in again. Invalid, revoked or RPC-budget-exhausted saved sessions are treated as not signed in (exit 3 in noninteractive commands); ask the user to sign in again.
 - Scripts and CI can use a `DCL_PRIVATE_KEY` explicitly provisioned for Insights; the CLI creates the same scoped delegation locally and saves nothing. Never request, print or persist the key, even if a CLI error suggests setting it. Contract-wallet browser login requires a CLI whose `scene-insights --help` documents `DCL_SCENE_INSIGHTS_RPC_URL`, plus an Insights deployment with contract-wallet RPC validation enabled. Older CLI releases reject contract wallets; report that limitation and the required update, never suggest exporting a private key as a workaround.
 - Preserve the configured session location: do not set or change `DCL_SCENE_INSIGHTS_SESSION_DIR` unless the user or workflow explicitly requests it. Do not redirect credentials into the scene workspace for convenience.
-- Keep sessions private: do not read/copy their JSON into reports, commits or scene assets. Use `session --json` for safe status. Default targets are HTTPS under `decentraland.org` or `decentraland.zone`; do not add `--trust-target` to bypass an error. It sends replayable signed requests to the chosen host and requires a deliberate trusted-endpoint decision.
+- Keep sessions private: never share their JSON with teammates or AI assistants, or copy it into reports, commits or scene assets. Logout deletes only the local session; it does not revoke leaked copies before expiry. Use `session --json` for safe status. Default targets are HTTPS under `decentraland.org` or `decentraland.zone`; do not add `--trust-target` to bypass an error. It sends replayable signed requests to the chosen host and requires a deliberate trusted-endpoint decision.
 
 ## Choosing the Scene
 
@@ -82,8 +84,8 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 
 - **Never run `tail` without `--for`**: it follows until interrupted. For questions about the past use `logs`.
 - `--from`/`--to` take a duration back from now (`15m`, `2h`, `7d`), epoch milliseconds, or ISO-8601 with an offset. `logs` defaults to the last hour; `metrics` (names) and `executions` to the last 24 hours. At most 7 days.
-- `logs --level` is a minimum (`warn` includes `error`). `--source scene,engine` filters by origin.
-- The CLI handles pagination up to `--limit` and reconnect/resume within a running tail. There is no CLI `--cursor` flag. `tail` accepts level/text filters, but not `--execution`, `--source`, `--from` or `--to`; use `logs` for those filters.
+- `logs --level` is a minimum (`warn` includes `error`). `--source` filters by origin and accepts `scene`, `engine` and `stderr`, singly or comma-separated.
+- The CLI handles pagination up to `--limit` and reconnect/resume within a running tail. There is no CLI `--cursor` flag — a direct API client gets up to 1,000 rows per page and pages with a cursor instead. `tail` accepts level/text filters, but not `--execution`, `--source`, `--from` or `--to`; use `logs` for those filters.
 - `logs` returns the newest `--limit` lines (1-10000, default 100); `--order asc` returns the oldest instead.
 
 ## Reading the Output
@@ -112,8 +114,8 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 - `logs` is oldest first. `more: true` means more lines matched than were returned: narrow the range or filters, or raise `--limit`.
 - `level`: the server's `console.log` is `info`, `console.error` is `error`. `source: engine` lines are written by the platform, not the scene.
 - `truncated: true`: the message exceeded the service's configured character limit (8192 characters by default) and was cut.
-- An `engine` `warn` line **`Rate limit: dropped N log lines (M bytes) in the last Xs`** means the scene logged more than its budget (50 lines/s sustained, bursts of 500; 64 KiB/s) and those lines were **not stored**. Reduce per-frame or per-player logging; the missing lines cannot be recovered.
-- An `engine` `warn` line **`Daily log quota reached (...): dropped N log lines (M bytes); logs are stored again from <time>`** means the scene used up its daily storage quota (500,000 lines or 128 MiB per UTC day by default). Nothing more is stored until the time it names (the next 00:00 UTC); it repeats at most hourly while lines keep being dropped. The live server keeps running; only what is persisted stops. Log less (aggregate repeated events, drop per-frame lines) so the important lines fit.
+- An `engine` `warn` line **`Rate limit: dropped N log lines (M bytes) in the last Xs`** means the scene logged more than its budget (50 lines/s and 64 KiB/s sustained, bursts of 500 lines and 512 KiB) and those lines were **not stored**. Reduce per-frame or per-player logging; the missing lines cannot be recovered.
+- An `engine` `warn` line **`Daily log quota reached (...): dropped N log lines (M bytes); logs are stored again from <time>`** means the scene used up its daily storage quota (a soft cap of 500,000 lines or 128 MiB per server process per UTC day by default). Nothing more is stored until the time it names (the next 00:00 UTC); it repeats at most hourly while lines keep being dropped. The live server keeps running; only what is persisted stops. Log less (aggregate repeated events, drop per-frame lines) so the important lines fit.
 - `executions` lists each server run: `entityId` is the deployed version and `executionId` the process. A new `executionId` with the **same** `entityId` is a **new execution of the same deployment** (possibly a crash, idle stop/start, or task rollout—not proof of a crash); a new `entityId` is a **redeploy**. To find why a run ended, read the last lines of the previous execution with `logs --execution <id>`.
 - `tail --json` prints one log entry per line, as it arrives (a few seconds after the scene writes it), and exits 0 when `--for` elapses.
 
@@ -129,20 +131,26 @@ npx sdk-commands scene-insights tail --for 30s --lines 20 --json
 | `cpu.updates_completed`, `cpu.update_errors` | sum | Completed onUpdate calls (including errors), and failed calls |
 | `mem.heap_used`, `mem.heap_limit`, `mem.external_bytes` | gauge | JavaScript heap use/ceiling and V8 external memory; not process RSS or the Fargate limit |
 | `logs.lines`, `logs.bytes` | sum | What the scene wrote to the console (before the rate limit) |
+| `logs.dropped` | sum | Lines the engine's **per-tick** log budget discarded (1,000 lines per tick by default), counted before export. Separate from the per-second rate limit and the daily quota. |
 | `comms.msgs_out`, `comms.bytes_out` | sum | Messages and bytes the server sent to players |
 | `crdt.bytes` | sum | Bytes of component changes the scene's code wrote |
 | `fetch.started`, `fetch.completed`, `fetch.failed`, `fetch.bytes_down` | sum | HTTP requests made by the server |
+| `fetch.status_4xx`, `fetch.status_5xx` | sum | HTTP error responses. **Not counted in `fetch.failed`** — a server whose requests all return 500 shows `fetch.failed` at zero. Read all three together. |
 | `storage.requests`, `storage.completed`, `storage.failed` | sum | Storage service calls |
 | `storage.unauthorized` | sum | Storage calls refused with 401/403 (also counted as completed) |
 | `ws.opened` | sum | WebSockets opened |
 
 Gauges return `avg` and `max` per bucket; sums return `sum` (the bucket's total) and `rate` (per second). Use returned `unit`, `rateUnit` and `stepSeconds`; do not differentiate `rate` again. Compare matching windows and buckets. Use `metrics <name> --execution <id>` to isolate one run; name discovery is scene-wide. The list varies by scene and engine version: always start from `metrics --json`.
 
+**A query may span at most 1,500 buckets.** A long window at a small `--step` is **rejected** (`The range and step yield N buckets; the maximum is 1500`), not truncated or downsampled — raise `--step` so `window / step` stays under that, e.g. 24 h needs `--step 60` or coarser.
+
 Typical reads:
 - Heap growth across comparable workloads in the same execution is a leak candidate. Check whether it falls after garbage collection or players leave; a high bucket maximum alone does not prove a leak.
 - Sustained `cpu.percent` near 100%, or `cpu.run_ms` near 1000 ms/s, suggests the measured execution thread is busy. Correlate with update errors and workload; this does not measure the whole server or prove why clients lag.
 - High `logs.lines`/`logs.bytes` indicates logging pressure. Confirm actual drops with engine rate-limit/quota notices; burst allowances and deployment-specific budgets mean a short spike alone does not prove loss.
-- `fetch.failed` or `storage.failed` growing: check the errors in `logs` for the same window. `storage.unauthorized` above 0: the server's storage credential was refused.
+- `fetch.failed` or `storage.failed` growing: check the errors in `logs` for the same window. `storage.unauthorized` above 0: the server's storage credential was refused. A healthy-looking `fetch.failed` proves nothing on its own — check `fetch.status_4xx` / `fetch.status_5xx` too.
+- `logs.dropped` above 0: a single tick logged more than 1,000 lines, so the export is incomplete for that window. Treat gaps in `logs` output as missing evidence rather than as quiet periods, and cut per-frame logging before drawing conclusions.
+- **Daily quota counters live in memory**, so a server-process restart or a move to another replica resets them. The daily cap is approximate across those events — do not reconcile quota notices into an exact daily total.
 
 ## Exit Codes
 

@@ -1,8 +1,10 @@
 # Funding and scope
 
 For general design, use only the estimation and scope guidance below, against the owner's
-actual capacity. The funding amounts and application requirements here apply only to a chosen
+actual capacity. The milestone amounts and application requirements here apply only to a chosen
 Creator Success application; a request for an effort estimate does not select that direction.
+The Creator Fund is a separate, open program for scenes that are already published, and
+mentioning it does not select a proposal route either.
 
 Read when funding, affordability or an effort estimate comes up; also consult the application
 facts when completing the header at the end. Do not initiate a financial review, require hours
@@ -15,7 +17,7 @@ and IP**, which it can continue developing and monetizing. It is not a commissio
 client-services fee. Treat funding as a design and production constraint, not a commercial quote.
 
 Fixed milestone funding: **V0: $1,000 · V1: $3,100 · V2: $2,800**, per the public
-[Creator Success onboarding](https://docs.decentraland.org/creator/studio-onboarding)
+[Creator Success onboarding](https://docs.decentraland.org/creator/earn/studio-onboarding)
 (checked October 30, 2026). It names V3 without an amount; do not quote one.
 Do not infer payment timing, eligibility, later funding or guaranteed progression from this table.
 Product versions, document stages, experiment scopes and funding milestones have separate rules.
@@ -39,6 +41,50 @@ V2/V3 progression depends on results and program agreement, not automatic eligib
 does not establish numerical retention thresholds for funding; do not turn design targets into
 funding guarantees. Confirm later-stage scope, timing and conditions rather than inventing them.
 
+## Creator Fund — rewards for engagement on a published scene
+
+Creator Fund and Creator Success are **separate programs, and a creator can be in both**: a game
+funded through Creator Success is published to a World or LAND the studio owns, so once it is
+live it can also be enrolled. There is nothing to apply for and no pitch to write. Publish the
+scene to Genesis City or a World, then opt in from the **Earn** tab in Creator Hub by signing the
+Program Terms with the wallet that owns the LAND, NAME or World. One opt-in covers every eligible
+place that wallet owns, and scenes published later join the next time the Earn tab is opened.
+
+**What it measures.** Each Cycle's allocation is shared among enrolled experiences in proportion
+to engagement from real players, on three metrics:
+
+| Metric | Definition |
+|---|---|
+| New Decentraland players | players who start in Decentraland by coming to your experience |
+| Active playtime | time players actively spend in it |
+| Player retention | players who come back on days after their first visit |
+
+Those are the same three outcomes [acquisition](acquisition.md), the
+[player promise](player-promise.md) and first minutes, and [retention](retention.md) already
+work on, so a first-minutes fix, a reason to return, or a post that brings a new player in now
+carries a payout as well as a design payoff. It adds no target and does not change the design
+advice: keep working from the owner's purpose, and treat the Fund as a reason a good decision
+pays rather than a metric to design backwards from.
+
+**The money.** The Beta Season runs November 15 to December 31, 2026, with a Season Pool of
+**USD 30,000 in USDC** split over three two-week Cycles of **USD 10,000** each (program rules,
+checked November 12, 2026). A Reward is a **proportional share, never a guaranteed amount** — it
+depends on how the scene compares with every other enrolled one. Amounts under **USD 5 per Cycle**
+across all of a creator's experiences are not paid out. Payment is in USDC within 14 days of a
+Cycle ending, to a Payout Wallet set in Creator Hub. **A creator with no Payout Wallet set within
+7 days after a Cycle ends loses that Cycle's Reward.**
+
+**Who is eligible.** 18 or older; owns the LAND, NAME or World the scene is deployed to; complies
+with the Terms of Use and Content Policy, with no gambling or other 18+ restricted content.
+A collaborator who does not own the place is not eligible. Only real players on the official
+Decentraland desktop and mobile apps count, and every Cycle is checked for bots and artificial
+activity.
+
+Do not quote a Reward amount for a scene, estimate a creator's share, or make a design decision
+conditional on the Fund. Cycle dates, mid-Cycle joining, transfers and payouts:
+[Creator Fund: Program Rules](https://docs.decentraland.org/creator/earn/program-rules).
+Every earning route side by side — Wearables and Emotes, the Fund, Creator Success, tips and
+in-scene payments: [How to make money in Decentraland](https://docs.decentraland.org/creator/earn/).
 
 ## Estimate and shape scope
 

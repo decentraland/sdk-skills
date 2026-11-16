@@ -32,6 +32,8 @@ Then compute the safe placement zone **in DCL axes**: `safeMinX = -dclMinX + edg
 
 When placement is **baked into the mesh** (merged floor/wall chunks, a kitbashed layout exported as one GLB, anything positioned in Blender rather than by a `Transform`), a wrong axis guess puts the geometry outside the scene, where it is clipped silently while the entity's `Transform.position` still looks legal. Before baking the real thing, export an asymmetric probe and check it in-world. Symptom, probe workflow and the Blender → DCL mapping: `{baseDir}/references/blender-authoring.md` → Blender ↔ Decentraland axes.
 
+The same mirror applies when **code places parts at offsets read from a Blender-authored kit** (a lever, a battery slot, a socket on a GLB): convert with `DCL = (-bx, bz, -by)` before writing the `Transform`, or the parts land mirrored in X (observed 2026-11, when the reference file was grepped rather than read). Read the axes section in full before placing.
+
 ## RULE: Account for model depth before neighboring entities
 
 Two models don't overlap just because their origins are different. Always verify that `origin +/- extent` doesn't intersect any neighbor's bounding box. Pay special attention to deep arch/gateway models (can extend 14 m in +/-Z) and rotated models (rotating 90deg around Y swaps X and Z extents).
@@ -156,6 +158,8 @@ Always check the scene's existing folders before deciding where to put a new mod
 
 In a scene open in the Creator Hub, the user can also drag a `.glb` from the Local Assets tab onto the viewport to place it as a plain model (media files: **creator-hub-mcp**).
 
+**Rename or move a model the scene already uses from Local Assets, not from the shell.** A Local Assets rename, move or drag onto a folder rewrites the component fields that reference it (`src`, `audioClipUrl`, Script `path`, the paths inside Actions payloads, script file params), carries a `.gltf`'s sidecar files and a `.glb`'s external textures along, and undoes in one Ctrl+Z; `mv` on disk rewrites nothing and leaves broken `src` paths. `assets/scene` and *Built-in animations* are read-only there, and case-only renames are refused (deploys match paths case-sensitively). Its preview pane shows a selected model's triangle, mesh, material and texture counts and animation clips, a quick check before placing it.
+
 ## RULE: New models — offer the catalog AND custom authoring in Blender
 
 When the user asks to add a model, there are two sources, and the choice is theirs — ask before picking:
@@ -218,6 +222,7 @@ Always check the scene's local asset folder first. Before fetching any model, co
 | "FINISHED_WITH_ERROR"       | Corrupted .glb                 | Re-export as `.glb` (binary GLTF)                            |
 | Clicking does nothing       | CL_POINTER not set             | Set the masks per RULE: Always check for built-in colliders  |
 | Click through walls         | CL_POINTER not on visible mesh | Same rule: put `CL_POINTER` on the mesh players click         |
+| Click through walls         | Wall/floor/door collider is `CL_PHYSICS` only; the pointer ray ignores that layer | Give enclosing geometry mask `3` (`CL_PHYSICS \| CL_POINTER`) so it blocks the ray (see **add-interactivity** → *Colliders*) |
 | Light fixtures don't illuminate | GLB light geometry is visual only | Add a `LightSource` component to the entity (see **lighting-environment**) |
 
 ## RULE: 3D model light fixtures do not emit real light
@@ -232,7 +237,8 @@ Lamp meshes, bulb shapes, chandelier arms, and other light-fixture geometry in a
 - Use texture atlases when possible to reduce draw calls
 - Materials in models should use PBR for best results
 - For repeated content (lamp posts, chairs, trees), point many entities at **one shared `.glb`** rather than exporting a near-identical file per copy — the engine downloads, converts, and stores a shared source's meshes and textures once, session-wide. This does not reduce draw calls or material count — both track rendered objects; see **optimize-scene** → Repeated Models for when merging meshes is the right call instead.
-- ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local, Creator Hub or QR mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed (`npx @gltf-transform/cli optimize in.glb out.glb --compress false`) and reduce triangles/texture size instead; quantization, texture compression and mesh decimation are unaffected. Skip `meshopt` compression too: the mobile app has no meshopt decoder (its optimized-asset step decompresses only Draco), and desktop loads it only from published asset bundles, not in local preview. The `54,-55-Testing-3d-models` engine scene below includes a Draco variant: it is a desktop capability test, not a cross-platform recommendation.
+- **Share textures across GLBs as external files.** A texture embedded in a GLB is loaded once per GLB, even when other GLBs embed the same image. Export shared maps as external image files, one file with one name and identical bytes beside the GLBs (the asset-pack layout, *Free 3D Models*), so the client loads each once. Observed 2026-11: 123 embedded copies of 79 distinct images; externalising cut the texture count from 133 to 80 and scene size from ~281 MB to ~226 MB, geometry unchanged.
+- ⚠️ **No Draco compression if the scene targets mobile.** The mobile app has **no runtime Draco decoder**. A Draco-compressed GLTF/GLB loads on a phone only from the scene's **optimized assets** (decompressed server-side); with no optimized assets — **any local, Creator Hub or QR mobile preview** — it **fails to load silently**: the model is simply absent, with no console error and no placeholder. So the model can be fine in a published scene and invisible in every mobile preview of it, which makes this near-undebuggable from the preview alone. Export uncompressed (`npx @gltf-transform/cli optimize in.glb out.glb --compress false`) and reduce triangles/texture size instead; quantization, texture compression and mesh decimation are unaffected. Skip `meshopt` compression too: the mobile app has no meshopt decoder (its optimized-asset step decompresses only Draco), and desktop decodes it only through asset-bundle conversion (published scenes and the desktop preview's local converter, **optimize-scene** → *Local Asset Bundle Preview*); whenever the preview falls back to the raw GLTF the model does not load. The `54,-55-Testing-3d-models` engine scene below includes a Draco variant: it is a desktop capability test, not a cross-platform recommendation.
 
 For full code examples (loading, colliders, operations, catalog workflow), see `{baseDir}/references/model-patterns.md`.
 
