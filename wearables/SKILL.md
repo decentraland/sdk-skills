@@ -45,7 +45,7 @@ Body-hugging wearables need a GLB per body shape: build from `AvatarShape_B.blen
 - **Hiding another slot adds its budget.** An `upper_body` that hides `lower_body` (a jumpsuit) may use 3,000. A helmet that hides every head category may use 4,000.
 - ≤ **2 materials** (not counting `AvatarSkin_MAT`) and ≤ **2 textures**, square, ≤ **1024 px**.
 - No normal or roughness maps; the avatar uses a toon shader. Bake detail and AO into the base color. Emission goes in its own material; prefer alpha clip over alpha blend.
-- `hands_wear` is for skinned hand items only. Swords, shields and the like get rejected by curation.
+- `hands_wear` accepts hand accessories, items that replace the hands, and items held in the hand (tools, props). All must be skinned to the avatar armature.
 - Source: [Creating wearables](https://docs.decentraland.org/creator/wearables-and-emotes/wearables/creating-wearables/).
 
 ## Special materials and categories

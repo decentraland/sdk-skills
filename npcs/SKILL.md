@@ -22,6 +22,8 @@ Stop or coordinate Toolkit path-following, tweens and `faceUser` before another 
 Check completion and cancellation against the body's actual motion; AvatarShape uses engine-managed movement
 and has the playback limits below. Toolkit and AvatarShape need game-owned adapters/executors for HTN.
 
+Either body can take **planned behaviour** (patrol, notice, chase, search, give up) from the HTN planner module: see *Behaviour: the HTN planner module* below.
+
 ---
 
 ## Approach 1 — NPC Toolkit (GLB-based)
@@ -30,7 +32,7 @@ The toolkit handles dialogue UI, movement along paths, animations, and interacti
 
 **Install:**
 ```bash
-npm i dcl-npc-toolkit
+pnpm add dcl-npc-toolkit
 ```
 
 **Basic usage:**
@@ -70,6 +72,7 @@ For full dialogue scripting, movement paths, state machines, and all config opti
 - **Opening dialogs on an entity not created via `npc.create`** needs `addDialog(entity)` plus a minimal `npcDataComponent.set(entity, ...)`; a standalone `createDialogWindow()` needs the same or its UI crashes on `reading 'theme'`. Setup code: `{baseDir}/references/npc-library.md` → Toolkit Dialog UI vs Bubble UI.
 - Speech bubbles need `createDialogBubble(entity)` before `talkBubble`. Bubbles do not render question buttons; questions are HUD-only.
 - **`faceUser: true` — place fixed-world objects unparented, beside the NPC.** `faceUser` rewrites the NPC entity's `Transform.rotation` every frame (via `TrackUserFlag` + `faceUserSystem`) to look at the player. Any child placed at a local offset inherits that rotation and **orbits** the NPC as the player moves, landing in unintended places (behind a door, occluded, unclickable). Fix: spawn such objects **unparented at a computed world position** (derive a stable world spot from a non-rotating reference like a door, plus the NPC's position). The same caveat applies to any entity whose Transform you rotate every frame.
+- **An NPC that approaches or confronts the player moves in world space.** Pick its spot once (a ground point in front of the player at approach time) and let the player turn away from it. Parenting it to `engine.PlayerEntity` / `engine.CameraEntity`, or re-targeting it to a point in front of the camera every frame, makes it follow the camera when the player turns, which reads as broken (owner report and in-world camera-turn check, 2026-11-06).
 
 - **dcl-npc-toolkit must be statically imported from the entry point.** The toolkit calls `engine.defineComponent(...)` at module-load time. `engine.defineComponent` throws `"Engine is already sealed. No components can be added at this stage"` if it runs after the engine seals. A dynamic `await import('./client-setup')` defers that registration past the seal point. So any module that imports the toolkit must be reached via a **static** `import` from `index.ts`. In an authoritative-server scene, keep the client setup (which imports the toolkit) static and dynamically import only the server-only branch. See **authoritative-server**.
 
@@ -141,7 +144,7 @@ Note: replaying the **same** `expressionTriggerId` value back-to-back requires b
 
 **AvatarShape playback limits** (mechanisms and workarounds: `{baseDir}/references/avatar-shape-npcs.md`):
 
-- **Custom clips do not loop** on an `AvatarShape`; only the embedded looping emotes hold a pose. For a sustained custom pose, retrigger a long clip before it ends.
+- **Custom clips do not loop** on an `AvatarShape`; only built-in emotes whose loop flag is `yes` in the **avatar-animations** catalog (sitting poses, several social dances) hold a pose. For a sustained custom pose, retrigger a long clip before it ends.
 - **Moving the NPC cancels its emote** (Transform write or `Tween`). Bake travel during an emote into the `_emote.glb` as root motion.
 - **Hide it by scaling to `0.001`**, not by moving it away: a moved `AvatarShape` visibly walks there.
 - **No masked (upper-body) emotes**: `expressionTriggerId` is always full-body.
@@ -216,6 +219,19 @@ triggerAreaEventsSystem.onTriggerEnter(zone, (result) => {
 ```
 
 Full TriggerArea reference: **add-interactivity** → Trigger Areas.
+
+---
+
+## Behaviour: the HTN planner module
+
+When the controller selection above favours HTN, load `htn-domain-authoring` for the matching module revision, setup and domain authoring. The [sdk7-test-scenes HTN module](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/96,-11-htn-planner) is a TypeScript port of `urosidoki/htn_planner`, maintained as a test-scene module, not an SDK built-in or package. Use its installed or recorded revision for integration; `main` is a browsing entry point.
+
+- **Behaviour lives in `.domain` files**, compiled to `.htn.ts` modules with `pnpm run htn:generate` (rerun after every `.domain` or include change; commit sources, `htn.config.json` and generated output together; never edit the generated file). TypeScript supplies perception (facts), executes primitive actions (`!move_to`, `!chase`, `!look_around`, …) and decides when to replan.
+- **Host:** `GuardSquad` (`new GuardSquad({ planner: plannerFor(guardDomain), reasoning: 'reasoning' })`, then `guards.spawn([{ id, route, body }])`) registers one system for many NPCs; `createCapsuleBody` gives a model-free first guard, `possessEntityBody` drives an existing figure (GLB or `AvatarShape`). Positions and routes are **scene coordinates**. Call `guards.despawn()` when the encounter ends.
+- **Kit:** sight (range, FOV cone, raycast line of sight), hearing (player footsteps and landings, noise bus), a seeded RNG and a pausable scene clock; example domains for a guard and a stalker.
+- **NPCs run on each client.** The module gives no multiplayer authority or sync: the game owns it (**multiplayer-sync**, **authoritative-server**). [UNVERIFIED: no obstacle-aware pathfinding appears in the module; read `npc/actions.ts` before routing an NPC around walls.]
+- **Install:** follow the module guide (`src/htn-planner/README.md` → *Install by copying*): copy the library, the domain compiler, the notice command and the game-owned guard files, add the package scripts/hooks and `.dclignore` exclusions, keep the licence notices. The scene README holds a ready prompt for an agent-driven install; recipes in `src/htn-planner/HOW-TO.md`, domain design in `docs/htn-guidance.md`, examples in `docs/htn-examples-catalog.md`.
+- A clean build proves nothing about the encounter: walk up to the NPC in the Explorer and check it patrols, notices and gives up as designed.
 
 ---
 
