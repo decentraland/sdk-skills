@@ -64,12 +64,12 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
-| `htn-domain-authoring` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
+| `htn-npcs` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
 | `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles, custom sky texture, sky colors, clouds, stars, sun color/intensity/direction, fog color and density. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |
 | `multiplayer-sync` | Peer-to-peer multiplayer using CRDT networking. |
 | `nft-blockchain` | NFT display and blockchain/crypto interactions. |
-| `npcs` | NPC appearance, dialogue and simple behavior with NPC Toolkit, AvatarShape or SDK bodies; routes HTN planning to `htn-domain-authoring`. |
+| `npcs` | NPC appearance, dialogue and simple behavior with NPC Toolkit, AvatarShape or SDK bodies; routes HTN planning to `htn-npcs`. |
 | `optimize-scene` | Performance optimization, scene limits, best practices. |
 | `particle-system` | Particle effects — fire, smoke, sparks, snow, rain, magic, fireworks. |
 | `player-avatar` | Player position, profile, avatar customization, attachments, nametag plates. |
@@ -92,7 +92,7 @@ Skills are markdown files that give AI coding assistants the context they need t
 
 The source of truth for these skills is maintained in the [sdk-skills](https://github.com/decentraland/sdk-skills) repository. To contribute improvements, please open a PR there.
 
-The `sdk7-test-scenes` HTN scene (`96,-11-htn-planner`) is covered by `htn-domain-authoring`.
+The `sdk7-test-scenes` HTN scene (`96,-11-htn-planner`) is covered by `htn-npcs`.
 When syncing that source, update this skill and its versioned references rather than add a duplicate.
 
 The skill scripts have tests. Run them with `node --test 'tests/*.test.mjs'` (Node 18 or later).

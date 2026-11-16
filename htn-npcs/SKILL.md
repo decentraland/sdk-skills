@@ -1,9 +1,9 @@
 ---
-name: htn-domain-authoring
+name: htn-npcs
 description: "Write, review, restructure or debug HTN .domain behaviours for Decentraland's TypeScript HTN planner; integrate facts, executors and replanning, and test individual or cooperating NPCs. Use for the HTN module, ordered task decomposition or domain authoring. For character appearance and dialogue, use npcs."
 ---
 
-# HTN domain authoring
+# HTN NPCs
 
 Use the [Decentraland HTN module](https://github.com/decentraland/sdk7-test-scenes/tree/122a3ff2e87b7e89a6c6ea415eb140dd51716125/scenes/96,-11-htn-planner).
 This TypeScript port of `urosidoki/htn_planner` decomposes tasks in execution order against current facts:

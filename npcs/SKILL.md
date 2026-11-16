@@ -15,7 +15,7 @@ Choose the character's representation and decision logic separately.
 
 For behavior selection, extensions or integration, read [behavior-selection.md](references/behavior-selection.md).
 Choose SDK systems, FSM/HFSM, HTN or a hybrid from the actual tasks, reuse, recovery and available cost evidence.
-For chosen HTN behavior, load `htn-domain-authoring` for domain authoring, module setup and host contracts.
+For chosen HTN behavior, load `htn-npcs` for domain authoring, module setup and host contracts.
 
 Animation, sound and movement adapters can serve either controller. Give movement and rotation one owner at a time.
 Stop or coordinate Toolkit path-following, tweens and `faceUser` before another executor drives the same Transform.
@@ -224,7 +224,7 @@ Full TriggerArea reference: **add-interactivity** → Trigger Areas.
 
 ## Behaviour: the HTN planner module
 
-When the controller selection above favours HTN, load `htn-domain-authoring` for the matching module revision, setup and domain authoring. The [sdk7-test-scenes HTN module](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/96,-11-htn-planner) is a TypeScript port of `urosidoki/htn_planner`, maintained as a test-scene module, not an SDK built-in or package. Use its installed or recorded revision for integration; `main` is a browsing entry point.
+When the controller selection above favours HTN, load `htn-npcs` for the matching module revision, setup and domain authoring. The [sdk7-test-scenes HTN module](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/96,-11-htn-planner) is a TypeScript port of `urosidoki/htn_planner`, maintained as a test-scene module, not an SDK built-in or package. Use its installed or recorded revision for integration; `main` is a browsing entry point.
 
 - **Behaviour lives in `.domain` files**, compiled to `.htn.ts` modules with `pnpm run htn:generate` (rerun after every `.domain` or include change; commit sources, `htn.config.json` and generated output together; never edit the generated file). TypeScript supplies perception (facts), executes primitive actions (`!move_to`, `!chase`, `!look_around`, …) and decides when to replan.
 - **Host:** `GuardSquad` (`new GuardSquad({ planner: plannerFor(guardDomain), reasoning: 'reasoning' })`, then `guards.spawn([{ id, route, body }])`) registers one system for many NPCs; `createCapsuleBody` gives a model-free first guard, `possessEntityBody` drives an existing figure (GLB or `AvatarShape`). Positions and routes are **scene coordinates**. Call `guards.despawn()` when the encounter ends.
