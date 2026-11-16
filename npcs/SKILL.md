@@ -1,16 +1,26 @@
 ---
 name: npcs
-description: "Create NPCs in Decentraland: GLB characters with dialogue, paths and state via dcl-npc-toolkit, or avatar-look NPCs with AvatarShape (wearables, emotes, copies of the player). Use for shopkeepers, guards, quest givers, any non-player character. For the live player see player-avatar."
+description: "Create NPCs in Decentraland: GLB or primitive bodies, NPC Toolkit dialogue and paths, or AvatarShape wearables and emotes. Use for shopkeepers, guards, quest givers and other non-player characters; choose SDK/FSM, HTN or hybrid behavior. For the live player see player-avatar."
 ---
 
 # NPCs in Decentraland
 
-Two approaches — choose based on what the NPC needs to do:
+Choose the character's representation and decision logic separately.
 
-| Approach | Use when |
+| Representation | Use when |
 |---|---|
-| **NPC Toolkit** (`dcl-npc-toolkit`) | GLB model, needs dialogue, walking, state machine behavior |
-| **AvatarShape** | Needs to look like a Decentraland avatar (wearables, expressions) |
+| **GLB + NPC Toolkit** (`dcl-npc-toolkit`) | Custom model with built-in dialogue, paths, animations and interaction |
+| **AvatarShape** | Decentraland avatar appearance: wearables, expressions or a copy of the player |
+| **GLB or primitives with SDK components** | Custom movement/animation, or a prototype body; the game owns interactions |
+
+For behavior selection, extensions or integration, read [behavior-selection.md](references/behavior-selection.md).
+Choose SDK systems, FSM/HFSM, HTN or a hybrid from the actual tasks, reuse, recovery and available cost evidence.
+For chosen HTN behavior, load `htn-npcs` for domain authoring, module setup and host contracts.
+
+Animation, sound and movement adapters can serve either controller. Give movement and rotation one owner at a time.
+Stop or coordinate Toolkit path-following, tweens and `faceUser` before another executor drives the same Transform.
+Check completion and cancellation against the body's actual motion; AvatarShape uses engine-managed movement
+and has the playback limits below. Toolkit and AvatarShape need game-owned adapters/executors for HTN.
 
 Either body can take **planned behaviour** (patrol, notice, chase, search, give up) from the HTN planner module: see *Behaviour: the HTN planner module* below.
 
@@ -22,7 +32,7 @@ The toolkit handles dialogue UI, movement along paths, animations, and interacti
 
 **Install:**
 ```bash
-npm i dcl-npc-toolkit
+pnpm add dcl-npc-toolkit
 ```
 
 **Basic usage:**
@@ -214,13 +224,13 @@ Full TriggerArea reference: **add-interactivity** → Trigger Areas.
 
 ## Behaviour: the HTN planner module
 
-For NPCs that choose between ways of doing a task from what they sense (guards, stalkers, enemies, bot teammates), reuse the hierarchical task network (HTN) planner in [sdk7-test-scenes `scenes/96,-11-htn-planner`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/96,-11-htn-planner) instead of writing a state machine. A TypeScript port of `urosidoki/htn_planner`, maintained as a test-scene module, not an SDK built-in or npm package.
+When the controller selection above favours HTN, load `htn-npcs` for the matching module revision, setup and domain authoring. The [sdk7-test-scenes HTN module](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/96,-11-htn-planner) is a TypeScript port of `urosidoki/htn_planner`, maintained as a test-scene module, not an SDK built-in or package. Use its installed or recorded revision for integration; `main` is a browsing entry point.
 
-- **Behaviour lives in `.domain` files**, compiled to `.htn.ts` modules with `npm run htn:generate` (rerun after every `.domain` or include change; commit sources, `htn.config.json` and generated output together; never edit the generated file). TypeScript supplies perception (facts), executes primitive actions (`!move_to`, `!chase`, `!look_around`, …) and decides when to replan.
+- **Behaviour lives in `.domain` files**, compiled to `.htn.ts` modules with `pnpm run htn:generate` (rerun after every `.domain` or include change; commit sources, `htn.config.json` and generated output together; never edit the generated file). TypeScript supplies perception (facts), executes primitive actions (`!move_to`, `!chase`, `!look_around`, …) and decides when to replan.
 - **Host:** `GuardSquad` (`new GuardSquad({ planner: plannerFor(guardDomain), reasoning: 'reasoning' })`, then `guards.spawn([{ id, route, body }])`) registers one system for many NPCs; `createCapsuleBody` gives a model-free first guard, `possessEntityBody` drives an existing figure (GLB or `AvatarShape`). Positions and routes are **scene coordinates**. Call `guards.despawn()` when the encounter ends.
 - **Kit:** sight (range, FOV cone, raycast line of sight), hearing (player footsteps and landings, noise bus), a seeded RNG and a pausable scene clock; example domains for a guard and a stalker.
 - **NPCs run on each client.** The module gives no multiplayer authority or sync: the game owns it (**multiplayer-sync**, **authoritative-server**). [UNVERIFIED: no obstacle-aware pathfinding appears in the module; read `npc/actions.ts` before routing an NPC around walls.]
-- **Install:** follow the module guide (`src/htn-planner/README.md` → *Install by copying*): copy the library, the domain compiler, the notice command and the game-owned guard files, add the npm hooks and `.dclignore` exclusions, keep the licence notices. The scene README holds a ready prompt for an agent-driven install; recipes in `src/htn-planner/HOW-TO.md`, domain design in `docs/htn-guidance.md`, examples in `docs/htn-examples-catalog.md`.
+- **Install:** follow the module guide (`src/htn-planner/README.md` → *Install by copying*): copy the library, the domain compiler, the notice command and the game-owned guard files, add the package scripts/hooks and `.dclignore` exclusions, keep the licence notices. The scene README holds a ready prompt for an agent-driven install; recipes in `src/htn-planner/HOW-TO.md`, domain design in `docs/htn-guidance.md`, examples in `docs/htn-examples-catalog.md`.
 - A clean build proves nothing about the encounter: walk up to the NPC in the Explorer and check it patrols, notices and gives up as designed.
 
 ---

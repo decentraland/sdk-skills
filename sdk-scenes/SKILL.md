@@ -166,7 +166,9 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 
 ### NPCs
 
-**Skill: `npcs`** — `AvatarShape` NPCs and the NPC Toolkit library for GLB-based NPCs with dialogue and state machines.
+**Skill: `npcs`** — NPC representation and dialogue: `AvatarShape`, GLB/primitive bodies and NPC Toolkit; choose simple behavior or HTN planning.
+
+**Skill: `htn-npcs`** — HTN task decomposition and `.domain` behaviour design, host integration, debugging and tests for the Decentraland HTN module.
 
 ### Player Physics
 
