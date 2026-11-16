@@ -81,7 +81,11 @@ export class ReactiveHost {
     }
     const step = this.runner.current()
     if (step === null) throw new Error('Expected a resolved primitive')
-    this.action ??= this.start(step)
+    if (this.action === null) {
+      const action = this.start(step)
+      if (!this.planned) { action.cancel(); return } // start() invalidated this plan.
+      this.action = action
+    }
     const result = this.action.update(dt)
     this.publishFacts()
     if (result === 'running') return
@@ -104,6 +108,8 @@ export class ReactiveHost {
 Ordinary wake-key changes do not preempt valid running work in this adapter. The game calls `invalidate()`
 when that work becomes invalid or a higher-priority goal must interrupt it. Refresh facts after cancellation;
 stop calling `update()` after shutdown. Handle callback exceptions through the game's lifecycle policy.
+A synchronous `start()` callback may invalidate the plan; its returned action is cancelled before adoption.
+Recursive `update()` calls from callbacks are outside this example's contract.
 The sample cancels only its current action. Completed actions release their obligations, or transfer
 plan-spanning obligations to game-owned cleanup that you add to `drop()` before using this adapter.
 
