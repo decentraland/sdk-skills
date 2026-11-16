@@ -1,6 +1,6 @@
 # Free audio sources: real recordings
 
-Where to get real recordings that a published, possibly commercial, Decentraland scene can use. Licences were checked at each source on 2026-11-11 (ElevenLabs 2026-11-12); re-check the licence of **each file** you download, since most sites mix licences. Deployed scene files are publicly downloadable from the content servers, so a sound ships to anyone who loads the scene.
+Where to get real recordings that a published, possibly commercial, Decentraland scene can use. Licences were checked at each source on 2026-11-11 (ElevenLabs 2026-11-12, Openverse 2026-11-16); re-check the licence of **each file** you download, since most sites mix licences. Deployed scene files are publicly downloadable from the content servers, so a sound ships to anyone who loads the scene.
 
 Confirm downloads with the user first (**sdk-scenes** → *Agent Behavioral Guidelines* → *Fetching assets from external sources*), and record the credit as you download (→ *Attribution*).
 
@@ -13,14 +13,15 @@ Ordered by usefulness and safety for scene sound design.
 | 1 | Freesound (CC0 filter; CC BY second) | per sound: CC0, CC BY, CC BY-NC | CC0 no; CC BY yes | CC0 and CC BY yes; BY-NC no | API with a free key; HQ previews by plain `curl` | everything: foley, ambiences, creatures, machines, UI |
 | 2 | NPS Yellowstone sound library + NPS Sound Gallery | public domain | courtesy, asked "where appropriate" | yes | `curl` | animals, geothermal vents, wind, night soundscapes, insects, machines, weather |
 | 3 | Wikimedia Commons (PD/CC0 filter) | per file | PD/CC0 no | PD/CC0 yes | API + `curl`, strict pacing | foley, household and mechanical sounds, copies of NPS recordings |
-| 4 | Sonniss GDC Game Audio Bundles | Sonniss royalty-free licence | not required | yes, in finished projects | browser or official torrent, multi-GB archives | professional libraries: weapons, impacts, vehicles, ambiences |
-| 5 | Kenney audio packs | CC0 | not required | yes | browser zip | UI, interface, impacts, RPG foley, casino, sci-fi, voice-over |
-| 6 | NASA (images-api) | NASA media guidelines: generally not copyrighted in the US | NASA "should be acknowledged" | yes, with limits | keyless JSON API + `curl` | rocket launches and engine tests |
-| 7 | Internet Archive (PD-mark/CC0 filter) | per item, set by the uploader | PD/CC0 no | PD/CC0 yes | keyless API + `curl` | long field recordings and city/room soundscapes (radio aporee) |
-| 8 | OpenGameArt (CC0 filter) | per entry: CC0, CC-BY, OGA-BY, CC-BY-SA, GPL | CC0 no | CC0 yes | `curl` | game SFX packs; few field recordings |
-| 9 | Pixabay sound effects | Pixabay Content License | not required | yes (no standalone resale) | browser only | quick generic SFX; quality and provenance vary |
-| 10 | NOAA Fisheries "Sounds in the Sea" | US federal work [UNVERIFIED for audio, see below] | asks "NOAA" credit | [UNVERIFIED] | direct MP3/WAV links | whale and seal calls (raw material for creature voices and drones) |
-| 11 | ElevenLabs sound-effects library (last resort) | site FAQ vs Terms of Use disagree, see below | yes, "elevenlabs.io" | [UNVERIFIED] | `curl`, no account or key | sounds the others lack: cartoon, sci-fi, UI, stylised monsters. AI-generated, uncurated |
+| 4 | Openverse (CC0/PDM filter; add BY with credit): Freesound without a key | per sound, mixed; filter | CC0/PDM no; CC BY yes | with the filter yes | keyless JSON API + `curl`, 200 requests/day | the Freesound catalogue up to about 2022, when the user prefers not to create a Freesound key |
+| 5 | Sonniss GDC Game Audio Bundles | Sonniss royalty-free licence | not required | yes, in finished projects | browser or official torrent, multi-GB archives | professional libraries: weapons, impacts, vehicles, ambiences |
+| 6 | Kenney audio packs | CC0 | not required | yes | browser zip | UI, interface, impacts, RPG foley, casino, sci-fi, voice-over |
+| 7 | NASA (images-api) | NASA media guidelines: generally not copyrighted in the US | NASA "should be acknowledged" | yes, with limits | keyless JSON API + `curl` | rocket launches and engine tests |
+| 8 | Internet Archive (PD-mark/CC0 filter) | per item, set by the uploader | PD/CC0 no | PD/CC0 yes | keyless API + `curl` | long field recordings and city/room soundscapes (radio aporee) |
+| 9 | OpenGameArt (CC0 filter) | per entry: CC0, CC-BY, OGA-BY, CC-BY-SA, GPL | CC0 no | CC0 yes | `curl` | game SFX packs; few field recordings |
+| 10 | Pixabay sound effects | Pixabay Content License | not required | yes (no standalone resale) | browser only | quick generic SFX; quality and provenance vary |
+| 11 | NOAA Fisheries "Sounds in the Sea" | US federal work [UNVERIFIED for audio, see below] | asks "NOAA" credit | [UNVERIFIED] | direct MP3/WAV links | whale and seal calls (raw material for creature voices and drones) |
+| 12 | ElevenLabs sound-effects library (last resort) | site FAQ vs Terms of Use disagree, see below | yes, "elevenlabs.io" | [UNVERIFIED] | `curl`, no account or key | sounds the others lack: cartoon, sci-fi, UI, stylised monsters. AI-generated, uncurated |
 
 ## Freesound (with an API key)
 
@@ -28,7 +29,7 @@ Huge, searchable, licence on every sound. Use the **CC0** filter first, **CC BY*
 
 **Key**
 
-1. Ask the user for their key; they create it. Never search the machine, the scene or the environment for one. They log in to freesound.org and apply at `https://freesound.org/apiv2/apply`; the key is the **"Client secret/Api key"** value.
+1. Ask the user for their key; they create it. Never search the machine, the scene or the environment for one. They log in to freesound.org and apply at `https://freesound.org/apiv2/apply`; the key is the **"Client secret/Api key"** value. The key is the best route (full and current catalogue, 150-result pages, 2,000 requests/day); if the user prefers not to create one, fall back to **Openverse** (below), which searches an older copy of Freesound with no key.
 2. Keep it in an environment variable (`export FREESOUND_API_KEY=...` in their shell) or a local untracked file outside the scene. Keep it out of the scene repo, the scene code, `.mcp.json`, notes and any skill example; examples use the placeholder `FREESOUND_API_KEY=example123`. The API terms require keys to be kept secret and revoke shared ones. Put the `export` in the startup file of the shell your Bash tool runs: Claude Code on macOS can run `/bin/bash`, which never reads `~/.zshrc`, so a key exported only there is missing from the agent's shell (observed 2026-11-11). Check with `[ -n "$FREESOUND_API_KEY" ] && echo set`, never by printing the value.
 3. Send it as a header, `Authorization: Token $FREESOUND_API_KEY`, which keeps it out of URLs and logs. The docs also allow a `token=` query parameter.
 
@@ -77,6 +78,31 @@ Public domain. Yellowstone page: "recorded in the park and are in the public dom
 - Commons hosts copies of the NPS Yellowstone recordings (`Yellowstone sound library - <animal> - 001.mp3`), sometimes ones the NPS page lacks.
 - Files named `LL-Q…` are Lingua Libre word pronunciations, not sound effects; skip them.
 - Rate limits: the API returned HTTP 429 after ~8 rapid requests; the file server (`upload.wikimedia.org`) returned 429 after ~20 quick downloads and locked out for ~15 minutes. Pace downloads **10 s or more apart**.
+
+## Openverse: Freesound without a key
+
+`https://openverse.org` (WordPress Foundation) is the engine that used to live at `search.creativecommons.org`; that address is now only a portal of links to other search sites. Openverse indexes three audio providers, Freesound, Jamendo (music tracks, often NC) and Wikimedia Commons (mostly word pronunciations), so for scene sound it is **a keyless way to search Freesound's CC0 and CC BY sounds**. Use it when the user prefers not to create a Freesound key; otherwise the Freesound API above is better: Openverse's Freesound copy is stale (the newest Freesound IDs seen in sample searches were about 628k against about 880k on Freesound in 2026-11, so roughly the last three to four years of uploads are missing), and its anonymous limits are lower.
+
+**Search** (no key; verified 2026-11-16):
+
+```bash
+curl -sS -A "scene-audio-research/1.0" -G https://api.openverse.org/v1/audio/ \
+  --data-urlencode 'q=owl hoot' \
+  --data-urlencode 'license=cc0,pdm' \
+  --data-urlencode 'source=freesound' \
+  --data-urlencode 'page_size=20' -o search.json
+
+# pick a result, then fetch its file: `url` is the Freesound HQ MP3 preview on cdn.freesound.org, no auth.
+# Name the file by the Freesound ID (last path segment of foreign_landing_url), not by the Openverse `id` (a UUID)
+curl -sSL --fail -A "scene-audio-research/1.0" -o sound-design/src/freesound/<freesound-id>.mp3 "<url of that result>"
+```
+
+- Each result carries `license` (`cc0`, `pdm`, `by`, `by-sa`, `by-nc`, `by-nc-nd`, `sampling+`, …), `license_version`, `license_url`, `creator`, `foreign_landing_url` (the Freesound sound page, whose last path segment is the Freesound ID), `url` (the file) and a ready-made `attribution` sentence. `license=cc0,pdm` matches the skill's default (public domain or CC0); add `by` (`license=cc0,pdm,by`) only when the user accepts CC BY with a credit. Unfiltered searches mix in CC BY-NC, BY-NC-ND and the retired Sampling+ licence, so always pass the explicit `license=` list. `license_type=commercial` still let `sampling+` through (2026-11-16); don't rely on it.
+- `category=sound_effect` returns nothing for Freesound items (their category is empty); search by words and `source=freesound` instead. `length=short|medium|long` and `extension=` work.
+- `alt_files` lists the original WAV at `freesound.org/apiv2/sounds/<id>/download/`, which needs Freesound OAuth2 (see above). Without a key, use the MP3 preview (128 kbps, about 44–48 kHz) or ask the user to download the WAV from the sound page while logged in.
+- **Rate limits** (response headers): anonymous 20 requests/min and 200/day, `page_size` at most 20; over the limit HTTP 429. A registered key raises the limits "slightly" and allows larger pages: the **user** registers (`POST /v1/auth_tokens/register/` with an app name, description and their email, then verifies by email), since the agent never sends the user's personal details; they keep the returned `client_secret` as they would the Freesound key (environment variable, out of the scene and the repo), and requests then use `Authorization: Bearer <token>` from the `token` endpoint. The Terms of Service forbid scraping and bulk copies.
+- **Openverse does not verify licences**: its Terms say it only aggregates metadata and the user must confirm the right at the source. Open the `foreign_landing_url` to confirm the licence on Freesound before shipping, and record the credit from it (→ *Attribution*); CC BY results need a TASL line like any other Freesound "Attribution" sound.
+- Credit the sound to its Freesound author and page, not to Openverse.
 
 ## Sonniss GDC Game Audio Bundles
 
@@ -145,6 +171,7 @@ Files are MP3 at 128 kbps, 44.1 kHz stereo, with no metadata. The test cowbell c
 - **BBC Sound Effects archive** (`sound-effects.bbcrewind.co.uk`): free only for "personal/educational projects"; other use must be licensed. Secondary sources name it the RemArc licence (personal, educational, research). Use it only if the user buys a licence.
 - **xeno-canto** (bird and animal calls): each recording is under BY-NC-ND, BY-NC-SA or BY-SA (terms page). The two NC licences exclude commercial use, and ND forbids editing; BY-SA recordings are usable but make the edited sound BY-SA (→ *Attribution*). [UNVERIFIED: share of NC recordings; filter per recording.]
 - **Freesound CC BY-NC**, OpenGameArt **GPL**, and anything with no stated licence.
+- **CC BY-NC-ND** anywhere (no commercial use, no editing) and the retired **Sampling+** licences that Openverse still returns (`sampling+` forbids advertising use and its terms are no longer maintained; `nc-sampling+` is non-commercial).
 
 ## Download hygiene
 

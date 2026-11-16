@@ -15,7 +15,7 @@ Done when every new file in the scene's audio folder has a credit line, a measur
 
 ## Sources
 
-Free real recordings, ordered by usefulness and safety (Freesound with an API key, NPS, Wikimedia Commons, Sonniss, Kenney, NASA, Internet Archive, …), with licences, search and `curl` download recipes and the sources to avoid: `free-audio-sources.md`. Default licence filter: **public domain or CC0**. CC BY works with a credit; offer the user the choice (one owner chose PD/CC0 only). Every file that needs a credit gets one: `free-audio-sources.md` → *Attribution*.
+Free real recordings, ordered by usefulness and safety (Freesound with an API key, NPS, Wikimedia Commons, Openverse as the keyless Freesound fallback, Sonniss, Kenney, NASA, Internet Archive, …), with licences, search and `curl` download recipes and the sources to avoid: `free-audio-sources.md`. Default licence filter: **public domain or CC0**. CC BY works with a credit; offer the user the choice (one owner chose PD/CC0 only). Every file that needs a credit gets one: `free-audio-sources.md` → *Attribution*.
 
 ## Processing
 
