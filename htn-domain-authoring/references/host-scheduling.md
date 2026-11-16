@@ -10,7 +10,8 @@ previously blocked candidates, not just the selected target. Exclude unrelated U
 A deadline crossing needs an event, a relevant time bucket, or a scheduled wake. Otherwise idle can become stale.
 
 Copy this adapter into `src/game/reactive-host.ts` and provide game-owned callbacks. Actions publish their
-actual effects; `cancel()` releases their reservations. One action gets an update per host tick.
+actual effects. `cancel()` is idempotent: release only reservation tokens still owned by that action,
+even if failure already cleaned up or the same owner ID acquired a newer token. One action updates per host tick.
 
 ```ts
 import { PlanRunner, type PlanStep } from '../htn-planner/htn/planner'
@@ -18,13 +19,15 @@ import { PlanRunner, type PlanStep } from '../htn-planner/htn/planner'
 type Primitive = Extract<PlanStep, { kind: 'primitive' }>
 type Action = {
   update(dt: number): 'running' | 'done' | 'failed'
-  cancel(): void
+  cancel(): void // Safe after failure cleanup; never release a newer owner's lease.
 }
 
 export class ReactiveHost {
   private planned = false
   private action: Action | null = null
   private sleepKey: string | undefined
+  private failedKey: string | undefined
+  private failures = 0
 
   constructor(
     private runner: PlanRunner,
@@ -33,13 +36,28 @@ export class ReactiveHost {
     private start: (step: Primitive) => Action
   ) {}
 
-  // Call for invalid work, preemption or shutdown; the next update may plan again.
+  // A game event can cancel work and deliberately re-arm a sleeping host.
   invalidate(): void {
-    this.action?.cancel()
+    this.drop()
+    this.sleepKey = this.failedKey = undefined
+    this.failures = 0
+  }
+
+  private drop(): void {
+    const action = this.action
     this.action = null
     this.runner.clear()
     this.planned = false
-    this.sleepKey = undefined
+    action?.cancel()
+  }
+
+  private recover(): void {
+    this.drop()
+    this.publishFacts()
+    const key = this.wakeKey() // After cleanup, not a temporary held reservation.
+    this.failures = key === this.failedKey ? this.failures + 1 : 1
+    this.failedKey = key
+    this.sleepKey = this.failures >= 2 ? key : undefined // One retry, then sleep.
   }
 
   update(dt: number): void {
@@ -52,8 +70,11 @@ export class ReactiveHost {
       if (status !== 'succeeded' && status !== 'no_plan') throw new Error(status)
       const resolution = status === 'no_plan' ? 'completed' : this.runner.resolve()
       if (resolution !== 'ready') {
-        // A failed deferred expansion gets a root recovery attempt next update.
-        if (resolution === 'completed') this.sleepKey = this.wakeKey()
+        // Repeated deferred failure shares the same bounded retry policy as actions.
+        if (resolution === 'completed') {
+          this.sleepKey = this.wakeKey()
+          if (status === 'succeeded') { this.failedKey = undefined; this.failures = 0 }
+        } else this.recover()
         return
       }
       this.planned = true
@@ -64,12 +85,18 @@ export class ReactiveHost {
     const result = this.action.update(dt)
     this.publishFacts()
     if (result === 'running') return
-    if (result === 'failed') { this.invalidate(); return }
+    if (result === 'failed') { this.recover(); return }
     this.action = null
     this.runner.complete()
     // Fresh executor effects are visible even to same-update deferred expansion.
-    if (this.runner.resolve() !== 'ready') this.planned = false
-    // Completion/failure gets one root decision next update; an idle result then sleeps.
+    const resolution = this.runner.resolve()
+    if (resolution === 'failed') this.recover()
+    else if (resolution === 'completed') {
+      this.planned = false
+      this.failedKey = undefined
+      this.failures = 0 // Reset only after the whole plan, not a completed prefix.
+    }
+    // Full completion gets one root decision next update; an idle result then sleeps.
   }
 }
 ```
@@ -77,10 +104,21 @@ export class ReactiveHost {
 Ordinary wake-key changes do not preempt valid running work in this adapter. The game calls `invalidate()`
 when that work becomes invalid or a higher-priority goal must interrupt it. Refresh facts after cancellation;
 stop calling `update()` after shutdown. Handle callback exceptions through the game's lifecycle policy.
-A whole-world revision is safe only if its unrelated changes cannot create repeated idle decisions.
+The sample cancels only its current action. Completed actions release their obligations, or transfer
+plan-spanning obligations to game-owned cleanup that you add to `drop()` before using this adapter.
+
+On failure this adapter permits one recovery attempt, then sleeps until a meaningful wake-key change or
+explicit `invalidate()`. That call deliberately resets the retry budget: use it for game events, not every
+frame or from automatic failure handling. A full plan completion also resets the budget; a successful
+primitive/prefix does not. Keep per-attempt counters, own lease churn and unrelated progress out of the
+semantic key. A whole-world revision is suitable only if unrelated writes cannot re-arm repeated failures.
+
+A repair with no observable key change needs an explicit event or scheduled wake. This policy cannot discover
+missing dependencies. Record repeated failures for diagnosis instead of treating retries as successful progress.
 
 Before using this policy, check initial empty/no-plan results plus ten unchanged idle updates, new work,
-resource/route unblocking, action failure, an unrelated change during a long action, cleanup and deferred
+resource/route unblocking, persistent action/deferred failure, a successful prefix before failure, an unrelated
+change during a long action, late/repeated cancellation and deferred
 reads of actual effects. Count root and deferred decompositions separately; measure outcomes and whole-host
 CPU/work together. These checks validate your wake dependencies, not only this adapter.
 
