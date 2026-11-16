@@ -79,19 +79,23 @@ effects: successful primitive completion can advance the existing plan without a
 
 With `GuardAgent`, change the key returned by `syncFacts` or call `requestReplan` for game-owned triggers.
 Fact writes alone do not request a replan; keep unrelated clock/position changes out of the key. An equivalent
-candidate already keeps the running step and progress. A custom host must define its own adoption policy.
+candidate already keeps the running step and progress. A custom host must define its own adoption policy;
+use [reactive host scheduling](host-scheduling.md) for idle/wake handling.
 Arguments compare exactly: passing a changing target position can turn every candidate into a replacement.
 Pass a stable target ID and let the executor read its live position when that matches the action's contract;
 retain invalidation checks so keeping an identity does not keep an unusable target.
 
 Bounded periodic monitoring is useful when events are insufficient; the host must schedule its requests.
-`replanThrottle` spaces pending non-urgent triggers, not periodic checks. Failure/completion bypass that throttle,
+`requestReplan` is non-urgent by default, so host-scheduled periodic requests also respect `replanThrottle`.
+That throttle spaces pending non-urgent triggers; it does not schedule periodic checks. Failure/completion bypass it,
 but a shared `PlanBudget` can still defer their replans. It gates whole runs, not work already inside a run;
 valid work continues while waiting. Executors or explicit validity checks must stop invalid work during a wait.
 
 Use `!continue` with `continueTask` for domain-controlled commitment. It still decomposes a candidate.
-An `activePlan` validator checks the running step every update in a separate runner, outside the planning budget;
-accept only intended cases. Choose these policies for the required response and compare costs/outcomes when
+An `activePlan` validator checks the running step every update in a separate runner, outside the planning budget.
+A rejection cancels invalid work and requests a budgeted root replan. If the root selects the rejected tail again,
+`active_plan_conflict` reports the disagreement and that step runs unchecked; accept only intended cases.
+Choose these policies for the required response and compare costs/outcomes when
 claiming a benefit. See `basics/storekeeper.domain` and `canon/sentry_turret/sentry_turret.domain`.
 
 ## 10. Shared concepts
@@ -142,7 +146,7 @@ After extending the pieces, recheck their shared assumptions and interactions. W
 compare matched fresh attempts and retain failures as evidence.
 These are targeted techniques, not a fixed matrix every small domain must fill.
 
-Source basis: [Puerta-Merino et al., L2HP (2025), Experimental Considerations](https://arxiv.org/html/2511.18165v1#S5.SS2)
+Source basis: [Puerta-Merino et al., L2HP (2025), Experimental Considerations](https://arxiv.org/html/2511.18165v1#Sx4.SSx2)
 distinguishes solvability from model faithfulness. [Xu and Muñoz-Avila (2025), §6.4](https://arxiv.org/html/2511.12901v1#S6.SS4)
 shows a particular learner's fixed-count limitation. These motivate our checks; their results are not guarantees
 or measured failure rates for this SDK or the current authoring agent.

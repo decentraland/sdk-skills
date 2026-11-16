@@ -2,7 +2,8 @@
 
 Read this when adding a character variant, sharing behaviour between goals, or coordinating agents.
 For the choice between SDK actions, FSM/HFSM, HTN and hybrids, use
-[NPC behaviour selection](../../npcs/references/behavior-selection.md).
+the `npcs` skill's `references/behavior-selection.md`; load that skill by name rather than assuming a sibling folder.
+If it is unavailable, explain the controller tradeoffs from the current task and offer the optional skill.
 
 ## Share intent, vary the method
 

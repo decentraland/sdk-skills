@@ -39,8 +39,9 @@ transport without copying every character's policy.
 This is a possible game-owned design, not a required NPC framework or built-in fact schema.
 If the behavior is mainly a few mode transitions, an FSM/HFSM remains a useful solution.
 If shared methods, capability alternatives and bound context drive the choice, load `htn-domain-authoring`
-and read [task composition](../../htn-domain-authoring/references/composition.md).
+and read that skill's `references/composition.md`.
 Use its module reference for the installed revision, actual primitives and supported tools.
+If that skill is unavailable, identify the missing dependency and offer to install it before HTN implementation.
 
 ## Give each layer an owner
 
@@ -73,9 +74,8 @@ The host must arbitrate exclusive helpers/resources and claim them before compet
 For success, interruption, failure, lost relevance or participant removal, identify who preserves, transfers
 or releases the obligation. Cleanup belongs to the owning lifecycle even if remaining plan steps are discarded;
 repeated or late cleanup must not release a newer owner's claim.
-For HTN implementation and shared-host stories, follow the
-[host contracts](../../htn-domain-authoring/references/module-reference.md#host-contracts-to-carry-into-game-integration)
-and [composition examples](../../htn-domain-authoring/references/composition.md).
+For HTN implementation and shared-host stories, load `htn-domain-authoring`, then read its
+`references/module-reference.md` (Host contracts) and `references/composition.md`.
 
 Several NPC controllers can cooperate through that protocol. A shared snapshot or several HTN agents
 does not provide a concurrent joint planner. Use the installed movement/pathfinding implementation;
@@ -97,4 +97,4 @@ These are applied design lenses, not promises that the SDK port includes the sou
 - Tim Verweij, [A hierarchically-layered multiplayer bot system](https://www.guerrilla-games.com/media/News/Files/VUA07_Verweij_Hierarchically-Layered-MP-Bot_System.pdf), §§7.1.2, 7.4.1: state transitions can be implemented without a planner; generic tasks were a proposed extension with tradeoffs.
 - Straatman et al., [Hierarchical AI for Multiplayer Bots in Killzone 3](https://www.gameaipro.com/GameAIPro/GameAIPro_Chapter29_Hierarchical_AI_for_Multiplayer_Bots_in_Killzone_3.pdf), §§29.3–29.4: assignments, individual task decisions and lower-level execution have separate duties.
 - Guerrilla, [The AI of Horizon Zero Dawn](https://www.guerrilla-games.com/media/News/Files/The-AI-of-Horizon-Zero-Dawn.pdf), PDF pp22–26: roles carry context; candidate suitability and optional ranking are distinct from carrying out the role.
-- For this port's execution, failure and shared-task contracts, use the matching public/local guides through [module-reference.md](../../htn-domain-authoring/references/module-reference.md); source-game architecture does not establish port features.
+- For this port's execution, failure and shared-task contracts, use the matching public/local guides through `htn-domain-authoring` → `references/module-reference.md`; source-game architecture does not establish port features.
