@@ -121,6 +121,8 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
 
+**textWrap values:** `wrap` (default when unset), `nowrap`. Also on `Button`. Single-line text uses `nowrap`: `SKILL.md` → **Sizing and mobile**.
+
 **fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, explorer support matrix and testing: the **fonts** skill.
 
 `value` supports simple markup like `<b>`.

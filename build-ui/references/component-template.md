@@ -340,7 +340,7 @@ export function WizardDialog(props: {}) {
           value="Eldrin the Wizard"
           fontSize={24}
           textAlign="middle-left"
-          textWrap="wrap"
+          textWrap="nowrap"
           color={{ r: 0.95, g: 0.8, b: 0.4, a: 1 }}
           uiTransform={{ width: '100%', height: 30, margin: { bottom: 10 } }}
         />
@@ -372,7 +372,7 @@ Points:
 - The full-screen wrapper does all the positioning (bottom-anchored, horizontally centered, 48 px off the bottom edge) with plain literals. It has no spread, no listener, no `pointerFilter` — so it is pointer-transparent and clicks pass through to the world and to other UI.
 - The panel carries both its own styling and the `active` display gate. Only its 720-px box captures clicks, and only while the dialog is open — once `state.visible` is false the panel is `display: 'none'` and captures nothing.
 - **The panel states `height: 210`, and every `Label` states a box** — `height: 30` for the one-line name, `height: 60` for the two-line wrapped body, `100%`/`100%` for the button's centered text. Do **not** let the panel auto-size to its text children: text intrinsic sizing is engine-dependent, and on the Unity explorer an unset text dimension contributes ~0 to layout while the glyphs still draw, so the earlier version of this dialog (no panel height, labels with `width: '100%'` only) rendered correctly on Bevy and came out squashed on Unity with both labels overlapping. See `SKILL.md` → **Sizing and mobile**.
-- `textWrap="wrap"` plus an explicit `width` **and** `height` on each `Label` is what makes the body copy wrap inside the panel instead of running off in one line — the width gives it something to wrap against, the height reserves the two lines it wraps into.
+- The body copy wraps inside the panel because its `Label` has an explicit `width` **and** `height`: the width gives it something to wrap against, the height reserves the two lines it wraps into. Wrap is the default; `textWrap="wrap"` only spells it out. The one-line name sets `textWrap="nowrap"` so it never breaks onto a second line its 30-px box has no room for (`SKILL.md` → **Sizing and mobile**).
 
 ## 5. Props-driven styling (a fill bar)
 
