@@ -24,12 +24,14 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` before writ
 
 `font` is the fallback whenever the custom font cannot be used: on mobile always, on desktop until the font's asset bundle is ready (see Testing). Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
 
+Size every fixed box so the fallback fits, never from the custom font's width: desktop also renders the fallback until the font's bundle is ready (right after a deploy, and in a local preview whose converter did not serve the scene). Single-line text also needs `textWrap="nowrap"` and spare width: **build-ui** → *Sizing and mobile*.
+
 ## RULE: The mobile app ignores `fontSrc`
 
 The Decentraland mobile app does not support custom fonts: it always renders the `font` fallback, and its only faces are Noto Sans, Noto Serif and Noto Sans Mono, plus their bold variants (observed 2026-11). Every scene that uses `fontSrc` must still look right and fit with its fallback:
 
 - Choose the fallback deliberately (previous rule), and **before designing text-heavy UI for a mobile target**, not after: one retrospective found three screens designed around a display font before this rule was read.
-- Never rely on the custom font's width to make text fit a fixed box. Size the box so the fallback fits too.
+- Size every box so the fallback fits (previous rule).
 - Never put meaning only in the custom font's look (an icon font, a symbol font, a "handwritten" clue). On mobile it becomes plain text.
 
 When the user adds a custom font, tell them it won't show on mobile.
@@ -97,12 +99,13 @@ TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
 <Label
   value="Score: 100"
   fontSize={24}
+  textWrap="nowrap"
   font="sans-serif"
   fontSrc="assets/fonts/BungeeShade-Regular.ttf"
   uiTransform={{ width: 240, height: 40 }}
 />
 
-<Button value="Play" variant="primary" font="sans-serif" fontSrc="assets/fonts/BungeeShade-Regular.ttf" />
+<Button value="Play" variant="primary" textWrap="nowrap" font="sans-serif" fontSrc="assets/fonts/BungeeShade-Regular.ttf" />
 
 <Input placeholder="Your name" font="serif" fontSrc="assets/fonts/PTSerif-Regular.ttf" />
 
@@ -121,6 +124,7 @@ The desktop client (Unity explorer) loads scene fonts only from asset bundles, n
 - **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
 - **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.
 - **Mobile app:** always the fallback (see the mobile rule).
+- **Fallback fit check:** before shipping text-heavy UI, look at it once on the fallback by removing `fontSrc` temporarily so the `font` face renders (restore it afterwards). Overlaps there are what players see until the font's bundle is ready, and always on mobile. It is the most demanding fit test: a fallback much wider than the custom face ran text over the key icons beside it and made two phrases overlap although nothing wrapped (in-world, 2026-11).
 - Tell the user which of these applies before they report "my font isn't working".
 - The reference scene for expected behaviour is `scenes/84,-6-font-src` in decentraland/sdk7-test-scenes (realm `sdk7testscenes.dcl.eth` on zone). It covers each fallback case, fonts shared between components, recreating components and the scene boundary.
 

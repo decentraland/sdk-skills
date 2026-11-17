@@ -27,7 +27,7 @@ The player can land outside the scene (e.g. parcel `0,-1`); `get_scene_state` th
 
 ## The connection dropped
 
-The client probably crashed or was closed (`Player.log` above says why) — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same. Under the Creator Hub's `launch_preview`, a string of `fetch failed` results means the app is gone, not that the scene is broken — see [`creator-hub-path.md`](creator-hub-path.md).
+The client probably crashed or was closed (`Player.log` above says why) — relaunch it the same way it was started (`npm run start -- --mcp --skip-auth-screen true`, or the manual launch line in [`setup.md`](setup.md)); the MCP endpoint URL stays the same. If the client window does not appear after a relaunch although the dev server printed its `Desktop client: decentraland://…` line, open that printed link (`open "<link>"` on macOS) instead of waiting for the MCP endpoint (observed 2026-11). Under the Creator Hub's `launch_preview`, a string of `fetch failed` results means the app is gone, not that the scene is broken — see [`creator-hub-path.md`](creator-hub-path.md).
 
 ## Counting and killing Explorer processes
 

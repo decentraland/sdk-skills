@@ -112,7 +112,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
   color={Color4.White()}
   textAlign="middle-center"
   font="serif"
-  textWrap="wrap"
+  textWrap="nowrap"
   uiTransform={{ width: 200, height: 30 }}
 />
 ```
@@ -120,6 +120,8 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 **textAlign values:** `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right`
 
 **font values:** `sans-serif` (default), `serif`, `monospace`
+
+**textWrap values:** `wrap` (default when unset), `nowrap`. Also on `Button`. Single-line text uses `nowrap`: `SKILL.md` → **Sizing and mobile**.
 
 **fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, explorer support matrix and testing: the **fonts** skill.
 
@@ -134,6 +136,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 ```tsx
 <Button
   value="Click Me"
+  textWrap="nowrap"
   variant="primary"           // 'primary' | 'secondary'
   fontSize={16}
   color={Color4.White()}      // Text color
@@ -150,6 +153,7 @@ A `Button` can also carry a textured background and border props, e.g. a nine-sl
 ```tsx
 <Button
   value="<b>OK</b>"
+  textWrap="nowrap"
   textAlign="middle-center"
   fontSize={28}
   color={Color4.White()}
