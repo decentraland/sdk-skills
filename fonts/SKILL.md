@@ -99,12 +99,13 @@ TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
 <Label
   value="Score: 100"
   fontSize={24}
+  textWrap="nowrap"
   font="sans-serif"
   fontSrc="assets/fonts/BungeeShade-Regular.ttf"
   uiTransform={{ width: 240, height: 40 }}
 />
 
-<Button value="Play" variant="primary" font="sans-serif" fontSrc="assets/fonts/BungeeShade-Regular.ttf" />
+<Button value="Play" variant="primary" textWrap="nowrap" font="sans-serif" fontSrc="assets/fonts/BungeeShade-Regular.ttf" />
 
 <Input placeholder="Your name" font="serif" fontSrc="assets/fonts/PTSerif-Regular.ttf" />
 
@@ -123,7 +124,7 @@ The desktop client (Unity explorer) loads scene fonts only from asset bundles, n
 - **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
 - **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.
 - **Mobile app:** always the fallback (see the mobile rule).
-- **Fallback fit check:** before shipping text-heavy UI, look at it once on the fallback by removing `fontSrc` temporarily so the `font` face renders. Overlaps there are what players see until the font's bundle is ready, and always on mobile. It is the most demanding fit test: a fallback much wider than the custom face ran text over the key icons beside it and made two phrases overlap although nothing wrapped (in-world, 2026-11).
+- **Fallback fit check:** before shipping text-heavy UI, look at it once on the fallback by removing `fontSrc` temporarily so the `font` face renders (restore it afterwards). Overlaps there are what players see until the font's bundle is ready, and always on mobile. It is the most demanding fit test: a fallback much wider than the custom face ran text over the key icons beside it and made two phrases overlap although nothing wrapped (in-world, 2026-11).
 - Tell the user which of these applies before they report "my font isn't working".
 - The reference scene for expected behaviour is `scenes/84,-6-font-src` in decentraland/sdk7-test-scenes (realm `sdk7testscenes.dcl.eth` on zone). It covers each fallback case, fonts shared between components, recreating components and the scene boundary.
 
