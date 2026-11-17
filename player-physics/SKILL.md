@@ -29,6 +29,8 @@ Physics.applyForceToPlayer(lifter, Vector3.create(0, 1, 0), 12) // CORRECT: sust
 | `Physics.applyRepulsionForceToPlayer(entity, pos, mag, radius?, falloff?)` | Continuous | Push away from `pos`, recalculated each frame as the player moves; a **negative** `mag` attracts. Pass `pos` explicitly: it is not read from the entity's Transform. |
 | `Transform.localToWorldDirection(entity, dir)` | Utility | Local direction to world space, e.g. "forward from this cannon". |
 
+Magnitudes in these examples are illustrative, not defaults: 50 on a vertical impulse is a strong launch pad. Tune in-world, and if the scene already has a tuned impulse or force, start from that value.
+
 Knockback and repulsion falloff (`KnockbackFalloff`):
 
 | Falloff | Behavior |

@@ -233,7 +233,7 @@ Transform.getMutable(door).rotation = Quaternion.fromEulerDegrees(0, 90, 0)
 How `syncEntity` assigns network identity (verified against `@dcl/sdk/network/entities.js`):
 
 - `syncEntity(entity, componentIds)` — **auto/runtime ID.** Network identity = the creating peer's `profile.networkId` + that peer's **local engine entity number**. The engine RECYCLES local entity numbers after `removeEntity`, so this identity is per-peer and reused over time.
-- `syncEntity(entity, componentIds, MY_ENUM_ID)` — **stable ID.** Pins `networkId = 0`, `entityId = MY_ENUM_ID`. Identical across all clients and across re-creations.
+- `syncEntity(entity, componentIds, MY_ENUM_ID)` — **stable ID.** Pins `networkId = 0`, `entityId = MY_ENUM_ID`. Identical across all clients. Create the entity once and reuse it: the ID stays taken after `removeEntity` (gotcha below).
 
 **Failure mode (auto ID + short-lived singleton).** A singleton synced entity that is destroyed and recreated repeatedly (e.g. once per round/phase) with an auto ID is fragile over real network comms — latency, message reordering, server cold-starts. It works flawlessly in local preview because preview uses a single in-process transport with no loss. On a remote client the short-lived runtime entity can fail to reconcile and stay absent/invisible for that client for its entire lifetime; there is no later resync that re-creates it. Long-lived persistent runtime entities tolerate this because they reconcile eventually.
 
@@ -250,24 +250,30 @@ enum SyncId {
 	SHARED_CURSOR = 2,
 }
 
+// `defaults`: the initial values of your own GameState component
 function spawnGameState() {
 	const e = engine.addEntity()
 	GameState.create(e, defaults)
-	syncEntity(e, [GameState.componentId], SyncId.GAME_STATE) // stable across recreations
+	syncEntity(e, [GameState.componentId], SyncId.GAME_STATE) // call once; never remove + recreate with this id
 }
 ```
 
-**Gotcha — reusing a fixed ID after `removeEntity`.** `engine.removeEntity` intentionally does NOT delete the internal `NetworkEntity` component immediately (it skips `core-schema::Network-Entity` so the deletion can be forwarded to the sync transport). It is cleaned up on a later CRDT flush. Meanwhile `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` if a `NetworkEntity` with that ID still exists. Therefore: never remove a fixed-ID synced entity and recreate it with the same ID in the SAME frame/tick. Defer the re-spawn to a later tick so the prior removal has flushed.
+**Gotcha — a fixed ID cannot be reused after `removeEntity`.** `engine.removeEntity` deletes every component except the internal `NetworkEntity` (it skips `core-schema::Network-Entity`), and on the peer that removed the entity nothing clears it afterwards: the CRDT system only cleans up after DELETE_ENTITY messages received from another peer. `syncEntity` with an explicit `entityEnumId` THROWS `syncEntity failed because the id provided is already in use` while a `NetworkEntity` with that ID exists, so recreating with the same ID fails however many ticks have passed (Node test on `@dcl/ecs` and local server log, 2026-11-16/17). For a fixed-ID singleton that comes and goes (a round timer, a build ghost, a flag), create it once and reuse it: reset its components and mark it inactive (an empty owner field, parked out of view) instead of removing it.
 
 ```typescript
-// Recreate on a later tick, not the same frame as removeEntity
-engine.removeEntity(gameState)
-let pending = true
-engine.addSystem(() => {
-	if (!pending) return
-	pending = false
-	spawnGameState() // safe: prior NetworkEntity has flushed
-})
+// Create once; "remove" = reset + mark inactive, "respawn" = reactivate.
+// `SyncId` and `defaults` are the ones from the snippet above;
+// `active` is a field of your own GameState schema.
+const gameState = engine.addEntity()
+GameState.create(gameState, defaults)
+syncEntity(gameState, [GameState.componentId], SyncId.GAME_STATE)
+
+function endRound() {
+	GameState.createOrReplace(gameState, { ...defaults, active: false })
+}
+function startRound() {
+	GameState.getMutable(gameState).active = true
+}
 ```
 
 ### Client-side prediction for tool/editor-style input
