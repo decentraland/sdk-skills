@@ -30,7 +30,7 @@ Downloading any file not already in the project — 3D models (.glb), images, au
 
 > "I'd like to download a [description] model from [source] and add it to your scene. Should I go ahead?"
 
-Before proposing a download, check the free catalogs and suggest specific assets from them: models and asset packs (**add-3d-models**), sounds (**audio-video**), emotes (**avatar-animations**, read its catalog header for the `triggerEmote` vs `triggerSceneEmote` split). Grep the model and asset-pack catalogs by keyword; never read them whole (the model catalog is ~5,800 lines).
+Before proposing a download, check the free catalogs and suggest specific assets from them: models and asset packs (**add-3d-models**), sounds (**audio-video**), emotes (**avatar-animations**, read its catalog header for the `triggerEmote` vs `triggerSceneEmote` split). Grep the model and asset-pack catalogs by keyword; never read them whole (the model catalog is ~5,800 lines). Writing a model yourself (a script that emits a `.glb`) does not skip this step: grep the catalogs first and offer what you find.
 
 For a font, also check that its licence allows redistributing it with the scene (**fonts**).
 
@@ -81,6 +81,8 @@ When the Explorer MCP is **connected**, verify every change in-world before you 
 ### 8. A feature that needs a newer SDK
 
 Version floors in these skills (`fontSrc` 7.31.0+, `screenInset` 7.26.0+, …) name the stable `@dcl/sdk` release. A Multiplayer Server scene runs a prerelease from the `@dcl/sdk@auth-server` tag whose version string trails `latest` (a `7.32.1-<build>` today), so a numeric compare says "too old" for a build that already has the field. Before writing a floored feature, read the installed version from `node_modules/@dcl/sdk/package.json`; on an `auth-server` build decide from the installed typings instead (`grep -rl <field> node_modules/@dcl/react-ecs/dist node_modules/@dcl/ecs/dist`: no file listed means it does not exist). If the scene is too old, upgrade: a stable scene to `latest`, a Multiplayer Server scene to the newest `auth-server` build and never to `latest`, which has no server APIs (**authoritative-server** → Setup). The upgrade is the step to confirm with the user (it changes every dependency, and on a server scene the tag); the version check itself needs no confirmation. If the user does not want to upgrade, use the fallback the topic skill names. Never patch the SDK's generated types or serializers in `node_modules`; it breaks on the next install.
+
+**Package manager.** The Creator Hub installs and runs scenes with its own bundled npm and expects a flat `node_modules` with `@dcl/sdk-commands` at the top level; otherwise it cannot open the scene (`Could not find package.json for module "@dcl/sdk-commands"`). npm is the default for scenes. If the user wants pnpm, set `nodeLinker: hoisted` as a top-level key in `pnpm-workspace.yaml` before installing. Switching between npm and pnpm starts from a deleted `node_modules`: a mixed tree shows up as `TS2345` from two `@dcl/ecs` copies and `TS2307 Cannot find module '../ecs'`. Keep `@dcl/js-runtime` at exactly the `@dcl/sdk` version (`@dcl/sdk` pins it exactly; a pin to a version not on the registry makes every `pnpm add` fail with `ERR_PNPM_NO_MATCHING_VERSION`).
 
 ### General principle
 
