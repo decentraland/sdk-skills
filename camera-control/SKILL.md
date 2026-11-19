@@ -227,6 +227,8 @@ GltfContainer.create(wall, {
 })
 ```
 
+A collision mesh blocks the camera from its front side only: a single-sided sheet (an invisible roof collider, a ceiling) lets a camera that meets it from behind pass, for example under the eaves (observed 2026-11). Build such sheets with both windings — **add-3d-models** → `references/blender-authoring.md` → RULE: Collision sheets are one-sided.
+
 Mask patterns and collider checks: **add-3d-models** → RULE: Always check for built-in colliders.
 
 ## Common Patterns

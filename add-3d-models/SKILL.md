@@ -34,6 +34,8 @@ When placement is **baked into the mesh** (merged floor/wall chunks, a kitbashed
 
 The same mirror applies when **code places parts at offsets read from a Blender-authored kit** (a lever, a battery slot, a socket on a GLB): convert with `DCL = (-bx, bz, -by)` before writing the `Transform`, or the parts land mirrored in X (observed 2026-11, when the reference file was grepped rather than read). Read the axes section in full before placing.
 
+**Building beside a placed model or on terrain.** When you author geometry in scene coordinates that must fit an existing entity (trim on a building, a roof over it), derive the mapping from that entity's `Transform` — rotation and **non-uniform** scale included (a building placed at scale `4 × 2 × 4` and rotated −90° about Y maps a point `(bx, by, bz)` of its imported Blender mesh to scene `(px + sz·by, py + sy·bz, pz − sx·bx)`) — and check it on one known point before building. For anything placed on uneven ground, raycast the terrain under several points of the footprint rather than assuming a height, and check what else is there: water (ground below the water surface is pond, even where it looks like bank from far away), paths, rocks (observed 2026-11: shrubs placed from a lawn plan stood in a pond for days).
+
 ## RULE: Account for model depth before neighboring entities
 
 Two models don't overlap just because their origins are different. Always verify that `origin +/- extent` doesn't intersect any neighbor's bounding box. Pay special attention to deep arch/gateway models (can extend 14 m in +/-Z) and rotated models (rotating 90deg around Y swaps X and Z extents).
@@ -75,6 +77,8 @@ The ceiling, doorway and corridor rows are staff design guidance, not engine lim
 
 Many GLB models use back-face culling. The rendered face is typically toward local **-Z**. Y rotation transforms facing: 0deg -> south, 90deg -> east, 180deg -> north, 270deg -> west. When players approach from both sides, add a second copy rotated 180deg. Prefer double-sided geometry for elements visible from all angles.
 
+**"Double-sided" means geometry, not the material flag.** The Explorer draws only the front of each face even when the glTF material says `doubleSided: true` (observed 2026-11 on several models: bird wings vanished by view angle, roof trim and lantern legs disappeared from behind, open tube ends showed their hollow insides). Anything seen from both sides — cards, leaves, wings, paper, trim, open ends — needs each face duplicated with reversed winding. In Blender, give the copy its **own vertices**: a face built on the exact vertex set of an existing face is merged away by mesh validation, so the copy silently vanishes (seen as a triangle count that did not double). Check thin geometry in the Explorer from several angles; Blender's viewport hides the problem.
+
 Decentraland uses a **Y-up** coordinate system — test model orientation after import: a model exported Z-up (common from Blender) loads tipped over and must be re-exported with "Y Up".
 
 ## RULE: Text labels must be in open air — no occlusion by geometry
@@ -102,6 +106,8 @@ Treat every model swap as fresh placement:
 This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...' })` while leaving Transform untouched) and to composite edits where only the `core::GltfContainer.data["<id>"].json.src` was modified.
 
 **Runtime swap mechanics**: to change a model in place, mutate the field directly — `GltfContainer.getMutable(entity).src = newSrc` — the engine reloads the GLB on the same entity. Other `GltfContainer` fields (e.g. `visibleMeshesCollisionMask`) can also be mutated live the same way. Reusing the Transform is only safe when the two models share the same native size and pivot; otherwise re-audit per the steps above.
+
+**Clickable entities:** a runtime `src` swap on an entity whose clicks matter left it with no working pointer collider once its collision masks were changed afterwards (observed once, 2026-11, a sliding door that stopped opening; not reproduced in isolation). Where clicks matter, keep the original model (and its colliders) on the entity and add the new look as a child entity instead of swapping `src`.
 
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
 
