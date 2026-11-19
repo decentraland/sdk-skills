@@ -32,8 +32,8 @@ an argument `camelCase` to `--kebab-case` unless the row says otherwise.
 | `walk {directionX, directionY, seconds, kind, jump, ignoreInputModifiers}` | `/walk dx dy [--seconds S] [--kind walk\|jog\|run] [--jump] [--ignore-input-modifiers]` | `startPosition`, `endPosition`, `distance`, `parcel`, `seconds`, `modifierActive`, `modifier` |
 | `look_at {x, y, z}` | `/look_at x y z` | `aimErrorDegrees`, `warning` (pitch clamp or third-person orbit) |
 | `camera_look {deltaX, deltaY, seconds}` | `/camera_look dx dy [--seconds S]` (degrees per second) | final euler, the rate |
-| `set_camera_mode {mode}` | `/set_camera_mode first_person\|third_person` | mode before and after; refused naming the `CameraModeArea` or `VirtualCamera` holding the view |
-| `set_camera_pose` | not available | |
+| `set_camera_mode {mode}` | `/set_camera_mode first_person\|third_person\|free` | mode before and after, once the transition has landed; refused naming the `CameraModeArea` or `VirtualCamera` holding the view; `drone` is not a mode here |
+| `set_camera_pose {x, y, z, lookAt*, fov, timeoutSec}` | `/set_camera_pose x y z [--look-at x y z] [--fov F] [--timeout-seconds S]` | `position`, `rotationEuler`, `fov`, `mode` (`free`), `settled`, `opened`, `lookAt`, `aimErrorDegrees`; opens the free camera when needed |
 | `send_chat` | `/chat nearby "<text>"` | |
 | `reload_scene` | `/reload --current --wait` | `settled`, `sceneState`, `ticksWaited`, `renderedFrames`, `warning` |
 | `trigger_emote` | `/emote <urn> [--loop]` | |
@@ -73,6 +73,9 @@ the difference, do not work around it:
 - A press on an entity that declares no entry for the button goes to the scene root with a
   `warning` in the reply.
 - `camera_look` is in degrees per second, so a turn is the same at any frame rate.
+- The free camera is photo mode's: `/set_camera_pose` lands the same frame (no blend), through
+  walls, and `/look_at` and `/camera_look` turn it while it holds the view; its pitch clamp is
+  straight up or down. The movement keys fly it from there, within 50 m of the player.
 - `warning` is absent rather than `null` when there is none.
 - World aims pass through scene UI (`blockedByUi` stays false); only `/click_at` is taken by it.
 - A capture sequence on the web stays in the engine's memory (`/capture_frame` reads a frame).

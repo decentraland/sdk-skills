@@ -93,6 +93,11 @@ reply fields the help does not show.
   the avatar, and low after an upward look, so near targets and the avatar itself get in the way
   of world aims and sweeps. Read `/player_state` `modeChangeAllowed` (and `heldBy`), then
   `/set_camera_mode first_person` before aiming at targets closer than a few metres.
+- **Sweep a build from the free camera.** `/set_camera_pose x y z --look-at x y z` places photo
+  mode's camera anywhere at once and it stays put while the player moves, so an aerial plan,
+  each facade and an interior are a pose and a `/screenshot` each, no walking. It is a debug
+  view: restore `/set_camera_mode third_person` (or the mode you found) before pointer work and
+  before any screenshot that stands for what a player sees, and never leave it in `free`.
 - **Scene UI ids change when a panel is drawn again.** Take the ids from a fresh `/ui_list`
   right before `/ui_click`, `/ui_set_text`, `/ui_scroll` or `/ui_hover`, and again after an
   action that redraws the panel.
