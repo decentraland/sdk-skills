@@ -32,6 +32,9 @@ The recording is variable frame rate (a frame only when the screen changes); the
 Needs the Screen & System Audio Recording permission for the app the shell runs in (Terminal, iTerm,
 VS Code, Cursor...): the creator turns it on in System Settings > Privacy & Security, then quits and reopens
 that app. Without it screencapture writes nothing; the script checks with a 1 s recording first and stops.
+PRIVACY: everything on that display is recorded. Before recording, turn on Do Not Disturb (Focus) and move
+chats, mail and other private windows off it. The permission stays on for that app (and everything later
+run from it) until the creator turns it off in the same pane.
 Audio is off by default (the footage is used muted). --audio-device takes a CoreAudio device UID (e.g.
 BlackHole2ch_UID for the BlackHole loopback driver, which only hears the game when the system output is a
 Multi-Output Device that includes it); screencapture's -g would record the microphone, not the game.
@@ -151,10 +154,9 @@ class Recorder:
         os.makedirs(RAW, exist_ok=True)
         self.raw = os.path.join(RAW, name + '.mov')
         if os.path.exists(self.raw): os.remove(self.raw)
-        cmd = ['screencapture', '-x', '-D', str(self.screen)]
-        if self.audio_device: cmd += ['-G', self.audio_device]
-        self.proc = subprocess.Popen(cmd + ['-v', self.raw], stdin=subprocess.DEVNULL,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # -v records until SIGINT; stdin from /dev/null does not stop it (checked 2026-11-19)
+        self.proc = subprocess.Popen(screencapture_cmd(self.screen, self.audio_device, '-v', self.raw),
+                                     stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         time.sleep(SCREEN_LEAD_IN)
         if self.proc.poll() is not None:
             err = self.proc.communicate()[1]
@@ -197,8 +199,14 @@ class Recorder:
             def __enter__(self_):
                 rec._start_screen(name)
                 print('REC', name, '(screen, display %s)' % rec.screen)
-            def __exit__(self_, *a):
-                rec._stop_screen(name)
+            def __exit__(self_, exc_type, exc, tb):
+                if exc_type is None:
+                    rec._stop_screen(name)
+                    return
+                try:   # the take failed: still finalise the recording, but never hide the take's own error
+                    rec._stop_screen(name)
+                except Exception as cleanup:
+                    print('  (screen recording cleanup also failed: %s)' % str(cleanup)[:200])
 
         class Take:
             def __enter__(self_):
@@ -215,7 +223,7 @@ class Recorder:
                 print('STOP %s: %d frames over %.1f s (%.1f fps)' % (name, len(rec.stamps), secs, len(rec.stamps) / secs if secs else 0))
                 if len(rec.stamps) > 2:
                     assemble(rec.dir, os.path.join(OUT, name + '.mp4'))
-        return ScreenTake() if rec.screen else Take()
+        return ScreenTake() if rec.screen is not None else Take()
 
 
 def assemble(frames_dir, out, smooth=False):
@@ -261,6 +269,34 @@ def probe_video(path):
     return len(pts), (pts[-1] - pts[0]) if len(pts) > 1 else 0, (wh[0].strip(',').replace(',', 'x') if wh else '')
 
 
+def screencapture_cmd(display, audio_device, *tail):
+    """The one place the screencapture command line is built: silent, display N, optional audio device UID."""
+    return ['screencapture', '-x', '-D', str(display)] + (['-G', audio_device] if audio_device else []) + list(tail)
+
+
+def record_fixed(display, seconds, path, audio_device=None):
+    """Fixed-length recording (the permission check and the probe). Any failure exits with the fix, not a traceback."""
+    if os.path.exists(path): os.remove(path)
+    try:
+        r = subprocess.run(screencapture_cmd(display, audio_device, '-V', str(seconds), path),
+                           capture_output=True, text=True, timeout=seconds + 30)
+        err, code = r.stderr.strip(), r.returncode
+    except subprocess.TimeoutExpired:
+        err, code = 'no answer after %d s' % (seconds + 30), 'timeout'
+    if 'Invalid display' in err:
+        sys.exit('display %s: %s' % (display, err[:200]))
+    if 'audio device' in err:
+        sys.exit('%s\n--audio-device takes the CoreAudio device UID (e.g. BlackHole2ch_UID), not its display name.' % err[:200])
+    if code != 0 or not os.path.exists(path) or os.path.getsize(path) == 0:
+        sys.exit('screencapture recorded nothing from display %s (exit %s%s).\n'
+                 'Usually the Screen & System Audio Recording permission is off for the app this shell runs in.\n'
+                 'Open the pane with:  open "%s"\n'
+                 'turn that app on (Terminal, iTerm, VS Code, Cursor...), quit and reopen it, then run this again.\n'
+                 'Without --screen, takes record frames and need no permission.'
+                 % (display, code, (': ' + err[:200]) if err else '', SETTINGS_PANE))
+    return path
+
+
 def screen_check(display, audio_device=None):
     """1 s test recording of the display. Exits with the fix when nothing is written (permission missing)."""
     if sys.platform != 'darwin':
@@ -269,24 +305,7 @@ def screen_check(display, audio_device=None):
     if not shutil.which('ffmpeg'):
         sys.exit('ffmpeg not found on PATH: install it (https://ffmpeg.org); every screen take is encoded with it')
     os.makedirs(RAW, exist_ok=True)
-    test = os.path.join(RAW, '_screen-check.mov')
-    if os.path.exists(test): os.remove(test)
-    audio = ['-G', audio_device] if audio_device else []
-    r = subprocess.run(['screencapture', '-x', '-D', str(display)] + audio + ['-V', '1', test],
-                       capture_output=True, text=True, timeout=30)
-    if 'Invalid display' in r.stderr:
-        sys.exit('display %s: %s' % (display, r.stderr.strip()[:200]))
-    if 'audio device' in r.stderr:
-        sys.exit('%s\n--audio-device takes the CoreAudio device UID (e.g. BlackHole2ch_UID), not its display name.'
-                 % r.stderr.strip()[:200])
-    if r.returncode != 0 or not os.path.exists(test) or os.path.getsize(test) == 0:
-        sys.exit('screencapture recorded nothing from display %s (exit %s%s).\n'
-                 'Usually the Screen & System Audio Recording permission is off for the app this shell runs in.\n'
-                 'Open the pane with:  open "%s"\n'
-                 'turn that app on (Terminal, iTerm, VS Code, Cursor...), quit and reopen it, then run this again.\n'
-                 'Without --screen, takes record frames and need no permission.'
-                 % (display, r.returncode, (': ' + r.stderr.strip()[:200]) if r.stderr.strip() else '', SETTINGS_PANE))
-    return test
+    os.remove(record_fixed(display, 1, os.path.join(RAW, '_screen-check.mov'), audio_device))
 
 
 def probe(screen=None):
@@ -299,10 +318,9 @@ def probe(screen=None):
         n += 1
     cap = ''.join(c.get('text', '') for c in r.get('content', []) if c.get('type') == 'text')
     print('screenshot: %.1f frames/s, %s' % (n / (time.monotonic() - t), cap))
-    if screen:
-        os.remove(screen_check(screen))
-        mov = os.path.join(RAW, 'probe-display%s.mov' % screen)
-        subprocess.run(['screencapture', '-x', '-D', str(screen), '-V', '3', mov], check=True, timeout=60)
+    if screen is not None:
+        screen_check(screen)
+        mov = record_fixed(screen, 3, os.path.join(RAW, 'probe-display%s.mov' % screen))
         jpg = os.path.join(RAW, 'probe-display%s.jpg' % screen)
         subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', mov, '-frames:v', '1', jpg], check=True)
         n, secs, size = probe_video(mov)
@@ -312,14 +330,21 @@ def probe(screen=None):
         print('screen: one frame of display %s is in %s; read it to confirm the Explorer fills it' % (screen, jpg))
 
 
-def split_args(argv, valued=('display', 'audio-device')):
-    """argv -> (positional args, {option: value or True}); takes --opt v and --opt=v for valued options."""
+OPTIONS = {'probe': ('screen', 'display'), 'take': ('screen', 'display', 'audio-device', 'no-begin'),
+           'assemble': ('smooth',)}
+
+
+def split_args(cmd, argv, valued=('display', 'audio-device')):
+    """argv -> (positional args, {option: value or True}); takes --opt v and --opt=v for valued options.
+    Exits on an option `cmd` does not take, so a typo (--Screen, --no-begn) is not silently ignored."""
     pos, opts, i = [], {}, 0
     while i < len(argv):
         a = argv[i]; i += 1
         if not a.startswith('--'):
             pos.append(a); continue
         k, eq, v = a[2:].partition('=')
+        if k not in OPTIONS[cmd]:
+            sys.exit('%s: unknown option --%s (takes: %s)' % (cmd, k, ', '.join('--' + o for o in OPTIONS[cmd])))
         if k in valued and not eq:
             if i >= len(argv): sys.exit('--%s needs a value' % k)
             v = argv[i]; i += 1
@@ -328,35 +353,38 @@ def split_args(argv, valued=('display', 'audio-device')):
 
 
 def screen_display(opts):
-    """Display number when --screen (or --display / --audio-device) is given, else None."""
+    """Display number (1 or more) when --screen (or --display / --audio-device) is given, else None."""
     if not any(k in opts for k in ('screen', 'display', 'audio-device')):
         return None
     try:
-        return int(opts.get('display', 1))
+        n = int(opts.get('display', 1))
     except ValueError:
-        sys.exit('--display takes a number (1 = main display)')
+        n = 0
+    if n < 1:
+        sys.exit('--display takes a display number from 1 (1 = main display)')
+    return n
 
 
 if __name__ == '__main__':
     cmd = sys.argv[1] if len(sys.argv) > 1 else 'probe'
     if cmd == 'probe':
-        probe(screen_display(split_args(sys.argv[2:])[1]))
+        probe(screen_display(split_args(cmd, sys.argv[2:])[1]))
     elif cmd == 'assemble':
-        args = [a for a in sys.argv[2:] if not a.startswith('--')]
+        args, opts = split_args(cmd, sys.argv[2:])
         if len(args) != 2:
             sys.exit('usage: capture_play.py assemble <frames dir> <out.mp4> [--smooth]')
-        assemble(args[0], args[1], smooth='--smooth' in sys.argv)
+        assemble(args[0], args[1], smooth='smooth' in opts)
     elif cmd == 'take':
         sys.path.insert(0, HERE)
         import takes
-        args, opts = split_args(sys.argv[2:])
+        args, opts = split_args(cmd, sys.argv[2:])
         names = args or list(takes.TAKES)
         unknown = [n for n in names if n not in takes.TAKES]
         if unknown:
             sys.exit('unknown take(s) %s; takes.py defines: %s' % (', '.join(unknown), ', '.join(takes.TAKES)))
         display = screen_display(opts)
-        if display:
-            os.remove(screen_check(display, opts.get('audio-device')))
+        if display is not None:
+            screen_check(display, opts.get('audio-device'))
         ex = Explorer(); rec = Recorder(ex, screen=display, audio_device=opts.get('audio-device'))
         if hasattr(takes, 'begin') and 'no-begin' not in opts:
             print('== begin'); takes.begin(ex)
