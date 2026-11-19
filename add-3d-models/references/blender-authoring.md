@@ -252,11 +252,11 @@ Run through this before every export (scripts for each check in [`blender-patter
 3. Plain colors unified into a palette texture, not per-color materials.
 4. No lights, no cameras.
 5. Collider meshes named `*_collider`, no material slots, low-poly; sheets that must block from both sides built with both windings.
-5a. Faces seen from both sides duplicated with reversed winding on their own vertices; no two faces in one plane (1 cm gaps); T-junctions from cuts split and welded.
-6. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
-7. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
-8. Timeline at rest: `scene.frame_set(scene.frame_start)` so animated objects export in their rest pose. The exporter writes each node's transform as it is at the current frame (observed 2026-11: doors exported up to 1.5 m off because the timeline sat mid-animation).
-9. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
+6. Faces seen from both sides duplicated with reversed winding on their own vertices; no two faces in one plane (1 cm gaps); T-junctions from cuts split and welded.
+7. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
+8. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
+9. Timeline at rest: `scene.frame_set(scene.frame_start)` so animated objects export in their rest pose. The exporter writes each node's transform as it is at the current frame (observed 2026-11: doors exported up to 1.5 m off because the timeline sat mid-animation).
+10. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
 
 ## Cross-References
 

@@ -223,7 +223,7 @@ Textures do not need to be square — 512x1024 is valid as long as both dimensio
 
 Back-face culling skips rendering the inside face of any polygon the player will never see from behind. It's set in your 3D modeling tool (Blender, Maya, etc.) — **not** in SDK code.
 
-**Rule of thumb:** Enable back-face culling on all materials by default. Only disable it when a surface must be visible from both sides (e.g., a leaf plane on a tree, a thin wall).
+**Rule of thumb:** Enable back-face culling on all materials by default. For a surface that must be visible from both sides (e.g., a leaf plane on a tree, a thin wall), duplicate its faces with reversed winding: disabling culling in your 3D tool (glTF `doubleSided`) has no effect today, because the Explorer forces back-face culling on scene GLB materials (**add-3d-models** → *Single-sided models*).
 
 ## System Optimization
 
