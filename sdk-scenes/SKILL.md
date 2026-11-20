@@ -235,6 +235,7 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 ### Game Design
 
 - **Skill: `dcl-gdd`** — Design a game or experience with the creator: brainstorm, core loop, audience, readability, social play, retention, mobile, scope; audit an idea; write or revise a GDD.
+- **When a build request describes a game** (a goal, an opponent, a win or lose condition), start a short `design/gdd.md` with **dcl-gdd** alongside the first build, unasked: the owner's own words, your own choices marked `[agent-decided]`. Update it on every change of direction. It is a brief record and does not delay the build. Exception: a standalone **dcl-prototype** test needs no GDD, and that rule wins.
 - **Skill: `dcl-prototype`** — Small playable prototypes and greyboxes that answer a design question; owner self-tests, registered experiments and their verdicts.
 - What a scene in a shared world can and cannot do, and what the Explorer already provides (login, chat, name tags, emotes, loading screen): `{baseDir}/../create-scene/references/platform-provided.md`. Rules and instruction text: **build-ui** → *Rules: show, don't tell*. Organizing playtest rounds: **scene-feedback**.
 

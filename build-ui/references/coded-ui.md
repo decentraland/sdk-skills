@@ -6,6 +6,8 @@ Read this only when **Choosing the mode** in `SKILL.md` sent a UI (or one panel 
 
 ### File: src/ui.tsx
 
+Use this path only in a scene with no editable component under `src/ui/`. Once one exists, the Creator Hub moves `src/ui.tsx` to `src/ui.tsx.bak` and deletes it on every aggregator regeneration, so the coded UI disappears without an error: put it in a module outside `src/ui/` registered with `addUiRenderer` instead (**Hybrid scenes** below).
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 

@@ -549,7 +549,7 @@ Instance props take literals (`label="Download"`, `percent={42}`) or bare state 
 
 ## 8. The aggregator
 
-Generated; reproduce it exactly and never hand-edit it (it is rewritten when the editor opens the scene and on every root add/rename/remove).
+Generated; reproduce it exactly and never hand-edit it (it is rewritten whenever the editor regenerates it: `SKILL.md` → **The aggregator**).
 
 ```tsx
 /** @jsx ReactEcs.createElement */

@@ -160,4 +160,4 @@ curl -s -m 2 "$(node -p 'require(process.argv[1]).url' "$F")" -X POST \
 | Tools bind but answer `No scene is open.` | No scene is open in the editor (the creator is on the scene list or closed it). Ask them to open the scene; no reconnect needed. |
 | `No editor window is open.` | A scene is bound but the Hub's main window is gone. Ask the creator to bring the Creator Hub window back (or restart it), then re-read the files. |
 
-The probe is only for diagnosing a connection. Drive the scene through the bound MCP tools, not over curl.
+The probe is only for diagnosing a connection. Driving the scene, batches included: main skill → Workflow → *Drive the scene through the bound tools*.
