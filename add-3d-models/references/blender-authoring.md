@@ -162,6 +162,18 @@ Size is not the cause: a single 36 × 30 m mesh wholly inside the bounds rendere
 
 Never infer the convention from a symmetric test object — mirror and rotation errors are invisible on a box. Export a cheap **asymmetric probe** (a short bar along +X plus a different-length bar along +Z; or any model with one open side), place it at a known position, and look at it in the Explorer (**unity-explorer-mcp**): screenshot from a known camera pose, and/or walk into it and read the blocked position from `get_player_state`. Confirm the mapping, then bake the kit.
 
+## RULE: No two faces in one plane; close T-junctions
+
+The Explorer shows coplanar or near-coplanar faces as flicker (z-fighting), worse at a distance. Observed 2026-11: paper panels 5 mm in front of window frames and board backings 5 mm in front of a wall flickered; 1 cm held on desktop.
+
+- Keep stacked layers (panels on walls, trim on frames, decals) **at least 1 cm** apart.
+- Let pieces **meet instead of overlapping** with faces in one plane: a post stops at the underside of its lintel rather than running up into it with the same front face.
+- After a boolean or knife cut, **split each edge at any vertex that lies on it, then weld** (`remove_doubles`). A vertex sitting on another face's edge (a T-junction) leaves sub-pixel hairlines along the join. A copy of the outer face a few millimetres behind it hides what remains: a crack then shows the same surface instead of light.
+
+## RULE: Collision sheets are one-sided
+
+A collision mesh blocks only from its front side, for players and for the third-person camera. A smooth invisible sheet over a tiled roof (so players who jump onto it walk over it instead of falling between tiles into the building) also has to stop a camera that meets it from below, under the eaves: build such sheets with both windings, the reversed copy on its own vertices. Players jump onto roofs, rocks and walls in Decentraland — check that no gap between solids lets an avatar drop into a space it cannot leave (the only way out is restarting the client).
+
 ## RULE: Keep models low-poly
 
 Decentraland's triangle budget is **10,000 triangles per parcel** for the whole scene (see **optimize-scene** for all limits). Budget per model:
@@ -239,11 +251,12 @@ Run through this before every export (scripts for each check in [`blender-patter
 2. All materials are Principled BSDF; procedural shading baked; textures ≤1024 power-of-two.
 3. Plain colors unified into a palette texture, not per-color materials.
 4. No lights, no cameras.
-5. Collider meshes named `*_collider`, no material slots, low-poly.
-6. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
-7. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
-8. Timeline at rest: `scene.frame_set(scene.frame_start)` so animated objects export in their rest pose. The exporter writes each node's transform as it is at the current frame (observed 2026-11: doors exported up to 1.5 m off because the timeline sat mid-animation).
-9. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
+5. Collider meshes named `*_collider`, no material slots, low-poly; sheets that must block from both sides built with both windings.
+6. Faces seen from both sides duplicated with reversed winding on their own vertices; no two faces in one plane (1 cm gaps); T-junctions from cuts split and welded.
+7. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
+8. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.
+9. Timeline at rest: `scene.frame_set(scene.frame_start)` so animated objects export in their rest pose. The exporter writes each node's transform as it is at the current frame (observed 2026-11: doors exported up to 1.5 m off because the timeline sat mid-animation).
+10. Export as binary `.glb`, **+Y up** (exporter default — Decentraland is Y-up; a Z-up export loads tipped over), `export_apply=True`, `export_cameras=False`, `export_lights=False`, and `export_animation_mode='ACTIVE_ACTIONS'` if the file contains animations (the default mode leaks every action in the .blend into the GLB).
 
 ## Cross-References
 
