@@ -34,6 +34,8 @@ When placement is **baked into the mesh** (merged floor/wall chunks, a kitbashed
 
 The same mirror applies when **code places parts at offsets read from a Blender-authored kit** (a lever, a battery slot, a socket on a GLB): convert with `DCL = (-bx, bz, -by)` before writing the `Transform`, or the parts land mirrored in X (observed 2026-11, when the reference file was grepped rather than read). Read the axes section in full before placing.
 
+**Building beside a placed model or on terrain.** When you author geometry in scene coordinates that must fit an existing entity (trim on a building, a roof over it), derive the mapping from that entity's `Transform` — rotation and **non-uniform** scale included (a building placed at scale `4 × 2 × 4` and rotated −90° about Y maps a point `(bx, by, bz)` of its imported Blender mesh to scene `(px + sz·by, py + sy·bz, pz − sx·bx)`) — and check it on one known point before building. For anything placed on uneven ground, raycast the terrain under several points of the footprint rather than assuming a height, and check what else is there: water (ground below the water surface is pond, even where it looks like bank from far away), paths, rocks (observed 2026-11: shrubs placed from a lawn plan stood in a pond for days).
+
 ## RULE: Account for model depth before neighboring entities
 
 Two models don't overlap just because their origins are different. Always verify that `origin +/- extent` doesn't intersect any neighbor's bounding box. Pay special attention to deep arch/gateway models (can extend 14 m in +/-Z) and rotated models (rotating 90deg around Y swaps X and Z extents).
@@ -73,7 +75,9 @@ The ceiling, doorway and corridor rows are staff design guidance, not engine lim
 
 ## RULE: Single-sided models — orient the rendered face toward players
 
-Many GLB models use back-face culling. The rendered face is typically toward local **-Z**. Y rotation transforms facing: 0deg -> south, 90deg -> east, 180deg -> north, 270deg -> west. When players approach from both sides, add a second copy rotated 180deg. Prefer double-sided geometry for elements visible from all angles.
+Scene GLBs render single-sided: the Explorer culls back faces on all of them, whatever the material says (next paragraph). On a flat model such as a sign or poster, the rendered face is typically toward local **-Z**. Y rotation transforms facing: 0deg -> south, 90deg -> east, 180deg -> north, 270deg -> west. When players approach from both sides, add a second copy rotated 180deg. Prefer double-sided geometry for elements visible from all angles.
+
+**"Double-sided" means geometry, not the material flag.** The Explorer currently forces back-face culling on scene GLB materials, so `doubleSided: true` has no effect: its material loader honours the flag, then overrides it to cull back faces while the remote feature flag `alfa-force-backface-culling` is on, which it is in production (observed 2026-11 on several models: bird wings vanished by view angle, roof trim and lantern legs disappeared from behind, open tube ends showed their hollow insides). If that flag is ever turned off, the material flag would work again; duplicated geometry works either way. Anything seen from both sides — cards, leaves, wings, paper, trim, open ends — needs each face duplicated with reversed winding. In Blender, give the copy its **own vertices**: a face built on the exact vertex set of an existing face is merged away by mesh validation, so the copy silently vanishes (seen as a triangle count that did not double). Check thin geometry in the Explorer from several angles; Blender's viewport hides the problem.
 
 Decentraland uses a **Y-up** coordinate system — test model orientation after import: a model exported Z-up (common from Blender) loads tipped over and must be re-exported with "Y Up".
 
@@ -102,6 +106,11 @@ Treat every model swap as fresh placement:
 This applies equally to code (`GltfContainer.createOrReplace(entity, { src: '...' })` while leaving Transform untouched) and to composite edits where only the `core::GltfContainer.data["<id>"].json.src` was modified.
 
 **Runtime swap mechanics**: to change a model in place, mutate the field directly — `GltfContainer.getMutable(entity).src = newSrc` — the engine reloads the GLB on the same entity. Other `GltfContainer` fields (e.g. `visibleMeshesCollisionMask`) can also be mutated live the same way. Reusing the Transform is only safe when the two models share the same native size and pivot; otherwise re-audit per the steps above.
+
+**After a `src` swap, write the collision masks only once the new model has loaded.** When `src` changes, the Explorer starts loading the new model without copying `visibleMeshesCollisionMask` / `invisibleMeshesCollisionMask` from the component, then builds the new model's colliders with the old model's masks. A mask written in the same tick as the swap (`getMutable(e).src = …` followed by a mask write, or one `createOrReplace` with both) is dropped. Example: an old door with `_collider` meshes kept `visibleMeshesCollisionMask = 0`; the new model needs `CL_POINTER` on its visible meshes, so after the swap it has no pointer collider and stops responding to clicks (observed once, 2026-11, on a sliding door; this mechanism is read from the Explorer source and matches the symptom, but was not reproduced in isolation). Writing the mask a tick or two later is not a reliable fix: the Explorer's loading systems can skip frames, so a `src` change and a mask change made in separate ticks can still arrive together, and the mask is lost (read from the Explorer source, not reproduced). Two safe patterns:
+
+- Swap `src`, wait until `GltfContainerLoadingState` reaches `LoadingState.FINISHED`, then write the masks. Writing the same mask values again also works, because the Explorer compares against the stale value.
+- Fallback where clicks matter: keep the original model (and its colliders) on the entity and add the new look as a child entity instead of swapping `src`.
 
 ## RULE: When editing an existing composite, register new entities in `inspector::Nodes`
 
