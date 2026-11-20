@@ -1,6 +1,6 @@
 ---
 name: dcl-gdd
-description: "Help design a Decentraland game or experience: brainstorm, develop mechanics and atmosphere, explore a core loop, audit an idea, write or revise a GDD, or resume from notes and a built scene. Use for game-design questions about player experience, audience and acquisition, readability, social play, retention, mobile or scope. General design is the default; Creator Success proposals are an optional route. Can pair with the optional dcl-prototype skill for playable exploration and focused tests."
+description: "Help design a Decentraland game or experience: brainstorm, develop mechanics and atmosphere, explore a core loop, audit an idea, write or revise a GDD, or resume from notes and a built scene. Use for game-design questions about player experience, audience and acquisition, readability, social play, retention, mobile or scope, or when asked to build a game, to keep a basic design record from the first build. General design is the default; Creator Success proposals are an optional route. Pairs with the optional dcl-prototype skill for playable exploration and focused tests."
 ---
 
 # Game Design in Decentraland
@@ -29,6 +29,7 @@ Combine entries only when the request combines their tasks.
 |---|---|
 | Review or quick audit, even of one mechanic | [Review lens](references/review-lens.md); answer at the requested depth and stop. Review-only leaves files unchanged. |
 | Develop an idea, import a plan, resume or draft a general GDD | [Interview moves](references/interview-moves.md) and the [working-design/file contract](references/hypothesis-log/files.md#working-design). Import known material into the GDD before questions about gaps. |
+| A request to build a game | Record a brief `design/gdd.md` from the owner's words under the [working-design contract](references/hypothesis-log/files.md#working-design), your own choices marked, and continue the build; the record does not wait on questions. |
 | Offer whole-game directions; choose, mix or distinguish ideas | [Whole-game briefs](references/whole-game-briefs.md), including chat and HTML presentation. A direct request already chooses this route. |
 | Prepare a Creator Success proposal | [Creator Success](references/creator-success.md); its template, progress, stage gates and submission rules apply only here. |
 | Explicitly work without builds | [Document-only](references/doc-only.md), independently of general design or proposal. |

@@ -74,15 +74,15 @@ Steps for a new UI:
 1. One component per file, `src/ui/<ComponentName>.tsx`. Basename must be a valid PascalCase identifier **equal to the exported function name** — the editor ignores any other file. Exactly one exported component per file (the editor reads the first exported function that returns JSX). Every file starts with `/** @jsx ReactEcs.createElement */` and imports `ReactEcs` from `@dcl/sdk/react-ecs`. `//` comments only — `{/* JSX comments */}` are opaque.
 2. Create `src/ui/interaction.tsx` and (for platform variants) `src/ui/platform.tsx` **verbatim** from `{baseDir}/references/interaction-helper.md`. The lowercase names keep them out of the roots list; the editor scaffolds them itself and never lists them as UIs.
 3. Write each component to **The contract**. Start from `{baseDir}/references/component-template.md`.
-4. Write `src/ui/index.tsx` in the exact generated shape below and call `setupUi()` from `main()` in `src/index.ts`. (The editor does this wiring itself — it uncomments the template's `//setupUi()` line and adds the import — but when authoring by hand, do it yourself.)
+4. Write `src/ui/index.tsx` in the exact generated shape below and call `setupUi()` from `main()` in `src/index.ts`. (The editor does this wiring itself — it uncomments the template's `//setupUi()` line and adds the import — but when authoring by hand, do it yourself.) With the scene open in the Creator Hub, the editor writes `index.tsx` itself within a second or two of a root file appearing under `src/ui/`: check for it before writing it by hand.
 5. Put every clock, easing, timer, formatter and state machine in a `.ts` file **outside** `src/ui/` — see **The driver pattern**.
 6. Run the **Self-check list** over every file.
 
-A legacy single-file `src/ui.tsx` is **backed up to `src/ui.tsx.bak` and deleted** the first time the editor opens the scene — always author under `src/ui/`. To port an existing coded UI, follow `{baseDir}/references/adapting-coded-ui.md` (the blockers in order: `.map()` → unroll; conditionals → `active` display gates on the element being hidden; computed styles → driver variables; interpolated text → segment bindings; hand-tracked hover → layers; then explicit boxes everywhere).
+A legacy single-file `src/ui.tsx` is **backed up to `src/ui.tsx.bak` and deleted** the first time the editor generates the aggregator, i.e. once a root file exists under `src/ui/`; until then it is left in place. A new scene from the template still contains `src/ui.tsx` (a coded stub, `// draw your UI here`): it is a leftover, not the place to add UI — always author under `src/ui/`. To port an existing coded UI, follow `{baseDir}/references/adapting-coded-ui.md` (the blockers in order: `.map()` → unroll; conditionals → `active` display gates on the element being hidden; computed styles → driver variables; interpolated text → segment bindings; hand-tracked hover → layers; then explicit boxes everywhere).
 
 ### The aggregator (`src/ui/index.tsx`)
 
-Generated from the list of top-level roots and rewritten whenever the editor opens the scene or a root is added, renamed, removed or re-inset — **any hand edit is lost**. Emit exactly:
+Generated from the list of top-level roots and rewritten whenever the editor regenerates it: when it starts on a scene with at least one root under `src/ui/`, and whenever a root is added, renamed, removed or re-inset (in the editor or on disk) — **any hand edit is lost**. Emit exactly:
 
 ```tsx
 /** @jsx ReactEcs.createElement */
