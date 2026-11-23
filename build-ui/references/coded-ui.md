@@ -6,6 +6,8 @@ Read this only when **Choosing the mode** in `SKILL.md` sent a UI (or one panel 
 
 ### File: src/ui.tsx
 
+Use this path only in a scene with no editable component under `src/ui/`. Once one exists, the Creator Hub moves `src/ui.tsx` to `src/ui.tsx.bak` and deletes it on every aggregator regeneration, so the coded UI disappears without an error: put it in a module outside `src/ui/` registered with `addUiRenderer` instead (**Hybrid scenes** below).
+
 ```tsx
 import ReactEcs, { ReactEcsRenderer, UiEntity, Label, Button } from '@dcl/sdk/react-ecs'
 
@@ -194,6 +196,7 @@ const GameUI = () => (
     <Label
       value={`Score: ${score}`}
       fontSize={20}
+      textWrap="nowrap"
       uiTransform={{ width: 240, height: 30, positionType: 'absolute', position: { top: 10, right: 10 } }}
     />
 
@@ -203,8 +206,8 @@ const GameUI = () => (
         uiTransform={{ width: 300, height: 400, positionType: 'absolute', position: { top: '50%', left: '50%' } }}
         uiBackground={{ color: Color4.create(0.1, 0.1, 0.1, 0.9) }}
       >
-        <Label value="Game Menu" fontSize={24} uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
-        <Button value="Resume" variant="primary" onMouseDown={() => { showMenu = false }} uiTransform={{ width: 200, height: 40 }} />
+        <Label value="Game Menu" fontSize={24} textWrap="nowrap" uiTransform={{ width: '100%', height: 40, margin: { bottom: 12 } }} />
+        <Button value="Resume" variant="primary" textWrap="nowrap" onMouseDown={() => { showMenu = false }} uiTransform={{ width: 200, height: 40 }} />
       </UiEntity>
     )}
   </UiEntity>
@@ -266,6 +269,7 @@ const OkPrompt = () => {
         <Button
           value="OK"
           variant="primary"
+          textWrap="nowrap"
           uiTransform={{ width: 120, height: 40 }}
           onMouseDown={() => { promptOpen = false; onPromptAccept() }}
         />
@@ -314,9 +318,9 @@ const Scoreboard = () => {
         uiTransform={{ width: 700, height: 500, flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: 24 }}
         uiBackground={{ color: Color4.create(0.12, 0.12, 0.12, 1) }}
       >
-        <Label value="Scoreboard" fontSize={32} color={Color4.White()} uiTransform={{ width: '100%', height: 48 }} textAlign="middle-center" />
+        <Label value="Scoreboard" fontSize={32} textWrap="nowrap" color={Color4.White()} uiTransform={{ width: '100%', height: 48 }} textAlign="middle-center" />
         {/* rows … */}
-        <Button value="Close" variant="primary" uiTransform={{ width: 160, height: 48 }} onMouseDown={closeScoreboard} />
+        <Button value="Close" variant="primary" textWrap="nowrap" uiTransform={{ width: 160, height: 48 }} onMouseDown={closeScoreboard} />
       </UiEntity>
     </UiEntity>
   )
@@ -384,7 +388,7 @@ Fixed header + scrollable body with `flexGrow: 1`:
 ```tsx
 <UiEntity uiTransform={{ width: 400, height: 500, flexDirection: 'column' }}>
   <UiEntity uiTransform={{ width: '100%', height: 60 }}>
-    <Label value="Inventory" fontSize={20} uiTransform={{ width: '100%', height: '100%' }} />
+    <Label value="Inventory" fontSize={20} textWrap="nowrap" uiTransform={{ width: '100%', height: '100%' }} />
   </UiEntity>
   <UiEntity uiTransform={{ width: '100%', flexGrow: 1, overflow: 'scroll', flexDirection: 'column' }}>
     {items.map((item, i) => (

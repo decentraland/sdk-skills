@@ -28,7 +28,7 @@ Transform.createOrReplace(engine.PlayerEntity, { ... }) // ignored
 | Restrict / freeze movement | `InputModifier` on `engine.PlayerEntity` | `advanced-input` |
 | Change run speed / jump height | `AvatarLocomotionSettings` on `engine.PlayerEntity` | this skill, see below |
 
-`Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only.
+`Transform.get(engine.PlayerEntity)` is valid for **reading** position and rotation only. Its `position` is the avatar root, at the feet.
 
 ## Player Position and Movement (Reading)
 
