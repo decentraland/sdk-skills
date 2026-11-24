@@ -30,7 +30,8 @@ are synthetic without a DevTools client (`"input": "synthetic"` in the reply).
 
 **No client at all** and the dcl-one repository is present: `pnpm run drive --scene <scene dir>
 --position x,y < commands.txt` in `apps/bevy-explorer/e2e` serves a built scene on a loopback
-realm, boots the web client and runs each stdin line, one JSON reply per line. Its README has
+realm, boots the web client in scene preview (so the preview-only commands are there) and
+runs each stdin line, one JSON reply per line. Its README has
 the prerequisites; it is the only path that needs a build.
 
 ## The catalogue is the running client
@@ -64,19 +65,19 @@ reply fields the help does not show.
   (`rootBroadcast:false`). A press on an entity with no entry for that button goes to the scene
   root with a `warning`.
 - `/screenshot` alone is raw base64 PNG at full size: always pass `--max-width` (and `--jpg`)
-  and write it to disk, never into context. `/screenshot` and `/capture_sequence` share one
+  and write it to disk, never into context. A one-shot and a `--count` sequence share one
   capture gate; a second capture while one runs is refused naming the holder.
 
 ## The loop
 
 1. **Arrive**: `/teleport <x> <y> --wait` (a realm url as the third argument when needed) and
-   read `arrived`, `sceneReady`, `settled`; then `/scene_state` for `isReady`, `sceneId`, `title`.
+   read `arrived`, `sceneReady`, `settled`; then `/scene_loading_state` for `isReady`, `state`, `sceneHash`.
 2. **Baseline**: `/scene_logs 50` and keep its header's `latestSeq`; later reads pass it as
    `--since <seq>` so you see only new lines. `--client` adds the engine's warnings and errors
    (`[client:<target>]`), `--severity error` filters. A scene's `[INIT]` lines name the ids of its
    boards and targets.
 3. **See**: `/screenshot --max-width 640 --jpg` to disk, about 15 s after arrival before the first
-   frame that must show the scene drawn. `/visible_entities` says what is in frame;
+   frame that must show the scene drawn. `/scene_entities --visible` says what is in frame;
    `/scene_entities --labels` what each entity shows; `/ui_list` the scene UI with its rects.
 4. **Act** with the command the map names, one at a time; a pointer command is refused while
    another runs or holds a press (`/hover_entity --clear` releases).
@@ -92,33 +93,33 @@ reply fields the help does not show.
 - **Aim from first person.** In third person the camera sits about 1 m right of and 4.7 m behind
   the avatar, and low after an upward look, so near targets and the avatar itself get in the way
   of world aims and sweeps. Read `/player_state` `modeChangeAllowed` (and `heldBy`), then
-  `/set_camera_mode first_person` before aiming at targets closer than a few metres.
-- **Sweep a build from the free camera.** `/set_camera_pose x y z --look-at x y z` places photo
+  `/camera_mode first_person` before aiming at targets closer than a few metres.
+- **Sweep a build from the free camera.** `/camera_mode free` with a position and `--look-at` places photo
   mode's camera anywhere at once and it stays put while the player moves, so an aerial plan,
   each facade and an interior are a pose and a `/screenshot` each, no walking. It is a debug
-  view: restore `/set_camera_mode third_person` (or the mode you found) before pointer work and
+  view: restore `/camera_mode third_person` (or the mode you found) before pointer work and
   before any screenshot that stands for what a player sees, and never leave it in `free`.
 - **Scene UI ids change when a panel is drawn again.** Take the ids from a fresh `/ui_list`
-  right before `/ui_click`, `/ui_set_text`, `/ui_scroll` or `/ui_hover`, and again after an
+  right before `/ui_click` or `/ui_write`, and again after an
   action that redraws the panel.
-- **A parked hover holds the pointer.** `/ui_hover` keeps its element hovered until
-  `/ui_hover --leave` or the next gesture (whose reply carries `hoverEnded`). `/click_at` is real
-  input and follows the parked aim: leave the hover first.
+- **A parked hover holds the pointer.** `/ui_click <id> --event hover` keeps its element hovered
+  until `/ui_click --event leave` or the next gesture (whose reply carries `hoverEnded`). `/click_at` on the
+  canvas is such a gesture; one on the HUD leaves the hover parked.
 - **World aims pass through scene UI.** `/click_entity --at` and `/hover_entity --at` ignore UI
   under the cursor (`blockedByUi` stays false); `/click_at` is the call that scene UI can take,
-  refused with `blockedByUi` naming the element unless `--force`; `/ui_at x y` says what sits
-  there.
+  refused with `blockedByUi` naming the element unless `--force`; `/ui_list --at x y` says what
+  sits there.
 - **`/walk` goes through the movement input**, with the walk or run key for the gait; it reports
   `distance` and whether an `InputModifier` froze movement (`modifierActive`, `modifier`;
-  `--ignore-input-modifiers` bypasses it). It never writes the player transform; `/move_to` does
-  what a scene's `movePlayerTo` does.
+  `--ignore-input-modifiers` bypasses it). It never writes the player transform; `/move_player_to`
+  (preview builds) does what a scene's `movePlayerTo` does.
 - **Euler angles are Decentraland's**: `cameraRotationEuler.x` is the pitch, looking down
-  positive. `/look_at` replies `aimErrorDegrees` and a `warning` when the pitch clamp or the
+  positive. `/camera_look --at` replies `aimErrorDegrees` and a `warning` when the pitch clamp or the
   third-person orbit keeps the point off.
-- **`/press_input` actions are lowercase** (`primary`, `jump`, `action_3`); an unaimed press
-  lands wherever the cursor is and says where it went (`entityBound`, `rootEvents`, `hint`).
+- **`/click_entity --button` actions are lowercase** (`primary`, `jump`, `action_3`); with no
+  target the press is unaimed, lands wherever the cursor is and says where it went (`entityBound`, `rootEvents`, `hint`).
 - **Known engine gaps** (report, do not chase): a hover leave is written for an entity that was
   never entered; a controlled `UiInput` keeps the typed text after the scene resets its `value`;
   a finished `AudioSource` sends no event and keeps `playing:true` in the scene's view
-  (`/audio_state` shows the engine's `state:"ended"` beside the scene's `requested`); on the web
+  (`/media_state --audio` shows the engine's `state:"ended"` beside the scene's `requested`); on the web
   the scene's `PointerLock` drops as soon as the platform reports the cursor unlocked.
