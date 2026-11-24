@@ -115,8 +115,8 @@ engine.addSystem(() => {
   const info = EngineInfo.getOrNull(engine.RootEntity);
   if (info) {
     console.log(info.frameNumber, info.tickNumber, info.totalRuntime);
-    // info.sceneHidden: true when a fullscreen Explorer UI (map, backpack,
-    // settings, loading screen, etc.) covers the scene viewport.
+    // info.sceneHidden: true while the loading screen covers the scene.
+    // The map, backpack and settings don't change it.
     if (info.sceneHidden) {
       // Pause expensive work, audio, animations — the player cannot see or
       // interact with the scene while it is hidden.
@@ -132,7 +132,7 @@ engine.addSystem(() => {
 | `frameNumber` | `number` | Frame counter of the engine |
 | `tickNumber` | `number` | Tick counter of the scene (per ADR-148) |
 | `totalRuntime` | `number` | Total runtime of this scene in seconds |
-| `sceneHidden` | `boolean` | `true` when the scene is hidden behind a fullscreen Explorer UI (map, backpack, settings, camera reel, loading screen). Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems when the scene is not visible. Default `false`. |
+| `sceneHidden` | `boolean` | `true` while the Explorer's loading screen covers the scene. The map, backpack, settings and camera reel don't change it. Written at the "physics" stage alongside `frameNumber`/`tickNumber`. Use to pause gameplay, audio, animations, and expensive systems until the loading screen fades out. Default `false`. |
 
 
 ### Detecting when the loading screen fades out

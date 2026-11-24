@@ -93,7 +93,7 @@ The engine only flips the flag on natural completion — a scene-initiated `stop
 
 Players must interact with the scene (click) before audio can play (browser autoplay policy). If an audio file needs to be ready to play the instant the player interacts, use the `AssetLoad` component to pre-load the asset.
 
-A sound started at scene startup plays **behind the Explorer's loading screen**, and full-screen Explorer UI (map, backpack) hides the scene the same way. Gate intro audio on `EngineInfo.sceneHidden` flipping to `false`, and pause audio while it is `true`: **scene-runtime**.
+A sound started at scene startup plays **behind the Explorer's loading screen**. Gate intro audio on `EngineInfo.sceneHidden` flipping to `false`: **scene-runtime**. The flag tracks only the loading screen; opening the map or backpack doesn't set it.
 
 ## AudioStream (Streaming)
 
