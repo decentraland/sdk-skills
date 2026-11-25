@@ -375,18 +375,18 @@ AvatarShape.createOrReplace(engine.PlayerEntity, {
 
 On a player entity:
 
-- **A non-empty `wearables` replaces the whole profile set.** A category it leaves out stays empty (no hair, bare feet), with no default item. `wearables: []` keeps the profile wearables.
-- **An unset field keeps the profile value** (`bodyShape`, `skinColor`, `hairColor`, `eyeColor`, `showOnlyWearables`); set them all to lock the whole look. `name`, `emotes`, `expressionTriggerId` and `talking` are ignored: label roles with `AvatarNametag`, play emotes with `triggerEmote`.
-- **Local and scene-bound.** Only the client that writes it shows it, and only while the player is on the scene's parcels. Leaving the scene, or `AvatarShape.deleteFrom(player)`, restores the profile look. For everyone to see it, every client writes `AvatarShape` on every player from state the scene syncs.
-- **Write on change, never every tick:** a changed value reloads the whole avatar. Remote players' entity ids are reused, so key each write by `PlayerIdentityData.address`, and when a player leaves, delete their `AvatarShape` and forget the key.
+- **A non-empty `wearables` replaces the whole profile set**, profile force-render included. A category it leaves out stays empty (no hair, bare feet). `wearables: []` keeps the profile wearables.
+- **An unset field keeps the profile value** (`bodyShape`, `skinColor`, `hairColor`, `eyeColor`, `showOnlyWearables`). `name`, `emotes`, `expressionTriggerId` and `talking` are ignored: label roles with `AvatarNametag`, play emotes with `triggerEmote`.
+- **Local and current-scene only.** Only the writing client shows it, and only while its scene is the current one; a remote player is dressed only while both they and the local player are in the scene. Leaving restores the profile look, coming back reapplies it with no new write. `AvatarShape.deleteFrom(player)` restores the profile. For everyone to see it, every client writes it on every player from synced state.
+- **Write on change, never every tick:** an identical write is free, any real change (even one color) rebuilds every item.
 - **`AvatarBase`, `AvatarEquippedData` and `getPlayer()` keep reporting the profile**, never the scene's outfit.
-- **Add on top** of the profile instead: `wearables: [...AvatarEquippedData.wearableUrns, item]`, scene item last (the later item of a category wins). Profile items of other categories stay and can overlap it.
+- **Add on top** instead: `wearables: [...AvatarEquippedData.wearableUrns, item]`, scene item last (the later item of a category wins).
 
-Scene `.glb` files: name them `<name>_<category>.glb` with one of 14 categories (`upper_body`, `lower_body`, `feet`, `hat`, `hair`… no `eyes`, `eyebrows`, `mouth`), keep textures embedded or in the same folder, and ship `_m_` / `_f_` variants of body-hugging items, picked by `AvatarBase.bodyShapeUrn`. A scene `.glb` always renders and hides nothing. A deployed scene shows them only after its asset bundles are converted. Model the file with **wearables**.
+Scene `.glb` files: `<name>_<category>.glb` (`upper_body`, `lower_body`, `feet`, `hat`, `hair`… 14 categories, no `eyes`, `eyebrows`, `mouth`), textures embedded or in the same folder, `_m_` / `_f_` variants of body-hugging items. A scene `.glb` always renders and hides nothing. Model the file with **wearables**.
 
-Which profile items are visible: `AvatarEquippedData.wearables` (`{ urn, visible? }`, `visible` unset while the outfit loads). It needs an SDK newer than 7.33.0 (`@dcl/sdk@next` until the next release); dressing works on 7.33.0.
+Which profile items are visible: `AvatarEquippedData.wearables` (`{ urn, visible? }`, `visible` unset while the outfit loads).
 
-Recipes (the `dressPlayer` helper, a uniform with male/female variants, add on top, colors or body only, team uniforms everyone sees via an authoritative server), the field table, the 14 categories, hiding rules, reading `visible`, and the skip warnings: `{baseDir}/references/scene-wearables.md`.
+Recipes (`dressPlayer` write-on-change helper, uniform with male/female variants, add on top, colors or body only, team uniforms everyone sees), the field table, lifecycle, file rules, hiding, reading `visible`, troubleshooting: `{baseDir}/references/scene-wearables.md`.
 
 ## NPC Avatars
 
