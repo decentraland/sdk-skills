@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: "The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), dress the player in scene wearables (a costume, uniform or outfit from .glb files in the scene, or catalog items), read equipped wearables and which ones are visible, trigger emotes, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), modeling a wearable GLB (see wearables), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control)."
+description: "The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), dress the player in scene wearables (a costume, uniform or outfit from .glb files in the scene, or catalog items) or change their skin, hair or eye color or body shape while in the scene, read equipped wearables and which ones are visible, trigger emotes, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), modeling a wearable GLB (see wearables), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control)."
 ---
 
 # Player and Avatar System in Decentraland
@@ -354,7 +354,7 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 
 ## Dress the Player (Scene Wearables)
 
-`AvatarShape` written on a player entity (`engine.PlayerEntity`, or a remote player's entity from `PlayerIdentityData`) restyles that player's real avatar: no second avatar, and locomotion and emotes keep working. A `wearables` entry is a catalog URN or the path of a wearable `.glb` shipped in the scene. Default to **full replacement**: the scene sets the whole look while the player is in the scene, and Backpack changes don't override it.
+`AvatarShape` written on a player entity (`engine.PlayerEntity`, or a remote player's entity from `PlayerIdentityData`) restyles that player's real avatar: no second avatar, and locomotion and emotes keep working. A `wearables` entry is a catalog URN or the path of a wearable `.glb` shipped in the scene (`<name>_<category>.glb`; model it with **wearables**). Default to **full replacement**: the scene sets the whole look while the player is in the scene, and backpack changes don't override it.
 
 ```typescript
 import { AvatarShape, engine } from '@dcl/sdk/ecs'
@@ -368,25 +368,20 @@ AvatarShape.createOrReplace(engine.PlayerEntity, {
 		BASE + 'short_hair', // a category left out stays empty, so list hair and shoes too
 		BASE + 'brown_pants',
 		BASE + 'classic_shoes',
-		'wearables/jersey/jersey_upper_body.glb', // scene file: <name>_<category>.glb
+		'assets/wearables/jersey/jersey_upper_body.glb', // scene file: <name>_<category>.glb
 	],
 })
 ```
 
 On a player entity:
 
-- **A non-empty `wearables` replaces the whole profile set**, profile force-render included. A category it leaves out stays empty (no hair, bare feet). `wearables: []` keeps the profile wearables.
-- **An unset field keeps the profile value** (`bodyShape`, `skinColor`, `hairColor`, `eyeColor`, `showOnlyWearables`). `name`, `emotes`, `expressionTriggerId` and `talking` are ignored: label roles with `AvatarNametag`, play emotes with `triggerEmote`.
-- **Local and current-scene only.** Only the writing client shows it, and only while its scene is the current one; a remote player is dressed only while both they and the local player are in the scene. Leaving restores the profile look, coming back reapplies it with no new write. `AvatarShape.deleteFrom(player)` restores the profile. For everyone to see it, every client writes it on every player from synced state.
-- **Write on change, never every tick:** an identical write is free, any real change (even one color) rebuilds every item.
-- **`AvatarBase`, `AvatarEquippedData` and `getPlayer()` keep reporting the profile**, never the scene's outfit.
-- **Add on top** instead: `wearables: [...AvatarEquippedData.wearableUrns, item]`, scene item last (the later item of a category wins).
+1. **A non-empty `wearables` replaces the whole profile set.** A category it leaves out stays empty (no hair, bare feet), and the face shows the default eyes, eyebrows and mouth, not the profile's (list catalog `eyes_00`, `eyebrows_00`, `mouth_00`… to choose them). `wearables: []` keeps the profile items, and an unset field keeps the profile value, so colors or `bodyShape` can change alone. To add on top: `[...AvatarEquippedData.wearableUrns, item]`, scene item last.
+2. **Write on change, from a system.** Any real change (even one color) reloads every item. Read `AvatarBase` / `AvatarEquippedData` with `getOrNull` in a system and write only when a key built from them differs from the last one written. Never rely on `AvatarEquippedData.onChange` alone: registered in `main()`, it misses the starting outfit.
+3. **Local and current-scene only.** Only the writing client shows it, and only while its scene is the current one. For everyone to see it, the scene syncs each player's choice and every client dresses every player from it.
 
-Scene `.glb` files: `<name>_<category>.glb` (`upper_body`, `lower_body`, `feet`, `hat`, `hair`… 14 categories, no `eyes`, `eyebrows`, `mouth`), textures embedded or in the same folder, `_m_` / `_f_` variants of body-hugging items. A scene `.glb` always renders and hides nothing. Model the file with **wearables**.
+`id`, `name`, `emotes`, `expressionTriggerId`, `expressionTriggerTimestamp` and `talking` are ignored on players: label roles with `AvatarNametag`, play emotes with `triggerEmote`. `AvatarBase`, `AvatarEquippedData` and `getPlayer()` keep reporting the profile; `AvatarEquippedData.wearables` (`{ urn, visible? }`) says which profile items are visible.
 
-Which profile items are visible: `AvatarEquippedData.wearables` (`{ urn, visible? }`, `visible` unset while the outfit loads).
-
-Recipes (`dressPlayer` write-on-change helper, uniform with male/female variants, add on top, colors or body only, team uniforms everyone sees), the field table, lifecycle, file rules, hiding, reading `visible`, troubleshooting: `{baseDir}/references/scene-wearables.md`.
+Recipes (`dressPlayer` helper, uniform with male/female variants, add on top, colors or body shape only, team uniforms everyone sees with serverless or authoritative sync), the field table, lifecycle, scene `.glb` rules, which items show, reading `visible`, troubleshooting: `{baseDir}/references/scene-wearables.md`.
 
 ## NPC Avatars
 

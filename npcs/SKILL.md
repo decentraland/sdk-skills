@@ -108,7 +108,7 @@ AvatarShape.create(npc, {
 ```
 
 **Notes:**
-- Always include eyebrows, mouth, and eyes wearables — the avatar won't render face features without them.
+- Include eyebrows, mouth and eyes wearables to choose the face; without them the avatar shows the default face.
 - `id` is required and must be unique per AvatarShape entity. **The Explorer prints the last 4 characters of `id` after the name**, in faded text, the way an unclaimed player name shows its address. An NPC has no profile, so it always gets the suffix and no field turns it off: `id: 'guard-1'` with `name: 'Guard'` renders as "Guard" with a faded "rd-1" appended. Choose ids whose last four characters look intentional, such as `guard-0001` (an id shorter than 4 characters shows `0000`). The only way to lose the suffix is to drop the whole tag.
 - Set `name: ''` (empty string) to suppress the name tag above the NPC's head, suffix included.
 - `wearables` also takes paths of wearable `.glb` files shipped in the scene (file rules: **player-avatar** → `references/scene-wearables.md`). Of two items in the same category, only the later one renders.
@@ -152,7 +152,7 @@ Note: replaying the **same** `expressionTriggerId` value back-to-back requires b
 
 ### Copies of the player
 
-A lookalike of the player — a line-up of "you", a clone posing in a shop, a twin that waves back — is an `AvatarShape` fed from live `getPlayer()` data (field mapping in **player-avatar**, clone bullet above), so it wears whatever the player wears. To change what the live player wears, write `AvatarShape` on the player entity instead: **player-avatar** → *Dress the Player*.
+A lookalike of the player — a line-up of "you", a clone posing in a shop, a twin that waves back — is an `AvatarShape` fed from live `getPlayer()` data (field mapping in **player-avatar**, clone bullet above), so it wears whatever the player's profile wears, not a scene's `AvatarShape` outfit on the player. To change what the live player wears, write `AvatarShape` on the player entity instead: **player-avatar** → *Dress the Player*.
 
 - **An `AvatarShape` cannot be puppeted frame by frame:** the engine walks it toward the authored position and turns it to face its travel. For a mirror double, shadow or replay ghost, use a rigged humanoid GLB with an `Animator` and write its `Transform` each frame.
 - **What a copy can visibly differ in** is decided by wearable categories (readable from the catalyst); scaling the copy (`1.07`, `0.93`, `1.10`) always shows.

@@ -24,7 +24,7 @@ Both are ordinary React-ECS and run anywhere; the editable contract is a *subset
 | Clickable objects in 3D space | pointer events | **add-interactivity** |
 | On-screen buttons that fire InputActions (mobile) | `uiInputBinding` on a `UiEntity` + `TouchScreenControls` | `{baseDir}/references/ui-components.md`, **advanced-input** |
 | A custom font (`fontSrc`) on any text | Load **fonts** before writing it: its first rule is an SDK-version check (`fontSrc` needs 7.31.0+ and fails silently below), and it says which clients show the font | **fonts** |
-| Login / nickname entry, chat box, friends list, emote menu, avatar dress-up, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one | `{baseDir}/../create-scene/references/platform-provided.md` |
+| Login / nickname entry, chat box, friends list, emote menu, profile outfit editor, loading screen | **Don't build it** — the Explorer already provides each one; build a scene version only if the design needs a different one. Dressing players in scene outfits is different: a UI that picks a costume and writes it is fine | `{baseDir}/../create-scene/references/platform-provided.md`; scene outfits: **player-avatar** → *Dress the Player* |
 
 ## Choosing the mode
 

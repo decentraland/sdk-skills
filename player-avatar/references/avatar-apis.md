@@ -43,7 +43,7 @@ The path is relative to the **project root, exactly as the file sits on disk** â
 
 ### Common Base Wearable URNs
 
-**Required minimums (avatar won't render without face features):**
+**Face features** (without them the avatar shows the default eyes, eyebrows and mouth; list one of each to choose the face):
 
 - `urn:decentraland:off-chain:base-avatars:eyebrows_00` through `eyebrows_07`
 - `urn:decentraland:off-chain:base-avatars:mouth_00` through `mouth_04`
