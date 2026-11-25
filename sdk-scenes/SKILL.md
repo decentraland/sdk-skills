@@ -160,7 +160,7 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 
 ### Player & Avatar
 
-**Skill: `player-avatar`** — Player position/profile, emotes, wearables, `AvatarAttach`, `AvatarNametag`, `AvatarModifierArea`.
+**Skill: `player-avatar`** — Player position/profile, emotes, wearables, dressing the player in scene wearables (`AvatarShape` on a player entity), `AvatarAttach`, `AvatarNametag`, `AvatarModifierArea`.
 
 ### Avatar Animations (Custom Emotes)
 
