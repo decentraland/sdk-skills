@@ -82,7 +82,7 @@ For full dialogue scripting, movement paths, state machines, and all config opti
 
 Create an NPC that looks like a Decentraland player avatar, dressed in any wearables.
 
-> **Mobile cost:** each `AvatarShape` NPC counted as **3 VFX emitters** on the mobile client (limit 10), with no particle system near it (observed 2026-11). Three NPCs nearly fill the budget. On phones, show them only near the player, and to hide one remove the entity: removing only `AvatarShape` left the avatar visible on mobile. See **optimize-scene** → Mobile Scene Limits.
+> **Mobile cost:** in one scene on one phone and mobile client build (observed 2026-11), each `AvatarShape` NPC counted as **3 VFX emitters** (limit 10) with no particle system near it, so three NPCs nearly filled the budget. On phones, consider showing them only near the player. In the same test, removing only the `AvatarShape` component left the avatar visible (likely a client bug), while removing the entity hid it. See **optimize-scene** → Mobile Scene Limits.
 
 ```typescript
 import { engine, Transform, AvatarShape } from '@dcl/sdk/ecs'

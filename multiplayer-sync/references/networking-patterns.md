@@ -207,7 +207,8 @@ bus.on('spawn', (message: SpawnMessage) => {
 })
 
 bus.on('chat', (msg: ChatMessage, sender: string) => {
-	// Use the sender the callback receives, never an address inside the payload
+	// Use the sender the callback receives, never an address inside the payload.
+	// Your own emit() is delivered locally with sender 'self', not your address.
 	console.log(`[${sender}]: ${msg.text}`)
 })
 ```
