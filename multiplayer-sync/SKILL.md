@@ -323,6 +323,7 @@ Some components that *look* multiplayer are evaluated or stored **per client**, 
 
 - **`Billboard`** (camera-facing) is recomputed in each client, so every player sees it facing their own camera; it needs no `syncEntity`. A `Billboard` with a `targetEntity` faces that entity instead, so all players see it oriented the same way: use it when the orientation must agree (e.g. a sign pointing at a shared object). Details: **advanced-rendering** → *Billboard (Face the Camera)*.
 - **`AvatarNametag`** (the rank/role plate above an avatar, `@dcl/sdk` 7.28.0+) is client-local: writing it on a remote player's entity changes only what the writing client sees, and `syncEntity` cannot relay it (player entities are engine-owned). If every player should see the same plate on everyone, each client must compute and write the whole set itself. It is not rendered on mobile, so never make it the only carrier of information a player needs (**player-avatar** → *Custom Nametag Plates* → Gotchas).
+- **`AvatarShape` on a player entity** (scene wearables: a costume or uniform on a real player) shows only on the client that writes it, and nothing relays it. For everyone to see it, every client writes it on every player from synced state: each client syncs its own choice on an entity of its own (this skill), or an authoritative server validates the choices; both in **player-avatar** → `references/scene-wearables.md` → *Everyone sees it*.
 
 Two ways to make a client-local visual agree across clients:
 

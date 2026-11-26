@@ -1,6 +1,6 @@
 ---
 name: wearables
-description: Create Decentraland wearable files — the skinned avatar clothing and accessory GLBs (and facial-feature PNGs) uploaded to the Builder. Covers starting from the official base meshes (which file is male vs female), category triangle/material/texture limits, armature and skinning rules, rigid parts, texturing that reads well on the toon-shaded avatar, the glTF export call, verifying the GLB, the 256 px thumbnail, one representation per body shape, and uploading to a Builder collection. Use when the user wants to make a wearable, model clothing/hats/helmets/accessories for avatars, fix a wearable that fails in the Builder or deforms wrong, or needs the wearable GLB for a smart wearable. Do NOT use for scene models (see add-3d-models), emotes (see avatar-animations), or the code side of a smart wearable (see smart-wearables).
+description: Create Decentraland wearable files — the skinned avatar clothing and accessory GLBs (and facial-feature PNGs) uploaded to the Builder. Covers starting from the official base meshes (which file is male vs female), category triangle/material/texture limits, armature and skinning rules, rigid parts, texturing that reads well on the toon-shaded avatar, the glTF export call, verifying the GLB, the 256 px thumbnail, one representation per body shape, and uploading to a Builder collection. Use when the user wants to make a wearable, model clothing/hats/helmets/accessories for avatars, fix a wearable that fails in the Builder or deforms wrong, or needs the wearable GLB for a smart wearable. Do NOT use for scene models (see add-3d-models), emotes (see avatar-animations), the code side of a smart wearable (see smart-wearables), or the scene code that dresses players in a GLB (see player-avatar).
 ---
 
 # Wearables
@@ -13,6 +13,7 @@ A wearable is a GLB skinned to the official Decentraland avatar armature (or a 2
 | Avatar animation / emote file | **avatar-animations** |
 | Model placed in a scene | **add-3d-models** |
 | Show a wearable on an NPC or read what a player wears | **npcs** / **player-avatar** |
+| Wear a GLB shipped in the scene's own files, with no Builder upload (costume, uniform) | **player-avatar** → *Dress the Player* (file naming, categories); model the GLB here |
 
 ## RULE: Start from the official base meshes
 

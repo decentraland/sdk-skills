@@ -2,7 +2,7 @@
 
 ## AvatarShape â€” Full Fields
 
-Create NPC avatars in your scene:
+Create NPC avatars in your scene. On a player entity the same component restyles that player, and fields apply differently: `{baseDir}/references/scene-wearables.md`.
 
 ```typescript
 import { AvatarShape } from '@dcl/sdk/ecs'
@@ -12,7 +12,7 @@ AvatarShape.create(entity, {
 	name: 'NPC Name', // Display name
 	bodyShape: 'urn:decentraland:off-chain:base-avatars:BaseMale', // or BaseFemale
 	wearables: [
-		// Array of wearable URNs
+		// Catalog URNs, or paths of wearable .glb files shipped in the scene
 		'urn:decentraland:off-chain:base-avatars:eyebrows_00',
 		'urn:decentraland:off-chain:base-avatars:mouth_00',
 		'urn:decentraland:off-chain:base-avatars:eyes_00',
@@ -43,7 +43,7 @@ The path is relative to the **project root, exactly as the file sits on disk** â
 
 ### Common Base Wearable URNs
 
-**Required minimums (avatar won't render without face features):**
+**Face features** (without them the avatar shows the default eyes, eyebrows and mouth; list one of each to choose the face):
 
 - `urn:decentraland:off-chain:base-avatars:eyebrows_00` through `eyebrows_07`
 - `urn:decentraland:off-chain:base-avatars:mouth_00` through `mouth_04`

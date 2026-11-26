@@ -1,6 +1,6 @@
 ---
 name: player-avatar
-description: The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), trigger emotes, read equipped wearables, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control).
+description: "The live player in a Decentraland scene. Use when the user wants to read player position or profile, fetch avatar appearance for off-scene addresses (parcel owners, NFT holders), dress the player in scene wearables (a costume, uniform or outfit from .glb files in the scene, or catalog items) or change their skin, hair or eye color or body shape while in the scene, read equipped wearables and which ones are visible, trigger emotes, attach items to players/avatar (cosmetic vs held gameplay items), show a custom label plate above a player's or NPC's nametag (AvatarNametag), hide avatars or disable passports in zones (AvatarModifierArea), adjust locomotion speed, teleport the player (movePlayerTo), or listen for scene entry/exit. Do NOT use for NPC characters (see npcs), modeling a wearable GLB (see wearables), wallet/blockchain checks (see nft-blockchain), freezing player movement (see advanced-input for InputModifier), or camera mode (see camera-control)."
 ---
 
 # Player and Avatar System in Decentraland
@@ -105,7 +105,7 @@ Derive anything safety-critical from the local player's own position on each cli
 
 ## Player Profile Data
 
-Get the player's name, wallet address, and guest status. `player.wearables` and `player.emotes` are copies, not the frozen component arrays, so mutating them changes nothing on the avatar:
+Get the player's name, wallet address, and guest status. `player.wearables` and `player.emotes` are copies of the profile, not the frozen component arrays, so mutating them changes nothing on the avatar (to change it, see *Dress the Player*):
 
 ```typescript
 import { getPlayer } from '@dcl/sdk/src/players'
@@ -352,11 +352,42 @@ triggerSceneEmote({ src: 'assets/animations/Carry_emote.glb', loop: true, mask: 
 - **A masked emote survives scene-driven movement:** an upper-body emote is meant to keep playing while the scene moves the player with `movePlayerTo`, instant or with `duration` (a strike combined with a lunge). Test cases: sdk7-test-scenes `88,-13-avatar-masks`, the cube row at z = 12. [UNVERIFIED: expected behaviour as encoded by that test scene; not confirmed in Explorer source.] A full-body emote is still cancelled by the move on desktop (above).
 - **Masked emotes do not stack with other emotes:** starting a masked emote stops a playing full-body emote (a chair's sitting emote included) and a full-body emote cancels a masked one; the mask only layers over locomotion. For a seated player, play a full-body clip that contains the seated pose instead. Authoring details in **avatar-animations** → "Upper-body (masked) animations".
 
+## Dress the Player (Scene Wearables)
+
+`AvatarShape` written on a player entity (`engine.PlayerEntity`, or a remote player's entity from `PlayerIdentityData`) restyles that player's real avatar: no second avatar, and locomotion and emotes keep working. A `wearables` entry is a catalog URN or the path of a wearable `.glb` shipped in the scene (`<name>_<category>.glb`; model it with **wearables**). Default to **full replacement**: the scene sets the whole look while the player is in the scene, and backpack changes don't override it.
+
+```typescript
+import { AvatarShape, engine } from '@dcl/sdk/ecs'
+
+const BASE = 'urn:decentraland:off-chain:base-avatars:'
+
+AvatarShape.createOrReplace(engine.PlayerEntity, {
+	id: '', // id and emotes are required by the type, ignored on players
+	emotes: [],
+	wearables: [
+		BASE + 'short_hair', // a category left out stays empty, so list hair and shoes too
+		BASE + 'brown_pants',
+		BASE + 'classic_shoes',
+		'assets/wearables/jersey/jersey_upper_body.glb', // scene file: <name>_<category>.glb
+	],
+})
+```
+
+On a player entity:
+
+1. **A non-empty `wearables` replaces the whole profile set.** A category it leaves out stays empty (no hair, bare feet), and the face shows the default eyes, eyebrows and mouth, not the profile's (list catalog `eyes_00`, `eyebrows_00`, `mouth_00`… to choose them). `wearables: []` keeps the profile items, and an unset field keeps the profile value, so colors or `bodyShape` can change alone. To add on top: `[...AvatarEquippedData.wearableUrns, item]`, scene item last.
+2. **Write on change, from a system.** Any real change (even one color) reloads every item. Read `AvatarBase` / `AvatarEquippedData` with `getOrNull` in a system and write only when a key built from them differs from the last one written. Never rely on `AvatarEquippedData.onChange` alone: registered in `main()`, it misses the starting outfit.
+3. **Local and current-scene only.** Only the writing client shows it, and only while its scene is the current one. For everyone to see it, the scene syncs each player's choice and every client dresses every player from it.
+
+`id`, `name`, `emotes`, `expressionTriggerId`, `expressionTriggerTimestamp` and `talking` are ignored on players: label roles with `AvatarNametag`, play emotes with `triggerEmote`. `AvatarBase`, `AvatarEquippedData` and `getPlayer()` keep reporting the profile; `AvatarEquippedData.wearables` (`{ urn, visible? }`) says which profile items are visible.
+
+Recipes (`dressPlayer` helper, uniform with male/female variants, add on top, colors or body shape only, team uniforms everyone sees with serverless or authoritative sync), the field table, lifecycle, scene `.glb` rules, which items show, reading `visible`, troubleshooting: `{baseDir}/references/scene-wearables.md`.
+
 ## NPC Avatars
 
 For creating NPCs (characters, shopkeepers, guards, etc.), see the **npcs** skill. It covers both the NPC Toolkit library (GLB-based, with dialogue and movement) and `AvatarShape`-based avatar NPCs.
 
-**A lookalike of the player** (a queue of "you", a posed clone, a mirror double): **npcs** → "Copies of the player". When feeding an `AvatarShape` from `getPlayer().avatar`, the field names differ: `eyesColor` → `eyeColor`, `bodyShapeUrn` → `bodyShape`. `VisibilityComponent` on an `AvatarShape` is untested; hide one by scaling it to near zero.
+**A lookalike of the player** (a queue of "you", a posed clone, a mirror double): **npcs** → "Copies of the player". To change the live player's own look, dress the player (above) instead of hiding them behind a copy. When feeding an `AvatarShape` from `getPlayer().avatar`, the field names differ: `eyesColor` → `eyeColor`, `bodyShapeUrn` → `bodyShape`. `VisibilityComponent` on an `AvatarShape` is untested; hide one by scaling it to near zero.
 
 ## Custom Nametag Plates (`AvatarNametag`)
 
@@ -541,7 +572,7 @@ async function lockedTeleport() {
 
 ## Avatar Change Listeners
 
-`AvatarBase.onChange` (appearance, name) and `AvatarEquippedData.onChange` (wearables) on `engine.PlayerEntity` or a remote player's entity: `{baseDir}/references/avatar-apis.md` → Avatar Change Listeners. Emote playback: *Detecting when an emote finishes*. Wallet checks with `getPlayer()` and `isGuest` before showing avatar items: **nft-blockchain**.
+`AvatarBase.onChange` (appearance, name) and `AvatarEquippedData.onChange` (wearables) on `engine.PlayerEntity` or a remote player's entity: `{baseDir}/references/avatar-apis.md` → Avatar Change Listeners. Which profile items are visible (`AvatarEquippedData.wearables`): `{baseDir}/references/scene-wearables.md`. Emote playback: *Detecting when an emote finishes*. Wallet checks with `getPlayer()` and `isGuest` before showing avatar items: **nft-blockchain**.
 
 ## Who is talking (`AvatarBase.talking`)
 
@@ -549,8 +580,9 @@ async function lockedTeleport() {
 
 ## Example scenes
 
-Engine-team test scenes for attachments, emotes, masks, `movePlayerTo`, modifier areas, nametag plates and `InputModifier`: `{baseDir}/references/test-scenes.md`.
+Engine-team test scenes for attachments, emotes, masks, `movePlayerTo`, modifier areas, nametag plates, scene wearables and `InputModifier`: `{baseDir}/references/test-scenes.md`.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
 For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
 For `AvatarNametag` fields, edge cases, and the multiplayer roster pattern, see `{baseDir}/references/avatar-nametag.md`.
+For `AvatarShape` on player entities, scene `.glb` wearables and `AvatarEquippedData.wearables`, see `{baseDir}/references/scene-wearables.md`.
