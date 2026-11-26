@@ -87,6 +87,8 @@ Keep labels near models clear of solid geometry: **advanced-rendering** → *Tex
 
 ## RULE: Use composite for initial models
 
+Put the **final** model in the composite. If code replaces or deletes a composite model at start, the client has already requested the original: the composite loads before scene code runs, so a placeholder swapped on the first tick still costs its download.
+
 Models present at scene load go in `assets/scene/main.composite`, through the Creator Hub MCP when the scene is open there; only models spawned at runtime go in TypeScript (**sdk-scenes** → *CRITICAL RULE — Composite-first scene authoring*). To add behavior to a composite model, fetch it by name or tag (`{baseDir}/../composites/composite-reference.md` → Referencing Composite Entities from Code).
 
 Through the MCP (**creator-hub-mcp**): `search_catalog` + `place_smart_item` for a catalog item (the catalog covers static items as well as Smart Items and downloads the files for you), or `create_entity` + `set_component` `Transform` + `set_component` `core::GltfContainer` for a GLB you placed under `assets/Models/`. The bounding-box, collider-mask, and Animator rules in this skill apply either way.

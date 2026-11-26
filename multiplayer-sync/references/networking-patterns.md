@@ -188,7 +188,7 @@ type SpawnMessage = {
 }
 
 type ChatMessage = {
-	sender: string
+	// No sender field: anything in the payload is written by the sending client
 	text: string
 	timestamp: number
 }
@@ -206,10 +206,14 @@ bus.on('spawn', (message: SpawnMessage) => {
 	})
 })
 
-bus.on('chat', (msg: ChatMessage) => {
-	console.log(`[${msg.sender}]: ${msg.text}`)
+bus.on('chat', (msg: ChatMessage, sender: string) => {
+	// Use the sender the callback receives, never an address inside the payload.
+	// Your own emit() is delivered locally with sender 'self', not your address.
+	console.log(`[${sender}]: ${msg.text}`)
 })
 ```
+
+Every field of a `MessageBus` payload is chosen by the client that sent it. Don't put a player's address in the payload and act on it (claiming a seat, releasing someone else's): a modified client can name anyone. Use the `sender` argument for display, and move anything that matters (seats, scores, ownership) to a server.
 
 ## Architecture Patterns
 
