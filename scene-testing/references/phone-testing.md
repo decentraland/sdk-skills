@@ -34,7 +34,7 @@ The script is Windows-only (PowerShell and `System.Drawing`). On other systems, 
 ## What to check on the phone after every fix
 
 - Layout: cards, buttons and text at the phone's real size, clear of the client's own on-screen buttons (**build-ui** → mobile placement).
-- NPCs and avatars: present when they should be (and see **npcs** for their emitter cost).
+- NPCs and avatars: present when they should be.
 - Loading: time to move on the published scene, from a cold start.
 - Input: anything a desktop player does with a key, the phone player can reach by touch.
 - Limits: read in the mobile preview only, twice (**optimize-scene** → Mobile Scene Limits).

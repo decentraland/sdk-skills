@@ -17,7 +17,7 @@ Ask: *what would a tester need to reach, force or reset quickly in this game?* T
 
 Each control was added when someone needed it. Some proved their worth beyond testing:
 
-- Switching effect groups on and off on a phone found the cause of a performance problem: NPC avatars were counted as effect emitters.
+- Switching effect groups on and off on a phone narrowed down the cause of a performance problem.
 - Time of day and fog picked the scene's final lighting.
 - "Start over" made fresh-player persona runs possible (**persona-rounds.md**).
 
