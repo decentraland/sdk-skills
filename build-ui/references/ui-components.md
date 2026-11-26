@@ -82,7 +82,7 @@ The virtual size is a minimum, not the canvas shape. The scale factor is a conta
     color: Color4.White(),
     textAlign: 'middle-center',
     font: 'sans-serif',          // 'sans-serif' | 'serif' | 'monospace'
-    fontSrc: 'assets/fonts/MyFont-Regular.ttf'  // optional custom .ttf, `font` is the fallback; see the fonts skill
+    fontSrc: 'assets/fonts/MyFont-Regular.ttf'  // optional .ttf or Google Fonts family name, `font` is the fallback; see the fonts skill
   }}
 
   uiInputBinding={{ actions: [InputAction.IA_JUMP] }}  // see uiInputBinding below
@@ -123,7 +123,7 @@ Editable-UI note: in an editable file every value here is a literal or a bare `s
 
 **textWrap values:** `wrap` (default when unset), `nowrap`. Also on `Button`. Single-line text uses `nowrap`: `SKILL.md` → **Sizing and mobile**.
 
-**fontSrc:** path to a `.ttf` in the scene content, with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, explorer support matrix and testing: the **fonts** skill.
+**fontSrc:** path to a `.ttf` in the scene content, or a Google Fonts family name (desktop shows the fallback for a family name), with `font` as its fallback. Also on `Button`, `Input` and `Dropdown`. SDK version, client support matrix, mobile limits and testing: the **fonts** skill.
 
 `value` supports simple markup like `<b>`.
 

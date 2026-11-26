@@ -218,6 +218,8 @@ Not supported yet on mobile (Godot explorer) or the Bevy explorer: players there
 
 Colors are `ColorGradient`s keyed on the time of day. **Read `{baseDir}/references/sky-sun-fog.md` before writing any of their fields**: gradients, defaults, the sky-image and ambient-light rules, and the recipes for complete darkness and resetting to the default sky.
 
+**No-code route: the Creator Hub *Skybox* smart item** (Smart Items → `utils`, `search_catalog` "Skybox"; not the older "Screen Skybox" video item). It writes `Skybox`, `Sun` and `EnvironmentFog` on the root from sliders, checkboxes and colour pickers, takes an equirectangular sky image, and exposes Enable / Disable / Toggle / Hide Clouds / Show Clouds / Clear Fog / Restore Fog actions for buttons and triggers; with several placed, the one enabled last wins. Needs `@dcl/sdk` 7.32.0+ in the scene. Prefer it when the scene is edited in the Creator Hub and the creator wants to tune the sky themselves, or to switch day and night presets from a button; write the components in code for gradients keyed on time of day or values driven by game state. Params and behaviour: **script-components** → `references/smart-items.md` → *Skybox*.
+
 ## Glow + Light
 
 Emissive materials glow but do not illuminate surrounding entities; a `LightSource` illuminates but has no visible body. Emissive material fields (`emissiveColor` is `Color3`, `emissiveIntensity`, `emissiveTexture`): **advanced-rendering** → *Emissive (Glow Effects)*.
@@ -265,6 +267,7 @@ Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flicker
 
 ## Gotchas
 
+- **Judge lighting in the Bevy editor only after Play.** A stopped Bevy editor (on open and after Stop) shows editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are not applied, and lights parented to the camera or player are hidden with the Free camera. Play shows the scene's own lighting; Pause keeps it with the clock held. A night scene that looks like noon in the editor is not a bug (**create-scene** → `references/preview-options.md` → *Bevy editor renderer*).
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
 
 ## Example scenes

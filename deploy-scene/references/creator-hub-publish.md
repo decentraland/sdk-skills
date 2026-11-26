@@ -33,7 +33,7 @@ The Deploy step shows a progress bar: *"Preparing the upload..."*, *"Uploading {
 ## After the upload
 
 - The success screen adds: *"The scene itself is live now. Its card in the explorer — title, description and thumbnail — is indexed separately and can take a few minutes to catch up."* A stale card right after publishing is not a failed deploy.
-- The share link and **Jump In** point at the parcel actually deployed (share-link forms: SKILL.md → *The link to share after publishing*). The World success step links to the World's Settings.
+- The share link and **Jump In** point at the target actually deployed: the parcel, or for a World publish the World (`/jump?realm=NAME.dcl.eth`), and the Publish menu then offers **Republish to <world>**. **Jump In** opens the desktop client, or the web `/jump` page when no app handles `decentraland://` (share-link forms: SKILL.md → *The link to share after publishing*). The World success step links to the World's Settings.
 
 ## Manage: Worlds | LANDs
 

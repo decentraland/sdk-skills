@@ -72,13 +72,14 @@ Parameters declared in the constructor are exposed in the Creator Hub UI and can
 | `Entity` | entity picker (lets the user pick another entity from the scene) |
 | `ActionCallback` | action picker — see "ActionCallback parameters" |
 | `Slider<Min, Max, Step>` | **slider plus a number box** — see below |
+| `Color3` / `Color4` (from `@dcl/sdk/math`) | colour picker (swatch + hex) |
 | string-literal union (`'box' \| 'sphere'`) | dropdown; the first member is the default unless you give one |
 | inline object literal (`{ x: number; y: number }`) | collapsible group of fields |
 | `T[]` / `Array<T>` | list of rows with Add / remove |
 
 Both `public` and `private` parameters are exposed to Creator Hub. Use `this.<paramName>` to access values in your code.
 
-**Nested shapes must be written inline** — a named interface or type alias is not resolved and renders as an empty text field. Object and list rules, the `@components` / `@actionsOf` / `@format wallet` JSDoc tags that narrow entity and action pickers, and how file-name params are checked and follow renames: `{baseDir}/references/script-params.md`.
+**Nested shapes must be written inline** — a named interface or type alias is not resolved and renders as an empty text field. Object and list rules, colour params, the JSDoc tags (`@components` / `@actionsOf` narrow entity and action pickers, `@format wallet` an address field, `@format image|audio|video|model` a scene-file picker, `@enabledIf [!]<param>` locks a field behind a checkbox), and how file-name params are checked and follow renames: `{baseDir}/references/script-params.md`.
 
 ### `Slider<Min, Max, Step>` — a number edited with a slider
 

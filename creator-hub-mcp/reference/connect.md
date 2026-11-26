@@ -26,6 +26,8 @@ Never print, echo or paste the token into chat, a log or a commit. Read it from 
 | Windows | `%APPDATA%\creator-hub` |
 | Linux | `~/.config/creator-hub` (Electron `app.getPath('userData')`; `$XDG_CONFIG_HOME` if set) |
 
+Scenes are not under `<userData>` by default: new scenes go to `~/Decentraland/Scenes` on every OS. An install whose old `<userData>/Scenes` already held scenes, or whose user picked a folder, keeps that folder until **Reset** in the Hub's Settings switches it.
+
 ```bash
 F="$HOME/Library/Application Support/creator-hub/mcp-server.json"   # path per OS: table above
 ```

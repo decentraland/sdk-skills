@@ -85,6 +85,7 @@ Code for every row below: `{baseDir}/references/blockchain-patterns.md` → dcl-
 | Buy from marketplace | `crypto.marketplace.executeOrder()` |
 | List NFT for sale | `crypto.marketplace.createOrder()` |
 | Cancel a listing, check authorization | `crypto.marketplace.cancelOrder()`, `crypto.marketplace.*` |
+| Sell a collection wearable or emote for credits, in the Explorer's own modal (no wallet transaction from scene code) | `openExplorerUiAndWait({ ui: ExplorerUi.EU_ITEM_PURCHASE, itemPurchase: { urn } }, …)` — **scene-runtime** → *Sell an item* |
 | Sign a message (EIP-712 typed data with the player's wallet) | `crypto.ethereum.signMessageAdvanced()` |
 | Custom smart contract | `eth-connect` (see above) |
 | Authenticated API call | `signedFetch` (**scene-runtime**) |

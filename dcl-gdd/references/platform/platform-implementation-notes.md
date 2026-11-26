@@ -209,6 +209,11 @@ Design context: [services and publishing](dcl-platform-facts.md#discovery-and-re
   for an assigned operator, an enabled studio budget and an eligible recipient. Seasonal goal
   credits and Studio/on-demand grants have different units and conditions; check the chosen
   branch. This supports an approved campaign, not an automatically available game currency.
+- **Selling an item in-scene for credits:** a scene can open the Explorer's buy-with-credits modal
+  for a collection wearable or emote with a primary listing (a vending machine, a shop counter)
+  and learn whether the player bought it, to unlock something in-scene. Players without buying
+  with credits enabled get a rejection, so the scene needs a path for them too. API and test scene:
+  **scene-runtime** → *Sell an item*.
 - **Profile Badges:** [definitions and progress](https://docs.decentraland.org/apis/apis/badges/overview.md)
   can support recognition around platform activities. Badge processing is event-driven platform
   infrastructure; a custom scene achievement still needs its own issuance agreement or game save.

@@ -63,7 +63,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. Requires `dcl-gdd`. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
-| `fonts` | Built-in fonts and custom `.ttf` fonts (`fontSrc`) for 3D and UI text — explorer support, licensing, testing. |
+| `fonts` | Built-in fonts and custom fonts (`fontSrc`: a `.ttf` or a Google Fonts family name) for 3D and UI text — client support, licensing, testing. |
 | `htn-npcs` | Design, write, review and debug HTN behaviour domains; integrate facts/actions and test individual or cooperating NPCs with the HTN module. |
 | `lighting-environment` | Point and spot lights, shadows, light budgets, skybox time and day/night cycles, custom sky texture, sky colors, clouds, stars, sun color/intensity/direction, fog color and density. |
 | `migrate-sdk6-to-sdk7` | Port legacy SDK6 scenes (decentraland-ecs) to SDK7 — ECS conceptual shift, API mapping, worked 2048 example. |

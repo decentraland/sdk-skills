@@ -26,6 +26,8 @@ Practical variant: if an entity has `VisibilityComponent(visible: false)` + `Glt
 
 This catches broken invisible walls, cylinders, domes, ramps, and spheres that appear correct in the editor but provide no collision in-world.
 
+The Creator Hub's invisible Wall / Sphere / Dome / Cylinder / Ramp items placed now carry no `VisibilityComponent`: a collider-only `GltfContainer` (`visibleMeshesCollisionMask: 0`, `invisibleMeshesCollisionMask: 2`) plus an editor-only `asset-packs::Placeholder`. They pass this rule through the `invisibleMeshesCollisionMask`; the rule's `VisibilityComponent` trigger still covers items placed before that change and hand-built blockers (**script-components** → `references/smart-items.md` → *Invisible blockers*).
+
 ### Rule 2b: `audio-source-requires-transform`
 
 **If** an entity has `AudioSource` (spatial **or** `global: true`), **then** it must also have a `Transform`.

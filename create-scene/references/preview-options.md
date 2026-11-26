@@ -40,6 +40,18 @@ Settings > "Scene renderer" dropdown — **"Babylon (default)"** / **"Bevy (expe
 
 Bevy editor behaviour that differs from normal Bevy use: every scene opens **muted** (viewport speaker toggle; scene audio, video and footsteps silent until unmuted, not remembered across opens); in the **Free** camera no avatar is shown and WASD / Space / E / Q fly the camera, the mouse wheel or trackpad zooms, and the camera cannot go below Y = 0.1 (the avatar appears on **Play** or in the **Player** camera); holding **Shift** during a gizmo drag toggles snapping, as in Babylon.
 
+**What the viewport shows depends on the run state** (toolbar ▶ Play / ⏸ Pause / ⏹ Stop). The editor changes only its own copy in the engine, never the scene's CRDT or composite:
+
+| State | Lighting and sky | Scene UI | Entities attached to camera or player | Editor `Placeholder`s |
+|---|---|---|---|---|
+| **Stopped** (on open, after Stop) | Editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are removed and the clock is pinned at noon | Hidden | Hidden with the **Free** camera (parented through Transform to `engine.CameraEntity` / `engine.PlayerEntity`, or `AvatarAttach` with no `avatarId`); shown in the **Player** camera | Shown (trigger areas, invisible walls, sound emitters) |
+| **Play** | The scene's own lighting, sky and time | Shown | Shown, as in-world | Hidden: the authored model, or nothing |
+| **Pause** | Kept from Play, sky clock held | Kept | Kept | Hidden |
+
+So judge night scenes, `LightSource` flashlights, scene UI and invisible items only after **Play**, or in the Explorer preview. Entities that scene code creates and parents to the camera at runtime can still follow the Free camera after a Pause. **Interact** mode hides the transform gizmo and the spawn-point handle (the selection outline stays) and brings them back when it turns off.
+
+The editor realm, a `sdk-commands start` of the scene that feeds the viewport, also runs the scene's Multiplayer Server and restarts it after a crash; **Play** shares that server: **authoritative-server** → *Running locally*.
+
 Bevy editor limitations to know before recommending it:
 
 - **The Metrics tab is disabled** ("Scene metrics are only available with the Babylon renderer"). Run the scene preview to view the metrics.

@@ -583,6 +583,6 @@ async function lockedTeleport() {
 Engine-team test scenes for attachments, emotes, masks, `movePlayerTo`, modifier areas, nametag plates, scene wearables and `InputModifier`: `{baseDir}/references/test-scenes.md`.
 
 For component field details, see `{baseDir}/../sdk-scenes/references/components-reference.md`.
-For anchor points, emote names, and event callbacks, see `{baseDir}/references/avatar-apis.md`.
+For anchor points, emote names, and event callbacks (including when `onEnterScene` / `onLeaveScene` fire for the local player, who is tracked by position against the scene's parcels), see `{baseDir}/references/avatar-apis.md`.
 For `AvatarNametag` fields, edge cases, and the multiplayer roster pattern, see `{baseDir}/references/avatar-nametag.md`.
 For `AvatarShape` on player entities, scene `.glb` wearables and `AvatarEquippedData.wearables`, see `{baseDir}/references/scene-wearables.md`.

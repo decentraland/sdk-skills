@@ -1,6 +1,6 @@
 ---
 name: scene-runtime
-description: Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (teleportTo / realm change, external URLs, NFT dialog, explorer panels, clipboard), system execution order/priority, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input).
+description: "Cross-cutting runtime APIs for Decentraland SDK7 scenes. Use when the user needs async work (executeTask), HTTP (fetch/signedFetch) or WebSocket, timers, realm/scene metadata, restricted actions (teleportTo / realm change, external URLs, NFT dialog, explorer panels, selling a wearable or emote for credits, clipboard), system execution order/priority or tick rate, or to write scene tests. Do NOT use for UI (see build-ui), multiplayer sync (see multiplayer-sync), avatar/player data (see player-avatar), or polling-based input (see advanced-input)."
 ---
 
 # Scene Runtime APIs
@@ -174,6 +174,8 @@ engine.addSystem(function waitForSceneRevealed() {
 
 `engine.addSystem(fn, priority?, name?)` runs `fn(dt)` every frame. The `priority` parameter controls **when** in the frame it runs relative to other systems.
 
+**Tick rate = render frame rate, for the scene the player stands in.** At 60 FPS its systems run 60 times a second (`dt` ≈ 1/60), with no 30-tick cap; a portable experience ticks the same way. Every other loaded scene ticks on a slower timer. So scale every gradual change by `dt`, and measure frame rate with `EngineInfo.frameNumber` over `totalRuntime`, never by counting your own ticks, which reads low in any scene the player is not standing in (**optimize-scene** → *Low-FPS settings prompt*).
+
 **HIGHER priority number = runs EARLIER in the frame** (systems sort descending), the opposite of Unity/Godot. "Make this run first" means a **large** number; a system with priority `1` runs almost last.
 
 Key numbers:
@@ -273,7 +275,9 @@ pointerEventsSystem.onPointerDown(
 );
 ```
 
-`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing. `EU_ITEM_PURCHASE` also exists in the SDK types but the explorer has no purchase flow and answers `REJECTED_FEATURE_DISABLED`; do not use it.
+`ExplorerUi` enum values (imported from `@dcl/sdk/ecs`): `EU_SETTINGS` (0), `EU_MAP` (1), `EU_BACKPACK` (2), `EU_CAMERA_REEL` (3), `EU_COMMUNITIES` (4), `EU_PLACES` (5), `EU_EVENTS` (6). The enum is shared between `openExplorerUi` and `ExplorerUiEventsResult` -- no casts needed when comparing. `EU_ITEM_PURCHASE` (7) is the credits purchase modal: *Sell an item* below.
+
+Reusable pattern with `EU_SETTINGS`: detect a low frame rate and offer a button that opens the settings panel, **optimize-scene** → *Low-FPS settings prompt*.
 
 ### openExplorerUiAndWait -- Wait Until the Panel Closes
 
@@ -301,6 +305,10 @@ pointerEventsSystem.onPointerDown(
 ```
 
 `outcome.$case`: `closed` (the panel this call opened was closed, the normal end), `notOpened` (nothing opened; `outcome.openResult` is the `OpenExplorerUiResult` reason, resolves immediately), `timedOut` (`timeoutMs` elapsed with the panel still open), `matched` (an `until` condition fired first; the panel may still be open). There is no default timeout: a panel can stay open for minutes, so pass `timeoutMs` whenever the scene must move on regardless. `until` / `collect` options and event channels: `{baseDir}/references/runtime-apis.md` → openExplorerUiAndWait.
+
+### Sell an item -- `EU_ITEM_PURCHASE`
+
+`openExplorerUiAndWait({ ui: ExplorerUi.EU_ITEM_PURCHASE, itemPurchase: { urn } }, { collect: [ItemPurchase], timeoutMs })` (`@dcl/sdk/explorer-ui`) opens the Explorer's buy-with-credits modal for a wearable or emote; the scene supplies only the URN, price and payment are the Explorer's. A completed purchase is real: it spends the player's credits and mints the item. The outcome arrives on the `ItemPurchase` channel as `purchased`, `dismissed` or `failed`, and before `closed`, so the wait ends with it in `outcome.events`. Same gesture rule: the call must be the first thing in the click handler, before any `await`. Pass a long `timeoutMs` (the player may take minutes). URN rules, every result code and the vending-machine example: `{baseDir}/references/runtime-apis.md` → *Item purchase*.
 
 ### ExplorerUiEventsResult -- Follow the Panels Your Scene Opened
 

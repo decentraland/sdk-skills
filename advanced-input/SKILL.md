@@ -258,7 +258,7 @@ onPlayerLanguageChanged.add(({ language }) => {
 
 - **`getPlayerLanguage(): string`** — a BCP-47 tag (`'es'`, `'pt-BR'`). Sourced from `getExplorerInformation().configurations['locale']`, with `_` normalized to `-` (`pt_BR` → `pt-BR`) and surrounding whitespace trimmed. A value that does not match `^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$` falls back to `'en'`.
 - **GOTCHA — it is synchronous and returns `'en'` until the explorer has answered.** Unlike `getPlatform()`, which returns `null` while unknown, there is no "not yet" value here: calling it in `main()` reliably gives you `'en'` on every client. Either read it inside a system after the first frames, or re-read it from `onPlayerLanguageChanged`.
-- **`onPlayerLanguageChanged: Observable<{ language: string }>`** fires only on a *real* change (setting the same tag twice notifies once). Older clients never emit it.
+- **`onPlayerLanguageChanged: Observable<{ language: string }>`** fires only on a *real* change (setting the same tag twice notifies once).
 - Returns `'en'` when the client reports no locale, when `configurations` is missing, and when the `getExplorerInformation` RPC rejects. Region subtags are passed through verbatim — match on the full tag first, then fall back to the primary subtag, then to `'en'`.
 - Under the hood this adds a `localeChanged: { locale: string }` scene event to `IEvents`; **importing `@dcl/sdk/platform` subscribes to it for you**, so there is nothing to wire up.
 
@@ -271,8 +271,9 @@ import { engine, TouchScreenControls, InputAction } from '@dcl/sdk/ecs'
 ```
 
 - Set it on **`engine.RootEntity`** — the client reads it nowhere else.
-- Applied while the player is inside the scene; reverts to defaults on exit, so scenes that don't use it are unaffected.
+- Applied while the player is inside the scene; the client restores its own controls the moment the player leaves.
 - **Every scene starts from the default button set** (SDK **7.32.0+**): `IA_JUMP`, `IA_POINTER` and `IA_PRIMARY` visible; `IA_SECONDARY` and `IA_ACTION_3`..`IA_ACTION_6` hidden. On 7.26.0–7.31.x there is no default write: all eight buttons show unless the scene hides some. See *The default button set* below.
+- **A scene that uses F or 1–4 must turn those buttons on.** Reacting to `IA_SECONDARY` or `IA_ACTION_3`..`IA_ACTION_6` through `PointerEvents` or `inputSystem` does not show the button, so without a `TouchScreenControls` write mobile players cannot press it.
 - **No-op** on platforms without native on-screen controls (desktop), and no effect in VR. Safe to write unconditionally — no `isMobile()` guard needed.
 - Covers **input controls only**. The client's own HUD (emote wheel, profile, chat, minimap) is not affected by this component.
 - **If the scene uses the Creator Hub UI Designer, this component is the editor's.** The Creator Hub ships a **MobileHUD** entry in the UI Designer that edits `TouchScreenControls` visually and owns `src/mobile-hud.ts` (lazily written, auto-deleted when the config returns to defaults). There is one component on `engine.RootEntity` and last write wins, so a hand-written `createOrReplace` elsewhere in such a scene clobbers the panel's config or gets clobbered by it. Check for `src/mobile-hud.ts` before writing `TouchScreenControls` by hand, and see the **build-ui** skill > "MobileHUD".
@@ -298,7 +299,7 @@ Convenience helpers on the component (each writes `RootEntity` and merges with t
 | `TouchScreenControls.hideAll()`                            | Hide all eight gamepad buttons.                                                              |
 | `TouchScreenControls.showDefault()`                        | Restore the default set (jump + pointer + primary visible, the other five hidden). **7.32.0+**; on older SDKs the only restore is `showAll()`. |
 | `TouchScreenControls.showAll()`                            | Clear `touchInputs`, making **all eight** visible. Does **not** touch joystick/crosshair.    |
-| `TouchScreenControls.setMainAction(action: InputAction)`   | Set the large central button's action.                                                       |
+| `TouchScreenControls.setMainAction(action: InputAction)`   | Set the large central button's action. Does **not** show a hidden button: to lead with F or a numbered button, show it too. |
 | `TouchScreenControls.hideJoystick()` / `.showJoystick()`   | Toggle the native virtual joystick.                                                          |
 | `TouchScreenControls.hideCrosshair()` / `.showCrosshair()` | Toggle the crosshair / reticle.                                                              |
 
@@ -326,7 +327,17 @@ TouchScreenControls.hide([InputAction.IA_ACTION_3, InputAction.IA_ACTION_4])
 
 `TouchScreenControls.hide([InputAction.IA_POINTER])` therefore leaves seven buttons on screen from the top level (eight minus pointer), and two from inside `main()` (the default three minus pointer). When the exact set matters, write it in full with `createOrReplace` instead of relying on a merge.
 
-**To reveal `IA_SECONDARY` or the numbered buttons, name them explicitly** with `hide: false`, or call `showAll()`. Note that `createOrReplace` replaces the whole list, so any button it omits is shown.
+**To reveal `IA_SECONDARY` or the numbered buttons, name them explicitly** with `hide: false`, or call `showAll()` and then `hide([...])` the ones the scene does not use. Note that `createOrReplace` replaces the whole list, so any button it omits is shown; after a `createOrReplace` that sets icons, call `showDefault()` to hide F and 1–4 again while keeping the icons. `TouchScreenControls.deleteFrom(engine.RootEntity)` also shows all eight.
+
+Lead with F (`showAll()` → `hide` the unused → `setMainAction`, all inside `main()`):
+
+```typescript
+export function main() {
+  TouchScreenControls.showAll()
+  TouchScreenControls.hide([InputAction.IA_ACTION_3, InputAction.IA_ACTION_4, InputAction.IA_ACTION_5, InputAction.IA_ACTION_6])
+  TouchScreenControls.setMainAction(InputAction.IA_SECONDARY)
+}
+```
 
 **Restoring controls after a full-screen UI closes: `showDefault()`, not `showAll()`.** `showAll()` reveals all eight buttons, which is a different HUD from the one the player started with. `showDefault()` keeps existing `touchInputs` entries (so their icons and list positions survive), flips the three default-visible buttons to `hide: false`, and re-hides the other five. Neither touches `hideJoystick`, `hideCrosshair` or `mainAction`.
 
@@ -336,7 +347,7 @@ Gotchas:
 - Hiding a button does not disable the action — `inputSystem` still reports it if it can be triggered another way. Hiding removes the _button_, not the _input_.
 - Hiding the joystick leaves mobile players with no native way to walk; replace it with scene UI or make the scene intentionally stationary.
 - Buttons cannot be repositioned. Their slots are fixed; a scene only chooses which are visible and which one leads.
-- `createOrReplace` **replaces** the whole config (the helpers merge instead); `icon` is a nested `TextureUnion`, not a plain path.
+- `createOrReplace` **replaces** the whole config (the helpers merge instead); `icon` is a nested `TextureUnion`, not a plain path. Its TypeScript type requires `hideJoystick`, `hideCrosshair`, `touchInputs` and each entry's `hide`.
 
 Combine with `UiInputBinding` (the `uiInputBinding` prop on `UiEntity`, see **build-ui**) to build custom on-screen action buttons: hide the native buttons here, then bind the same `InputAction`s to your own scene UI.
 

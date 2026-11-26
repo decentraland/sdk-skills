@@ -1,6 +1,6 @@
 ---
 name: optimize-scene
-description: Optimize Decentraland scene performance and fit scene limits — per-parcel and mobile limit tables, draw calls and materials, reuse vs merge of models, object pooling, LOD, textures, system throttling, asset preloading. Use when the user wants to fix lag or load time, check or reduce triangle/entity/material counts, or fit a scene to mobile.
+description: "Optimize Decentraland scene performance and fit scene limits — per-parcel and mobile limit tables, draw calls and materials, reuse vs merge of models, object pooling, LOD, textures, system throttling, asset preloading, a low-FPS prompt that opens the player's settings. Use when the user wants to fix lag or load time, check or reduce triangle/entity/material counts, fit a scene to mobile, or help players on slow machines."
 ---
 
 # Optimizing Decentraland Scenes
@@ -346,6 +346,10 @@ When running the scene locally with `npm run start`:
 - **Triangle count approaching limit**: Enable LOD, reduce model detail, remove hidden faces.
 - **Entity count climbing**: Likely a leak — entities being created but never destroyed. Implement pooling.
 - **Draw calls above 300 (1 parcel)**: draw count is *rendered objects × their material slots*. Atlas and reduce transparency to cut slots per object, and reduce the number of rendered objects (see *Repeated Models*).
+
+## Low-FPS settings prompt
+
+A well-optimized scene can still run slowly on low-end hardware or with graphics settings set too high. Detect it from code and offer the player a button that opens the Explorer's settings panel: average `EngineInfo.frameNumber` over `totalRuntime` in 5 s windows, prompt once when it stays under 20 FPS, start over while `sceneHidden`, skip the first window after each loading screen, and call `openExplorerUi({ ui: ExplorerUi.EU_SETTINGS })` first in the button handler. Measure frames, never your own system ticks: only the scene the player stands in ticks once per rendered frame, other loaded scenes tick on a slower timer (**scene-runtime** → *System Execution Order & Priority*). Rules and code: `{baseDir}/references/low-fps-settings-prompt.md`.
 
 ## Recommended Optimization Tools
 

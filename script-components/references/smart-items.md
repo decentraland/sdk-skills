@@ -12,7 +12,7 @@ Read this before inspecting, extending or copying a catalog Smart Item. Most cat
 
 ## Items that are not Script-based
 
-- **No Script at all:** plain props (primitives, invisible walls, signposts), the ambient music/sound items, the modifier areas, `particle_system`, the screen/media family, `image`, `nft`, `text`, and `camera` (Actions + Config).
+- **No Script at all:** plain props (primitives, the invisible blockers below, signposts), the ambient music/sound items, the modifier areas, `particle_system`, the screen/media family, `image`, `nft`, `text`, and `camera` (Actions + Config).
 - **Still have an `inspector::Config` panel:** the lights (with their Script), the screen/media family, `camera`, `image`, `nft`, `text`, `photo_mural`, `wearable_scanner`. Do not state that Config was removed everywhere; it was removed only from the migrated items.
 - `video_player` is **`[DEPRECATED]`** (in the `deprecated` category); use one of the video screen items instead.
 - **Already-placed items keep their component copy.** Placing an item copies its composite into the scene, and nothing migrates it later: a Health Bar or Admin Tools placed before the item became a script still runs on its `asset-packs::` components (`Counter`, `Triggers`, `asset-packs::AdminTools`, …). Read the entity before assuming which form it has.
@@ -46,6 +46,27 @@ Eight items ship as scripts: Health Bar (`health_bar/HealthBar.ts`), First Aid (
 - **Configuration is the Script params** in the right panel (nested objects and lists, [`script-params.md`](script-params.md)): `adminPermissions: 'PUBLIC'|'PRIVATE'='PUBLIC'`; `authorizedAdminUsers {me, sceneOwners, allowList, adminAllowList: string[] (@format wallet)}`; `moderationControl {isEnabled, kickCoordinates {x,y,z}, allowNonOwnersManageAdminAllowList}`; `textAnnouncementControl {isEnabled, playSoundOnEachAnnouncement, showAuthorOnEachAnnouncement}`; `videoControl {isEnabled, disableVideoPlayersSound, showAuthorOnVideoPlayers, linkAllVideoPlayers, videoPlayers: Array<{entity (@components asset-packs::VideoScreen), customName}>}`; `smartItemsControl {isEnabled, linkAllSmartItems, smartItems: Array<{entity (@components asset-packs::Actions), customName, defaultAction (@actionsOf entity)}>}`. There is no rewards section.
 - **`AdminPanel.tsx` is the editable in-world panel** (plain `@dcl/react-ecs`): add links, tabs or branding there. Tab contents and the backend (moderation, video, smart items, announcements) still come from `@dcl/asset-packs/dist/admin-toolkit-ui/panel-api`.
 - The panel mounts on clients only (`isServer` guard), as an extra UI renderer at `zIndex` 1000 (**build-ui** → `references/ui-components.md` → Renderer zIndex). Removing the item unmounts the panel and clears its config.
+
+## Invisible blockers (Wall, Sphere, Dome, Cylinder, Ramp)
+
+Placed today, each is a collider-only model plus an editor placeholder, with no `VisibilityComponent`:
+
+- `core::GltfContainer` → `{assetPath}/invisible_<shape>_collider.glb` (one `<node>_collider` mesh, positions and indices only) with `visibleMeshesCollisionMask: 0`, `invisibleMeshesCollisionMask: 2` (`CL_PHYSICS`: blocks the player, not clickable).
+- `asset-packs::Placeholder` → the visible `invisible_<shape>.glb`, drawn only by the editor while the scene is stopped.
+- In-world and on **Play** / **Pause** nothing renders and the shape still blocks the player.
+
+Items placed before this change keep the old form (visible model, `VisibilityComponent { visible: false }`) and still work in game; nothing migrates them. To make one clickable, add `CL_POINTER` to `invisibleMeshesCollisionMask` (`3`), not to the visible mask.
+
+## Skybox
+
+`skybox/skybox-controller.ts` (`SkyboxController`, Smart Items → `utils`). Writes `Skybox`, `Sun` and `EnvironmentFog` on `engine.RootEntity` (**lighting-environment** → *Skybox, Sun and EnvironmentFog*). In the editor it is a cloud sphere (`skybox.glb`); in the running scene it is invisible with no collider.
+
+- **`minSdkVersion: "7.32.0"`** in its `data.json`: on an older scene SDK, a drop opens an **Update SDK** modal and the Creator Hub MCP `place_smart_item` refuses it. The script also builds on an older SDK and then only logs the version it needs.
+- **Params** (defaults reproduce the regular midday sky): `startEnabled=true`; `skyboxTexture` (`@format image`, an equirectangular PNG/JPG twice as wide as tall, centre facing north +Z; cube maps and six-image skyboxes unsupported; while set, Star Brightness, Cloud Opacity and Cloud Speed lock); `sunIntensity` (0–5, 1); `ambientBrightness` (0–1, 1: darkens sky, clouds and fog together); `starBrightness` (0–20, 4.62); `showSun`; `customFog=true` → `fogDensity` (0–1 step 0.0001, 0.0005), `fogColor`; `fixSunPosition=false` → `sunHeight` (0–90°, 45), `sunDirection` (0–360°, 135, 0 = north); `customSunColor=false` → `sunColor`; `cloudOpacity` (0–1, 1); `cloudSpeed` (0–0.1, 0.01); `customSkyColors=true` → `cloudColor`, `zenithColor`, `horizonColor`, `horizonGlowColor`, `groundColor` (`Color3`, colour pickers). Each checkbox comes before the fields it unlocks (`@enabledIf`).
+- **Actions**: `enable`, `disable`, `toggle`, `hideClouds`, `showClouds`, `clearFog`, `restoreFog`.
+- **Several Skybox items**: the one enabled last is in place; disabling it restores the previous enabled one, disabling any other leaves the sky alone, so a day and a night item toggled by one button swap in either order.
+- Pitch black: `sunIntensity`, `ambientBrightness` and `starBrightness` at 0. A sky texture also replaces the sky seen over neighbouring parcels from inside the scene.
+- It is the reference for the script-param editor features in [`script-params.md`](script-params.md): `Color3` params, `@format image`, `@enabledIf`, fine-step sliders.
 
 ## Item behaviors worth knowing
 

@@ -157,6 +157,11 @@ onLeaveScene((userId) => {
 })
 ```
 
+- **Local player: tracked by position** (SDK 7.34.0+). Each tick the helper tests `Transform.get(engine.PlayerEntity)` against the parcels in `scene.json` (read once through `getSceneInformation().metadataJson`): `onEnterScene` fires each time the player steps onto those parcels, `onLeaveScene` each time they step off, so both fire repeatedly in one session. Nothing fires for the local player until the parcels are read; if the metadata has no parcels or gives no answer within 10 s (logs `[players] getSceneInformation did not answer…`), the helper falls back to the component path below.
+- **Remote players: tracked by components.** `onEnterScene` fires when an entity gains `PlayerIdentityData` + `AvatarBase`, `onLeaveScene` when its `AvatarBase` is removed.
+- **A teleport out of a nearby scene can leave the local player "inside".** The Explorer writes the player's transform to a scene other than the current one only on frames where it changed and only within about 64 m, so a teleport away may never reach the scene and `onLeaveScene` does not fire. Gate anything that must end on exit (timers, a round) on `getPlayer()` position checks too, not on `onLeaveScene` alone.
+- The `[DEPRECATED]` observables `onEnterSceneObservable`, `onLeaveSceneObservable`, `onPlayerConnectedObservable` and `onPlayerDisconnectedObservable` (`@dcl/sdk/observables`) are fed by this helper, so they also fire for the local player on every walk in and out.
+
 ### Avatar Change Listeners
 
 ```typescript
