@@ -44,13 +44,13 @@ Bevy editor behaviour that differs from normal Bevy use: every scene opens **mut
 
 | State | Lighting and sky | Scene UI | Entities attached to camera or player | Editor `Placeholder`s |
 |---|---|---|---|---|
-| **Stopped** (on open, after Stop) | Editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are removed and the clock is pinned at noon | Hidden | Hidden with the **Free** camera (parented through Transform to `engine.CameraEntity` / `engine.PlayerEntity`, or `AvatarAttach` with no `avatarId`); shown in the **Player** camera | Shown (trigger areas, invisible walls, sound emitters) |
-| **Play** | The scene's own lighting, sky and time | Shown | Shown, as in-world | Hidden: the authored model, or nothing |
-| **Pause** | Kept from Play, sky clock held | Kept | Kept | Hidden |
+| **Stopped** (on open, after Stop) | Editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are removed, so sky, sun and fog reset to the defaults and the clock is pinned at noon | Hidden | Hidden with the **Free** camera (parented through Transform to `engine.CameraEntity` / `engine.PlayerEntity`, or `AvatarAttach` with no `avatarId`); shown in the **Player** camera | Shown (trigger areas, invisible walls, sound emitters) |
+| **Play** | The scene's own lighting, sky, sun, fog and time | Shown | Shown, as in-world | Hidden: the authored model, or nothing |
+| **Pause** | Kept from Play (sky, sun and fog included), sky clock held | Kept | Kept | Hidden |
 
 So judge night scenes, `LightSource` flashlights, scene UI and invisible items only after **Play**, or in the Explorer preview. Entities that scene code creates and parents to the camera at runtime can still follow the Free camera after a Pause. **Interact** mode hides the transform gizmo and the spawn-point handle (the selection outline stays) and brings them back when it turns off.
 
-The editor realm, a `sdk-commands start` of the scene that feeds the viewport, also runs the scene's Multiplayer Server and restarts it after a crash; **Play** shares that server: **authoritative-server** → *Running locally*.
+The editor realm, a `sdk-commands start` of the scene that feeds the viewport, also runs the scene's Multiplayer Server when the scene uses the `@dcl/sdk@auth-server` SDK (no other SDK spawns one), and restarts it after a crash; **Play** shares that server: **authoritative-server** → *Running locally*.
 
 Bevy editor limitations to know before recommending it:
 

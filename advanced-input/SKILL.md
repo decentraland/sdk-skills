@@ -329,7 +329,9 @@ TouchScreenControls.hide([InputAction.IA_ACTION_3, InputAction.IA_ACTION_4])
 
 **To reveal `IA_SECONDARY` or the numbered buttons, name them explicitly** with `hide: false`, or call `showAll()` and then `hide([...])` the ones the scene does not use. Note that `createOrReplace` replaces the whole list, so any button it omits is shown; after a `createOrReplace` that sets icons, call `showDefault()` to hide F and 1–4 again while keeping the icons. `TouchScreenControls.deleteFrom(engine.RootEntity)` also shows all eight.
 
-Lead with F (`showAll()` → `hide` the unused → `setMainAction`, all inside `main()`):
+### Lead with F
+
+To make F (or a numbered button) the central button: `showAll()` → `hide` the unused → `setMainAction`, all inside `main()`:
 
 ```typescript
 export function main() {
@@ -338,6 +340,8 @@ export function main() {
   TouchScreenControls.setMainAction(InputAction.IA_SECONDARY)
 }
 ```
+
+### Restoring controls and gotchas
 
 **Restoring controls after a full-screen UI closes: `showDefault()`, not `showAll()`.** `showAll()` reveals all eight buttons, which is a different HUD from the one the player started with. `showDefault()` keeps existing `touchInputs` entries (so their icons and list positions survive), flips the three default-visible buttons to `hide: false`, and re-hides the other five. Neither touches `hideJoystick`, `hideCrosshair` or `mainAction`.
 

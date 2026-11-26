@@ -13,7 +13,7 @@ import { Color4, Vector3 } from '@dcl/sdk/math'
 
 ## Scope
 
-- **Clients**: not supported yet on mobile (Godot explorer) or the Bevy explorer; those players keep the regular sky, sun and fog. Never make the overrides gameplay-critical.
+- **Clients**: not supported yet on mobile (Godot explorer); those players keep the regular sky, sun and fog. Never make the overrides gameplay-critical. The Creator Hub's Bevy editor shows them on Play and Pause; while the scene is stopped it resets all three to the defaults (**lighting-environment** → *Gotchas*).
 - **Root entity only**: write them to `engine.RootEntity`. On any other entity they do nothing.
 - Every field is optional; an unset field keeps its time-of-day default.
 - **The three are independent.** Any one of them on its own puts the scene in control of that part of the environment; they do not need to be set together, and each resets on its own when deleted.
@@ -129,7 +129,7 @@ Sun.createOrReplace(engine.RootEntity, { intensity: 0, visible: false })
 EnvironmentFog.createOrReplace(engine.RootEntity, { color: black })
 ```
 
-Scene lights do not render on desktop *Low* (**lighting-environment** → *Light Limits*), so a dark scene must stay playable from emissive materials alone. On mobile and Bevy the components are ignored and the scene keeps the regular sky.
+Scene lights do not render on desktop *Low* (**lighting-environment** → *Light Limits*), so a dark scene must stay playable from emissive materials alone. On mobile the components are ignored and the scene keeps the regular sky.
 
 ## Back to the default sky and lighting
 

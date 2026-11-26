@@ -86,7 +86,7 @@ enter/stay/exit route for players or chosen objects. Give a thin visible floor e
 space to register a player. Overlapping zones and teleports can leave stale exit events, so base
 persistent effects on current occupancy when that matters. At the scene boundary itself,
 `onEnterScene` / `onLeaveScene` fire each time a player steps onto or off the scene's parcels
-(a teleport away can miss the exit). The
+(SDK 7.34.0+; a teleport away can miss the exit). The
 interaction guidance (`{baseDir}/../add-interactivity/SKILL.md`)
 and official trigger example were inspected, not tested on every client/version.
 Implementation: `add-interactivity`; `add-3d-models` for model colliders.

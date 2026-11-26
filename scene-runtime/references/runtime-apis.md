@@ -62,7 +62,7 @@ openExplorerUiAndWait(ui: Exclude<ExplorerUi, ExplorerUi.EU_ITEM_PURCHASE>): Pro
 
 type OpenExplorerUiRequest =
   | { ui: Exclude<ExplorerUi, ExplorerUi.EU_ITEM_PURCHASE>; itemPurchase?: undefined }
-  | { ui: ExplorerUi.EU_ITEM_PURCHASE; itemPurchase: { urn: string } } // credits purchase modal: Item purchase below
+  | { ui: ExplorerUi.EU_ITEM_PURCHASE; itemPurchase: { urn: string } } // typed, but the explorer answers REJECTED_FEATURE_DISABLED
 type StopCondition = AnyChannel | Variant
 type WaitOptions<C> = {
   timeoutMs?: number
@@ -71,7 +71,7 @@ type WaitOptions<C> = {
 }
 ```
 
-Channels are exported by `@dcl/sdk/explorer-ui`: `ExplorerUiEvents` (the `opened` / `closed` entries of `ExplorerUiEventsResult` that belong to the panel **this call opened**, correlated by `requestId`; events of other panels and of other calls are dropped, so `until` cannot watch other panels) and `ItemPurchase` (the `ExplorerItemPurchaseResult` entries of the purchase this call opened: `urn`, `timestamp`, `requestId` and `status` with `$case` `purchased` / `dismissed` / `failed`; see *Item purchase*). `variant(channel, '$case')` narrows a channel to one case. `channel(name, component)` wraps any grow-only component whose entries carry `timestamp` and `requestId` into a channel, so a result component the SDK ships no channel for is usable in `collect` / `until` without waiting for an SDK release; the name must be unique within the scene. The panel closing always ends the wait as `closed`, even when `until` is set; `until` firing first ends it as `matched`. `outcome.events` (on `closed`, `matched` and `timedOut`) holds everything collected, each as `{ channel, event }`; the matching event is included only when its channel is also listed in `collect`.
+Channels are exported by `@dcl/sdk/explorer-ui`: `ExplorerUiEvents` (the `opened` / `closed` entries of `ExplorerUiEventsResult` that belong to the panel **this call opened**, correlated by `requestId`; events of other panels and of other calls are dropped, so `until` cannot watch other panels) and `ItemPurchase` (unused: the explorer has no purchase flow). `variant(channel, '$case')` narrows a channel to one case. `channel(name, component)` wraps any grow-only component whose entries carry `timestamp` and `requestId` into a channel, so a result component the SDK ships no channel for is usable in `collect` / `until` without waiting for an SDK release; the name must be unique within the scene. The panel closing always ends the wait as `closed`, even when `until` is set; `until` firing first ends it as `matched`. `outcome.events` (on `closed`, `matched` and `timedOut`) holds everything collected, each as `{ channel, event }`; the matching event is included only when its channel is also listed in `collect`.
 
 The promise rejects (so wrap the call in `try` / `catch`) when the `openExplorerUi` RPC throws, when a channel name is reused with a different component, or when an event carries no `requestId` and nothing else identifies its call (an explorer that does not echo `requestId` combined with a panel that can share the screen with another one). Every lifecycle outcome, `notOpened` included, resolves.
 
@@ -97,41 +97,6 @@ pointerEventsSystem.onPointerDown(
   },
 );
 ```
-
-## Item purchase (`EU_ITEM_PURCHASE`)
-
-Opens the Explorer's buy-with-credits modal for one collection item and reports how it ended. The scene sends only the URN; the Explorer resolves the item's primary listing, shows its price and charges the player.
-
-- **URN**: an item of a Polygon collection, exactly `urn:decentraland:matic:collections-v2:<0x contract, 40 hex>:<item id>` (`amoy` on the test network). The item needs a primary listing payable with credits. Any other URN, or an item with no such listing, answers `OPENED`, shows no modal, and then reports `failed`.
-- **Result codes** (`outcome.openResult` on `notOpened`): `REJECTED_FEATURE_DISABLED` when buying with credits is not enabled for this player, and always from a portable experience; `WAS_ALREADY_OPEN` while another purchase (from any scene) is resolving or on screen; `REJECTED_NOT_CURRENT_SCENE` and `REJECTED_NO_USER_GESTURE` as for panels. The purchase modal has its own slot, so it opens alongside an Explorer panel that is already up.
-- **Outcome**: one `ExplorerItemPurchaseResult` entry (component 1222, grow-only on `engine.RootEntity`) is written before the `closed` event, so `openExplorerUiAndWait` ends on `closed` with it in `outcome.events` when `ItemPurchase` is in `collect`. `purchased` = paid and minted; `dismissed` = the player closed the modal; `failed` = bad URN, no listing, or an error.
-- Grant the in-scene reward only on `purchased`, and treat a `timedOut` wait as unknown (the modal may still be open).
-
-```typescript
-import { InputAction, pointerEventsSystem } from '@dcl/sdk/ecs'
-import { ExplorerUi, ItemPurchase, openExplorerUiAndWait, OpenExplorerUiResult } from '@dcl/sdk/explorer-ui'
-
-pointerEventsSystem.onPointerDown(
-  { entity: vendingMachine, opts: { button: InputAction.IA_POINTER, hoverText: 'Buy' } },
-  () => {
-    // First statement of the handler: the Explorer accepts it only on the click's tick (or the next).
-    const purchase = openExplorerUiAndWait(
-      { ui: ExplorerUi.EU_ITEM_PURCHASE, itemPurchase: { urn: ITEM_URN } },
-      { collect: [ItemPurchase], timeoutMs: 10 * 60_000 }
-    )
-    purchase
-      .then((outcome) => {
-        if (outcome.$case === 'notOpened') return showStatus(OpenExplorerUiResult[outcome.openResult])
-        if (outcome.$case === 'timedOut') return showStatus('Still open')
-        const result = outcome.events.find((e) => e.channel === 'itemPurchase')
-        if (result?.event.status?.$case === 'purchased') grantReward()
-      })
-      .catch((error) => console.error('purchase could not be tracked', error))
-  }
-)
-```
-
-Test scene: [`79,-5-item-purchase`](https://github.com/decentraland/sdk7-test-scenes/tree/main/scenes/79,-5-item-purchase) (a wearable machine, an emote machine and a broken-URN machine that shows the `failed` path; set the URNs and environment in `src/config.ts`, run with `--no-client` and connect with an account that can buy with credits).
 
 ## Portable Experiences
 

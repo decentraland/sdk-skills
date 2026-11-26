@@ -309,11 +309,11 @@ onLeaveScene((userId) => {
 })
 ```
 
-Both fire repeatedly, for the local player too: the local player is tracked by position against the scene's parcels (SDK 7.34.0+), so `onEnterScene` fires each time they step onto the parcels and `onLeaveScene` each time they step off; remote players are tracked by their `PlayerIdentityData` / `AvatarBase` components. That makes them usable for zone logic at the scene boundary (start a round on entry, pause it on exit), with one gap: a teleport away from a nearby scene may never fire `onLeaveScene`. Timing details and that gap: **player-avatar** → `references/avatar-apis.md` → Scene Entry/Exit.
+Both fire repeatedly, for the local player too: the local player is tracked by position against the scene's parcels (SDK 7.34.0+), so `onEnterScene` fires each time they step onto the parcels and `onLeaveScene` each time they step off; remote players are tracked by their `PlayerIdentityData` / `AvatarBase` components. That makes them usable for zone logic at the scene boundary (start a round on entry, pause it on exit), with one gap: a teleport away from a nearby scene may never fire `onLeaveScene`. An `@dcl/sdk@auth-server` build older than 7.34 still fires `onEnterScene` once for the local player and never `onLeaveScene`; check the installed version before relying on this. Timing details and that gap: **player-avatar** → `references/avatar-apis.md` → Scene Entry/Exit.
 
 ### SDK Observables (low-level, `[DEPRECATED]`)
 
-`@dcl/sdk/observables` also exports `onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onPlayerConnectedObservable`, `onPlayerDisconnectedObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable` and `onProfileChangedObservable`, all `[DEPRECATED]` SDK6 carry-overs. The enter/leave and connected/disconnected ones are fed by the `onEnterScene` / `onLeaveScene` helper above, so they fire for the local player on every walk in and out, not once per session. Use the helper.
+`@dcl/sdk/observables` also exports `onPlayerClickedObservable`, `onEnterSceneObservable`, `onLeaveSceneObservable`, `onPlayerConnectedObservable`, `onPlayerDisconnectedObservable`, `onRealmChangedObservable`, `onPlayerExpressionObservable` and `onProfileChanged`, all `[DEPRECATED]` SDK6 carry-overs. The enter/leave and connected/disconnected ones are fed by the `onEnterScene` / `onLeaveScene` helper above, so they fire for the local player on every walk in and out, not once per session. Use the helper.
 
 ## Remote players' Transforms are scene-relative
 

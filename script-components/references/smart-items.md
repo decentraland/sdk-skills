@@ -51,8 +51,9 @@ Eight items ship as scripts: Health Bar (`health_bar/HealthBar.ts`), First Aid (
 
 Placed today, each is a collider-only model plus an editor placeholder, with no `VisibilityComponent`:
 
-- `core::GltfContainer` → `{assetPath}/invisible_<shape>_collider.glb` (one `<node>_collider` mesh, positions and indices only) with `visibleMeshesCollisionMask: 0`, `invisibleMeshesCollisionMask: 2` (`CL_PHYSICS`: blocks the player, not clickable).
-- `asset-packs::Placeholder` → the visible `invisible_<shape>.glb`, drawn only by the editor while the scene is stopped.
+- `core::GltfContainer` → `{assetPath}/<model>_collider.glb` (one `<node>_collider` mesh, positions and indices only) with `visibleMeshesCollisionMask: 0`, `invisibleMeshesCollisionMask: 2` (`CL_PHYSICS`: blocks the player, not clickable).
+- `asset-packs::Placeholder` → the visible `{assetPath}/<model>.glb`, drawn only by the editor while the scene is stopped.
+- `<model>` per item: Invisible Wall `invisible_box`, Invisible Dome `invisible_semisphere`, Invisible Sphere `invisible_sphere`, Invisible Cylinder `invisible_cylinder`, Invisible Ramp `invisible_ramp`.
 - In-world and on **Play** / **Pause** nothing renders and the shape still blocks the player.
 
 Items placed before this change keep the old form (visible model, `VisibilityComponent { visible: false }`) and still work in game; nothing migrates them. To make one clickable, add `CL_POINTER` to `invisibleMeshesCollisionMask` (`3`), not to the visible mask.

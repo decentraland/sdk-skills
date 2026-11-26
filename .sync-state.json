@@ -22,5 +22,31 @@
   "sdk-skills": {
     "lastCommit": "a090639886c3cd7a85f2df735b247091d2007f4c",
     "lastChecked": "2026-11-26"
+  },
+  "dcl-one": {
+    "lastCommit": "b4e276c4674452e83be16a587f255aec7afee150",
+    "lastChecked": "2026-11-26"
+  },
+  "featureFlags": {
+    "explorer-alfa-scene-item-purchase": {
+      "state": "off",
+      "gates": "EU_ITEM_PURCHASE / ItemPurchase (openExplorerUiAndWait item purchase, sdk7-test-scenes 79,-5-item-purchase)",
+      "lastChecked": "2026-11-26"
+    },
+    "explorer-alfa-credits-wearable-purchase": {
+      "state": "off",
+      "gates": "EU_ITEM_PURCHASE (buy-with-credits modal)",
+      "lastChecked": "2026-11-26"
+    },
+    "explorer-alfa-user-credits": {
+      "state": "off",
+      "gates": "EU_ITEM_PURCHASE (player credits)",
+      "lastChecked": "2026-11-26"
+    },
+    "creatorhub-ai-prompt-sharing": {
+      "state": "off",
+      "gates": "Creator Hub opt-in sharing of AI assistant conversations (dcl-one #827, #2074)",
+      "lastChecked": "2026-11-26"
+    }
   }
 }

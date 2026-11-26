@@ -214,7 +214,7 @@ Three components override the environment, written to `engine.RootEntity` only a
 - `Sun` — sun and moon light: color, intensity, a fixed direction, or hiding the discs and lens flare.
 - `EnvironmentFog` — fog color and density.
 
-Not supported yet on mobile (Godot explorer) or the Bevy explorer: players there keep the regular sky, sun and fog, so never make them gameplay-critical.
+Not supported yet on mobile (Godot explorer): players there keep the regular sky, sun and fog, so never make them gameplay-critical. The Bevy editor in the Creator Hub shows them on Play and Pause and resets them to the defaults while the scene is stopped (*Gotchas*).
 
 Colors are `ColorGradient`s keyed on the time of day. **Read `{baseDir}/references/sky-sun-fog.md` before writing any of their fields**: gradients, defaults, the sky-image and ambient-light rules, and the recipes for complete darkness and resetting to the default sky.
 
@@ -267,7 +267,7 @@ Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flicker
 
 ## Gotchas
 
-- **Judge lighting in the Bevy editor only after Play.** A stopped Bevy editor (on open and after Stop) shows editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are not applied, and lights parented to the camera or player are hidden with the Free camera. Play shows the scene's own lighting; Pause keeps it with the clock held. A night scene that looks like noon in the editor is not a bug (**create-scene** → `references/preview-options.md` → *Bevy editor renderer*).
+- **Judge lighting in the Bevy editor only after Play.** A stopped Bevy editor (on open and after Stop) shows editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are reset to the defaults, and lights parented to the camera or player are hidden with the Free camera. Play shows the scene's own lighting, sky, sun and fog; Pause keeps them with the clock held. A night scene that looks like noon in the editor is not a bug (**create-scene** → `references/preview-options.md` → *Bevy editor renderer*).
 - Animating a light's direction: put a `Tween`/`TweenSequence` (Rotate mode) on the light entity — the beam follows the entity's forward vector.
 
 ## Example scenes

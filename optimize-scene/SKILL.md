@@ -349,7 +349,7 @@ When running the scene locally with `npm run start`:
 
 ## Low-FPS settings prompt
 
-A well-optimized scene can still run slowly on low-end hardware or with graphics settings set too high. Detect it from code and offer the player a button that opens the Explorer's settings panel: average `EngineInfo.frameNumber` over `totalRuntime` in 5 s windows, prompt once when it stays under 20 FPS, start over while `sceneHidden`, skip the first window after each loading screen, and call `openExplorerUi({ ui: ExplorerUi.EU_SETTINGS })` first in the button handler. Measure frames, never your own system ticks: only the scene the player stands in ticks once per rendered frame, other loaded scenes tick on a slower timer (**scene-runtime** → *System Execution Order & Priority*). Rules and code: `{baseDir}/references/low-fps-settings-prompt.md`.
+A well-optimized scene can still run slowly on low-end hardware or with graphics settings set too high. Detect it from code and offer the player a button that opens the Explorer's settings panel: average `EngineInfo.frameNumber` over `totalRuntime` in 5 s windows, prompt once when it stays under 20 FPS, start over while `sceneHidden`, skip the first window after each loading screen, and call `openExplorerUi({ ui: ExplorerUi.EU_SETTINGS })` first in the button handler. Measure frames, never your own system ticks: only the scene the player stands in ticks once per rendered frame; other loaded scenes and portable experiences tick at a slower partition rate (**scene-runtime** → *System Execution Order & Priority*). Rules and code: `{baseDir}/references/low-fps-settings-prompt.md`.
 
 ## Recommended Optimization Tools
 

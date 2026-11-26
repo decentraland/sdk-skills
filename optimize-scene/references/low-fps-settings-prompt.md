@@ -4,7 +4,7 @@ Companion to **optimize-scene** → *Low-FPS settings prompt*. Detects a low fra
 
 ## Rules the pattern encodes
 
-- **Measure the Explorer's frames, not your ticks.** FPS = `EngineInfo.frameNumber` delta ÷ `totalRuntime` delta. Only the scene the player stands in ticks once per frame; a tick counter reads low in any other loaded scene, on any machine.
+- **Measure the Explorer's frames, not your ticks.** FPS = `EngineInfo.frameNumber` delta ÷ `totalRuntime` delta. Only the scene the player stands in ticks once per frame; a tick counter reads low in a portable experience and in any other loaded scene, on any machine.
 - **5 s windows, threshold 20 FPS** (average). Drop a window longer than 10 s (scene paused, clock changed): it says nothing.
 - **Start over while `sceneHidden`** (loading screen up), and **skip the first window after each loading screen**: it can still include assets loading in, which is slow on any machine.
 - **Prompt once per session**, with a Dismiss button. A recurring popup on a struggling machine makes it worse.
@@ -15,6 +15,7 @@ Companion to **optimize-scene** → *Low-FPS settings prompt*. Detects a low fra
 ```tsx
 import { engine, EngineInfo, ExplorerUi } from '@dcl/sdk/ecs'
 import { openExplorerUi } from '~system/RestrictedActions'
+import { Color4 } from '@dcl/sdk/math'
 import ReactEcs, { Button, Label, ReactEcsRenderer, UiEntity } from '@dcl/sdk/react-ecs'
 
 let showSettingsTip = false
@@ -58,16 +59,29 @@ ReactEcsRenderer.setUiRenderer(() => (
       flexDirection: 'column',
       positionType: 'absolute',
       position: { top: 40, right: 40 },
-      padding: 10,
+      width: 540,
+      height: 116,
+      padding: 12,
+      borderWidth: 1, // thin light border: the text stays readable over any background
+      borderColor: Color4.create(1, 1, 1, 0.6),
+      borderRadius: 8,
     }}
-    uiBackground={{ color: { r: 0, g: 0, b: 0, a: 0.8 } }}
+    uiBackground={{ color: Color4.create(0, 0, 0, 0.85) }}
   >
-    <Label value="Running slow? Try lowering your graphics settings." fontSize={16} />
-    <UiEntity uiTransform={{ flexDirection: 'row', margin: { top: 8 } }}>
+    <Label
+      value="Running slow? Try lowering your graphics settings."
+      fontSize={16}
+      color={Color4.White()}
+      textWrap="nowrap"
+      textAlign="middle-left"
+      uiTransform={{ width: '100%', height: 24 }}
+    />
+    <UiEntity uiTransform={{ flexDirection: 'row', width: '100%', height: 48, margin: { top: 8 } }}>
       <Button
         value="Open Settings"
         fontSize={16}
-        uiTransform={{ height: 36 }}
+        textWrap="nowrap"
+        uiTransform={{ width: 170, height: 48 }}
         onMouseDown={() => {
           void openExplorerUi({ ui: ExplorerUi.EU_SETTINGS }) // first, before anything else
           showSettingsTip = false
@@ -76,7 +90,9 @@ ReactEcsRenderer.setUiRenderer(() => (
       <Button
         value="Dismiss"
         fontSize={16}
-        uiTransform={{ height: 36, margin: { left: 8 } }}
+        textWrap="nowrap"
+        variant="secondary"
+        uiTransform={{ width: 120, height: 48, margin: { left: 8 } }}
         onMouseDown={() => {
           showSettingsTip = false
         }}
@@ -86,4 +102,4 @@ ReactEcsRenderer.setUiRenderer(() => (
 ))
 ```
 
-In a scene that already has a UI renderer, render the tip from that renderer instead of calling `setUiRenderer` again, and give the Label and Buttons explicit sizes and `textWrap="nowrap"` (**build-ui** → *Sizing and mobile*).
+In a scene that already has a UI renderer, render the tip from that renderer instead of calling `setUiRenderer` again. Sizes follow **build-ui** → *Sizing and mobile*: every box explicit, single-line text `textWrap="nowrap"` with about 20% spare width, 48 px touch targets. If you change the copy or `fontSize`, resize its box.
