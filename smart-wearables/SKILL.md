@@ -37,7 +37,7 @@ Scaffold with `npx @dcl/sdk-commands init --project smart-wearable` (the Creator
 | `models/male/*.glb`, `models/female/*.glb` | One GLB per body shape when the shapes differ (they do for any body-hugging wearable). One GLB for both is fine for rigid accessories. |
 | `src/index.ts` | `main()` runs when the player equips the wearable. |
 | `package.json` | Add `"pack": "sdk-commands pack-smart-wearable"` to `scripts` if missing. |
-| `.dclignore` | Same as a scene's. Everything not ignored goes into the zip. |
+| `.dclignore` | Same as a scene's. Everything not ignored goes into the zip, and every wearer downloads it: if the wearable's server lives in the same repository, ignore its folders (source, tests, service files) and list the zip (`unzip -l`) before each upload. |
 
 ## RULE: `wearable.json` must match the Builder schema exactly
 

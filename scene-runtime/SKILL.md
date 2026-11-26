@@ -44,6 +44,17 @@ const { headers } = await getHeaders({ url: "https://your-server.com/api" });
 
 `signedFetch` returns `{ ok, status, statusText, headers, body }` where `body` is a **string** (call `JSON.parse(response.body)` yourself — there is no `.json()`). The signed identity headers are added automatically; your backend verifies them per ADR-44.
 
+### Your own backend: what to check besides the signature
+
+Verifying the signature proves *who* signed, not *for which scene*. Any scene or smart wearable the player visits can make the same signed request (same method and path) to its own server, with no prompt, and replay the headers to yours within the time window. So the backend must also check the **signed metadata**:
+
+- **Signer, realm and scene id.** Accept only your scene's signer and realm, and the scene id of your current deployment. The scene id changes on every publish: look it up from the content server (cache it, re-check on a mismatch) and accept recent ids for a short grace period so players who haven't reloaded still get in. Don't keep a hand-written list; one forgotten update after a publish locks everyone out. On a World, parcel coordinates prove nothing. The request host is not part of the signed text.
+- **A smart wearable worn inside your realm** signs with that realm too. Decide whether it may act as your scene; if not, tell them apart by the signed scene id.
+- **Time.** Accept seconds of clock skew, not minutes, and remember used signatures for their lifetime so one can't be replayed.
+- **Roll it out log-only first.** Log what the check *would* refuse across at least one real publish, on desktop and mobile, before enforcing it.
+
+Once signed in, keep the session's limits per wallet rather than per connection (one wallet can open many sockets), make any ticket you hand out single-use, and send it in the first socket message rather than the URL. Check what your **host** logs, not only your own log lines: request logs can keep each player's IP, approximate location and the full URL. Fail closed: if a secret or setting the backend needs is missing, refuse everyone instead of treating everyone as verified, and keep test-only sign-ins behind `isPreview` in the scene *and* a check on the server.
+
 > **Permission**: a scene needs none — scenes and portable experiences run with every permission granted. Only a **smart wearable** must declare `"USE_FETCH"` for `fetch` (and `"USE_WEBSOCKET"` for sockets) in `requiredPermissions`, or the call fails with `Fetch API: permission denied`; `signedFetch` is gated by no permission (**smart-wearables** → Permissions). `fetch` and `signedFetch` need no prior player interaction.
 
 ## WebSocket

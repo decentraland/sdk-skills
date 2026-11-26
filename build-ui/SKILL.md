@@ -371,6 +371,11 @@ When **Choosing the mode** sends a UI to coded, everything above about elements,
 
 Virtual-screen and version-gate tables, hybrid scenes, module-level state with conditional rendering, and the from-scratch widget patterns: `{baseDir}/references/coded-ui.md`.
 
+## Player-supplied text and texture preloading
+
+- **Text players supply carries markup too.** A display name, team or room title shown in a `Label` (or a `TextShape`) can contain the same tags you use for styling. Strip `<`, `>` and control characters before display, on the server too if names pass through one. When a name hasn't loaded yet, show a neutral placeholder ("Player"), never the wallet address.
+- **Don't keep textures loaded by drawing hidden UI images.** The UI tree is rebuilt every frame, so each hidden image costs script time: 95 hidden 1-pixel images took one scene's idle tick from 4.5 to 7.1 ms (measured 2026-11). Preload with `AssetLoad` instead (**optimize-scene** → Asset Preloading), and preload art that only appears later after the player can move.
+
 ## Gotchas (verified against engine test scenes)
 
 - **`Input` and `Dropdown` are not React controlled components.** `onChange` / `onSubmit` fire with the current value, but the field does not re-read `value` / `selectedIndex` every frame. To clear an `Input`, set `value` to a non-empty sentinel (`' '`) for one frame, then `''`. Trust your scene state, never the rendered field: a controlled `Input` does not follow a programmatic reset (open client issue), and re-writing the same string afterwards fires no `onChange`. `onSubmit` (Enter) commits and clears the field, and the client emits `onSubmit` *then* `onChange`. Removing a focused `Input` inside its own handler is safe. `Dropdown` `onChange` receives the **index**; with `acceptEmpty` the empty entry is index-shifted. Details: `{baseDir}/references/ui-components.md` → Input.

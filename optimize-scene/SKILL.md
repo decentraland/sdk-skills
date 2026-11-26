@@ -31,7 +31,7 @@ Important: Except for the MB size limits, all other limits can be exceeded. It's
 
 ## Mobile Scene Limits
 
-A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading.
+A **separate**, flat set of limits applies when the scene runs on the mobile client — they do **not** scale with parcel count. A **soft** limit warns in the mobile performance panel; a **hard** limit blocks the scene from loading. [UNVERIFIED for every row: in the mobile preview on one iPhone (observed 2026-11), a scene kept loading and running with materials at 547/500 and VFX emitters at 12/10. Don't predict a mobile failure from the table alone, and never from desktop counts: confirm on a phone.]
 
 | Metric | Soft | Hard |
 | --- | --- | --- |
@@ -56,8 +56,9 @@ A **separate**, flat set of limits applies when the scene runs on the mobile cli
 
 - Each mobile **graphics profile** activates only a budget of the **nearest** light sources — **0 on Very Low up to 8 on High** — and may disable shadows entirely. A scene that authors 20 lights still pays the full scene cost even though at most 8 ever emit. Author to the 8/16 limit; do not rely on the runtime budget to make an over-lit scene cheap. See **lighting-environment**.
 - Particles are additionally **clamped at runtime**: **5,000 per emitter, 50,000 per scene**. Anything authored above those caps is silently reduced, so exceeding them only wastes scene budget with no visual gain. See **particle-system**.
+- **NPC avatars count as VFX emitters.** On the mobile client each `AvatarShape` counted as **3** emitters with no particle system near it (observed 2026-11: three NPCs read 9 of 10; removing them read 0). Show `AvatarShape` NPCs on phones only near the player (`getPlatform()`, **advanced-input**), and hide one by removing the entity: removing only the `AvatarShape` component left the avatar standing on mobile. See **npcs**.
 
-Measure without a device: Creator Hub **Play Options** > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device.
+Measure on a real phone: Creator Hub **Play Options** > **Show QR Code for Mobile**, then open the **Scene Limits Preview** (monitor-with-red-stats icon, top right) on the phone. Target **Performance > 90% on the High profile** on a mid-spec device. That panel exists **only in the preview**; a published scene has no Scene Limits panel. The preview also serves files from your PC, so it can't show download time: time cold loads (cache cleared) on the published scene. Readings move with the device's frame target and the moment (one 7% performance score read 100% when retaken), so take each reading twice before acting on it.
 
 ## Entity Count Optimization
 
@@ -137,7 +138,7 @@ Middle ground for scattered props: **one `.glb` per cluster** (a street block, a
 
 Three more consequences worth knowing:
 
-- **Reuse does NOT reduce material count either.** The client instantiates a material per renderer to write the scene's boundary clipping, so `materials` in the stats tracks rendered objects, not distinct models — measured: 14 entities on one shared `.glb` report 28 renderers and 28 materials, while `geometries` and `textures` stay at one copy. Those instances share the same textures and shader variants, so this is a small memory cost, not a frame-time one. **Never recommend material dedup as a frame-time fix without checking `shaderVariants` first.**
+- **Reuse does NOT reduce material count either.** The client instantiates a material per renderer to write the scene's boundary clipping, so `materials` in the stats tracks rendered objects, not distinct models — measured: 14 entities on one shared `.glb` report 28 renderers and 28 materials, while `geometries` and `textures` stay at one copy. Those instances share the same textures and shader variants, so this is a small memory cost, not a frame-time one. **Never recommend material dedup as a frame-time fix without checking `shaderVariants` first.** The mobile panel counts differently [UNVERIFIED beyond one device, observed 2026-11]: the same view read about 1,420 materials on desktop and 547 on a phone, which shared materials between copies of one model file, while 385 `Material`s created in code (only 58 distinct) were each counted. On mobile, create one `Material` per look and reuse it. Hiding entities with `VisibilityComponent` lowered phone draw calls for what was in view, but not materials or triangles: the panel counts everything loaded.
 - **Spawning many copies at once?** Preload with `AssetLoad` first (see below) so copies come from a resident asset instead of each awaiting the same download. It does not make the copies free: building them is ~90% of a burst's cost even when the asset is already resident, so a large burst can still cost a frame.
 - **One huge model is worse than many small ones for load smoothness.** Asset creation is spread across frames under a frame-time budget, but a single enormous model cannot be split — it lands in one frame and is far more likely to cause a visible hiccup.
 
@@ -284,6 +285,8 @@ This is the local equivalent of the server-side conversion that runs after every
 ## Loading Time Optimization
 
 - Use CDN URLs for large shared assets when possible
+- **Models in the composite are fetched before your code runs.** If code swaps or deletes a composite model at start, the original is still requested first (on mobile it arrives with the scene's first static bundle). Put the final model in the composite instead (**add-3d-models**).
+- **Measure before restructuring the load.** On one phone (observed 2026-11) cold load tracked the *number* of models rather than their bytes: dropping about 30 MB of replaced models left time-to-move unchanged, and loading distant groups later gave no phone gain while causing visible pop-in on desktop. Time a cold load of the published scene before and after each change.
 
 ### Loading Areas for Large Scenes
 
