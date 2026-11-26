@@ -30,7 +30,7 @@ If the budget is exceeded (e.g. after selling/transferring assets), there is a *
 
 For a DCL NAME World the server sizes each upload as the wallet's budget minus everything it has deployed, crediting back only the scenes on the parcels this deploy covers — other scenes in the same World still count — clamped at 0 and capped per scene (worlds-content-server `limits-manager`). An over-budget wallet therefore gets an allowance of **0 bytes** and refuses every upload, however small — see Troubleshooting. Other ENS names (36 MB) and whitelisted Worlds have a fixed cap instead, independent of the wallet.
 
-**Size the upload before publishing**, not after: run the size pass in the **deploy-scene** pre-deployment checklist (heavy GLBs with embedded 2048 px texture maps are the usual surprise, and the project's `bin/index.js` is a dev build several MB larger than the minified bundle `deploy` uploads).
+**Size the upload before publishing**, not after: run the size pass in the **deploy-scene** pre-deployment checklist (heavy GLBs with embedded 2048 px texture maps are the usual surprise, and the project's `bin/index.js` is a dev build several MB larger than the minified bundle the CLI `deploy` uploads; the Creator Hub uploads it as it is, so build for production first, see *Via Creator Hub*).
 
 ## 1. Configure scene.json
 
@@ -83,6 +83,8 @@ Files matched by `.dclignore` (at the project root) are excluded from the upload
 2. Click the **Publish** button (top-right corner)
 3. Select **PUBLISH TO WORLD**
 4. Choose which NAME or ENS domain to publish to; the Deploy step shows `Total Size {size} / {limit}` against that World's limit and disables Publish over it.
+
+Before step 2, build for production: the Hub uploads `bin/index.js` as it finds it, and the preview's dev build carries about 10 MB of inline source map. Stop the Hub preview, run `npx @dcl/sdk-commands build --production`, check `grep -c 'sourceMappingURL=data' bin/index.js` prints `0`, and publish before starting the preview again (**deploy-scene** → Using Creator Hub).
 
 A placement that overlaps two or more of the World's scenes, or a single-scene publish that removes scenes the new one does not cover, starts a new Places listing; the Hub warns before confirming. Screens, messages and the World detail page: **deploy-scene** → `references/creator-hub-publish.md`.
 

@@ -38,6 +38,8 @@ What still lives in files and is yours to edit directly: `src/**` (scene code; s
 
 **A save is not proof the running bundle has your change.** The preview's dev server rewrites `bin/index.js` on every save under `src/**`. A manual `sdk-commands build` while it runs writes the same file and the two race, and a save that lands mid-edit bundles half-written code (`SyntaxError`, scene unloads) — the one-write-per-change rule in **unity-explorer-mcp** applies. When something you changed does not show in-world, `grep` `bin/index.js` for a string literal from the edit before debugging the scene; if it is absent, touch the file and wait for the next `Bundle saved`. After a multi-step edit, reload once more before judging: the watcher can bundle an intermediate save. `ls -l bin/index.js` against your last edit time tells you which state is running.
 
+**That dev bundle is also what the Hub publishes.** **Publish** uploads `bin/index.js` as it finds it, without a `--production` rebuild, so a publish straight after preview work carries about 10 MB of inline source map. Before the user publishes: stop the preview, run `npx @dcl/sdk-commands build --production`, check `grep -c 'sourceMappingURL=data' bin/index.js` prints `0`, and publish before the preview starts again (**deploy-scene** → `references/creator-hub-publish.md`).
+
 ## RULE — search the catalog before manually building any standard object
 
 Before creating an entity and assembling its components with `create_entity` + `set_component`, **`search_catalog` first** to check whether a Smart Item already exists for the object. This applies especially to:
