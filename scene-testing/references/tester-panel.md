@@ -28,6 +28,7 @@ Keep the panel small enough to fit a phone screen. Use tabs before it runs off t
 The panel can stay in the published scene, shown only to people the owner gives a role. Then real people test on real devices, phones included, without owner powers. One scene used five roles: owner, admin, organizer, teacher and QA, each with its own options. The owner grants roles to wallets from an admin card.
 
 - **Check every role on the server.** The scene hiding a button is not a permission. Each action re-checks the caller's role where the state lives (**authoritative-server**, or your own backend: **scene-runtime** → Your own backend).
+- **Take the caller's wallet only from the verified sender,** never from a field in the message: `context.from` in **authoritative-server**, or the identity from a verified signed fetch or the socket session on your own backend. A role store keyed on a wallet the client sends lets anyone claim any role. For owner and admin checks, start from **authoritative-server** → Pattern 4 (`getSceneAdmins()` or a server-side allow-list); add your own roles on top of the same verified sender.
 - **Keep tester tools away from anything with real value.** In one security audit the QA role could start the next round of a live prize tournament, settle running games and read the winners' wallets. Event and prize tools moved to owner and admin only. A safer design marks events as tests and lets QA act only on those.
 - **Keep the limits on what QA can grant itself.** Rate limits switched off for a tester's own account are fine; progress, rewards or rank that count for real are not.
 - **Log actions that change shared state,** with who did them, so a tester's action can be told apart from a player's.
@@ -35,4 +36,4 @@ The panel can stay in the published scene, shown only to people the owner gives 
 
 ## Without a server
 
-Gate the panel to the preview with `realm.realmInfo?.isPreview` (**scene-runtime**), and keep its actions to the tester's own local state. Anything shared needs a server to check roles.
+Gate the panel to the preview with `realm.realmInfo?.isPreview` (**scene-runtime**; server code in **authoritative-server** uses `isPreview()` for the same check), and keep its actions to the tester's own local state. That excludes synced entities: with `syncEntity` or MessageBus (**multiplayer-sync**), a panel action reaches other players. Anything shared needs a server to check roles.

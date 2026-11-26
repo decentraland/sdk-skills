@@ -19,7 +19,7 @@ Use it to review a whole phone session without asking the owner to screenshot ev
 
 1. The owner mirrors the phone to the PC with any screen-mirroring app, and leaves its window open (it can be covered, but not minimised).
 2. Find the mirroring app's process name (`Get-Process | Where-Object MainWindowTitle` on Windows).
-3. Run `{baseDir}/scripts/capture-mirror.ps1 -Process <name> -Minutes 1` as a test, and check the output folder has frames. A first run that keeps nothing is easy to miss: check before the real session.
+3. Run `powershell -ExecutionPolicy Bypass -File {baseDir}/scripts/capture-mirror.ps1 -Process <name> -Minutes 1` as a test (Windows' default policy blocks unsigned scripts), and check the output folder has frames. A first run that keeps nothing is easy to miss: check before the real session.
 4. Run it for the session (`-Minutes 30`, default one capture a second). It keeps a frame only when the picture changed, so idle moments cost nothing.
 5. Hand the folder to a **separate** agent to review. Ask it for a list of findings, each with the frame file name, what is wrong, and whether it looks phone-only. In the session behind this guide, 141 kept frames produced 16 phone findings, including:
    - an NPC that never showed on the phone;

@@ -5,12 +5,18 @@ param(
   [int]$IntervalMs = 1000,
   # Mean change of a 48x27 grey thumbnail, 0-255 scale. Raise it if idle animation keeps too many frames.
   [double]$Threshold = 4.0,
-  [double]$Minutes = 30
+  [double]$Minutes = 30,
+  # Print a status line every N captures (0 = never).
+  [int]$HeartbeatEvery = 60,
+  # Stop when no usable window has been found for this long.
+  [int]$GiveUpSeconds = 60
 )
 # Windows only. Captures the mirroring window about once a second and keeps a frame only when the
 # picture changed, so a 30-minute session yields a reviewable set of JPGs instead of thousands.
 # Works while the window is covered by other windows (PrintWindow with full-content rendering),
 # not while it is minimised. Run a one-minute test first and check that frames are being kept.
+# If the window closes or is recreated (a reconnect), the script looks it up again; it stops after
+# $GiveUpSeconds without a usable window, and prints a heartbeat so a stalled run is visible.
 Add-Type -AssemblyName System.Drawing
 Add-Type @'
 using System;
@@ -19,24 +25,41 @@ public static class Win {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr v);
 }
 '@
-[Win]::SetProcessDPIAware() | Out-Null
+# Per-monitor DPI awareness (v2) keeps the capture size right on a second monitor with another scale.
+try { if (-not [Win]::SetProcessDpiAwarenessContext([IntPtr](-4))) { [Win]::SetProcessDPIAware() | Out-Null } } catch { [Win]::SetProcessDPIAware() | Out-Null }
 New-Item -ItemType Directory -Force $OutDir | Out-Null
-$proc = Get-Process $Process -ErrorAction Stop | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-if (-not $proc) { throw "No window found for process '$Process'." }
-$h = $proc.MainWindowHandle
+function Find-MirrorWindow {
+  $p = Get-Process $Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+  if ($p) { $p.MainWindowHandle } else { [IntPtr]::Zero }
+}
+$h = Find-MirrorWindow
+if ($h -eq [IntPtr]::Zero) { throw "No window found for process '$Process'." }
 $jpg = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
 $enc = New-Object System.Drawing.Imaging.EncoderParameters 1
 $enc.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 80L
-$prev = $null; $kept = 0; $seen = 0
+$prev = $null; $kept = 0; $seen = 0; $tries = 0; $skipped = 0
+$lastGood = Get-Date
 $until = (Get-Date).AddMinutes($Minutes)
 while ((Get-Date) -lt $until) {
+  $tries++
+  if (-not [Win]::IsWindow($h)) { $h = Find-MirrorWindow }
   $r = New-Object Win+RECT
-  [Win]::GetWindowRect($h, [ref]$r) | Out-Null
+  $ok = ($h -ne [IntPtr]::Zero) -and -not [Win]::IsIconic($h) -and [Win]::GetWindowRect($h, [ref]$r)
   $w = $r.R - $r.L; $ht = $r.B - $r.T
-  if ($w -gt 50 -and $ht -gt 50) {
+  if (-not $ok -or $w -le 50 -or $ht -le 50) {
+    $skipped++
+    if (((Get-Date) - $lastGood).TotalSeconds -ge $GiveUpSeconds) {
+      Write-Warning "No usable '$Process' window for $GiveUpSeconds s (closed or minimised). Stopping."
+      break
+    }
+  } else {
+    $lastGood = Get-Date
     $bmp = New-Object System.Drawing.Bitmap $w, $ht
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $dc = $g.GetHdc(); [Win]::PrintWindow($h, $dc, 2) | Out-Null; $g.ReleaseHdc($dc); $g.Dispose()
@@ -54,6 +77,9 @@ while ((Get-Date) -lt $until) {
     }
     $bmp.Dispose()
   }
+  if ($HeartbeatEvery -gt 0 -and $tries % $HeartbeatEvery -eq 0) {
+    Write-Output ("{0:HH:mm:ss} alive: {1} kept, {2} captured, {3} skipped (no window)" -f (Get-Date), $kept, $seen, $skipped)
+  }
   Start-Sleep -Milliseconds $IntervalMs
 }
-Write-Output "done: $kept kept of $seen captured"
+Write-Output "done: $kept kept of $seen captured, $skipped skipped (no usable window)"

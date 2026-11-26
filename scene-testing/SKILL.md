@@ -1,13 +1,13 @@
 ---
 name: scene-testing
-description: "Plan and run testing for a Decentraland scene with agents and the owner: rounds with a separate verifier, persona walk-throughs of built flows, wording and translation checks, testing the published World, phone testing paired with the owner, a tester control panel with roles, and separate security and performance audits. Use when the user asks how to test, QA, check or verify a scene beyond a single change, before a release or launch, after a publish, when phones are a target, or when suggesting what to test next. For player surveys use scene-feedback; for driving the Explorer use unity-explorer-mcp; for small design experiments use dcl-prototype."
+description: "Plan and run testing for a Decentraland scene with agents and the owner: rounds with a separate verifier, persona walk-throughs of built flows, wording and translation checks, testing the published World, phone testing paired with the owner, a tester control panel with roles, and separate security and performance audits. Use when the user asks how to plan testing or QA for a scene beyond a single change, before a release or launch, after a publish, or when phones are a target. For rounds with human players and surveys use scene-feedback; for driving the Explorer or verifying one change use unity-explorer-mcp; for small design experiments use dcl-prototype."
 ---
 
 # Testing a Scene
 
 Agents can test far more of a scene than the change in front of them, but only if someone organizes it. This skill is the method: who tests, in what order, and what proves a fix. It complements the owner's own play, which is still the only test of how a scene *feels*.
 
-Driving the Explorer (walk, click, screenshot, logs) is in **unity-explorer-mcp**. Surveys of real players are in **scene-feedback**. Load those for the mechanics; this skill decides what to run and when.
+Driving the Explorer (walk, click, screenshot, logs) is in **unity-explorer-mcp**. Rounds with human players and their surveys are in **scene-feedback**; the rounds here are run by agents, with the owner where noted. Load those for the mechanics; this skill decides what to run and when.
 
 ## When to suggest what
 
@@ -59,7 +59,7 @@ The preview hides things: download time (files come from your PC), sign-in and a
 
 - After every publish, repeat the key checks on the published World through the Explorer MCP: load to movement, sign-in, the main flow, anything the publish touched.
 - Persona rounds work on the live World too.
-- Test publishes replace what is live on that World, even a private one. Use a separate World for experiments (**deploy-worlds**).
+- A publish to a World replaces the scene live there, even on a private World, so a test publish replaces the real one. Use a separate World for experiments (**deploy-worlds** for publishing).
 
 ## 5. A tester panel for this game
 
@@ -69,7 +69,7 @@ Suggest an in-scene panel that lets testers reach the state they need instead of
 
 - Its contents come from the game. Ask: *what would a tester need to reach, force or reset quickly here?* Examples from one scene, none required: set progress or level, unlock rewards, force a card or screen to show, switch time of day or fog, turn effect groups on and off (which found the cause of a phone performance problem), and **start over as a new player**.
 - **Roles.** The panel can stay in the published scene behind roles the owner grants to other wallets (for example QA and organizer), each with its own options. That brings real people on real devices, phones included, into testing without owner powers.
-- Check every role on the server, not only in the scene UI. Keep tester tools away from anything with real value: live prizes, other players' data. In one audit a QA role could start rounds of a live prize tournament and read winners' wallets.
+- Check every role on the server, not only in the scene UI, with the caller's wallet taken from the verified sender, never from the message. Keep tester tools away from anything with real value: live prizes, other players' data. In one audit a QA role could start rounds of a live prize tournament and read winners' wallets.
 - Hide the panel completely from players without a role, and design it for the phone layout too.
 
 ## 6. Phones

@@ -190,7 +190,7 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 
 ### Player Feedback & Playtesting
 
-**Skill: `scene-testing`** — How and when to test with agents and the owner: rounds with a separate verifier, persona walk-throughs of built flows, wording and translation checks, the published World, phones paired with the owner, a tester panel with roles, security and performance audits. Suggest its methods at the stages it lists, without waiting to be asked.
+**Skill: `scene-testing`** — How and when to test with agents and the owner: rounds with a separate verifier, persona walk-throughs of built flows, wording and translation checks, the published World, phones paired with the owner, a tester panel with roles, security and performance audits. Agent-run rounds; rounds with human players are **scene-feedback**. Suggest a method at the stage it lists, not for a single change.
 
 **Skill: `scene-feedback`** — Scene Feedback playtest surveys: plan questions and timing, organize test rounds and find testers, integrate or debug the module, analyze exported CSV responses.
 
