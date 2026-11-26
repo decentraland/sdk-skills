@@ -55,7 +55,7 @@ to engagement from real players, on three metrics:
 
 | Metric | Definition |
 |---|---|
-| New Decentraland players | players who start in Decentraland by coming to your experience |
+| New Decentraland players | players who start in Decentraland by coming to your experience; players brought in by paid ad campaigns run or funded by the Decentraland Foundation or DCL Regenesis Labs Foundation don't count here (they still count toward the other two) |
 | Active playtime | time players actively spend in it |
 | Player retention | players who come back on days after their first visit |
 
@@ -68,7 +68,7 @@ pays rather than a metric to design backwards from.
 
 **The money.** The Beta Season runs November 15 to December 31, 2026, with a Season Pool of
 **USD 30,000 in USDC** split over three two-week Cycles of **USD 10,000** each (program rules,
-checked November 12, 2026). A Reward is a **proportional share, never a guaranteed amount** — it
+checked November 26, 2026). A Reward is a **proportional share, never a guaranteed amount** — it
 depends on how the scene compares with every other enrolled one. Amounts under **USD 5 per Cycle**
 across all of a creator's experiences are not paid out. Payment is in USDC within 14 days of a
 Cycle ending, to a Payout Wallet set in Creator Hub. **A creator with no Payout Wallet set within
@@ -76,7 +76,7 @@ Cycle ending, to a Payout Wallet set in Creator Hub. **A creator with no Payout 
 
 **Who is eligible.** 18 or older; owns the LAND, NAME or World the scene is deployed to; complies
 with the Terms of Use and Content Policy, with no gambling or other 18+ restricted content.
-A collaborator who does not own the place is not eligible. Only real players on the official
+A collaborator who does not own the place is not eligible. Excluded too: people who design, operate or decide on the Program or have access to its non-public data or detection methods, and consultants, contractors and advisors of the Decentraland Foundation or DCL Regenesis Labs Foundation, except Creator Success creators, who can enrol their own experiences. Only real players on the official
 Decentraland desktop and mobile apps count, and every Cycle is checked for bots and artificial
 activity.
 

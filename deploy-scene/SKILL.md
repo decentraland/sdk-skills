@@ -85,7 +85,7 @@ Every screen, message, the Places-continuity rule and the **Manage → LANDs** p
 
 ### The link to share after publishing
 
-The success panel shows and copies a **web `/jump` link**, which works for players without the desktop client; its **Jump In** button opens the desktop client separately. Use the same forms in anything you write for players:
+The success panel shows and copies a **web `/jump` link**, which works for players without the desktop client; its **Jump In** button opens the desktop client (`decentraland://`), or that same web link when no app on the machine handles `decentraland://`. After a World publish the link, **Jump In** and the next **Republish to <world>** all target the World. Use the same forms in anything you write for players:
 
 | Target | Share link |
 | --- | --- |
@@ -200,6 +200,8 @@ README.md
 *.md
 src
 ```
+
+The Creator Hub also adds `cursor.config` and `cursorignore` (editor files the scene templates ship) to the scene's `.dclignore` when it creates a scene and before each publish, and clears a leftover *Empty Scene Template* description before publishing.
 
 **Keep it up to date as the project grows.** Whenever working files exist in the project — Blender or other 3D source files, draft models, concept art, PSDs, spreadsheets, markdown notes, reference photos — add them (or their extensions) to `.dclignore` so the deployed scene stays as light as possible. When creating or editing a scene, add these patterns proactively; don't wait for the deploy to fail. Common additions:
 

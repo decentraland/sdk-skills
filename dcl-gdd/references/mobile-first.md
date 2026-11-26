@@ -54,6 +54,9 @@ is unknown, keep it `TBD:` with a plan to identify it; do not make naming a phon
 
 Targets can exist before tests. An achieved FPS result needs the measured player load, client,
 device and source; never promote the target to a result because the owner agreed with the plan.
+For players below the target on their own machines, the scene can detect a low frame rate and
+offer a button to the Explorer's settings panel (**optimize-scene** → *Low-FPS settings prompt*);
+that helps the player, it is not a measurement of the target.
 
 Name **one biggest risk and its plan**, not an audit. The usual candidates, roughly in order of how
 often they are the actual cause: asset weight (texture and mesh budget, draw calls), per-frame

@@ -55,6 +55,8 @@ The 2D/3D mode is stored **per scene in `.editor/project.json`** as `uiDesignerO
 
 Under the Bevy renderer, opening 2D mode **freezes the scene** (and resumes on returning to 3D if it had been running). Expect no ticks while the user is laying out UI on Bevy — a driver's clock does not advance.
 
+The 3D viewport **hides the scene UI while the scene is stopped** (on open and after Stop), shows it on **Play** and keeps it on **Pause**. The 2D canvas shows the UI in every state. "My UI disappeared in the editor" while stopped is expected: press **Play**. Full run-state table: **create-scene** → `references/preview-options.md` → *Bevy editor renderer*.
+
 ## The mobile preview
 
 Switching the canvas to **mobile** frames the UI inside a **phone body with a landscape notch**, at `1600x720` — the same virtual canvas react-ecs uses on mobile, so `fitScale` is 1 and there is **no letterbox**. Desktop stays `1920x1080`. Other screens are selectable (mobile: `1600x720` DCL reference, `2340x1080` 19.5:9, `2048x1536` 4:3; desktop: `1920x1080`, `2560x1080` ultrawide, `1440x900`), and a non-default preset does letterbox.

@@ -24,7 +24,7 @@ The on-screen slots are fixed too. Visible buttons fill those slots from the top
 | Hide a button (any, including `IA_JUMP`) | Every lower-priority button moves up to fill the gap. Hide jump and `IA_POINTER` takes the central spot. |
 | Change nothing | The default set applies: `IA_JUMP` central, `IA_POINTER` and `IA_PRIMARY` beside it, the other five hidden. Three visible buttons, no "+" overflow. |
 | Set `mainAction` | That action moves to the front of the stack and becomes the central button; the others keep their relative order. |
-| Set `mainAction` on a button that is also hidden | Hiding wins — the button stays hidden. |
+| Set `mainAction` on a button that is also hidden | Hiding wins — the button stays hidden. That includes F and 1–4, which the default set hides: show the button too ([SKILL.md → Lead with F](../SKILL.md#lead-with-f)). |
 | Leave 5 or fewer buttons visible | All show directly (central button + up to 4 around it); no "+" overflow toggle. |
 | Leave more than 5 buttons visible | The "+" takes the last slot: 4 show directly (central + 3), the rest sit behind the "+" overflow. |
 
@@ -157,4 +157,5 @@ All helpers read the current `RootEntity` value, mutate a copy, and `createOrRep
 - `showDefault()` merges instead: existing entries keep their `icon` and their position in the list, every entry is flipped to `hide: false`, then `IA_SECONDARY` and `IA_ACTION_3`..`IA_ACTION_6` are set to `hide: true` (appended if they were absent). This is the one helper that restores the scene's starting HUD without losing icons.
 - `showAll()` and `showDefault()` never touch `hideJoystick` / `hideCrosshair`; use `showJoystick()` / `showCrosshair()`.
 - All four button-visibility helpers (`hide`, `hideAll`, `showAll`, `showDefault`) also mark the scene as having chosen its buttons, which suppresses the SDK's default write when they run before the first frame — see SKILL.md → *The default button set*.
-- No helper clears `mainAction`; `setMainAction` only sets it. To go back to the default central button, write the component directly with `mainAction` omitted.
+- No helper clears `mainAction`; `setMainAction` only sets it, and never un-hides the button. To go back to the default central button, write the component directly with `mainAction` omitted.
+- `TouchScreenControls.deleteFrom(engine.RootEntity)` removes the scene's config, and all eight buttons show.

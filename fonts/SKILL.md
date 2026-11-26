@@ -1,6 +1,6 @@
 ---
 name: fonts
-description: "Fonts for Decentraland SDK7 text: the three built-in faces and custom .ttf fonts shipped with the scene (fontSrc), for 3D and UI text. Use when the user wants a custom or branded typeface, wants to change a text's font, ships a .ttf, or asks why a custom font isn't showing. For text layout see build-ui; for placing 3D text see advanced-rendering."
+description: "Fonts for Decentraland SDK7 text: the three built-in faces and custom fonts (fontSrc), either a .ttf shipped with the scene or a Google Fonts family name, for 3D and UI text. Use when the user wants a custom or branded typeface, wants to change a text's font, ships a .ttf, names a Google font, or asks why a custom font isn't showing. For text layout see build-ui; for placing 3D text see advanced-rendering."
 ---
 
 # Fonts in Decentraland
@@ -10,9 +10,9 @@ Every text component has two font fields:
 | Field | What it takes | Components |
 |---|---|---|
 | `font` | A built-in face. On `TextShape` / `UiText`: `Font.F_SANS_SERIF` (default), `Font.F_SERIF`, `Font.F_MONOSPACE`. On React-ECS props: `'sans-serif'` (default), `'serif'`, `'monospace'` | All |
-| `fontSrc` | Path to a `.ttf` file in the scene's content, relative to the scene root | `TextShape`, `UiText`, `UiInput`, `UiDropdown`, and the React-ECS `Label`, `Button`, `Input`, `Dropdown` and `UiEntity uiText` |
+| `fontSrc` | A `.ttf` file in the scene's content (path from the scene root), or a [Google Fonts](https://fonts.google.com/) family name such as `'Playfair Display'` | `TextShape`, `UiText`, `UiInput`, `UiDropdown`, and the React-ECS `Label`, `Button`, `Input`, `Dropdown` and `UiEntity uiText` |
 
-Those three built-in faces are the only ones. There is no font name list beyond them.
+The three built-in faces are the only values of `font`.
 
 ## RULE: Check the SDK version before writing `fontSrc`
 
@@ -22,53 +22,53 @@ Read the installed version from `node_modules/@dcl/sdk/package.json` before writ
 
 ## RULE: Always set `font` next to `fontSrc`
 
-`font` is the fallback whenever the custom font cannot be used: on mobile always, on desktop until the font's asset bundle is ready (see Testing). Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
+`font` renders whenever the custom font cannot: while it loads, on the desktop client for every family name and for a `.ttf` until its asset bundle exists, on mobile apps below 1.16.2, past the mobile app's 16-font cap, and for a rejected file. Pick the closest built-in face, so the fallback still looks intended: `'serif'` for a serif or display face, `'monospace'` for a code or terminal face, `'sans-serif'` otherwise.
 
-Size every fixed box so the fallback fits, never from the custom font's width: desktop also renders the fallback until the font's bundle is ready (right after a deploy, and in a local preview whose converter did not serve the scene). Single-line text also needs `textWrap="nowrap"` and spare width: **build-ui** → *Sizing and mobile*.
+Size every fixed box so the fallback fits, never from the custom font's width. Single-line text also needs `textWrap="nowrap"` and spare width: **build-ui** → *Sizing and mobile*. Never put meaning only in the custom font's look (an icon font, a symbol font, a "handwritten" clue): wherever the fallback renders it becomes plain text.
 
-## RULE: The mobile app ignores `fontSrc`
+## Which clients show the custom font
 
-The Decentraland mobile app does not support custom fonts: it always renders the `font` fallback, and its only faces are Noto Sans, Noto Serif and Noto Sans Mono, plus their bold variants (observed 2026-11). Every scene that uses `fontSrc` must still look right and fit with its fallback:
+| `fontSrc` value | Desktop client (Unity) | Mobile app 1.16.2+ | Bevy web client |
+|---|---|---|---|
+| `.ttf` in the scene content | Yes, once its asset bundle exists (deployed and converted, or the desktop preview, which converts locally) | Yes | Yes, loaded directly |
+| Google Fonts family name | **No**: the fallback `font` | Yes | Yes |
+| URL, OpenType with CFF outlines (usually `.otf`), collection (`.ttc`), web font (`.woff`, `.woff2`), missing file, empty string | Fallback | Fallback | Fallback |
+| `.ttf` over 16 MB, or with extremely complex glyph outlines | Fallback | Fallback (16 MB cap) | Not documented |
 
-- Choose the fallback deliberately (previous rule), and **before designing text-heavy UI for a mobile target**, not after: one retrospective found three screens designed around a display font before this rule was read.
-- Size every box so the fallback fits (previous rule).
-- Never put meaning only in the custom font's look (an icon font, a symbol font, a "handwritten" clue). On mobile it becomes plain text.
+- Mobile apps below 1.16.2 ignore `fontSrc` entirely and render `font`.
+- The file check reads the contents, not the extension: an `.otf` renamed to `.ttf` is still rejected.
+- All three clients apply `fontSrc` to `TextShape` and to the UI `Label`, `Button`, `Input` and `Dropdown`.
 
-When the user adds a custom font, tell them it won't show on mobile.
+## RULE: Ship a `.ttf` when the look matters on desktop
 
-**A display face that must survive on mobile** needs image text: a per-glyph bitmap font, one `UiEntity` per character drawing its glyph as a `uvs` crop of an atlas (**build-ui** → `references/ui-components.md` → *Texture UVs*). It renders the same on every client, at two costs:
+A family name needs no file and no licence step, but the desktop client always shows the fallback for it. When the user names a font ("use Playfair Display") and the look matters on desktop, ship its `.ttf`: ask for it, or offer to download it, confirming first like any asset download (**sdk-scenes** → Agent Behavioral Guidelines, item 2). A `.ttf` renders on all three clients. Use a family name only when the desktop fallback is acceptable (a mobile-first scene, a decorative touch), and tell the user desktop players see the built-in face.
 
-- **One atlas per colour.** Mobile apps below 1.16.0 ignore `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour every variant and bake shadows and outlines into the glyph art.
-- **Node count.** Every glyph is a node, and stacked copies multiply it: an outline faked with 17 stacked `Label`s dropped a screen to ~6 FPS, and baking shadows into the glyph art took a screen from ~23 to ~45 FPS. Keep image text to titles and short labels.
+Family-name rules:
 
-## RULE: A custom font is a `.ttf` file in the scene
+- Write the name as Google Fonts lists it (`'Open Sans'`, `'Playfair Display'`); case does not matter.
+- Only unaccented letters, digits and spaces. A name with `+`, `.`, an apostrophe or an accented letter is not found and the fallback shows.
+- The font comes from Fontsource, which hosts the Google Fonts catalog. Regular text uses weight 400 (or the closest the family has), bold uses 700 (or the closest).
+- Only the Latin subset is downloaded (or, for a family with no Latin, the first subset Fontsource lists). Other characters are drawn with the built-in `font`.
 
-`fontSrc` is a file path, not a font name. Custom fonts are available, but a font the user names ("use Playfair Display") only works once its `.ttf` file sits in the scene's folder and `fontSrc` points at it. When the user wants a custom font and the scene has no `.ttf` for it yet, tell them custom fonts are supported and either ask for the `.ttf`, or offer to download it, confirming first like any asset download (**sdk-scenes** → Agent Behavioral Guidelines, item 2). Either way, the font's licence must allow redistributing it with the scene: most Google Fonts use the SIL Open Font License, which does.
+## Mobile app (1.16.2+)
 
-The Unity explorer supports nothing else. Every other value silently falls back to `font` there:
+- **At most 16 custom fonts per scene.** A font used both in the UI and on a `TextShape` counts twice. Beyond that, text uses the fallback `font`.
+- **Bold and italic in the UI**: with a font file the app always simulates them; with a family name it uses the family's real bold and italic faces when it has them.
+- **Bold on a `TextShape`**: not simulated. With a family name it uses the family's bold face; with a font file, the regular face.
+- **Characters that first appear in a `TextShape`** are rendered in the background, so new text can take a moment to show.
+- Fallback faces observed on the app (2026-11): Noto Sans, Noto Serif, Noto Sans Mono, and their bold variants.
 
-| `fontSrc` value | Unity explorer | Bevy explorer |
-|---|---|---|
-| `.ttf` in the scene content | Yes, once its asset bundle exists (deployed, or the desktop preview, which converts fonts locally) | Yes |
-| OpenType with CFF outlines (usually `.otf`), collections (`.ttc`), web fonts (`.woff`, `.woff2`) | Falls back | Not documented — do not rely on it |
-| `.ttf` over 16 MB, or with extremely complex glyph outlines | Falls back (refused by the converter) | Not documented |
-| URL to a `.ttf` | Falls back | Yes |
-| Font family name (`'Playfair Display'`) | Falls back | Yes |
-| Missing file, invalid file, empty string | Falls back | Falls back |
+**Image text** (a per-glyph bitmap font: one `UiEntity` per character drawing a `uvs` crop of an atlas, **build-ui** → `references/ui-components.md` → *Texture UVs*) is the route only when a display face must look identical everywhere at once, including mobile apps below 1.16.2. Costs: mobile apps below 1.16.0 ignore `uiBackground.color` tint and alpha on `uvs` crops (`{baseDir}/../sdk-scenes/references/mobile-parity.md`), so pre-colour each variant and bake shadows and outlines into the glyph art; and every glyph is a node, so stacked copies multiply it (an outline faked with 17 stacked `Label`s dropped a screen to ~6 FPS). Keep it to titles and short labels.
 
-The protocol's doc comment, which shows up in editor tooltips, says a font family name works. That is Bevy only: Unity dropped external fonts on purpose (security, code size, runtime glyph rasterising). Never write a family name or a URL in `fontSrc`.
-
-When the desktop client rejects a `fontSrc` value it logs an `SDK_FONTS` line saying why: a warning for a URL (`font_src "…" cannot be an external URL`), a plain log line for anything that isn't a file of the scene, family names included (`font_src "…" is not a content file of the scene …`). Check the console, including non-warning lines, before anything else when a font falls back.
-
-## Adding a font to a scene
+## Adding a font file to a scene
 
 1. Put the `.ttf` under `assets/fonts/`, for example `assets/fonts/BungeeShade-Regular.ttf`. Use a static `.ttf`. If a family ships only as a variable font, use its static instances.
-2. Put the font's licence next to it (`assets/fonts/BungeeShade-OFL.txt`). Deploying publishes the file on public content servers, so the licence must allow redistribution and embedding. OFL and Apache fonts allow it. Most commercial desktop licences do not.
+2. Put the font's licence next to it (`assets/fonts/BungeeShade-OFL.txt`). Deploying publishes the file on public content servers, so the licence must allow redistribution and embedding. OFL and Apache fonts allow it (most Google Fonts are OFL). Most commercial desktop licences do not.
 3. Reference it by its path from the scene root, the same way as a texture `src`: `fontSrc: 'assets/fonts/BungeeShade-Regular.ttf'`.
 
 One file is one face. For a bold title and regular body text, ship both weights and point each text at its own file.
 
-Cost: every text entity using the same `fontSrc` shares one loaded copy, so reusing a font across the scene costs no more than using it once. Each distinct font file becomes its own asset bundle of about 700 KB (two texture atlases), plus its own textures in memory. Keep a scene to one or two font files.
+Cost: every text entity using the same `fontSrc` shares one loaded copy, so reusing a font across the scene costs no more than using it once. On desktop each distinct font file becomes its own asset bundle of about 700 KB (two texture atlases), plus its own textures in memory. Keep a scene to one or two fonts.
 
 ## 3D text (`TextShape`)
 
@@ -89,8 +89,8 @@ TextShape.create(sign, {
   fontSrc: 'assets/fonts/AbrilFatface-Regular.ttf'
 })
 
-// Switching font at runtime is a plain field write
-TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
+// Switching font at runtime is a plain field write; a family name works the same way
+TextShape.getMutable(sign).fontSrc = 'Playfair Display'
 ```
 
 ## UI text (React-ECS)
@@ -105,6 +105,8 @@ TextShape.getMutable(sign).fontSrc = 'assets/fonts/BungeeShade-Regular.ttf'
   uiTransform={{ width: 240, height: 40 }}
 />
 
+<Label value="Welcome!" fontSize={40} font="serif" fontSrc="Playfair Display" uiTransform={{ width: 300, height: 60 }} />
+
 <Button value="Play" variant="primary" textWrap="nowrap" font="sans-serif" fontSrc="assets/fonts/BungeeShade-Regular.ttf" />
 
 <Input placeholder="Your name" font="serif" fontSrc="assets/fonts/PTSerif-Regular.ttf" />
@@ -118,20 +120,21 @@ Editable UI (**build-ui**): write `fontSrc` on the element by hand. The Creator 
 
 ## Testing a custom font
 
-The desktop client (Unity explorer) loads scene fonts only from asset bundles, never from the raw font file. So the custom font shows only where bundles exist:
+The desktop client loads scene fonts only from asset bundles, never from the raw file, and never loads family names:
 
-- **Local preview** (`npm run start` or Creator Hub Play, no flag needed): the Desktop Explorer converts the scene's assets itself before the scene loads, `.ttf` fonts included, so the font shows. Only `.ttf` converts: any other font format keeps the `font` fallback. If the font still shows its fallback, the converter did not run or could not serve this scene; the **AB** panel of the Explorer's debug menu says why (**optimize-scene** → *Local Asset Bundle Preview*). The converter is a separate `abgen` process on `127.0.0.1:5147` that can outlive a force-quit Explorer. The next launch adopts it when it is the same Explorer build serving the same scene and already ready; any other leftover blocks the port, the session degrades to raw GLTFs and the built-in font, and the **AB** panel names the pid — stop that `abgen` (`pgrep -fl abgen`) and relaunch once (observed 2026-11).
+- **Local preview** (`npm run start` or Creator Hub Play, no flag needed): the Desktop Explorer converts the scene's assets itself before the scene loads, `.ttf` fonts included, so the font shows unless **Load Raw GLTFs** is on. If it still shows its fallback, the converter did not run or could not serve this scene; the **AB** panel of the Explorer's debug menu says why (**optimize-scene** → *Local Asset Bundle Preview*). The converter is a separate `abgen` process on `127.0.0.1:5147` that can outlive a force-quit Explorer. The next launch adopts it when it is the same Explorer build serving the same scene and already ready; any other leftover blocks the port, the session degrades to raw GLTFs and the built-in font, and the **AB** panel names the pid — stop that `abgen` (`pgrep -fl abgen`) and relaunch once (observed 2026-11).
 - **Deployed scene:** the font appears once the server's asset-bundle conversion finishes. Until then the fallback shows. Scenes deployed before font conversion existed get font bundles only when they are deployed again.
-- **Bevy explorer** loads the `.ttf` directly, so its preview shows the font without conversion.
-- **Mobile app:** always the fallback (see the mobile rule).
-- **Fallback fit check:** before shipping text-heavy UI, look at it once on the fallback by removing `fontSrc` temporarily so the `font` face renders (restore it afterwards). Overlaps there are what players see until the font's bundle is ready, and always on mobile. It is the most demanding fit test: a fallback much wider than the custom face ran text over the key icons beside it and made two phrases overlap although nothing wrapped (in-world, 2026-11).
+- **Bevy web client** loads the `.ttf` (or the family) directly, so its preview shows the font without conversion.
+- **Mobile app:** 1.16.2+ shows `.ttf` files and family names (the limits above); older apps show the fallback.
+- **Why it fell back (desktop):** the client logs an `SDK_FONTS` line naming the value and the reason: a warning for a URL (`font_src "…" cannot be an external URL`), a plain log line for anything that isn't a file of the scene, family names included (`font_src "…" is not a content file of the scene …`), or a scene with no converted font yet. These lines are hidden by default: type `/log-matrix enable SDK_FONTS Warning` and `/log-matrix enable SDK_FONTS Log` in the chat, `/reload`, then `/logs` to open the log folder. If the font was not converted, check that it is a TrueType `.ttf` under 16 MB, then publish again.
+- **Fallback fit check:** before shipping text-heavy UI, look at it once on the fallback by removing `fontSrc` temporarily so the `font` face renders (restore it afterwards). Overlaps there are what desktop players see until the font's bundle is ready, and always for a family name. A fallback much wider than the custom face ran text over the key icons beside it and made two phrases overlap although nothing wrapped (in-world, 2026-11).
 - Tell the user which of these applies before they report "my font isn't working".
 - The reference scene for expected behaviour is `scenes/84,-6-font-src` in decentraland/sdk7-test-scenes (realm `sdk7testscenes.dcl.eth` on zone). It covers each fallback case, fonts shared between components, recreating components and the scene boundary.
 
 ## Glyphs and legibility
 
-- A custom font only draws the characters it contains. Characters it lacks are drawn with the built-in sans-serif, mid-word, which looks broken. For accented letters, Cyrillic, CJK and so on, pick a font that includes those scripts.
-- The font's bundle comes with ASCII, smart punctuation (quotes, dashes, ellipsis, bullet), € and the common Latin-1 letters already rendered. Any other character the font includes (Cyrillic, Greek, CJK…) is rendered the first time it appears, which causes a brief hitch. For text in those scripts, show it early (a loading or intro screen) rather than at a critical moment.
+- A custom font only draws the characters it contains. Characters it lacks are drawn with the built-in sans-serif, mid-word, which looks broken. For accented letters, Cyrillic, CJK and so on, pick a font that includes those scripts (and, with a family name, remember only Latin is downloaded).
+- On desktop the font's bundle comes with Latin (ASCII and Latin-1) already rendered. Any other character the font includes (Cyrillic, Greek, CJK…) is rendered the first time it appears, which causes a brief hitch. For text in those scripts, show it early (a loading or intro screen) rather than at a critical moment.
 - No emoji in any text value, whatever the font. The Unity explorer has no emoji glyphs (see **build-ui**).
 - Keep decorative and display faces for short titles and signs. Body text and anything read while moving needs a plain face at the sizes in **build-ui** (UI) and **advanced-rendering** (3D).
 - A monospace face, built-in or custom, does not make spaces line up columns in a `TextShape`. Use one `TextShape` per column (see **advanced-rendering**).

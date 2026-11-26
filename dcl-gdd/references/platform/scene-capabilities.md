@@ -84,7 +84,9 @@ selection and zone detection are separate choices; appearance alone does not def
 animated shapes do not automatically deform their colliders. Native `TriggerArea` provides an
 enter/stay/exit route for players or chosen objects. Give a thin visible floor enough detection
 space to register a player. Overlapping zones and teleports can leave stale exit events, so base
-persistent effects on current occupancy when that matters. The
+persistent effects on current occupancy when that matters. At the scene boundary itself,
+`onEnterScene` / `onLeaveScene` fire each time a player steps onto or off the scene's parcels
+(SDK 7.34.0+; a teleport away can miss the exit). The
 interaction guidance (`{baseDir}/../add-interactivity/SKILL.md`)
 and official trigger example were inspected, not tested on every client/version.
 Implementation: `add-interactivity`; `add-3d-models` for model colliders.
@@ -115,6 +117,9 @@ route cue or avoid a searchlight. Scene time and `SkyboxTime` can change global 
 is not equivalent. An emissive cue can remain useful even when dynamic lighting is reduced.
 Sources: [skybox](https://docs.decentraland.org/creator/scenes-sdk7/interactivity/skybox-control),
 [lights](https://docs.decentraland.org/creator/scenes-sdk7/3d-content-essentials/lights).
+`Skybox`, `Sun` and `EnvironmentFog` (SDK 7.32.0+, desktop only) set sky colours or a sky image, sunlight and
+fog; a creator working in the Creator Hub can tune them without code through the **Skybox** smart
+item and swap day/night presets from a button.
 Implementation: `lighting-environment`. Check the visual result on the intended graphics profile.
 Detection and success rules are scene logic, separate from the light's appearance.
 
@@ -198,8 +203,9 @@ claim is outdated. For a speaking indicator rather than audio analysis, see the 
 
 **A readable themed interface:** HUDs, choices and world signs can share a visual identity
 through custom fonts (`fontSrc`). The [UI text documentation](https://github.com/decentraland/docs/blob/5a25e287f0440486196afa2bb3067608249547a8/creator/sdk7/2d-ui/ui_text.md)
-requires SDK **newer than 7.30.1** and a usable fallback font. Mobile uses the fallback; Desktop
-and Bevy web have different asset-loading routes. Plan glyph coverage, readable dimensions and
+requires SDK **7.31.0+** and a usable fallback font. A `.ttf` shipped with the scene shows on
+Desktop, mobile app 1.16.2+ and Bevy web; a Google Fonts family name shows on mobile and Bevy web
+only, Desktop draws the fallback (**fonts**). Plan glyph coverage, readable dimensions and
 font redistribution rights. Supplied icon art can help a symbol read consistently across clients.
 Use the [typography route](sdk-scene-examples.md#interfaces-media-and-client-journeys) for file,
 bundle and layout details.

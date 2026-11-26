@@ -182,7 +182,7 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 
 ### Fonts
 
-**Skill: `fonts`** — Built-in faces (`font`) and custom `.ttf` fonts (`fontSrc`) for 3D and UI text, including why a custom font isn't showing.
+**Skill: `fonts`** — Built-in faces (`font`) and custom fonts (`fontSrc`: a `.ttf` or a Google Fonts family name) for 3D and UI text, including why a custom font isn't showing.
 
 ### Screen-Space UI
 
