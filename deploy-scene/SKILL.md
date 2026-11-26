@@ -51,7 +51,7 @@ Before deploying, verify:
    npx @gltf-transform/cli inspect assets/Models/big.glb   # Textures table: each embedded map's resolution and bytes
    ```
 
-   Embedded 2048 px texture maps are the usual surprise — two generated GLBs carried 17 MB of them in a 34 MB scene. Resize them to 1024 or less (`npx @gltf-transform/cli resize in.glb out.glb --width 1024 --height 1024`, or in Blender — see **optimize-scene**): the converter downscales to 1024 anyway, and the raw file still counts in full. Estimate code size from a production build, not from the project's `bin/index.js`: the preview's dev build carries an inline source map and no minification, while `deploy` rebuilds with `--production` (minified, no map), typically a fraction of the size.
+   Embedded 2048 px texture maps are the usual surprise — two generated GLBs carried 17 MB of them in a 34 MB scene. Resize them to 1024 or less (`npx @gltf-transform/cli resize in.glb out.glb --width 1024 --height 1024`, or in Blender — see **optimize-scene**): the converter downscales to 1024 anyway, and the raw file still counts in full. Estimate code size from a production build, not from the project's `bin/index.js`: the preview's dev build carries an inline source map and no minification, while the CLI `deploy` rebuilds with `--production` (minified, no map), typically a fraction of the size. The Creator Hub's **Publish** does not rebuild: see *Using Creator Hub* below.
 
 7. **`.dclignore` covers all working files** — Blender/FBX sources, concept art, spreadsheets, markdown docs, etc. must not be uploaded. See the `.dclignore` section below.
 
@@ -74,6 +74,8 @@ Scenes of **50 MiB or more** upload in 32 MiB batches (`@dcl/sdk-commands` 7.31.
 1. Open the scene in the Creator Hub and click **Publish** (it saves pending edits first).
 2. Pick **Publish to LAND**, then the parcel: only LAND the wallet can deploy to is listed, and the scene deploys there, not to the parcels still in `scene.json`.
 3. Check the Deploy step's `Total Size {size} / {limit}` (15 MiB per parcel; over it, Publish is disabled) and any **"Your scene will lose its Places listing"** warning, then **Publish** and sign with the wallet. Progress and **Cancel** need `@dcl/sdk` 7.31.0+.
+
+**Build for production before publishing from the Hub.** **Publish** uploads `bin/index.js` as it finds it; it does not rebuild with `--production` the way the CLI `deploy` does. Stop the Hub preview first (its dev server rewrites the file on every save), run `npx @dcl/sdk-commands build --production`, and check that `grep -c 'sourceMappingURL=data' bin/index.js` prints `0`. Then publish before starting the preview again. Observed 2026-11: a 12.7 MB dev bundle, about 9 MB of it an inline source map, built to 1.9 MB, and the same World's publish total fell from 96.90 MB to 86.63 MB. The map alone can push a scene past a 36 MB ENS World cap.
 
 Every screen, message, the Places-continuity rule and the **Manage → LANDs** pages: `{baseDir}/references/creator-hub-publish.md`.
 
