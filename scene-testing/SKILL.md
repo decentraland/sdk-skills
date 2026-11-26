@@ -27,6 +27,8 @@ Ask before starting anything that costs the owner time (phone sessions, live rou
 
 ## 1. Rounds with a separate verifier
 
+Brief template, what counts as PASS, and the fresh-build check: `{baseDir}/references/verifier-rounds.md`.
+
 - Keep a numbered list of items. Fix a batch, then hand the list to a **separate** agent, not the one that made the fixes, to check each item in-world and report PASS or FAIL with a screenshot and the steps it took.
 - Fix what a round finds **in that round**, then check again. Issues left for later pile up, and the next round's check is what catches a fix that broke something else.
 - A FAIL repeats until it passes. A fix that works in 2 of 5 tries is a FAIL.
@@ -34,6 +36,8 @@ Ask before starting anything that costs the owner time (phone sessions, live rou
 - Give each item its proof: a screenshot shows a look; a log line or state read shows behaviour; only a device shows how it plays on that device.
 
 ## 2. Persona walk-throughs of built flows
+
+How to pick personas, the brief, checking their claims, and examples of what they caught: `{baseDir}/references/persona-rounds.md`.
 
 Personas are not evidence of demand (**dcl-gdd** → acquisition). They are a cheap way to walk the flows you built from a starting point other than yours, and to break a builder's tunnel vision.
 
@@ -59,6 +63,8 @@ The preview hides things: download time (files come from your PC), sign-in and a
 
 ## 5. A tester panel for this game
 
+A worked example (three tabs, five roles), the role rules, and the audit finding behind them: `{baseDir}/references/tester-panel.md`.
+
 Suggest an in-scene panel that lets testers reach the state they need instead of playing their way to it. It is different from the automated PASS/FAIL panel in **unity-explorer-mcp** → in-scene checks: this one is for people.
 
 - Its contents come from the game. Ask: *what would a tester need to reach, force or reset quickly here?* Examples from one scene, none required: set progress or level, unlock rewards, force a card or screen to show, switch time of day or fog, turn effect groups on and off (which found the cause of a phone performance problem), and **start over as a new player**.
@@ -67,6 +73,8 @@ Suggest an in-scene panel that lets testers reach the state they need instead of
 - Hide the panel completely from players without a role, and design it for the phone layout too.
 
 ## 6. Phones
+
+The paired-session steps, the frame-capture script (`{baseDir}/scripts/capture-mirror.ps1`, Windows) and how to review the frames: `{baseDir}/references/phone-testing.md`.
 
 Agents can't run the phone client, and phone-only bugs are common: a fix can pass on desktop and fail on the phone.
 
