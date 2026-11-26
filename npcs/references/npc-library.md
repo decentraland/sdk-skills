@@ -110,15 +110,9 @@ AvatarShape.getMutable(npc).expressionTriggerId = 'clap'
 ```
 
 ### Custom Emotes (Advanced)
+Play a custom emote by setting `expressionTriggerId` to a scene `_emote.glb` path or a published Marketplace emote URN; listing it in `emotes` is not needed (SKILL.md → *Playing expressions on an AvatarShape NPC*).
 ```typescript
-// Note: Custom emotes require .glb files ending with _emote.glb
-// This is currently limited and may not work with NPCs
-AvatarShape.create(npc, {
-  id: 'custom-npc',
-  emotes: [
-    'urn:decentraland:ethereum:erc721:0xcontract:tokenId' // NFT emote URN
-  ]
-})
+AvatarShape.getMutable(npc).expressionTriggerId = 'urn:decentraland:matic:collections-v2:<contract>:<itemId>'
 ```
 
 ## NPC Appearance Management

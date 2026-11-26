@@ -208,6 +208,8 @@ The full Texture form supports filterMode/wrapMode but particle systems generall
 ## Gotchas
 
 - **Texture path** — textures go in `assets/Images/` (folder conventions: **add-3d-models** → Asset folder conventions). Legacy scenes may have them under `assets/scene/Images/` or `assets/scene/textures/`; that still works, so reference those paths as-is.
+- **White quads instead of the sprite:** the texture failed to load. After its retries the Explorer keeps the white quad and doesn't request the texture again until `texture.src`, `wrapMode` or `filterMode` changes. Check the file is in the deployed entity (exact path, case, `.dclignore`); if it is there and still blank only in the published scene, report it with **report-sdk-issue**.
+- **Transparent surfaces can cover particles.** Particles render transparent without depth writes and sort as one object against other transparent surfaces: a large alpha-blended plane (a water surface) whose centre is nearer the camera than the emitter can draw over all of them. Under particles, make the surface `MTM_OPAQUE` [UNVERIFIED in-world].
 - **Quaternion rotation fields** — `rotationOverTime` is interpreted as per-axis angular velocity (quaternion → Euler XYZ). `Quaternion.fromEulerDegrees(0, 90, 0)` = spin 90°/s on Y. Identity = no spin.
 - **`additionalForce` is world-space** even when `simulationSpace = PSS_LOCAL`. Wind/drift directions stay constant regardless of emitter rotation.
 - **`limitVelocity.dampen = 1`** = hard clamp (particles never exceed `speed`). Lower values let velocity exceed cap briefly then decay.

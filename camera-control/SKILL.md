@@ -25,6 +25,8 @@ engine.addSystem(trackCamera)
 
 `engine.CameraEntity`'s Transform is read-only (to move a camera, see VirtualCamera below).
 
+There is no camera-shake API. `Physics.applyImpulseToPlayer` moves the avatar, not the camera: an upward impulse of magnitude m launches it at m m/s, a visible hop that players read as jumping. Keep impulses for rare accents behind a comfort toggle, or shake the world instead (props, lights, a sky flash).
+
 ## Camera Mode Detection
 
 Check whether the player is in first-person or third-person:

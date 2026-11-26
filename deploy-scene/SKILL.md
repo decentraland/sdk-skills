@@ -176,7 +176,7 @@ Spawn points: `{baseDir}/../create-scene/references/scene-json.md` → Spawn Poi
 
 The `.dclignore` file, always at the **project root**, lists files and patterns that are **NOT uploaded** to the content server when deploying, and **not served by the local preview** either (see *`.dclignore` also filters the preview* below). Everything in the project folder that isn't matched by `.dclignore` gets uploaded, and the uploaded total counts against the per-parcel MB limits — so only files the running scene actually needs should be deployed.
 
-Format: one glob pattern per line. The default from scene templates:
+Format: one pattern per line, gitignore rules, **case-insensitive** (sdk-commands uses the `ignore` package). A pattern without a slash matches at any depth: `wearables` also excludes `assets/Wearables/…`. Anchor a root-only folder with a leading slash (`/wearables`). The default from scene templates:
 
 ```
 .*
@@ -228,6 +228,7 @@ If a deploy fails with **"Scene is too large"**, checking `.dclignore` is the fi
 
 - Exclude by pattern — working-file extensions and folders, as above — and let every asset folder upload by default. A whitelist (`*` plus `!` re-includes) drops each new asset until someone edits the list.
 - When an asset silently fails to load or play in preview and `.dclignore` has `!` lines, grep it for the asset's path before debugging anything else.
+- To confirm a file is served, with the preview running: `curl -s -X POST http://127.0.0.1:8000/content/entities/active -H 'Content-Type: application/json' -d '{"pointers":["0,0"]}' | grep -i <file name>` (put the scene's base parcel in `pointers`).
 
 **Keep these uploaded:** `bin/index.js`, `scene.json`, `assets/` (composites, .glb models, textures, sounds, video), the thumbnail referenced in `scene.json`, and any file path referenced in code. The default ignores `*.ts`/`src` because only the compiled `bin/index.js` runs.
 

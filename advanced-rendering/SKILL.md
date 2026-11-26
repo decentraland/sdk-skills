@@ -170,6 +170,7 @@ Material.setPbrMaterial(entity, {
 ```
 
 - `MTM_ALPHA_TEST` is cheaper than `MTM_ALPHA_BLEND` — use cutout when smooth transparency isn't needed.
+- An explicit `MTM_ALPHA_BLEND` stays blended (transparent queue, no depth write) even at albedo alpha 1; only auto mode turns opaque at alpha 1. Set `MTM_OPAQUE` to make it opaque.
 
 **How the desktop Explorer resolves texture transparency** — verified in its material systems and scene shaders (unity-explorer `dev`, 2026-11-04). Whether each behaviour is intended or a defect is unconfirmed, and other renderers may differ:
 
@@ -266,11 +267,13 @@ const visibility = VisibilityComponent.getMutable(entity)
 visibility.visible = !visibility.visible
 ```
 
+`visible: false` hides only this entity's own mesh. Its children stay visible unless you also set `propagateToChildren: true` (default `false`). To hide a rig (a pivot with mesh children), write `{ visible: false, propagateToChildren: true }`. Hide it this way rather than scaling one axis of its parent to near zero: a squashed rig still shows a sliver.
+
 For a distance-based LOD (Level of Detail) system that toggles `VisibilityComponent` per frame, see the **LOD via VisibilityComponent** section in `{baseDir}/references/rendering-patterns.md`.
 
 ### propagateToChildren
 
-Set `propagateToChildren: true` on a `VisibilityComponent` to apply visibility to all children in the hierarchy at once. This avoids having to mark every child entity individually:
+Set `propagateToChildren: true` on a `VisibilityComponent` to apply visibility to all children in the hierarchy at once. Without it (the default), children of a hidden entity keep rendering:
 
 ```typescript
 VisibilityComponent.create(parentEntity, { visible: false, propagateToChildren: true })

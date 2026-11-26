@@ -27,6 +27,8 @@ On `launch_preview` / `preview_status` this is the creator stopping the turn, no
 
 The sdk-commands child is still alive, so the handle still says yes, while every `explorer_*` call fails with `fetch failed` (observed 2026-10-12). A string of `fetch failed` results means "the app is gone", not "the scene is broken". Confirm with `pgrep -fl '[M]acOS/Explorer'`, then `stop_preview` followed by one `launch_preview`.
 
+If `pgrep` shows the Explorer **alive** while `explorer_*` calls fail with `fetch failed`, the window is not bound to this preview's MCP port (an earlier launch's window, one opened without MCP, or the client restarted). It is not the sign-in screen: a bound window answers `explorer_call get_scene_state` while signing in (`loadingStage: AuthenticationScreenShowing`), and `preview_status`'s "may be on the login screen" is printed whenever readiness times out. Compare the Explorer's start time (`ps -o lstart= -p <pid>`) with your launch, then tell the creator and ask before closing anything.
+
 ## Checking and closing the Explorer
 
 macOS:

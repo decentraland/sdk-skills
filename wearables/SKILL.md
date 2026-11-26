@@ -55,7 +55,7 @@ Body-hugging wearables need a GLB per body shape: build from `AvatarShape_B.blen
 - **Skin** is tinted only if the material is named exactly `AvatarSkin_MAT` (grayscale texture). A wearable that shows skin (bare arms) keeps that material on those faces.
 - **Eyes / eyebrows / mouth:** 256 px transparent PNG. A grayscale mask PNG with the `_mask` suffix limits where the tint applies. Upload both files in one zip.
 - **Hats:** add a short hair to the hat mesh and hide the `hair` category so long hair doesn't clip through.
-- **Dangling parts** (ponytails, earrings, capes) can sway with extra bones named `*springbone*`: see [Spring bones](https://docs.decentraland.org/creator/wearables-and-emotes/wearables/spring-bones/).
+- **Dangling parts** (ponytails, earrings, capes) can sway with extra bones named `*springbone*`: see [Spring bones](https://docs.decentraland.org/creator/wearables-and-emotes/wearables/spring-bones/). A scene wearable (a `.glb` the scene dresses players in) gets no spring-bone parameters: its extra bones sway with fixed defaults (**player-avatar** → `references/scene-wearables.md`).
 
 ## Armature and skinning rules
 
@@ -63,6 +63,7 @@ Body-hugging wearables need a GLB per body shape: build from `AvatarShape_B.blen
 - A valid single-mesh wearable GLB has **64 nodes**: `Armature` + 62 bones + 1 skinned mesh.
 - Seams with other body parts: weight the neck-line vertices 100% to the neck bone and the waist-line vertices 100% to the hips, so separate wearables meet without gaps. Use the leg bones for the lower body / feet seam.
 - **Rigid parts** (a backpack, tanks, armor plates): weight every vertex **100% to one bone** (e.g. `Avatar_Spine2` for anything on the back). Give the object the same armature parent and an `Armature` modifier, then join it into the body mesh so the wearable stays one skinned mesh.
+- **The base meshes live in the armature's local space**: vertices in cm and Y-up, because the `Armature` object carries rotation X 90° and scale 0.01, and each mesh has an identity parent inverse. A part modelled in world metres and parented by script (`obj.parent = arm`) lands 100× too big and tipped. First run `obj.data.transform(arm.matrix_world.inverted())`, then `obj.matrix_parent_inverse.identity()` and `obj.matrix_world = arm.matrix_world`. `bpy.ops.object.join()` into a base mesh does this conversion for you.
 - **A rigid part on the back floats unless you measure the gap.** A jetpack placed at a constant offset (the furthest-back point of the whole upper back + 12 mm) stood 2–10 cm off the back under its own footprint, and it read as floating from the side. The back curves away from a flat-fronted part. Two fixes, verified in Blender renders but not yet re-checked in-world:
   - Ray-cast the body (or the inflated suit) along the back-to-front axis over the part's **own footprint**. Set the part's front face from the furthest-back hit, leaving ~4 mm.
   - Add a small **mount block** between part and back (9 × 16 cm on the jetpack; the owner rejected a full-width plate as too heavy). Ray-cast its front vertices onto the surface and give each the skin weights of the nearest body vertex (`mathutils.kdtree.KDTree`). Weight its back vertices, which sit inside the part, 100% to the part's bone. The mount bends with the spine where the rigid part cannot.

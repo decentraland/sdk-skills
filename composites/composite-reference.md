@@ -678,7 +678,7 @@ Components share entity IDs across the `data` map. All components for entity 512
 
 ## Non-core components
 
-All components that start with `asset-packs::` or `inspector::` are non-core. The build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when the scene doesn't declare it as a dependency, so no explicit install is required (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency). Even so, do not add any of these components unless the user wants to use the Creator Hub.
+All components that start with `asset-packs::` or `inspector::` are non-core. The build resolves `@dcl/asset-packs` from the copy bundled inside `@dcl/inspector` when no `node_modules/@dcl/asset-packs` sits at the scene root (a copy another dependency hoists there wins; see the checklist in SKILL.md), so no explicit install is required (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency). Even so, do not add any of these components unless the user wants to use the Creator Hub.
 
 ### Root Entity components
 

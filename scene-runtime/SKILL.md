@@ -369,6 +369,8 @@ engine.addSystem((dt: number) => {
 });
 ```
 
+The `dt` passed to systems (and so to `timers`) is capped at 0.1 s. A long frame (asset load, hitch) advances a `dt` sum by only 0.1 s, so the sum falls behind wall time. Anything that must stay in step with audio or real time computes elapsed time from `Date.now()`, anchored at its start event.
+
 ## Component.onChange() Listener
 
 React to component changes on any entity:

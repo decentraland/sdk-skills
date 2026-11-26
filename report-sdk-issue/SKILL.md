@@ -51,6 +51,8 @@ Ask in plain language, and don't call any tool until the user answers:
 
 > "I ran into what looks like a bug in the Decentraland SDK: [one-line summary]. I'm going to work around it. Can I send a short description of SDK issues like this to the Decentraland team so they can fix them? It won't include your scene's code or any personal info, and I'll only ask once for this scene."
 
+If the user has already asked you to report this issue ("report it as a bug"), that is a yes: run `consent --grant` without asking, and say in one line that later SDK issues in this scene will be reported too and that "stop sending SDK reports" turns it off.
+
 Record the answer:
 
 ```bash
