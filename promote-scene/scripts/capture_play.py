@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Records real gameplay for footage posts by driving the Decentraland Explorer through its MCP server
+# promote-scene tool version: 2026-11-27
+"""Records real gameplay and in-game stills for the kit by driving the Decentraland Explorer through its MCP server
 (the one `npm run start -- --mcp` turns on). Two frame sources, same takes:
   --screen   macOS screen recording of one display (smooth, the display's own frame rate). Preferred.
   (default)  bursts of the Explorer's screenshot tool (12-14 frames/s, stepped). Needs no OS permission.
 Copy to <scene>/promote/tools/capture_play.py next to a takes.py that describes the scene's shots.
 
   python3 promote/tools/capture_play.py probe [--screen [--display N]]   scene/player state and the frame rate
-  python3 promote/tools/capture_play.py take [<name>...] [--screen [--display N] [--audio-device UID]] [--no-begin]
-  python3 promote/tools/capture_play.py assemble <frames dir> <out.mp4> [--smooth]
+  python3 promote/tools/capture_play.py take [<name>...] [--screen [--display N] [--audio-device UID]] [--no-begin] [--vertical]
+  python3 promote/tools/capture_play.py assemble <frames dir> <out.mp4> [--smooth] [--vertical]
+  python3 promote/tools/capture_play.py still [<name>...] [--hud] [--crop] [--no-begin] [--to-kit]
 
 takes.py defines TAKES = {"woods-apparition": fn, ...}; each fn(ex, rec) moves the player with `ex` and
 wraps the stretch to record in `with rec.take("woods-apparition"):`. `take` with no name runs them all, in
@@ -16,6 +18,22 @@ off); `--no-begin` skips it. Every take ends as $CAPTURE_OUT/<take>.mp4 (1920x10
 no audio); copy the clips you keep into promote/footage/, ready for edits.ts as { video: "footage/<take>.mp4" }.
 Raw material stays beside it: $CAPTURE_OUT/_raw/<take>.mov (screen) or $CAPTURE_OUT/_frames/<take>/ (frames).
 Needs ffmpeg on PATH (the clip is encoded at the end of every take).
+
+STILLS (`still`): the kit's in-game images, avatars included (measured 2026-11-27, Apple Silicon: about
+0.3 s and 2.7-3.2 MB per frame). takes.py defines STILLS = {"gate13": fn, ...}; each fn(ex) puts the player and
+the camera where the picture is (ex.move_to with look=, ex.camera_pose with a fov, a time.sleep for the moment
+to arrive) and returns; the script then saves one lossless PNG to $CAPTURE_OUT/stills/<name>.png and prints
+its size. It returns the camera to third person before each still and at the end, so a function that wants
+first person or a free-camera pose sets it itself; after a free-camera still the third-person camera keeps
+that direction until a move_to with look= turns it. World only by default (no HUD, no scene UI); --hud keeps
+the interface for a picture that is about it. The avatar's nameplate shows in third person and NOT under a
+free-camera pose: use ex.camera_pose for a clean picture of the avatar. `still` with no name takes them all,
+in order, after begin(ex). --to-kit copies the PNGs into promote/images/screens/ once the last one is taken:
+that write restarts the scene, so pass it only on the final run.
+Size: the screenshot tool returns at most 1920 px wide, in the window's own shape (a full-screen window on a
+16:10 laptop display gave 1920x1169; a 16:9 display or window gives 1920x1080). --crop centre-crops every
+still to 16:9 (1920x1080 from a 1920-wide frame), the shape the kit's landscape slots and the Foundation's
+screenshot ask want. A frame under 1080 px on its short side is reported as SMALL. Read every PNG.
 
 RECORD OUTSIDE THE SCENE FOLDER. The dev server rebuilds and restarts the scene whenever any file under
 it changes, promote/ included (.dclignore does not stop the watcher), and a restart mid-take puts the title
@@ -44,6 +62,24 @@ FRAMES MODE (the fallback when the permission is not granted): the screenshot to
 `probe` prints the real rate). The assembler keeps each frame for the time it really took, so motion stays
 in real time but steps. `assemble ... --smooth` adds motion interpolation (slow pans look good, fast cuts
 smear: try both).
+
+VERTICAL (--vertical on take or assemble): every clip is encoded 1080x1920 instead of 1920x1080, scaled to
+cover and centre-cropped. For native vertical footage (Shorts, Reels) record frames (no --screen) from an
+Explorer whose window renders 1080x1920; the screenshot tool returns what the window renders, so those
+frames need no crop (measured 2026-11-27: 1080x1920 frames, 18-20 frames/s, Apple Silicon). Getting that window:
+  - `npm run start -- ... -- --windowed-mode --resolution 1080x1920` does NOT work: the Explorer drops both
+    from the deep link ("Dropped 2 non-allowlisted deep-link param(s)" in its Player.log). Serve the scene with
+    `npm run start -- --no-client` and launch the client directly (macOS; Windows: Decentraland.exe, same args):
+      open -n "$HOME/Library/Application Support/DecentralandLauncherLight/latest/Decentraland.app" --args \
+        --realm http://127.0.0.1:8000 --local-scene true --position <scene.base> --skip-auth-screen true \
+        --skip-version-check true --mcp true --windowed-mode --resolution 1080x1920
+  - --resolution is in rendered pixels and the window must fit the display it opens on: a Retina laptop
+    display fits 1080x1920 (a 540x960-point window), a 1920x1080 monitor clamps it to 1080x810. The window opens
+    on the display it last used; move it to the Retina display and relaunch if Player.log shows another size.
+    `-monitor N` breaks the argument parser (it read `resolution = 1`).
+A 16:9 source with --vertical keeps only its middle 56 %. Close-ups: ex.camera_pose(x, y, z, look=..., fov=40)
+narrows the free camera (60 is its default; the helper always sends one, see camera_pose); end the take with
+ex.back_to_player() as usual.
 """
 import base64, json, os, shutil, signal, subprocess, sys, threading, time, urllib.request
 
@@ -54,7 +90,11 @@ PROMOTE = os.path.dirname(HERE)
 FOOTAGE = os.path.join(PROMOTE, 'footage')
 OUT = os.environ.get('CAPTURE_OUT') or os.path.join(os.path.dirname(os.path.dirname(PROMOTE)), 'capture')
 RAW = os.path.join(OUT, '_raw')
+STILLS = os.path.join(OUT, 'stills')
+KIT_STILLS = os.path.join(PROMOTE, 'images', 'screens')
 FRAME_WIDTH = 1920
+STILL_WIDTH = 1920   # the screenshot tool's ceiling: larger values still return 1920 wide (measured 2026-11-27)
+SIZE = (1920, 1080)   # output clip size; --vertical sets (1080, 1920)
 SETTINGS_PANE = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
 SCREEN_LEAD_IN = 0.5   # s between starting screencapture and handing control back to the take
 
@@ -105,8 +145,11 @@ class Explorer:
     def walk(self, seconds, dx=0, dy=1, kind='jog'): return self.call('walk', directionX=dx, directionY=dy, seconds=seconds, kind=kind)
     def press(self, action, **a): return self.call('press_input', action=action, **a)
     def camera_mode(self, mode): return self.call('set_camera_mode', mode=mode)
-    def camera_pose(self, x, y, z, look=None):
-        a = {'x': x, 'y': y, 'z': z}
+    def camera_pose(self, x, y, z, look=None, fov=60):
+        """Free camera at (x, y, z). fov is the vertical field of view in degrees (10-120): 60 matches the free
+        camera's own default, 40 or 25 give a close-up. Always sent, because the Explorer keeps the last fov for
+        every later pose that omits it, even after a return to third person (measured 2026-11-27)."""
+        a = {'x': x, 'y': y, 'z': z, 'fov': fov}
         if look: a.update({'lookAtX': look[0], 'lookAtY': look[1], 'lookAtZ': look[2]})
         return self.call('set_camera_pose', **a)
 
@@ -226,8 +269,13 @@ class Recorder:
         return ScreenTake() if rec.screen is not None else Take()
 
 
+def cover(w, h):
+    """ffmpeg filter: scale to cover w x h, centre-crop to exactly that size."""
+    return 'scale=%d:%d:force_original_aspect_ratio=increase:flags=lanczos,crop=%d:%d,setsar=1' % (w, h, w, h)
+
+
 def assemble(frames_dir, out, smooth=False):
-    """Frames + their timestamps -> 1920x1080 30 fps H.264 (centre-cropped if the window is not 16:9)."""
+    """Frames + their timestamps -> SIZE (1920x1080, or 1080x1920 with --vertical) 30 fps H.264, centre-cropped."""
     if not shutil.which('ffmpeg'):
         sys.exit('ffmpeg not found on PATH: install it (https://ffmpeg.org) to assemble the frames in %s' % frames_dir)
     stamps = json.load(open(os.path.join(frames_dir, 'stamps.json'), encoding='utf-8'))
@@ -238,24 +286,24 @@ def assemble(frames_dir, out, smooth=False):
             dur = (stamps[i + 1] - stamps[i]) if i + 1 < len(stamps) else (stamps[-1] - stamps[-2] if len(stamps) > 1 else 0.2)
             f.write("file '%s'\nduration %.4f\n" % (name, max(dur, 0.01)))
         f.write("file '%s'\n" % frames[-1])
-    vf = 'scale=1920:-2:flags=lanczos,crop=1920:1080,setsar=1,'
+    vf = cover(*SIZE) + ','
     vf += ('minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1' if smooth else 'fps=30')
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-vf', vf,
            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-preset', 'medium', '-movflags', '+faststart', out]
     subprocess.run(cmd, check=True)
-    print('wrote', out, '(%d frames%s)' % (len(frames), ', smoothed' if smooth else ''))
+    print('wrote', out, '(%d frames, %dx%d%s)' % (len(frames), SIZE[0], SIZE[1], ', smoothed' if smooth else ''))
 
 
 def normalize(raw, out, audio=False):
-    """Variable-rate screen recording -> 1920x1080 constant 30 fps H.264 (scaled to cover, centre-cropped)."""
+    """Variable-rate screen recording -> SIZE constant 30 fps H.264 (scaled to cover, centre-cropped)."""
     if not shutil.which('ffmpeg'):
         sys.exit('ffmpeg not found on PATH: install it (https://ffmpeg.org) to encode %s' % raw)
-    vf = 'scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos,crop=1920:1080,setsar=1,fps=30'
+    vf = cover(*SIZE) + ',fps=30'
     cmd = ['ffmpeg', '-y', '-loglevel', 'error', '-i', raw, '-vf', vf, '-r', '30',
            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-preset', 'medium']
     cmd += ['-c:a', 'aac', '-b:a', '192k'] if audio else ['-an']
     subprocess.run(cmd + ['-movflags', '+faststart', out], check=True)
-    print('wrote', out, '(screen recording, 1920x1080 30 fps%s)' % (', with audio' if audio else ''))
+    print('wrote', out, '(screen recording, %dx%d 30 fps%s)' % (SIZE[0], SIZE[1], ', with audio' if audio else ''))
 
 
 def probe_video(path):
@@ -308,6 +356,36 @@ def screen_check(display, audio_device=None):
     os.remove(record_fixed(display, 1, os.path.join(RAW, '_screen-check.mov'), audio_device))
 
 
+def crop_16x9(path, w, h):
+    """Centre-crop a PNG to 16:9 in place (ffmpeg); returns the new (w, h)."""
+    cw, ch = (w, w * 9 // 16) if w * 9 <= h * 16 else (h * 16 // 9, h)
+    cw, ch = cw - cw % 2, ch - ch % 2
+    if (cw, ch) == (w, h):
+        return w, h
+    if not shutil.which('ffmpeg'):
+        sys.exit('ffmpeg not found on PATH: --crop needs it (https://ffmpeg.org)')
+    tmp = path + '.crop.png'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', path, '-vf', 'crop=%d:%d' % (cw, ch), '-frames:v', '1', '-update', '1', tmp], check=True)
+    os.replace(tmp, path)
+    return cw, ch
+
+
+def still(ex, name, hud=False):
+    """One lossless frame of the window to $CAPTURE_OUT/stills/<name>.png; returns (path, (w, h))."""
+    r = rpc('tools/call', {'name': 'screenshot', 'arguments': {'maxWidth': STILL_WIDTH, 'quality': 'png', 'worldOnly': not hud}})
+    img = next((c for c in r.get('content', []) if c.get('type') == 'image'), None)
+    if not img:
+        text = ''.join(c.get('text', '') for c in r.get('content', []) if c.get('type') == 'text')
+        raise RuntimeError('screenshot returned no image: %s' % text[:300])
+    data = base64.b64decode(img['data'])
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        raise RuntimeError('screenshot did not return a PNG (%s)' % img.get('mimeType'))
+    os.makedirs(STILLS, exist_ok=True)
+    path = os.path.join(STILLS, name + '.png')
+    open(path, 'wb').write(data)
+    return path, (int.from_bytes(data[16:20], 'big'), int.from_bytes(data[20:24], 'big'))   # the IHDR size
+
+
 def probe(screen=None):
     ex = Explorer()
     s = ex.scene_state(); print('scene:', json.dumps(s)[:600])
@@ -330,8 +408,8 @@ def probe(screen=None):
         print('screen: one frame of display %s is in %s; read it to confirm the Explorer fills it' % (screen, jpg))
 
 
-OPTIONS = {'probe': ('screen', 'display'), 'take': ('screen', 'display', 'audio-device', 'no-begin'),
-           'assemble': ('smooth',)}
+OPTIONS = {'probe': ('screen', 'display'), 'take': ('screen', 'display', 'audio-device', 'no-begin', 'vertical'),
+           'assemble': ('smooth', 'vertical'), 'still': ('hud', 'crop', 'no-begin', 'to-kit')}
 
 
 def split_args(cmd, argv, valued=('display', 'audio-device')):
@@ -372,7 +450,8 @@ if __name__ == '__main__':
     elif cmd == 'assemble':
         args, opts = split_args(cmd, sys.argv[2:])
         if len(args) != 2:
-            sys.exit('usage: capture_play.py assemble <frames dir> <out.mp4> [--smooth]')
+            sys.exit('usage: capture_play.py assemble <frames dir> <out.mp4> [--smooth] [--vertical]')
+        if 'vertical' in opts: SIZE = (1080, 1920)
         assemble(args[0], args[1], smooth='smooth' in opts)
     elif cmd == 'take':
         sys.path.insert(0, HERE)
@@ -382,6 +461,7 @@ if __name__ == '__main__':
         unknown = [n for n in names if n not in takes.TAKES]
         if unknown:
             sys.exit('unknown take(s) %s; takes.py defines: %s' % (', '.join(unknown), ', '.join(takes.TAKES)))
+        if 'vertical' in opts: SIZE = (1080, 1920)
         display = screen_display(opts)
         if display is not None:
             screen_check(display, opts.get('audio-device'))
@@ -395,5 +475,41 @@ if __name__ == '__main__':
             except Exception as e:
                 print('FAILED', name, ':', str(e)[:300])
             print('   %.0f s' % (time.time() - t0))
+    elif cmd == 'still':
+        sys.path.insert(0, HERE)
+        import takes
+        args, opts = split_args(cmd, sys.argv[2:])
+        table = getattr(takes, 'STILLS', {})
+        names = args or list(table)
+        unknown = [n for n in names if n not in table]
+        if unknown or not names:
+            sys.exit('%s; takes.py defines STILLS: %s' % ('unknown still(s) ' + ', '.join(unknown) if unknown else 'no stills to take',
+                                                      ', '.join(table) or 'none (add STILLS = {"name": fn(ex)})'))
+        ex = Explorer()
+        if hasattr(takes, 'begin') and 'no-begin' not in opts:
+            print('== begin'); takes.begin(ex)
+        done = []
+        def release():   # a free-camera pose from the still before must not leak into the next one
+            try:
+                ex.back_to_player()
+            except Exception as e:
+                print('  (camera not back in third person: %s)' % str(e)[:120])
+        for name in names:
+            try:
+                release()
+                table[name](ex)
+                path, (w, h) = still(ex, name, hud='hud' in opts)
+                if 'crop' in opts: w, h = crop_16x9(path, w, h)
+                small = '' if min(w, h) >= 1080 else '  SMALL: under 1080 px, enlarge the Explorer window'
+                print('STILL %s: %s (%dx%d)%s' % (name, path, w, h, small)); done.append(path)
+            except Exception as e:
+                print('FAILED', name, ':', str(e)[:300])
+        release()
+        if 'to-kit' in opts and done:
+            os.makedirs(KIT_STILLS, exist_ok=True)
+            for path in done:
+                shutil.copy2(path, KIT_STILLS)
+            print('copied %d still(s) to %s (the scene restarts on this write)' % (len(done), KIT_STILLS))
+        sys.exit(0 if len(done) == len(names) else 1)
     else:
         print('unknown command %r\n' % cmd); print(__doc__); sys.exit(1)

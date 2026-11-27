@@ -31,13 +31,13 @@ Walk this list with the creator. Mark each item **done** (with the file or field
 All PNG or JPG. The key visual must stay readable when shrunk to a phone-sized card.
 
 - [ ] **Scene thumbnail**, 16:9, 1920×1080 = `display.navmapThumbnail`, the Places card. Best practice: a gameplay screenshot with a clear, distinctive logo overlaid, minimal readable text, all text inside the central 1080×1080. Spec and size cap: **deploy-scene** > Thumbnail image. This skill never overwrites it. Suggest the key art (`keyart_1920x1080`) as a candidate only after checking it meets that spec.
-- [ ] **One clean in-world 16:9 screenshot**: no text or overlays, just gameplay with people playing → **shot list** (avatars cannot be rendered).
+- [ ] **One clean in-world 16:9 screenshot**: no text or overlays, just gameplay with people playing → **shot list**. An in-world still from `capture_play.py still` (`images/screens/`) has no HUD, and a free-camera still has no nameplate over the player; it qualifies when no nameplate is in frame, and "people playing" still needs other players there. Say which case it is.
 - [ ] **Social square**, 1:1, 1080×1080 → in the kit (`keyart_1080x1080`).
-- [ ] *Optional:* **event page banners**, max 500 KB each: horizontal 1340×670, vertical 716×1814 → `compose_social.py` with `"event_banners": true`. The Foundation does not create events for an experience. It recommends creators run their own as part of their launch.
+- [ ] *Optional:* **event page banners**, max 500 KB each: horizontal 1340×670, vertical 716×1814 → `compose_social.py` with `"event_banners": true`. The Foundation does not create events for an experience. It recommends creators run their own as part of their launch: the listing text and the posts around it are in `{baseDir}/references/events.md`.
 
 ## Recommended extras
 
-- [ ] **2–4 gameplay stills**, 16:9, at least 1920×1080, for social, newsletter and press → **shot list**.
+- [ ] **2–4 gameplay stills**, 16:9, at least 1920×1080, for social, newsletter and press → in the kit when the stills were taken in-world at that size (`images/screens/`, `{baseDir}/references/renders-and-images.md`); otherwise **shot list**.
 
 ## Trailer (strongly recommended, under 30 s)
 

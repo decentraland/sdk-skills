@@ -34,13 +34,15 @@ const Media: React.FC<{ src: Source }> = ({ src }) => {
   if ("placeholder" in src) return <Placeholder label={src.placeholder} />;
   if ("image" in src) return <KenBurns src={src.image} move={src.move} focus={src.focus} />;
   const focus = src.focus ?? [50, 50];
+  // zoom scales around the focus point, pushing an edge (a currency HUD, a nameplate) out of frame
+  const zoom = src.zoom && src.zoom !== 1 ? { transform: `scale(${src.zoom})`, transformOrigin: `${focus[0]}% ${focus[1]}%` } : {};
   return (
     <OffthreadVideo
       src={staticFile(src.video)}
       trimBefore={sec(src.trimStart ?? 0)}
       playbackRate={src.rate ?? 1}
       muted
-      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focus[0]}% ${focus[1]}%` }}
+      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focus[0]}% ${focus[1]}%`, ...zoom }}
     />
   );
 };
@@ -67,7 +69,7 @@ export const Shot: React.FC<{ shot: ShotT }> = ({ shot }) => {
       <AbsoluteFill style={{ transform: `translateX(${x}px) scale(${scale})`, filter: `${grade}${blur ? ` blur(${blur}px)` : ""}` }}>
         <Media src={shot.src} />
       </AbsoluteFill>
-      {shot.caption && <Caption text={shot.caption} />}
+      {shot.caption && <Caption text={shot.caption} instant={shot.from <= 0} />}
       {flash > 0 && <AbsoluteFill style={{ backgroundColor: "#fff", opacity: flash }} />}
       {dip > 0 && <AbsoluteFill style={{ backgroundColor: "#000", opacity: dip }} />}
     </AbsoluteFill>

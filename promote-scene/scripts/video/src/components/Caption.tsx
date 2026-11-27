@@ -1,16 +1,18 @@
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { ACCENT, TEXT, textScale } from "../lib/config";
+import { ACCENT, TEXT, safeArea, textScale, useText, type Text } from "../lib/config";
 import { DISPLAY_FONT, TEXT_SHADOW } from "../lib/fonts";
 
 /** Small bottom-centre label for a shot (a mechanic, an item, a UI callout). */
-export const Caption: React.FC<{ text: string }> = ({ text }) => {
+export const Caption: React.FC<{ text: Text; instant?: boolean }> = ({ text: t, instant }) => {
+  const text = useText(t);
   const f = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const k = textScale(width, height);
-  const opacity = interpolate(f, [0, 5], [0, 1], { extrapolateRight: "clamp" });
-  const y = interpolate(f, [0, 8], [24, 0], { extrapolateRight: "clamp" });
+  // on the video's first shot the caption is already in place at frame 0 (the thumbnail)
+  const opacity = instant ? 1 : interpolate(f, [0, 5], [0, 1], { extrapolateRight: "clamp" });
+  const y = instant ? 0 : interpolate(f, [0, 8], [24, 0], { extrapolateRight: "clamp" });
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: 110 * k }}>
+    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: safeArea(width, height).bottom + 110 * k }}>
       <div
         style={{
           opacity,

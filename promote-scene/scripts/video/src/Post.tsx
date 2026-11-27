@@ -3,15 +3,16 @@ import { Card } from "./components/Card";
 import { EndCard } from "./components/EndCard";
 import { Shot } from "./components/Shot";
 import { getEdit } from "./edits";
-import { ramp, sec } from "./lib/config";
+import { LangContext, ramp, sec } from "./lib/config";
 
 /** Renders one edit: shots, cards over or between them, the end card, music, a soft vignette. */
-export const Post: React.FC<{ editId: string }> = ({ editId }) => {
+export const Post: React.FC<{ editId: string; lang?: string }> = ({ editId, lang }) => {
   const edit = getEdit(editId);
   const { durationInFrames } = useVideoConfig();
   const music = edit.music;
   const fade = sec(music?.fadeOut ?? 1.5);
   return (
+    <LangContext.Provider value={lang}>
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       {music && (
         <Audio
@@ -44,5 +45,6 @@ export const Post: React.FC<{ editId: string }> = ({ editId }) => {
       )}
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)", pointerEvents: "none" }} />
     </AbsoluteFill>
+    </LangContext.Provider>
   );
 };

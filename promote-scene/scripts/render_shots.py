@@ -1,3 +1,4 @@
+# promote-scene tool version: 2026-11-27
 # Hero renders of a Decentraland scene's own GLBs for its marketing kit (headless Blender, Cycles).
 # Copy to <scene>/promote/tools/render_shots.py, then rewrite the SHOTS section for this scene.
 # Needs Blender 4.2 or newer (tested on 5.1): clip mode uses the EEVEE that shipped in 4.2.

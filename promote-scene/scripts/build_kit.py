@@ -1,9 +1,15 @@
+# promote-scene tool version: 2026-11-27
 # Builds the marketing kit's data file and plain-text copies from promote/posts.json.
 # Copy to <scene>/promote/tools/build_kit.py; re-run after every edit to posts.json or any image.
 #   python3 promote/tools/build_kit.py
 #   python3 promote/tools/build_kit.py --rendering <post id>   also writes videos/<post id>.rendering (UTC start time) first
 #   python3 promote/tools/build_kit.py --done <post id>        also deletes that marker first (the video is in place)
 #   (the id must be a post in posts.json; --done warns when that post's video file is still missing)
+#   python3 promote/tools/build_kit.py --skill <the skill's scripts folder>   also compares every tool copied into
+#                                the kit (promote/tools/, index.html, video/) with the skill's current one, by the
+#                                "tool version" line each carries, and warns about the copies that are older
+# After the warnings it prints NOTE lines on the kit's state: an unpublished link, coming-soon posts left after
+# publishing, and source files (scene.json, design/, README) edited after posts.json.
 # Needs Pillow. ffprobe (part of ffmpeg) is optional: without it videos are listed without size and length.
 # Windows: run with `python` or `py -3` if `python3` is not on PATH.
 # Writes:
@@ -34,6 +40,47 @@ ID_OK = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]*$')   # post ids name files (vide
 for p in data.get('posts', []):
     if not ID_OK.match(str(p.get('id', ''))):
         problems.append('post id %r: use letters, digits, dashes and underscores only (it names files)' % p.get('id'))
+VERSION_RE = re.compile(r'promote-scene tool version: (\d{4}-\d{2}-\d{2})')
+# kit copy -> the skill's file, relative to its scripts folder; tools/*.py map to the same name
+RENAMED = {'tools/takes.py': 'takes.example.py', 'index.html': 'kit-template.html', 'video/src/Root.tsx': 'video/src/Root.tsx'}
+KEEP = {'tools/render_shots.py': 'keep your per-scene settings and SHOTS section, take the rest',
+        'tools/takes.py': 'your takes stay; read the new example for helpers and fixes',
+        'video/src/Root.tsx': 'replace video/src/ and package files, keeping your src/edits.ts'}
+
+
+def tool_version(path):
+    """The date on a file's "tool version" line, '' when it has none, None when the file is missing."""
+    try:
+        m = VERSION_RE.search(open(path, encoding='utf-8', errors='replace').read(6000))
+    except OSError:
+        return None
+    return m.group(1) if m else ''
+
+
+def stale_tools(skill):
+    """Warn about every copied tool older than the skill's current file."""
+    if not os.path.isfile(os.path.join(skill, 'build_kit.py')):
+        problems.append('--skill %s: no build_kit.py there; pass the skill\'s scripts folder' % skill); return
+    tdir = os.path.join(P, 'tools')
+    copies = ['tools/' + f for f in sorted(os.listdir(tdir)) if f.endswith('.py')] if os.path.isdir(tdir) else []
+    n = 0
+    for rel in copies + ['index.html', 'video/src/Root.tsx']:
+        mine = tool_version(os.path.join(P, *rel.split('/')))
+        theirs = tool_version(os.path.join(skill, *RENAMED.get(rel, rel[len('tools/'):]).split('/')))
+        if mine is None or not theirs:   # not in this kit, or not a tool the skill ships
+            continue
+        n += 1
+        if mine < theirs:
+            problems.append('promote/%s is %s; the skill now has %s. Copy the new one in%s' % (
+                rel, mine or 'from before versions were recorded', theirs, ' (%s)' % KEEP[rel] if rel in KEEP else ''))
+    print('tool copies checked against the skill:', n)
+
+
+if '--skill' in sys.argv:
+    i = sys.argv.index('--skill') + 1
+    if i >= len(sys.argv) or sys.argv[i].startswith('--'):
+        sys.exit('--skill needs the skill\'s scripts folder')
+    stale_tools(sys.argv[i])
 for flag in ('--rendering', '--done'):   # marker handling, so the video workflow needs no date/rm commands
     if flag in sys.argv:
         i = sys.argv.index(flag) + 1
@@ -69,8 +116,9 @@ DEFAULT_TIPS = [
     'Trailer captions or on-screen text so it works with the sound off.',
 ]
 KINDS = {'launch': 'Launch posts (with link)', 'soon': 'Coming soon', 'footage': 'Footage posts (placeholders)',
-         'quote': 'Quote cards', 'bts': 'Behind the scenes', 'reddit': 'Reddit posts (one per venue)',
+         'quote': 'Quote cards', 'bts': 'Behind the scenes', 'event': 'Event posts (announce, countdown, live, recap)', 'reddit': 'Reddit posts (one per venue)',
          'short': 'YouTube Shorts (proposals)'}
+PHASES = ('announce', 'countdown', 'live', 'recap')   # event posts, in posting order (events.md)
 VIDEO_MAX_SECONDS = 30   # the Foundation's trailer limit; footage posts are shorter still
 SHORT_MAX_SECONDS = 60   # Shorts may run to 3 min, but 15-45 s is what travels; the kit caps its own at 60
 REDDIT_TITLE_MAX = 300   # Reddit's title limit
@@ -189,6 +237,37 @@ else:
     plan['days'] = plan.get('days') or DEFAULT_DAYS
     data['plan'] = plan
 
+# Languages: the kit's own ("lang", default en) and, per venue or post, the language that community writes in.
+KIT_LANG = data.get('lang') or 'en'
+by_id = {p.get('id'): p for p in data.get('posts', [])}
+for i, v in enumerate(aud.get('venues') or []):
+    post = by_id.get(v.get('post'))
+    if v.get('lang') and post and (post.get('lang') or KIT_LANG) != v['lang']:
+        problems.append('audience.venues[%d] (%s) writes in %r but its post %s is in %r: write it in that language, natively'
+                        % (i, v.get('name', '?'), v['lang'], post['id'], post.get('lang') or KIT_LANG))
+for p in data.get('posts', []):
+    if p.get('lang') and p['lang'] != KIT_LANG and not p.get('gloss'):
+        problems.append('post %s is in %r without a "gloss": say in %r what it says, so the creator knows what they post'
+                        % (p.get('id'), p['lang'], KIT_LANG))
+
+# Event: one dated gathering, its listing for the Events page and the posts around it.
+event = data.get('event') or {}
+KIT_EVENT_BANNERS = bool(data.get('event_banners')) or os.path.exists(os.path.join(P, 'images', 'social', 'event_1340x670.jpg'))
+event_posts = [p for p in data.get('posts', []) if p.get('kind') == 'event']
+if event_posts and not event:
+    problems.append('event posts without an "event" object: name, when (with UTC), description (events.md)')
+if event:
+    for k in ('name', 'when', 'description'):
+        if not event.get(k): problems.append('event.%s is missing' % k)
+    if event.get('when') and 'UTC' not in event['when']:
+        problems.append('event.when %r: give the time in UTC and say so ("Saturday 5 December, 20:00 UTC")' % event['when'])
+    missing = [ph for ph in PHASES if ph not in {p.get('phase') for p in event_posts}]
+    if missing:
+        problems.append('event has no %s post (kind "event", "phase": one of %s)' % (' / '.join(missing), ', '.join(PHASES)))
+for p in event_posts:
+    if p.get('phase') not in PHASES:
+        problems.append('post %s: event post needs "phase": one of %s' % (p.get('id'), ', '.join(PHASES)))
+
 videos = []   # every video in promote/videos/, for the page's Videos section
 vdir = os.path.join(P, 'videos')
 for f in sorted(os.listdir(vdir)) if os.path.isdir(vdir) else []:
@@ -211,7 +290,7 @@ for p in data['posts']:
             problems.append('post %s: unknown image key %r' % (p['id'], p[k]))
     if p['kind'] not in KINDS:
         problems.append('post %s: unknown kind %r' % (p['id'], p['kind']))
-    x_len = len(re.sub(r'https?://\S+', 'x' * 23, p['text'].replace('{LINK}', link_for_count)))   # every URL counts 23 on X
+    x_len = len(re.sub(r'https?://\S+', 'x' * 23, p['text'].replace('{LINK}', link_for_count).replace('{WHEN}', event.get('when') or '{WHEN}')))   # every URL counts 23 on X
     if x_len > 280 and p['kind'] not in ('reddit', 'short'):
         problems.append('post %s: %d characters on X (over 280 with the link counted as 23); shorten it' % (p['id'], x_len))
     if p['kind'] == 'footage' and not p.get('footage'):
@@ -277,10 +356,16 @@ print('kit-data.js', len(js) // 1024, 'KB')
 link = data.get('link') or '{LINK}'
 game = data['game']
 
+
+def fill(t):
+    """A post's text as it will be posted: the link and the event time filled in when known."""
+    return t.replace('{LINK}', link).replace('{WHEN}', event.get('when') or '{WHEN}')
+
+
 md = ['# %s: social copy' % game, '',
       'Link to the game: %s' % (data.get('link') or '`{LINK}` (not published yet: fill in after deploying)'), '',
       'Hashtags: %s' % ' '.join(((data.get('hashtags') or {}).get('core') or []) + ((data.get('hashtags') or {}).get('extra') or [])), '',
-      'Placeholders: `{LINK}` is the game link; `{N}` and `{DATE}` are yours; `[FOOTAGE]` marks where a clip goes.', '']
+      'Placeholders: `{LINK}` is the game link; `{WHEN}` is the event time; `{N}` and `{DATE}` are yours; `[FOOTAGE]` marks where a clip goes.', '']
 if listing:
     md += ['## Scene description', '', 'Proposed `display.description` for the Places card, plus the long description the Foundation marketing package asks for. Not social posts: apply them in scene.json / the Creator Hub scene settings.', '']
     if listing.get('short'):
@@ -289,6 +374,14 @@ if listing:
         md += ['### Long description', '', listing['long'], '']
     if listing.get('events'):
         md += ['### Recurring moments (UTC)', '', listing['events'], '']
+if event:
+    banners = [f for f in ('images/social/event_1340x670.jpg', 'images/social/event_716x1814.jpg') if os.path.exists(os.path.join(P, f))]
+    md += ['## Event listing', '', 'For the Events page (https://decentraland.org/events/): anyone can submit, the Foundation reviews it '
+           '(usually within hours), and a listing with an empty field may not pass. It can be edited after publishing.', '',
+           '- **Name:** %s' % event.get('name', ''), '- **When:** %s%s' % (event.get('when', ''), ' · ' + event['duration'] if event.get('duration') else ''),
+           '- **Repeats:** %s' % (event.get('recurring') or 'no'), '- **Where:** %s' % (event.get('where') or link),
+           '- **Banners:** %s' % (', '.join('`%s`' % b for b in banners) or 'none yet: set "event_banners": true and run compose_social.py'), '',
+           event.get('description', ''), '']
 
 
 def row_md(r):
@@ -316,14 +409,17 @@ for kind, title in KINDS.items():
         continue
     md += ['## ' + title, '']
     for p in posts:
-        md += ['### %s  (`%s`)' % (p['title'], p['id']), '']
+        md += ['### %s  (`%s`)%s%s' % (p['title'], p['id'], ' · ' + p['phase'] if kind == 'event' and p.get('phase') else '',
+                                       ' · in %s' % p['lang'] if p.get('lang') and p['lang'] != KIT_LANG else '') + (' · posted %s' % p['posted'] if p.get('posted') else ''), '']
         if kind == 'reddit':
             md += ['Subreddit: %s · flair: %s · link in: %s' % (p.get('subreddit', '?'), p.get('flair') or 'none', p.get('link_in', '?')), '',
                    '**Title:** %s' % p.get('post_title', ''), '']
         if kind == 'short':
             md += ['**Hook (0-2 s):** %s' % p.get('hook', ''), '', 'Beats: ' + ' → '.join(p.get('beats') or []), '',
                    '**YouTube title:** %s' % p.get('yt_title', ''), '', 'Description:', '']
-        md += [('> ' + l).rstrip() for l in p['text'].replace('{LINK}', link).split('\n')]
+        md += [('> ' + l).rstrip() for l in fill(p['text']).split('\n')]
+        if p.get('gloss'):
+            md += ['', 'What it says: ' + p['gloss']]
         if p.get('image'):
             md += ['', 'Image: `%s`' % data['images'].get(p['image'], {}).get('file', p['image'])]
         if kind == 'reddit':
@@ -351,7 +447,7 @@ for p in data['posts']:
         sl += ['### %s  (`%s`)%s' % (p['title'], p['id'], '  · vertical 9:16, a Short' if p['kind'] == 'short' else ''), '', p['footage'], '']
         if p['kind'] == 'short':
             sl += ['Hook on screen 0-2 s: ' + p.get('hook', ''), 'Beats: ' + ' → '.join(p.get('beats') or []), '']
-        sl += ['Caption: ' + p['text'].replace('\n', ' ').replace('{LINK}', link), '']
+        sl += ['Caption: ' + fill(p['text'].replace('\n', ' ')), '']
         if p.get('video'):
             sl += ['Video in the kit: `%s`. A recording from the Explorer still beats it: drop one in `promote/footage/` and ask for the video again.' % p['video']['file'], '']
 open(os.path.join(P, 'footage-shotlist.md'), 'w', encoding='utf-8').write('\n'.join(sl))
@@ -362,3 +458,20 @@ if videos:
     print('videos:', ', '.join('%s (%s)' % (v['file'], '%.0f s' % v['seconds'] if v['seconds'] else '?') for v in videos))
 for pr in problems:
     print('WARNING:', pr)
+
+# The kit's state against the scene, for a later run (references/update-and-resume.md). Notes, not faults.
+n_soon = sum(1 for p in data['posts'] if p['kind'] == 'soon')
+n_link = sum(1 for p in data['posts'] if '{LINK}' in p['text'])
+if not data.get('link'):
+    print('NOTE: not published: "link" is empty, {LINK} stays a placeholder in %d post(s)' % n_link)
+elif n_soon:
+    print('NOTE: the link is set and %d coming-soon post(s) remain: turn the ones not posted yet into launch posts' % n_soon)
+if event and not KIT_EVENT_BANNERS:
+    print('NOTE: an event without banners: set "event_banners": true and run compose_social.py')
+t_posts = os.path.getmtime(os.path.join(P, 'posts.json'))
+watched = [os.path.join(ROOT, f) for f in ('scene.json', 'README.md')]
+for d, _, fs in os.walk(os.path.join(ROOT, 'design')):
+    watched += [os.path.join(d, f) for f in fs if f.endswith('.md')]
+newer = sorted(os.path.relpath(f, ROOT) for f in watched if os.path.exists(f) and os.path.getmtime(f) > t_posts)
+if newer:
+    print('NOTE: edited after posts.json: %s. Re-read them and check the posts still say what the game is.' % ', '.join(newer))
