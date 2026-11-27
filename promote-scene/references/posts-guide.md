@@ -94,6 +94,8 @@ The Foundation's marketing package asks for exactly two descriptions of the scen
 - **reddit (2–4)**: one per venue whose rules allow a post, in that community's own lane (a showcase with a question, a making-of, an on-topic image with the game in the last line). Title modelled on posts that worked there. Rules, research and the no-astroturfing rule: `{baseDir}/references/audience-and-venues.md`.
 - **short (2–3)**: proposals for vertical videos: hook, beats, title, description, shot note. Never rendered on the first run. The hook is on screen from frame 0, over gameplay: frame 0 is the thumbnail.
 
+Paid ads are not a kind here: they are judged on players who stay, not on attention, and get their own concept slate, sizes and rules (`{baseDir}/references/paid-ads.md`).
+
 ## Writing rules
 
 - Sound like the game, not like an ad. Use the game's own voice: an intercom, a sign, a character. No "immersive experience", "epic adventure", "don't miss out". **The voice comes from this game's own lines**, never from the examples below: they are one horror game and one cosy one, to show how far apart two kits should sound.

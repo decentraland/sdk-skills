@@ -2,6 +2,8 @@
 
 **Never part of the first run.** A video is made only when the creator asks for one, usually by pasting the prompt that the kit page's **Copy video prompt** button writes ("Generate the video for the footage post `footage-02` … Use the promote-scene skill if you have it …"). The prompt is written for any AI coding assistant, so it also names the kit files to read when this skill is absent. One post per request. Each video is minutes of rendering and a lot of tokens, so do not offer to "do the rest" in the same run; say which post would be the best next one and stop.
 
+Creatives for a paid campaign (an ad, acquisition, Meta / TikTok / PMax) are a different job with their own goal, sizes and rules: `{baseDir}/references/paid-ads.md`. The footage ladder, setup and verification below still apply.
+
 The pattern comes from the JAWS ON THE GRID trailer (github.com/dcl-regenesislabs/jaws-in-grids-video-trailer): gameplay clips in `public/`, an edit list in seconds, text cards, placeholders for clips that do not exist yet, a logo end card, music, all rendered with Remotion. This skill ships a smaller data-driven version of it in `{baseDir}/scripts/video/`.
 
 ## What a post video is
@@ -55,7 +57,7 @@ Add one `Edit` to `EDITS` with `id` = the post id (this is the composition id, s
 - **Times in seconds**, `duration` = the length the footage note asks for. Shots must tile the whole duration up to `end.from`; a gap shows black.
 - **Cards are the post's lines, verbatim**, split at the post's own line breaks, about six words per card. Nothing the footage note says to keep out (the ending, the solution, the final card, instant-death options), and nothing the post text does not say. Captions (`caption` on a shot) are short labels for a mechanic or UI element named in the note.
 - **Cutscene shots end before the camera cuts back**: the dip back lands on whatever the game state was (an overlay, the previous room). Find the return frame on the take's sheet and set `to` a few frames before it.
-- **Frame 0 is the thumbnail** (Slack, X, every feed): open on bright gameplay with the hook already on screen. A card with `from: 0` and `over: true` is fully visible at frame 0; give the first shot no `dip` (an `over: false` card at 0 is a black frame).
+- **Frame 0 is the thumbnail** (Slack, X, the ad platforms): open on bright gameplay with the hook already on screen. A card with `from: 0` and `over: true` is fully visible at frame 0; give the first shot no `dip` (an `over: false` card at 0 is a black frame).
 - **Rhythm**: one `punch` or `flash` on the beat of the post's key line, a hard `cut` elsewhere. Do not stack fx on short shots. Stills get a `move`; recordings get a slow push automatically.
 - **End card**: `logo` = the lockup on black (or the wordmark) from `promote/logo/`, `line` = "Live on Decentraland", "Coming soon" or a date when the logo is the lockup (it already carries the tagline; repeating it under the logo reads as a mistake), the tagline itself only under the bare wordmark, `link` = the jump link from `posts.json` or `""`. Give it 2.5–3.5 s. Optional `backdrop` = the landscape key art, blurred behind.
 - **Vertical** (`vertical: true`): the same edit in 1080×1920. `objectFit: cover` keeps the middle third of each 16:9 source, so set `focus: [x%, y%]` on any shot whose subject is off-centre. Text scales up on portrait automatically, and stays inside the platforms' safe zone (x 120–960, y 240–1260), clear of the Reels / TikTok / Shorts buttons.
