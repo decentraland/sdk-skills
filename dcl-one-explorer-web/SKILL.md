@@ -79,8 +79,13 @@ reply fields the help does not show.
 3. **See**: `/screenshot --max-width 640 --jpg` to disk, about 15 s after arrival before the first
    frame that must show the scene drawn. `/scene_entities --visible` says what is in frame;
    `/scene_entities --labels` what each entity shows; `/ui_list` the scene UI with its rects.
-4. **Act** with the command the map names, one at a time; a pointer command is refused while
-   another runs or holds a press (`/hover_entity --clear` releases).
+4. **Act** with the command the map names, one at a time. One command holds the pointer at a
+   time: another pointer command is refused with `cause.holder` `pointer` and `cause.command`
+   naming the holder, and the reason says how it comes free (wait for its reply,
+   `/hover_entity --clear`, or `/ui_click --event leave` for a parked hover): do that rather than
+   retry. Camera commands share a second holder: a `/camera_look`, a
+   waiting `/move_player_to` or a `/camera_mode` into or out of `free` is refused with
+   `cause.holder` `camera` while another runs.
 5. **Verify on two channels**: the command's reply (the hit's `crdtEntityId`, `events` with their
    ticks, `delivered`) and the scene's own word (a board through `/inspect_component`, or a log
    line since your cursor). A non-deterministic value is reported, never reconciled.

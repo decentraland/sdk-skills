@@ -12,9 +12,9 @@ unless the row says otherwise.
 | Unity tool | Console line | Reply fields the scripts read |
 | --- | --- | --- |
 | `screenshot {maxWidth, jpg, worldOnly}` | `/screenshot --max-width N --jpg --world-only` | JSON `image` (base64), `caption` (frame size, `screen`, parcel, a camera-transition wait). Without any option: raw base64 PNG at full size |
-| `capture_sequence {count, intervalSec, maxWidth}` | `/screenshot --count N --interval-seconds S --max-width N [--jpg] [--dir path]` | `frames[]` with `path` (or `savedTo`), `tick`, `late`; never inline images. Natively files; on the web memory, read one with `/screenshot --frame <path>` |
+| `capture_sequence {count, intervalSec, maxWidth}` | `/screenshot --count N --interval-seconds S --max-width N [--jpg] [--dir path]` | `directory`, `frames[]` with `path`, `tick`, `late` (a frame the encoder fell behind on comes late, never dropped); never inline images. Natively files; on the web memory, read one with `/screenshot --frame <path>`. A reused `--dir` keeps an earlier sequence's frames: `staleFrames` and a `warning`, so read only the listed paths. A `--dir` that cannot be made is refused |
 | `get_player_state` | `/player_state` | `position`, `rotation`, `parcel`, `velocity`, `grounded`, `camera.mode`, camera pose, `cameraRotationEuler`, `modeChangeAllowed`, `heldBy`, `pointerLocked`; `gestures` (what is running or held); `reticle` (next row) |
-| `get_scene_state` | `/scene_loading_state` | `isReady`, `state`, `sceneHash`, `playerParcel`, `stage`. Title, SDK version and tick: `/current_scene_state` |
+| `get_scene_state` | `/scene_loading_state` | `isReady`, `state` (`loading`, `starting`, `running`, `blocked`, `broken`, `failed`, `refused`, `none`), `blockedBy`, `sceneHash`, `playerParcel`, `outOfWorld`, `stage`; `unavailable` says why a field is null. Title, SDK version and tick: `/current_scene_state` |
 | `get_scene_logs {limit, sinceSeq, severity, includeClient}` | `/scene_logs [count] [--since seq] [--severity level] [--client]` | header `latestSeq=N dropped=N source=scene`, then lines; `[client:<target>]` lines with `--client` |
 | `get_reticle` | `/player_state`, its `reticle` section | `available`, `kind`, `crdtEntityId`, `hasPointerEvents`, `withinRange`, `hoverText`, `cursorLocked`, `rayFromScreenCenter`, `cursor`, `ray`, `screen`, both distances. A pure read: no hover, no press |
 | `get_audio_state {onlyPlaying}` | `/media_state --audio [--only-playing]` | per emitter `crdtEntityId`, `requested`, `playing`, `state`, `volume.authored`, `volume.live`, `loop`, `spatial`, `currentTime`, `duration`, distance; a `summary`. Nearest first; the scene under the player only. Without `--audio` the reply is the stream and video list |
@@ -28,13 +28,13 @@ unless the row says otherwise.
 
 | Unity tool | Console line | Reply fields the scripts read |
 | --- | --- | --- |
-| `teleport {parcel, waitForReady}` | `/teleport x y [realm] --wait [--timeout-seconds S]` | `arrived`, `sceneReady`, `sceneHash`, `settled`, `sceneState`, `ticksWaited`, `renderedFrames`, `settleMs`; `settled:false` with a `warning` naming what it waited for |
+| `teleport {parcel, waitForReady}` | `/teleport x y [realm] --wait [--timeout-seconds S]` | `arrived`, `sceneReady`, `sceneHash`, `settled`, `sceneState`, `ticksWaited`, `renderedFrames`, `settleMs`; `settled:false` with a `warning` naming what it waited for. A parcel whose scene refuses the player (a scene or world ban) settles on landing with `sceneState:"refused"` and a `warning` |
 | `move_to {x, y, z, lookAt}` | `/move_player_to x y z --look-at x y z [--timeout-seconds S]` (preview builds only) | the settled pose; `aimErrorDegrees`. Without a flag it replies a sentence and does not wait |
 | `walk {directionX, directionY, seconds, kind, jump, ignoreInputModifiers}` | `/walk dx dy [--seconds S] [--kind walk\|jog\|run] [--jump] [--ignore-input-modifiers]` | `startPosition`, `endPosition`, `distance`, `parcel`, `seconds`, `modifierActive`, `modifier` |
 | `look_at {x, y, z}` | `/camera_look --at x y z [--timeout-seconds S]` | `target`, `aimErrorDegrees`, `settled`, `warning` (pitch clamp or third-person orbit) |
 | `camera_look {deltaX, deltaY, seconds}` | `/camera_look --dx D --dy D [--seconds S]` (degrees per second) | `turned`, `cameraRotationEuler`, the rate |
 | `set_camera_mode {mode}` | `/camera_mode first_person\|third_person\|free` | mode before and after, once the transition has landed; refused naming the `CameraModeArea` or `VirtualCamera` holding the view; `drone` is not a mode here |
-| `set_camera_pose {x, y, z, lookAt*, fov, timeoutSec}` | `/camera_mode free [--position x y z] [--look-at x y z] [--fov F] [--timeout-seconds S]` (`--fov` 10 to 120) | `position`, `rotationEuler`, `fov`, `mode` (`free`), `settled`, `opened`, `lookAt`, `aimErrorDegrees`; opens the free camera when needed |
+| `set_camera_pose {x, y, z, lookAt*, fov, timeoutSec}` | `/camera_mode free [--position x y z] [--look-at x y z] [--fov F] [--timeout-seconds S]` (`--fov` 10 to 120) | `position`, `rotationEuler`, `fov`, `mode` (`free`), `settled`, `opened`, `lookAt`, `aimErrorDegrees`; opens the free camera when needed. A `--position` more than 50 m from the player is refused (`cause.limit` `reach`); if the player moves off while the camera opens, it lands at the nearest point in reach with `settled:false` and a `warning` |
 | `send_chat` | `/chat nearby "<text>"` | |
 | `reload_scene` | `/reload --current --wait` | `settled`, `sceneState`, `ticksWaited`, `renderedFrames`, `warning` |
 | `trigger_emote` | `/emote <urn> [--loop]` | |
@@ -47,7 +47,7 @@ unless the row says otherwise.
 | `click_at {x, y, force}` | `/click_at x y --normalized [--button] [--force]` | `x`, `y`, `normalized`, `button`, `screen`, `hoverEnded` when it ended a parked UI hover; refused with `hit:false` and `blockedByUi` naming the scene UI element |
 | `hover_entity {entityId \| x,y,z, seconds}` | `/hover_entity [<id>] [--at x y z] [--seconds S]`; `/hover_entity --clear` ends any aim | as the click, with `hoverText`; `diagnosis` `out of reach: ...` when the hover entry is past its distance |
 | `press_input {action, holdSeconds, entityId \| x,y,z}` | `/click_entity [<id>] [--at x y z] --button <action> [--hold S]`; no target presses without aiming | the click's reply plus `action`, `entityBound`, `aimed`, `holdSeconds`, `rootEvents[]`, `hint` |
-| `sweep_pointer {entityId, deltaX, deltaY, seconds}` | `/camera_look --entity <id> \| --at x y z --dx D --dy D --seconds S --hold pointer\|primary\|secondary` | `pressed` (its `hit`), `swept` (degrees), `released`, `warning` |
+| `sweep_pointer {entityId, deltaX, deltaY, seconds}` | `/camera_look --entity <id> \| --at x y z --dx D --dy D --seconds S --hold pointer\|primary\|secondary` | `pressed` (its `hit`), `swept` (degrees), `released`, `aimSettled`, `aimErrorDegrees`, `warning`. It holds the pointer until it replies |
 
 Diagnoses are resolved replies with `diagnosis` set, not failures: `blocked by entity <id>`,
 `blocked by an avatar or another scene's entity`, `blocked by the player's own avatar: ...` (third
