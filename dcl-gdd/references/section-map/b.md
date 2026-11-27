@@ -34,7 +34,7 @@ not a demand for next-day retention systems or ten authored pieces of content.
   table wants, per step, the input, what the player sees or hears, what changes, and **why do it
   again**; then **what marks one complete loop and what outcome follows** — the beat the steps end
   on. Then the numbers: how long is one complete loop (if over 90 seconds, where is the earlier
-  payoff?), the shortest satisfying visit and the typical session, and **why repetition 10 remains appealing** — what changes or stays enjoyable once authored content is familiar? Then the
+  payoff?), the **engaged moment** (the first event that shows a new player has played the loop, not just arrived: promotion and paid-ad tests count it, see **promote-scene**), the shortest satisfying visit and the typical session, and **why repetition 10 remains appealing** — what changes or stays enjoyable once authored content is familiar? Then the
   decision question: what can the player choose, time, coordinate, or express — "repeat for a larger
   number" is not enough.
 - Before recommending a load-bearing verb, apply [platform fit](../platform-fit.md): can the

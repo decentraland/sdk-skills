@@ -106,6 +106,7 @@
 | | |
 |---|---|
 | **One complete loop takes** | ___ seconds/minutes. What marks its completion, and what outcome follows? If longer than 90 seconds, where is the earlier payoff? |
+| **Engaged moment** | The first in-game moment that shows a new player has played the loop, not just arrived (first station fixed, first ore sold, first round finished). Promotion and ad tests count players who reach it; it needs no tracking of your own. |
 | **Decision, challenge, or expression** | What can the player choose, time, coordinate, or express? `Repeat for a larger number` is not enough. |
 | **Shortest satisfying visit / typical session** | ___ / ___ minutes. Mobile sessions are short; several short visits beat one long one. |
 | **Why repetition 10 remains appealing** | What changes or stays enjoyable once authored content is familiar? |

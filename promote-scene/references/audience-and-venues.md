@@ -108,6 +108,7 @@ For each Short write:
 
 Audience fit over trend: a format from r/gaming's front page is not a model for a Short aimed at people who post empty-corridor photos. Pick the format from what *they* watch (`audience.likes`, `audience.trusts`).
 
+`modelled_on` Shorts are **attention evidence**: they show a format holds this audience's eyes, not that it brings players who stay. A paid campaign needs that second proof, plus a market-level audience (language, devices, what reads as a scam there) translated into concept rules: `{baseDir}/references/paid-ads.md` §2.
 
 ## The plan (`plan`)
 

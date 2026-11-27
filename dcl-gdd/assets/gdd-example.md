@@ -73,6 +73,7 @@ We play social deduction every week as a team, and we keep missing a version we 
 | | |
 |---|---|
 | **One complete loop takes** | A fix-and-watch cycle takes 30–60 seconds and ends with a green station and bar progress. A full round with report and vote takes 8–12 minutes; the earlier payoff is every green station. |
+| **Engaged moment** | The first station a new player turns green, usually within the first minute of their first shift. |
 | **Decision, challenge, or expression** | Whom to follow, whom to accuse, when to trust an alibi, how to vote; as saboteur — when to strike and what alibi to fake. |
 | **Shortest satisfying visit / typical session** | 5 / 20 minutes. One solo shift is about 5 minutes; a typical visit is two rounds. |
 | **Why repetition 10 remains appealing** | The cast is the game: a different saboteur each round, and reputations from earlier rounds ("she lied last time") change how the same map plays. |
