@@ -239,9 +239,11 @@ After every publish, the content servers compress all `.gltf`/`.glb` models to a
 - **A conversion running more than a couple of minutes is a failure signal**, not normal queuing — check the status endpoint rather than continuing to wait.
 - **The Jump In button appears as soon as the scene is playable**, once upload and conversion are done.
 - **Before a live event:** publish your final version **at least one hour** in advance, to leave room for anything unexpected. Avoid republishing while waiting — each publish restarts the queue.
-- **Check conversion status** in a browser:
-  - `https://asset-bundle-registry.decentraland.org/entities/status/<pointer>` — replace `<pointer>` with a scene coordinate (e.g. `20,-34`) or the deployment entity ID. Shows per-platform status under `assetBundles` and LOD status under `lods`. For a World, append `?world_name=myname.dcl.eth`.
-  - `https://asset-bundle-registry.decentraland.org/queues/status` — lists all scenes currently queued for conversion, per platform.
+- **Check conversion status** in a browser, on the **abgen** registry. Conversion moved from the Unity converters to the abgen generator, and each one publishes to its own registry.
+  - `https://asset-bundle-registry-abgen.decentraland.org/entities/status/<pointer>`: replace `<pointer>` with a scene coordinate (e.g. `20,-34`) or the deployment entity ID. It shows per-platform status under `assetBundles` and LOD status under `lods`. For a World, append `?world_name=myname.dcl.eth`. Conversion is done when `complete` is `true` and `entityId` is the deployment you just made.
+  - `https://asset-bundle-registry-abgen.decentraland.org/queues/status`: lists every scene currently queued for conversion, per platform.
+  - **Not** `asset-bundle-registry.decentraland.org` (without `-abgen`). That is the older Unity converters' registry, and its status and queue no longer match what players get. Observed 2026-11 on a World deploy: the old registry showed both platforms `pending`, about 1,100th in a 1,600-job queue, while the abgen registry already showed both `complete` with an empty queue.
+  - The two registries number bundle versions in separate series (abgen in the `v1000`s, Unity in the `v40`s), so don't compare versions across them.
 - **`/detectabs` chat command:** in-world, tints models green (converted) or red (not yet converted).
 - **Reloading the scene is not enough** to pick up a new version — reload restarts the scene's code but doesn't fetch newly published content. **Any player who already loaded the scene this session keeps seeing the cached version until they fully close and re-enter Decentraland.** That includes you: after conversion completes, quit and relaunch, then re-enter via jump link or `/goto`.
 
