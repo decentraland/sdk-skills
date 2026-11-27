@@ -7,9 +7,10 @@ import { KIT } from "./config";
 // brand.video_font in posts.json names a .ttf/.otf under promote/fonts/ (public/fonts links there), e.g. "fonts/Impact.ttf":
 // copy brand.font there to match the kit's wordmark, and renders then need no network. Without it, Bebas Neue (a bold
 // condensed face close to the Impact / DIN pair the images use) is fetched from Google Fonts at render time, so an
-// offline render fails until video_font is set.
+// offline render fails until video_font is set. Bebas Neue has Latin letters only (latin + latin-ext): a line in
+// Cyrillic, Greek, Arabic, CJK or Vietnamese stops the render until video_font names a font that has them (config.ts).
 const local = KIT.brand?.video_font;
-export const DISPLAY_FONT: string = local ? "KitDisplay" : loadGoogleFont("normal", { weights: ["400"], subsets: ["latin"] }).fontFamily;
+export const DISPLAY_FONT: string = local ? "KitDisplay" : loadGoogleFont("normal", { weights: ["400"], subsets: ["latin", "latin-ext"] }).fontFamily;
 if (local) loadLocalFont({ family: "KitDisplay", url: staticFile(local), weight: "400" });
 
 /** Legibility over any footage: a thin dark outline plus a soft drop shadow. */

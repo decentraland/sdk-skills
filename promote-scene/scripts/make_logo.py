@@ -1,3 +1,4 @@
+# promote-scene tool version: 2026-11-27
 # Logo set for a scene's marketing kit (Pillow only). Copy to <scene>/promote/tools/make_logo.py.
 #   python3 promote/tools/make_logo.py
 # Reads game name, tagline and brand colours/fonts from promote/posts.json ("game", "tagline", "brand");

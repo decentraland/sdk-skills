@@ -1,3 +1,4 @@
+# promote-scene tool version: 2026-11-27
 # Example takes for capture_play.py, from The Horseman's Night (a fixed-camera action game). Copy to
 # promote/tools/takes.py and rewrite for the scene: read its source for the trigger rectangles, NPC spots,
 # input actions and debug keys; the numbers below are that scene's. Edit this file OUTSIDE the scene folder
@@ -15,6 +16,10 @@
 #   graveyard_omen()   a parry on a telegraphed projectile: keep swinging while it arrives
 #   fight()            a room of enemies that come to the player: rotate the facing, slash; a long take to cut from
 #   seal_skip()        the scene's own debug key when the honest path is not scriptable (same cutscene)
+#   STILLS             the kit's in-game images (`capture_play.py still`): each function only places the player and
+#                      the camera; the script takes the picture. Third person shows the avatar with its nameplate; a
+#                      free-camera pose frames a place, an NPC or the avatar from the front, with no nameplate.
+#   well_closeup()     a free-camera close-up (fov 40; the Explorer's free camera defaults to 60), then back_to_player()
 import time
 
 FLOOR = 8
@@ -110,6 +115,14 @@ def seal_skip(ex, rec):
     key(ex, 'action_3'); time.sleep(0.3)
 
 
+def well_closeup(ex, rec):
+    face(ex, 72, 32, 76, 42); time.sleep(1.0)   # by the well (illustrative spot, not measured in that scene)
+    ex.camera_pose(70.5, FLOOR + 1.6, 30.5, look=(72, FLOOR + 1.2, 32), fov=40)   # tighter lens, 2 m off the avatar
+    with rec.take('well-closeup'):
+        time.sleep(3.0)
+    ex.back_to_player()
+
+
 TAKES = {
     'village-walk': village_walk,
     'gravekeeper-intro': gravekeeper_intro,
@@ -117,4 +130,20 @@ TAKES = {
     'woods-fight': woods_fight,
     'seal-break': seal_skip,
     'graveyard-omen-parry': graveyard_omen,
+    'well-closeup': well_closeup,           # free camera last: the scene-camera takes above run first
+}
+
+
+def still_village(ex):
+    face(ex, 76, 42, 72, 32); time.sleep(2.0)       # the scene's own camera, avatar in frame; let the move settle
+
+
+def still_gravekeeper(ex):
+    face(ex, 67, 46.5, 62.5, 48.5); time.sleep(1.0)
+    ex.camera_pose(65.5, FLOOR + 1.5, 44.5, look=(62.5, FLOOR + 1.4, 48.5), fov=35); time.sleep(1.0)   # over the shoulder (illustrative)
+
+
+STILLS = {
+    'village': still_village,
+    'gravekeeper': still_gravekeeper,
 }

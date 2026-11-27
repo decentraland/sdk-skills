@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# promote-scene tool version: 2026-11-27
 """Venue research helper for the audience step (references/audience-and-venues.md). No API keys.
   python3 research_venues.py reddit LiminalSpace IndieDev        top posts of the year per subreddit (title + URL)
   python3 research_venues.py reddit-new LiminalSpace              what they posted this week

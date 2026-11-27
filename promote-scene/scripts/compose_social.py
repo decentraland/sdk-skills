@@ -1,3 +1,4 @@
+# promote-scene tool version: 2026-11-27
 # Ready-to-post images for a scene's marketing kit (Pillow only). Copy to <scene>/promote/tools/.
 #   python3 promote/tools/compose_social.py
 # Run after the renders and make_logo.py. Reads promote/posts.json:

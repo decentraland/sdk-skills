@@ -6,13 +6,15 @@
 
 | Key | Type | Used by | Notes |
 |---|---|---|---|
+| `lang` | string | page, copy.md | The kit's own language, the one the creator reads (default `"en"`). Posts for a venue that writes in another language carry their own `lang`: see Languages below. |
 | `game` | string | all | Display name. Lower-cased and slugged for logo file names (`<slug>_wordmark.png`). |
 | `tagline` | string | logo, page | One line, from the GDD's promise. Upper-cased on the lockup. |
 | `link` | string | page, copy.md | Jump link (see SKILL.md step 2), or `""` when unpublished. |
 | `handle` | string | page mockups | `@yourhandle` until the creator gives one. |
 | `listing` | `{short, long, events?}` | copy.md, README | The scene-description rewrites for the Places card and the Foundation package, see below. **Not shown on the page.** `events`: optional recurring schedule, day and time in UTC. |
 | `event_banners` | bool | compose | Foundation event-page banners (1340×670, 716×1814, JPEG ≤ 500 KB). Default `false`; set `true` when the creator mentions events. |
-| `hashtags` | `{core: string[], extra: string[]}` | page, copy.md | core ≈ 3 tags, extra ≈ 4–6. |
+| `event` | `{name, when, duration?, recurring?, where?, description}` | page, copy.md | One dated gathering: its Events-page listing and the `{WHEN}` the event posts use. Only when the creator named a date: `{baseDir}/references/events.md`. |
+| `hashtags` | `{core: string[], extra: string[], by_lang?}` | page, copy.md | core ≈ 3 tags, extra ≈ 4–6. `by_lang`: `{"pt": {core, extra}}`, the tags the page adds to a post in that language (a `pt` table also serves `pt-BR` posts, and the other way round); without one such a post gets none, and `build_kit.py` says so. |
 | `brand` | object | logo, compose, page | `text`, `ink`, `accent` (hex); `font`, `font_small` (absolute .ttf paths; when they do not exist on this machine the scripts fall back to a system face and say so); optional `video_font` (a .ttf under `promote/fonts/`, relative to `promote/`, for the post videos: see `{baseDir}/references/video-posts.md`), `wordmark` (override text), `icon_text` (1–3 chars, default the initial), `icon_top`, `icon_bottom`, `quote_tag` (small accent label on quote cards). |
 | `keyart` | `{"<w>x<h>": path}` | compose | Text-free plates relative to `promote/`. `1920x1080` and `1080x1080` are centre-cropped from the first entry when they have none of their own; `1080x1350` and `1080x1920` (expanded kit) are written only when listed. |
 | `keyart_logo_y` | number 0.12–0.9 | compose | Vertical centre of the wordmark on key art (default 0.42). Stay within 0.25–0.75 unless the subject fills the middle; a band near 0.9 (the ground) or 0.15 (the sky) is the fallback for a tall centred subject. |
@@ -42,7 +44,7 @@
 ```
 
 - `source` is one of `gdd` (confirmed §8 lines), `brief` (`design/promo-brief.md`), `repo`, `creator` (said this session), `research` (found this session; `url` required), `assumed` (your guess; the page highlights it for correction). `[agent-decided]` and `TBD` GDD lines are `assumed`.
-- `venues[].kind`: `subreddit` · `discord` · `forum` · `community` (a Decentraland Community, a newsletter, a Steam group) · `meetup` · `creator` (a small streamer or channel). `post` is the id of the post written for it, or `null` when its rules allow comments only. `rules` is what the sidebar or pinned post says, read this session.
+- `venues[].kind`: `subreddit` · `discord` · `forum` · `community` (a Decentraland Community, a newsletter, a Steam group) · `meetup` · `creator` (a small streamer or channel). `post` is the id of the post written for it, or `null` when its rules allow comments only. `rules` is what the sidebar or pinned post says, read this session. `lang` (optional) is the language the venue writes in, when it is not the kit's.
 - `assumptions`: plain sentences printed at the top of the Audience panel ("We assumed the first players come from the jam showcase, not from a horror community. Correct this before posting.").
 
 ### `plan`
@@ -59,12 +61,15 @@
 
 `build_kit.py` adds the five checks (joined · got it · enjoyed it · returned within 7 days · brought anyone) and the default seven-day assignment when `days` is absent.
 
-Post: `{id, kind, title, text, image, ig_image?, footage?, cta?, platform?}`
-- `kind`: `launch` · `soon` · `footage` · `quote` · `bts` · `reddit` · `short` (`build_kit.py` warns on anything else).
+Post: `{id, kind, title, text, image, ig_image?, footage?, cta?, platform?, lang?, gloss?, phase?, posted?}`
+- `kind`: `launch` · `soon` · `footage` · `quote` · `bts` · `event` · `reddit` · `short` (`build_kit.py` warns on anything else).
+- `phase`: **required on `event` posts**: `announce` · `countdown` · `live` · `recap`.
+- `lang` + `gloss`: a post written in another language than the kit's, and what it says in the kit's language (shown on the card, never copied). Languages below.
+- `posted`: the date the creator posted it. An update run never rewrites a posted post (`{baseDir}/references/update-and-resume.md`).
 - `image` / `ig_image`: keys into `images`. `ig_image` is the square or portrait alternative shown in Instagram mode.
 - `footage`: **required on `footage` posts**. It is a concrete "what to show" note (see recipe).
 - `platform`: `"ig"` or `"x"` marks a post written for one platform (e.g. a long Instagram caption).
-- Placeholders in `text`: `{LINK}` (filled from `link`), `{N}`, `{DATE}` (the creator fills these), `[FOOTAGE]` (where the clip goes).
+- Placeholders in `text`: `{LINK}` (filled from `link`), `{WHEN}` (filled from `event.when`), `{N}`, `{DATE}` (the creator fills these), `[FOOTAGE]` (where the clip goes).
 - `video` (optional): `"videos/<file>.mp4"` relative to `promote/`. Normally unnecessary: `build_kit.py` finds `videos/<id>.mp4` and `videos/<id>-9x16.mp4` by the post id. Videos exist only when the creator asked for that post's video (`{baseDir}/references/video-posts.md`); the first run writes none. A `videos/<id>.rendering` marker (written while that video is being made) shows a spinner on the card.
 
 Reddit post (`kind: "reddit"`), extra keys: `subreddit` ("r/…", must match a `venues[].name`), `post_title` (≤ 300 characters, the thing Reddit judges), `text` (the body), `flair?`, `link_in` (`"body"` · `"comment"` · `"none"`, per the venue's rules), `why_here` (one line), `rules_note` (frequency, flair, link rule, from the venue), `modelled_on` (`[{title, url, note?}]`, 2–3 posts that worked in that sub, found this session). `image` is the attached image; a `footage` note makes it a video post (the Short's or a footage post's file can be reused).
@@ -78,19 +83,20 @@ The Foundation's marketing package asks for exactly two descriptions of the scen
 - **`long`**: at most two short paragraphs. Lead with the activity and the people, then recurring moments and why come back. A one-time story says so honestly. Do not invent replay hooks.
 - Same sourcing rules as the posts: every claim traces to `design/`, the repo or the creator's answer.
 
-## The seven kinds (default counts)
+## The kinds (default counts)
 
 - **launch (4)**: needs `{LINK}`. One post each for the promise, a signature character or mechanic, what the game is (length, how you play, "free, in your browser"), and one with a different angle (bring a friend, a single-line joke).
 - **soon (4)**: no link. A teaser line from the game, a mood post, one `{N}` / `{DATE}` countdown template on the logo lockup, and one aimed at the genre audience.
-- **footage (4–5)**: a short caption plus `[FOOTAGE]`. The `image` is the closest render, shown behind the "insert footage" slot. One footage post can be a ~30-second trailer cut with a timed shot order. Write the `footage` note so that a video could be cut from it later: a length in seconds ("6 to 8 seconds"), and "vertical reel" when a 9:16 cut makes sense, because the page's **Copy video prompt** reads both from the note.
+- **footage (4–5)**: a short caption plus `[FOOTAGE]`. The `image` is the closest still or render, shown behind the "insert footage" slot. One footage post can be a ~30-second trailer cut with a timed shot order. Write the `footage` note so that a video could be cut from it later: a length in seconds ("6 to 8 seconds"), and "vertical reel" when a 9:16 cut makes sense, because the page's **Copy video prompt** reads both from the note.
 - **quote (3)**: one verbatim in-game line per post, each with a matching quote card in `quote_cards`.
 - **bts (2)**: how it was made: the jam or origin, one technical or design detail that is genuinely interesting. Hashtags like `#gamedev` may sit inline here.
+- **event (0; 4 when the creator named a dated gathering)**: announce, countdown, live, recap, one each, around the `event` object. The recap is a template until the event has happened. `{baseDir}/references/events.md`.
 - **reddit (2–4)**: one per venue whose rules allow a post, in that community's own lane (a showcase with a question, a making-of, an on-topic image with the game in the last line). Title modelled on posts that worked there. Rules, research and the no-astroturfing rule: `{baseDir}/references/audience-and-venues.md`.
-- **short (2–3)**: proposals for vertical videos: hook, beats, title, description, shot note. Never rendered on the first run.
+- **short (2–3)**: proposals for vertical videos: hook, beats, title, description, shot note. Never rendered on the first run. The hook is on screen from frame 0, over gameplay: frame 0 is the thumbnail.
 
 ## Writing rules
 
-- Sound like the game, not like an ad. Use the game's own voice: an intercom, a sign, a character. No "immersive experience", "epic adventure", "don't miss out".
+- Sound like the game, not like an ad. Use the game's own voice: an intercom, a sign, a character. No "immersive experience", "epic adventure", "don't miss out". **The voice comes from this game's own lines**, never from the examples below: they are one horror game and one cosy one, to show how far apart two kits should sound.
 - Short lines, white space, one idea per post. Keep X posts under 280 characters with the link counted as 23 (the page shows the count).
 - Use real lines verbatim from `src/` and the design docs. Voiced lines (announcer or intercom audio) often exist only as `.ogg` files, with their wording written in the design notes. Look there too, and never transcribe audio you have not seen written down. Every factual claim must trace to `design/` (GDD or `promo-brief.md`), the repo, or the creator's answer in this session. Use `[CHECK: …]` when unsure.
 - Name the game consistently (Eeireport used ALL CAPS in copy, matching the wordmark).
@@ -99,11 +105,20 @@ The Foundation's marketing package asks for exactly two descriptions of the scen
 - Decentraland is optional in the copy. When named: "Decentraland" in full (not "DCL" outside insider channels), "Decentraland World" / "Genesis City", capitalised Wearables / Emotes / LAND / NAMEs / MANA, and never phrased as an official or partnered release. See `{baseDir}/references/brand-and-ip.md`.
 - Emoji: at most one per post, and only where it adds to the line. Many posts need none.
 
+## Languages
+
+A venue that writes in Portuguese gets a Portuguese post, written there, not an English post translated. Method and what to ask the creator: `{baseDir}/references/audience-and-venues.md` > Language. In the data:
+
+- The venue carries `"lang": "pt-BR"`; its post carries the same `lang`, and a `gloss` saying in the kit's language what the post says, so the creator knows what goes out under their name. `build_kit.py` warns when the two languages differ or the gloss is missing.
+- In-game lines are quoted in the language the game shows them. When the game has no text in the venue's language, the post says so in one plain line.
+- Tags for that language go in `hashtags.by_lang`. The kit's own tags are never appended to a post in another language.
+- The video for such a post uses `langs` on its edit (`{baseDir}/references/video-posts.md`).
+
 ## Footage note recipe
 
-Where to start → what happens on screen, in order → camera (first or third person, framing) → sound cue that matters → length in seconds → where to cut → what NOT to show. Add loop / vertical-reel suitability when relevant.
+Where to start (prefer a window of an existing real playthrough, with its file and timestamp, over a new take) → what happens on screen, in order → camera (first or third person, framing) → sound cue that matters → length in seconds → where to cut → what NOT to show. Add loop / vertical-reel suitability when relevant.
 
-## Eeireport examples (style reference)
+## Example 1: Eeireport, a horror game (style reference)
 
 ```json
 {"id": "launch-03", "kind": "launch", "title": "Launch: gate 13", "cta": true,
@@ -123,3 +138,33 @@ Where to start → what happens on screen, in order → camera (first or third p
 ```
 
 What makes these work: the quotes are real intercom lines, some as code strings (`src/quest/*.ts`) and some only as voiced audio (`assets/Audio/ambience/announce_*.ogg`) whose wording is recorded in the design notes; the gate-13 copies are AvatarShapes, so they appear as text and footage, never as renders; the gate-13 footage note stops before the correct pick.
+
+## Example 2: a cosy social game (invented for contrast)
+
+Not a real kit: SLOW TIDE CAFÉ and its lines are made up here, to show the same rules in the opposite voice. Players run a beach café together: one brews, one serves, the tide decides when you close. Its text is chalkboard signs and a kettle that complains.
+
+```json
+{"id": "launch-02", "kind": "launch", "title": "Launch: the kettle", "cta": true,
+ "text": "The kettle says it is doing its best.\n\nBrew, serve and argue about the playlist with whoever walks in. We close when the tide comes in.\n\nSLOW TIDE CAFÉ is open: {LINK}",
+ "image": "counter"}
+{"id": "soon-01", "kind": "soon", "title": "Coming soon: the chalkboard",
+ "text": "\"Today's special: whatever Noor burned.\"\n\nOpening soon.",
+ "image": "quote_special"}
+{"id": "footage-03", "kind": "footage", "title": "Footage: three orders at once",
+ "text": "Two hands. Three orders. One of you has to learn the machine.\n\n[FOOTAGE]", "image": "counter",
+ "footage": "From an existing play session if one shows it: two players behind the counter while a third orders. One carries two cups, the other fills the machine, a cup is dropped. Third person, both avatars in frame. 8 to 10 seconds; cut on the dropped cup, before the tide bell."}
+{"id": "event-01", "kind": "event", "phase": "announce", "title": "Event: open mic",
+ "text": "Open mic at the café. Bring a song, a poem or a bad joke; we bring the coffee.\n\n{WHEN}\n{LINK}",
+ "image": "stage"}
+{"id": "event-03", "kind": "event", "phase": "live", "title": "Event: doors open",
+ "text": "The stage is on. Somebody is already singing.\n\n{LINK}", "image": "stage"}
+{"id": "event-04", "kind": "event", "phase": "recap", "title": "Event: the morning after",
+ "text": "{N} of you came. {N} cups, [CHECK: the line of the night, with its author's permission].\n\nSame time next week: {WHEN}",
+ "image": "stage"}
+{"id": "launch-05", "kind": "launch", "lang": "pt-BR", "title": "Lançamento: a chaleira",
+ "text": "A chaleira jura que está dando o melhor de si.\n\nPrepara, serve e briga pela playlist com quem chegar. A gente fecha quando a maré sobe.\n\nO jogo está em inglês. SLOW TIDE CAFÉ: {LINK}",
+ "gloss": "The kettle swears it is doing its best. Brew, serve and fight over the playlist with whoever arrives. We close when the tide rises. Says the game is in English.",
+ "image": "counter"}
+```
+
+What differs from example 1, on purpose: warm and a little silly where Eeireport is flat and procedural; other people are in every post, because playing together is the promise; the footage note asks for a real session first and for two avatars in frame; the recap is all placeholders until the night has happened; the Portuguese post is written as a Brazilian would say it (*a gente*, *briga pela playlist*), carries a gloss, and says the game itself is in English.

@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- promote-scene tool version: 2026-11-27 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -44,6 +45,7 @@
   .kind.launch { background: #3a1410; color: #ff7a6a; } .kind.soon { background: #3a2a0a; color: var(--amber); }
   .kind.footage { background: #0f2a3a; color: #6cc3ff; } .kind.quote { background: #1f1a2e; color: #c3a8ff; } .kind.bts { background: #0f2e1a; color: #6ad98a; }
   .kind.reddit { background: #3a1e0a; color: #ff8a3d; } .kind.short { background: #3a0f14; color: #ff6b7a; }
+  .kind.event { background: #2e2a0a; color: #e8d24a; } .kind.lang { background: #10283a; color: #8fd0ff; }
   .field { margin: 0 14px 10px; } .field label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
   .field input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 8px 10px; font: inherit; outline: none; }
   .field input:focus { border-color: #666; }
@@ -264,8 +266,9 @@ let lastData = JSON.stringify(K);
 const TABS = ['audience', 'x', 'ig', 'reddit', 'short', 'assets'];   // Audience first: name who it is for before posting
 const state = { tab: TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'audience', platform: 'x', tags: 'core', kind: 'all' };
 state.platform = state.tab === 'ig' ? 'ig' : 'x';
-const KINDS = { all: 'All', launch: 'Launch + link', soon: 'Coming soon', footage: 'Footage', quote: 'Quotes', bts: 'Behind the scenes', reddit: 'Reddit', short: 'Shorts' };
-const GENERAL = ['launch', 'soon', 'footage', 'quote', 'bts'];   // the kinds on the X / Instagram tabs
+const KINDS = { all: 'All', launch: 'Launch + link', soon: 'Coming soon', footage: 'Footage', quote: 'Quotes', bts: 'Behind the scenes', event: 'Event', reddit: 'Reddit', short: 'Shorts' };
+const GENERAL = ['launch', 'soon', 'footage', 'quote', 'bts', 'event'];   // the kinds on the X / Instagram tabs
+const PHASES = { announce: 'announcement', countdown: 'countdown', live: 'live now', recap: 'recap' };   // an event post's badge, by phase
 const tabOfKind = k => k === 'reddit' ? 'reddit' : k === 'short' ? 'short' : state.platform === 'ig' ? 'ig' : 'x';
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // posts.json is data: only http(s) links become hrefs, and local files must be plain relative paths (no scheme, no ..).
@@ -293,18 +296,23 @@ if (K.link) {
   document.getElementById('openlink').remove();
 }
 
-function allTags(mode) {
+function allTags(mode, lang) {
   if (mode === 'none') return '';
-  const H = K.hashtags || {};
+  // a post in another language gets that language's tags (hashtags.by_lang.<code>), or none: never the kit's own
+  const other = lang && lang.split('-')[0] !== (K.lang || 'en').split('-')[0];
+  const byLang = (K.hashtags || {}).by_lang || {};
+  // an exact table first, then one with the same base language: pt-BR uses a "pt" table and the other way round
+  const H = (other ? (byLang[lang] || byLang[Object.keys(byLang).find(k => k.split('-')[0] === lang.split('-')[0])]) : K.hashtags) || {};
   const t = mode === 'all' ? (H.core || []).concat(H.extra || []) : (H.core || []);
   return t.join(' ');
 }
 function fullText(p, raw) {
   let t = (raw != null ? raw : p.text);
   if (K.link) t = t.replace(/\{LINK\}/g, K.link);
+  if (K.event && K.event.when) t = t.replace(/\{WHEN\}/g, K.event.when);
   if (p.kind === 'reddit') return t;   // hashtags are not a Reddit thing
-  const tags = allTags(state.tags);
-  if (tags && !/#\w+/.test(t)) t += '\n\n' + tags;
+  const tags = allTags(state.tags, p.lang);
+  if (tags && !/#[\p{L}\p{N}_]+/u.test(t)) t += '\n\n' + tags;
   return t;
 }
 const fieldEdits = {};   // post id -> { post_title | hook }: live edits of the second field on Reddit / Short cards
@@ -313,8 +321,8 @@ function xlen(t) { return t.replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length; }
 function decorate(t) {
   return esc(t)
     .replace(/(https?:\/\/\S+)/g, '<span class="lnk">$1</span>')
-    .replace(/(\{N\}|\{DATE\}|\{LINK\})/g, '<mark>$1</mark>')
-    .replace(/(#\w+)/g, '<span class="tags">$1</span>')
+    .replace(/(\{N\}|\{DATE\}|\{LINK\}|\{WHEN\})/g, '<mark>$1</mark>')
+    .replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="tags">$1</span>')
     .replace(/\[FOOTAGE\]/g, '<mark>[clip goes here]</mark>');
 }
 function igUser() { return (K.handle || K.game).replace(/^@/, '').toLowerCase(); }
@@ -422,8 +430,8 @@ ${caption}
 
 What to show: ${note}
 
-Rules: vertical only, 9:16 1080x1920, at most ${maxSec} seconds, the hook readable in the first two seconds, captions on screen so it works muted, nothing the shot-list tips say to keep out. Set focus on every shot so the middle third keeps the subject.
-Footage: use my recordings in promote/footage/ if any match; otherwise fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
+Rules: vertical only, 9:16 1080x1920, at most ${maxSec} seconds, the hook on screen over gameplay from the first frame (it is the thumbnail), captions on screen so it works muted, nothing the shot-list tips say to keep out. Set focus on every shot so the middle third keeps the subject.
+Footage: cut from real playthroughs I already have first (my recordings in promote/footage/, playtest or earlier capture sessions; ask me what exists) if any match; only for moments they miss fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
 Before you start, run python3 promote/tools/build_kit.py --rendering ${p.id} (it writes promote/videos/${p.id}.rendering and rebuilds the kit page, which then shows this Short as in progress).
 Output: promote/videos/${p.id}.mp4 at 1080x1920 (render the vertical composition straight to that file); then run python3 promote/tools/build_kit.py --done ${p.id} (removes the marker and rebuilds the page so it plays there).`;
   }
@@ -436,8 +444,8 @@ ${caption}
 
 What to show: ${note}
 
-Rules: at most ${maxSec} seconds, 16:9 1920x1080, captions on screen so it works muted, nothing the shot-list tips say to keep out.${vertical ? ' Also render the 9:16 vertical cut.' : ''}
-Footage: use my recordings in promote/footage/ if any match this post; otherwise fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
+Rules: at most ${maxSec} seconds, 16:9 1920x1080, bright gameplay with the first line on screen at frame 0 (it is the thumbnail), captions on screen so it works muted, nothing the shot-list tips say to keep out.${vertical ? ' Also render the 9:16 vertical cut.' : ''}
+Footage: cut from real playthroughs I already have first (my recordings in promote/footage/, playtest or earlier capture sessions; ask me what exists) if any match this post; only for moments they miss fall back to an Explorer capture, Blender clips of the scene's models (promote/tools/render_shots.py -- clip <shot>) or the kit's stills with camera motion, in that order, and tell me which source you used.
 Before you start, run python3 promote/tools/build_kit.py --rendering ${p.id} (it writes promote/videos/${p.id}.rendering and rebuilds the kit page, which then shows this video as in progress).
 Output: promote/videos/${p.id}.mp4; then run python3 promote/tools/build_kit.py --done ${p.id} (removes the marker and rebuilds the page so the video plays there).`;
 }
@@ -496,10 +504,11 @@ function renderPosts() {
       : isS ? `<span class="meta" style="padding:0;margin-left:auto">9:16 · YouTube Shorts / Reels / TikTok</span>`
       : p.platform ? `<span class="meta" style="padding:0;margin-left:auto">best on ${p.platform === 'ig' ? 'Instagram' : 'X'}</span>` : '';
     card.innerHTML = `
-      <div class="head"><span class="kind ${p.kind}">${KINDS[p.kind]}</span><b>${esc(p.title)}</b>${headRight}</div>
+      <div class="head"><span class="kind ${p.kind}">${KINDS[p.kind]}${p.kind === 'event' && PHASES[p.phase] ? ': ' + PHASES[p.phase] : ''}</span>${p.lang && p.lang !== (K.lang || 'en') ? `<span class="kind lang" title="Written in this language for its venue">${esc(p.lang)}</span>` : ''}${p.posted ? `<span class="kind" title="Already posted: an update run leaves it alone">posted ${esc(p.posted)}</span>` : ''}<b>${esc(p.title)}</b>${headRight}</div>
       <div class="preview">${mockup(p, text)}</div>
       ${isR && p.why_here ? `<div class="note why"><b>Why here:</b> ${esc(p.why_here)}</div>` : ''}
       ${isR && p.rules_note ? `<div class="note rules"><b>Rules of ${esc(p.subreddit||'the sub')}:</b> ${esc(p.rules_note)}</div>` : ''}
+      ${p.gloss ? `<div class="note"><b>What it says</b> (for you; not copied): ${esc(p.gloss)}</div>` : ''}
       ${p.footage ? `<div class="note"><b>What to show:</b> ${esc(p.footage)}</div>` : ''}
       ${isS && (p.beats||[]).length ? `<div class="beats">Captions, in order:${p.beats.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}
       ${modelled}

@@ -1,4 +1,24 @@
-# Renders, key art, logo and composition
+# Stills, renders, key art, logo and composition
+
+Two sources for the kit's pictures. **In-world stills** are the default whenever an Explorer preview of the scene can run: they are the game itself, avatars and effects included, and each takes seconds. **Blender renders** make the key art, and the stills too when no Explorer is available.
+
+## In-world stills (`capture_play.py still`)
+
+The scene must be running in an Explorer with its MCP server on; follow **unity-explorer-mcp**'s intent and launch gates before starting or touching one, and ask first if the creator is playing in it. The script talks to that server over HTTP, so it works whether or not the Explorer tools are bound in the session.
+
+1. Copy `{baseDir}/scripts/capture_play.py` and `{baseDir}/scripts/takes.example.py` (as `takes.py`) into `promote/tools/` **before** the preview starts, or keep them in a folder outside the scene: any write under the scene folder restarts the scene.
+2. In `takes.py`, write `STILLS = {"<name>": fn}`: one function per signature moment. Each `fn(ex)` only puts the player and the camera there (`ex.move_to`, `ex.camera_pose(x, y, z, look=…, fov=35)` for a framed shot, a `time.sleep` for the moment to arrive); the script takes the picture. `begin(ex)` clears the title card first, as for video takes.
+3. **Look at the avatar first, and ask**: take one still with the player in frame and read it. If the wearables do not fit the game, stop and ask the creator before the rest (the avatar check in `{baseDir}/references/video-capture.md`).
+4. `python3 promote/tools/capture_play.py still` writes `$CAPTURE_OUT/stills/<name>.png` (default `<scene>/../capture/stills/`), one lossless frame, about 0.3 s each (measured 2026-11-27, Apple Silicon). The frame is the window scaled to at most 1920 wide, the screenshot tool's ceiling: a 16:9 window or display gives 1920×1080, a 16:10 laptop display 1920×1169, so pass `--crop` to centre-crop every still to 16:9, the size the Foundation asks for. The script prints each size and flags a small one. **Read every PNG**, fix the framing in `takes.py`, retake by name (`still gate13`).
+5. On the last run add `--to-kit`: every still `STILLS` names that has a PNG, from this run or an earlier one, is copied to `promote/images/screens/` (so `still gate13 --to-kit` retakes one and delivers the set). List them in `posts.json` `images` like any other image; `quote_cards[].render` and `keyart` accept them too (the composer cover-crops to each size).
+
+Frames are world-only: no HUD and no scene UI. `--hud` keeps the interface, for a picture that is about it. **The player's nameplate shows in third person and not under a free-camera pose** (measured 2026-11-27, with and without `--hud`), so frame the avatar with `ex.camera_pose` for a clean picture of it; other players' nameplates were not measured, so read the frame. The script returns the camera to third person before each still; after a free-camera still it keeps that direction until a `move_to(look=…)` turns it. The rules for moving the player, cheats and dev overlays are the video ones: `{baseDir}/references/video-capture.md` > rung 2.
+
+What these stills cover: every signature moment the player can reach, NPCs and other `AvatarShape`s, particles, tweens, UI moments. What they do not: a clean hero plate with room for the title (key art, below) and the Foundation's "people playing, no overlays" screenshot whenever a nameplate is in frame: with several real players that one stays on the shot list for the creator.
+
+## Blender renders
+
+Use for key art, and for the stills when no Explorer can run (no desktop client on this machine, the creator is using it, the scene does not load). Say in the README which source each image came from.
 
 All commands run from the scene root. `B=/Applications/Blender.app/Contents/MacOS/Blender` (macOS; Windows `"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"`; Linux `blender`; or find the binary as in `{baseDir}/../add-3d-models/references/blender-authoring.md`). Needs **Blender 4.2 or newer**: clip mode uses the EEVEE that shipped in 4.2 (the script picks `BLENDER_EEVEE_NEXT` on 4.2–4.5 and `BLENDER_EEVEE` on 5.x by itself). Tested with Blender 5.1 and Pillow 12.
 
@@ -52,7 +72,7 @@ Read every preview PNG (combine them into one contact sheet with Pillow if there
 
 ## What cannot be rendered
 
-`AvatarShape` entities (NPCs, copies of the player, the player) are assembled from wearables at runtime in the Explorer. There is no GLB. Route them to footage. Effects that exist only at runtime (`ParticleSystem`, `Tween` motion, video screens, UI) render as nothing or as a static mesh. Pick other moments for stills.
+`AvatarShape` entities (NPCs, copies of the player, the player) are assembled from wearables at runtime in the Explorer. There is no GLB. Take them as in-world stills, or route them to footage. Effects that exist only at runtime (`ParticleSystem`, `Tween` motion, video screens, UI) render as nothing or as a static mesh. Pick other moments for stills.
 
 ## Key art
 
