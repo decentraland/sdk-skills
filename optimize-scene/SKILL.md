@@ -268,7 +268,7 @@ engine.removeSystem(systemFn)
 
 ## Asset Preloading (AssetLoad Component)
 
-Preload assets needed later, not at startup (things that appear on interaction or in a spawn burst) with `AssetLoad`, so they display instantly. Assets used at startup need no preload. Keep **≤40 paths per `AssetLoad` entity**: past about 50 assets on one entity the loading-state callback silently stops firing. API, the per-asset loading-state callback, batching recipe, `LoadingState` values and caveats (no unload, preload renders nothing): `{baseDir}/references/asset-preloading.md`.
+Preload assets needed later, not at startup (things that appear on interaction or in a spawn burst) with `AssetLoad`, so they are already loaded when needed and display immediately. Preloading does not load anything faster, it only starts earlier, so start it a few seconds or more before the asset is needed. Assets used at startup need no preload. Keep **≤40 paths per `AssetLoad` entity**: past about 50 assets on one entity the loading-state callback silently stops firing. API, the per-asset loading-state callback, batching recipe, `LoadingState` values and caveats (no unload, preload renders nothing): `{baseDir}/references/asset-preloading.md`.
 
 ## Local Asset Bundle Preview
 
