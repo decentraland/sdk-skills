@@ -61,6 +61,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `creator-hub-mcp` | Edit the scene open in the Creator Hub live through its MCP server (entities, components, Smart Items, scripts, scene settings, preview) — preferred over hand-editing `main.composite`. Includes how to connect Claude Code, Cursor, Codex, etc. |
 | `dcl-gdd` | Design a game or experience with the creator — brainstorm, core loop, audience, retention, mobile, scope — and write or revise a GDD. Pairs with `dcl-prototype`. |
 | `dcl-prototype` | Small playable prototypes and greyboxes that answer a design question; owner self-tests and registered experiments with recorded verdicts. Requires `dcl-gdd`. |
+| `dcl-one-explorer-web` | Drive a running dcl-one Explorer (the Bevy-based client) through its console (loopback token and port, or the web page) to test, screenshot, walk, click and debug a scene in-world; maps the Unity MCP tool names to console lines. |
 | `deploy-scene` | Deploy scenes to Genesis City (LAND-based). |
 | `deploy-worlds` | Deploy scenes to Worlds (personal 3D spaces). |
 | `fonts` | Built-in fonts and custom fonts (`fontSrc`: a `.ttf` or a Google Fonts family name) for 3D and UI text — client support, licensing, testing. |
