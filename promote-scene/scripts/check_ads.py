@@ -13,8 +13,9 @@ Checked per file: the name; videos are MP4 / H.264 / yuv420p, the exact size for
 500 MB; images are JPG or PNG matching their extension, an exact size for their token, under 3 MB (the 4x3
 thumbnail under 500 KB); frame 0 of a video, and every image but the logo, is not dark (mean luma; black is 16).
 Checked per creative (and language): every video size and every still is there, in the spec's priority order,
-and the game has its brand logo. Missing pieces fail unless --partial (a first round that ships 9:16 only).
-Exit code 1 when anything fails. Needs ffprobe (part of ffmpeg).
+and the game has its brand logo. A still without a language (a clean frame, no text in it) serves every
+language of its creative, so a pt/en test needs one set of clean stills, not one per language. Missing pieces fail unless --partial (a first round that ships 9:16 only).
+Exit code 1 when anything fails. Needs ffmpeg and ffprobe.
 """
 import json, os, re, shutil, subprocess, sys
 
@@ -40,11 +41,13 @@ def ffprobe(*args):
 
 
 def luma(path, video):
-    src = 'movie=%s%s,signalstats' % (path.replace('\\', '/').replace(':', '\\:').replace(',', '\\,'),
-                                      ',select=eq(n\\,0)' if video else '')
-    out = ffprobe('-f', 'lavfi', '-i', src, '-show_entries', 'frame_tags=lavfi.signalstats.YAVG', '-of', 'csv=p=0')
-    vals = [float(v.strip(',')) for v in out.split() if v.strip(',')]
-    return vals[0] if vals else None
+    """Mean luma of the first frame (16 = black). The file is a plain -i input, never part of a filter string,
+    so a Windows path (C:\\...) or a folder name with ':' or ',' needs no escaping."""
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-frames:v', '1', '-vf',
+                        'signalstats,metadata=mode=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'],
+                       capture_output=True, text=True)
+    m = re.search(r'lavfi\.signalstats\.YAVG=([0-9.]+)', r.stdout)
+    return float(m.group(1)) if m else None
 
 
 def check_file(path):
@@ -112,8 +115,8 @@ def main(argv):
     if [a for a in argv if a.startswith('--') and a != '--partial']:
         sys.exit(__doc__)
     folder = args[0] if args else os.path.join(os.path.dirname(HERE), 'ads')
-    if not shutil.which('ffprobe'):
-        sys.exit('ffprobe not found on PATH: install ffmpeg (https://ffmpeg.org)')
+    if not (shutil.which('ffprobe') and shutil.which('ffmpeg')):
+        sys.exit('ffmpeg and ffprobe must be on PATH: install ffmpeg (https://ffmpeg.org)')
     if not os.path.isdir(folder):
         sys.exit('no folder %s' % folder)
     files = sorted(f for f in os.listdir(folder) if not f.startswith('.') and os.path.isfile(os.path.join(folder, f)))
@@ -130,8 +133,13 @@ def main(argv):
                 groups.setdefault((g['game'], g['creative'], g['lang'] or ''), {'video': set(), 'image': set()})[kind].add(g['size'])
     missing = 0
     for (game, creative, lang), have in sorted(groups.items()):
+        langs = {k[2] for k in groups if k[:2] == (game, creative) and k[2]}
+        if not lang and langs:   # only untagged stills, shared by the language groups below: checked there
+            continue
+        shared = groups.get((game, creative, ''), {}).get('image', set()) if lang else set()
+        images = have['image'] | shared
         label = '%s_%s%s' % (game, creative, '_' + lang if lang else '')
-        lacks = ['%s.mp4' % s for s in VIDEO if s not in have['video']] + ['%s still' % s for s in IMAGE if s not in have['image']]
+        lacks = ['%s.mp4' % s for s in VIDEO if s not in have['video']] + ['%s still' % s for s in IMAGE if s not in images]
         if lacks:
             missing += 1
             print('%s %s: missing %s' % ('NOTE' if partial else 'MISSING', label, ', '.join(lacks)))

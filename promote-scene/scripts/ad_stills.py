@@ -11,12 +11,13 @@ check_ads.py. Copy to <scene>/promote/tools/ad_stills.py next to check_ads.py (t
 Pick that moment from the promise ledger: real first-session play, nothing the market rules out (see the
 paid-ads reference). --vertical-from, when given, feeds the portrait sizes (4x5, 9x16) from a vertical take;
 otherwise every size is cover-cropped from --from around --focus (percent, default 50,50; 50,100 keeps the
-bottom and drops a top HUD bar). A crop that has to upscale more than 10 % is reported: capture that size
-natively instead. JPG by default (quality lowered until under 3 MB, the 4x3 thumbnail under 500 KB); --png
+bottom and drops a top HUD bar). A crop that has to upscale more than 15 % is reported: capture that size
+natively instead (the 1x1 still from 1080p footage needs 11 %, which the spec's 1200 px forces and is fine).
+--lang only for a still with words in it: a clean frame serves every language (check_ads.py counts it so). JPG by default (quality lowered until under 3 MB, the 4x3 thumbnail under 500 KB); --png
 for PNG. Writes <out>/<game>_<creative>_<size>[_<lang>].jpg, out = promote/ads/.
 --logo puts the official mark (from the brand folder, never redrawn) centred on a 1200x1200 canvas:
 <out>/<game>_brand_logo.png, the square logo Google PMax requires.
-Needs Pillow, and ffmpeg for frames from a video.
+Needs Pillow, and ffmpeg for frames from a video. Exit code 1 when a file is still over its size limit.
 """
 import io, os, re, shutil, subprocess, sys, tempfile
 
@@ -25,11 +26,12 @@ sys.path.insert(0, HERE)
 from check_ads import IMAGE, IMAGE_MAX, LOGO, THUMB_MAX  # noqa: E402  the one size table
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageColor
 except ImportError:
     sys.exit('Pillow is missing: python3 -c "import PIL" fails. Ask before installing it.')
 
 PORTRAIT = ('4x5', '9x16')
+UPSCALE_NOTE = 1.15   # 1200/1080 = 1.11 for the 1x1 from 1080p footage: unavoidable at the spec's size, so not reported
 
 
 def load(spec):
@@ -68,11 +70,12 @@ def cover(img, w, h, focus):
 
 
 def save(img, path, limit, png):
+    """Writes the file; returns a problem string when it is still over its size limit, else ''."""
     if png:
         img.save(path, optimize=True)
         if os.path.getsize(path) >= limit:
-            print('  over the limit as PNG (%d KB): drop --png' % (os.path.getsize(path) // 1024))
-        return
+            return 'over the limit as PNG (%d KB, limit %d KB): drop --png' % (os.path.getsize(path) // 1024, limit // 1024)
+        return ''
     for q in range(92, 39, -4):
         buf = io.BytesIO()
         img.save(buf, 'JPEG', quality=q, optimize=True, progressive=True)
@@ -80,11 +83,21 @@ def save(img, path, limit, png):
             break
     open(path, 'wb').write(buf.getvalue())
     if buf.tell() >= limit:
-        print('  still %d KB at quality 40, limit %d KB' % (buf.tell() // 1024, limit // 1024))
+        return 'still %d KB at JPEG quality 40, limit %d KB: pick a calmer frame' % (buf.tell() // 1024, limit // 1024)
+    return ''
 
 
 def logo(game, src, bg, out):
-    mark = Image.open(src).convert('RGBA')
+    if not os.path.isfile(src):
+        sys.exit('no logo file %s: give the official mark from the brand folder' % src)
+    try:
+        bg = ImageColor.getrgb(bg)
+    except ValueError:
+        sys.exit('--bg %r is not a colour: use a hex value like #161518' % bg)
+    try:
+        mark = Image.open(src).convert('RGBA')
+    except OSError:
+        sys.exit('%s is not an image Pillow can open (PNG with transparency is best)' % src)
     box = round(LOGO[0] * 0.72)   # clear space around the mark
     k = min(box / mark.width, box / mark.height)
     mark = mark.resize((max(1, round(mark.width * k)), max(1, round(mark.height * k))), Image.LANCZOS)
@@ -126,24 +139,30 @@ def main(argv):
         sys.exit('--lang is a code like pt or pt-BR')
     try:
         focus = tuple(float(x) for x in opts.get('focus', '50,50').split(','))
-        assert len(focus) == 2
+        assert len(focus) == 2 and all(0 <= f <= 100 for f in focus)
     except (ValueError, AssertionError):
-        sys.exit('--focus takes X,Y in percent, e.g. 50,100')
+        sys.exit('--focus takes X,Y in percent, each 0-100, e.g. 50,100')
     sizes = opts.get('sizes', ','.join(IMAGE)).split(',')
     bad = [s for s in sizes if s not in IMAGE]
     if bad:
         sys.exit('unknown size(s) %s; sizes: %s' % (', '.join(bad), ', '.join(IMAGE)))
     main_img = load(opts['from'])
     vert_img = load(opts['vertical-from']) if 'vertical-from' in opts else None
+    failed = []
     for s in sizes:
         w, h = IMAGE[s][0]
         src = vert_img if (vert_img is not None and s in PORTRAIT) else main_img
         img, up = cover(src, w, h, focus)
         ext = 'png' if opts.get('png') else 'jpg'
         path = os.path.join(out, '%s_%s_%s%s.%s' % (game, creative, s, '_' + lang if lang else '', ext))
-        save(img, path, THUMB_MAX if s == '4x3' else IMAGE_MAX, opts.get('png'))
-        note = '  upscaled %.2fx: soft; capture this size natively' % up if up > 1.1 else ''
-        print('wrote %s (%dx%d, %d KB)%s' % (path, w, h, os.path.getsize(path) // 1024, note))
+        problem = save(img, path, THUMB_MAX if s == '4x3' else IMAGE_MAX, opts.get('png'))
+        note = '  upscaled %.2fx: soft; capture this size natively' % up if up > UPSCALE_NOTE else ''
+        print('%s %s (%dx%d, %d KB)%s%s' % ('FAIL' if problem else 'wrote', path, w, h, os.path.getsize(path) // 1024,
+                                            note, '\n     - ' + problem if problem else ''))
+        if problem:
+            failed.append(os.path.basename(path))
+    if failed:
+        sys.exit('%d file(s) over the size limit: %s' % (len(failed), ', '.join(failed)))
     print('next: python3 %s %s' % (os.path.join(os.path.relpath(HERE), 'check_ads.py'), out))
 
 
