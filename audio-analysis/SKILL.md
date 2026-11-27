@@ -57,7 +57,7 @@ Output (filled by the renderer; read in your systems):
 | ----------- | -------- | ------------------- | ------------------------------------------------------------- |
 | `amplitude` | `number` | `0..~1` (mode-dep.) | Aggregate signal strength of the current audio frame.         |
 | `band0`     | `number` | `0..~1` (mode-dep.) | Lowest frequency bin (sub-bass).                              |
-| `band1..6`  | `number` | `0..~1` (mode-dep.) | Increasing frequency bins, log-spaced under MODE_LOGARITHMIC. |
+| `band1..6`  | `number` | `0..~1` (mode-dep.) | Increasing frequency bands (fixed edges in both modes; see *Desktop band model*). |
 | `band7`     | `number` | `0..~1` (mode-dep.) | Highest frequency bin (treble/air).                           |
 
 Inputs (configure once at create time):
@@ -68,7 +68,7 @@ Inputs (configure once at create time):
 | `amplitudeGain` | `number?` (optional)  | `5.0` when omitted  | Multiplier applied to `amplitude`. Only used in MODE_LOGARITHMIC.                                                    |
 | `bandsGain`     | `number?` (optional)  | `0.05` when omitted | Multiplier applied to all 8 bands. Only used in MODE_LOGARITHMIC.                                                    |
 
-> Values are unbounded floats — gains can push them above `1`. Clamp or scale in your system if the visual you drive needs `0..1`. For typical music at default gains, expect peaks roughly in `0..1` with normal content sitting `0..0.5`.
+> `MODE_LOGARITHMIC` values are clamped to `0..1`; `MODE_RAW` values are unbounded. For typical music at default gains, normal content sits around `0..0.5`.
 
 ## Reading the data
 
@@ -126,16 +126,24 @@ AudioAnalysis.createAudioAnalysis(
 );
 ```
 
+Beat-driven flashes and sky or light changes fall under **lighting-environment** → *RULE: Photosensitivity* (≤ 3 flashes/s, and a toggle for a music-reactive show).
+
 For a complete music visualizer (audio source + amplitude sphere + 8-band equalizer bars), see `{baseDir}/references/audio-analysis-example.md`.
 
 ## Mode selection
 
-- `MODE_LOGARITHMIC` (default) — bands are log-spaced and gain-scaled to roughly fit `0..1` for typical music. Use this for visualizers, scaling, color reactivity. `amplitudeGain` and `bandsGain` apply.
-- `MODE_RAW` — raw FFT-derived magnitudes, linearly spaced. Lower bands dominate visually because most musical energy is there. `amplitudeGain` / `bandsGain` are ignored. Use only if you intend to do your own normalization.
+- `MODE_LOGARITHMIC` (default) — bands are gain-scaled and log-mapped into `0..1`. Use this for visualizers, scaling, color reactivity. `amplitudeGain` and `bandsGain` apply.
+- `MODE_RAW` — the same bands, unscaled mean FFT magnitudes (unbounded; they scale with the audio buffer length). Gains are ignored. Use only if you intend to do your own normalization.
 
 ## Gotchas
 
 - **Throttled updates.** The renderer runs analysis under a frame-time budget — values update each frame in normal conditions but can skip frames under heavy load. Drive smooth animations with `dt` interpolation rather than assuming a fixed update cadence.
+- **Desktop band model** (Unity Explorer native analyser, from source):
+  - Each update analyses the latest audio buffer only (1024 frames ≈ 21 ms at 48 kHz): no window, no averaging over time, no smoothing. Values jitter frame to frame; smooth them yourself.
+  - Band `i` is the mean FFT magnitude between fixed edges 0, 60, 120, 250, 500, 1000, 2000, 4000 Hz and Nyquist; `amplitude` is the buffer's RMS. `MODE_LOGARITHMIC` returns `min(1, log10(x × gain + 1))` with `amplitudeGain` 5 and `bandsGain` 0.05 by default.
+  - Stereo output is analysed as one interleaved signal, so for ordinary stereo music each frequency lands at about half its value: in practice ~0–120, 120–240, 240–500, 500–1000 Hz, 1–2, 2–4, 4–8 kHz and 8 kHz+. [UNVERIFIED: derived from source and a numeric model, not measured in-world]
+  - Tune thresholds as a ratio to a running average of the same band, never as absolute values from an offline simulation (in-world 2026-11-23: offline-tuned absolute thresholds never fired).
+  - To mark a moment in a stream (a song start), prepend a short pattern of alternating tones that fall in two different bands and detect each band against its own on/off contrast; this needs no knowledge of band edges or gains (worked on a live stream with live guitar over it, owner report 2026-11-25).
 - **Multi-source scenes.** Each audio-emitting entity needs its own `AudioAnalysis` if you want to react to that specific source. There is no global mix-down; you pick the entity to analyze.
 - **Works on `VideoPlayer` audio too** — call `AudioAnalysis.createAudioAnalysis(videoEntity)` on the same entity that has `VideoPlayer`. The renderer taps the video's audio frame buffer the same way it does for `AudioSource`. This holds for both progressive files (MP4/WebM at a direct URL) and **HLS streams (`.m3u8`)**; the `88,-10-audio-visualization` test scene drives a third visualizer group from a live HLS stream.
 - **No `pitch` interaction.** `AudioSource.pitch` changes playback speed; the analysis runs on the actual played audio frames, so a higher pitch shifts perceived band energy upward. This is expected, not a bug.

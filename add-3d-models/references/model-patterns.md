@@ -281,14 +281,14 @@ engine.addSystem(() => {
 
 ## Preloading Assets (AssetLoad)
 
-`AssetLoad` starts loading a list of assets (GLB, textures, audio, video) before they are used, so they appear instantly when first referenced. `assetLoadLoadingStateSystem` reports per-asset load state via a callback.
+`AssetLoad` starts loading a list of assets (GLB, audio, video) before they are used. It does not load them faster, it loads them earlier: an asset whose preload has finished by the time it is first referenced appears immediately, so start the preload a few seconds or more before the asset is needed. A preloaded `.png`/`.jpg` does not help `Material` or `ParticleSystem` textures, which are cached under a different key (**optimize-scene** → `references/asset-preloading.md`). `assetLoadLoadingStateSystem` reports per-asset load state via a callback.
 
 ```typescript
 import { AssetLoad, LoadingState, assetLoadLoadingStateSystem } from '@dcl/sdk/ecs'
 
 const loader = engine.addEntity()
 AssetLoad.getOrCreateMutable(loader, {
-  assets: ['assets/Models/chicken.glb', 'assets/Images/Logo.png'],
+  assets: ['assets/Models/chicken.glb', 'assets/Sounds/cluck.mp3'],
 })
 
 // Optional: react to each asset's state change
@@ -300,4 +300,4 @@ assetLoadLoadingStateSystem.registerAssetLoadLoadingStateEntity(loader, (state) 
 
 - `assets` is a `string[]` of asset paths. Keep **≤40 paths per `AssetLoad` entity** and add another entity for more: past about 50 assets on one entity the state callback silently stops firing (**optimize-scene** → `references/asset-preloading.md` → *40 paths per entity*).
 - The callback fires once per asset per state transition; `state.asset` matches the path string exactly (useful for mapping back to an entity).
-- Preloading does not place anything in the world — you still create the `GltfContainer` / `Material` / `AudioSource` etc. when you actually want the asset shown.
+- Preloading does not place anything in the world — you still create the `GltfContainer` / `AudioSource` / `VideoPlayer` etc. when you actually want the asset shown.

@@ -81,7 +81,8 @@ Skybox.createOrReplace(engine.RootEntity, {
 
 - `skyColors` are also the ambient light: zenith → sky ambient, horizon → equator ambient, nadir → ground ambient. There is no separate ambient field. Recoloring only the fog or the sun leaves ambient at its default, so set all three for a coherent look.
 - `rim` unset → follows the `horizon` override when set, else the default.
-- `clouds.opacity` default 1, range 0–1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis — one turn every ~10 minutes; `0` = static, **negative reverses the direction**. `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
+- `clouds.opacity` default 1, range 0–1 (0 hides clouds). `clouds.speed` default 0.01 rad/s around the sky axis — one turn every ~10 minutes; `0` = static; negative is documented to reverse the direction, but the desktop Explorer clamps it to 0 (static). `clouds.color` unset → default time-of-day cloud tint, even on a recolored sky.
+  - The renderer draws the cloud layer at an angle of shader time × `speed`, counted from when the client started, never accumulated, so any change to `speed` jumps the whole layer by (change × time the client has run). Blending speeds between looks becomes one jump per write (desktop, in-world 2026-11-23). Keep one constant `speed` and blend only `opacity` and `color`.
 - `stars.brightness` default 4.62, a multiplier on the star texture (1 = as authored, above 1 is HDR). `0` hides them, negative clamps to 0. Stars only render at night.
 
 ## Sun
@@ -97,6 +98,7 @@ Sun.create(engine.RootEntity, {
 
 - `visible` default true. `intensity` default 1; negative clamps to 0.
 - `direction` is the direction the light travels in scene space (`(0,-1,0)` = overhead; the renderer normalizes it). Set → the sun stays fixed at every time of day, while color and intensity still follow the time of day. Unset or zero → normal path.
+- **Moon or sun glint on water:** set `Sun.direction` to the way the moonlight travels (from the moon's sky position toward the scene), hide the default discs with `visible: false` (a fixed direction no longer matches them), and set `color` to the moon's color. Use non-metallic water (`metallic` 0): a metallic surface tints the highlight with its albedo. Roughness around 0.2 gives a soft path; 0.07 gives a thin line and 0.3 loses it (desktop, in-world 2026-11-23).
 
 ## EnvironmentFog
 

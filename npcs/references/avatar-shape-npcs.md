@@ -48,3 +48,4 @@ Owner reports, not source-verified. Confirm in-world before designing around the
 - A worn **skin** replaces the whole body, so added wearables, hair, skin colour and eye colour do not show on the copy.
 - A **helmet** hides hair, headwear, earrings, eyewear and beard.
 - `AvatarShape` cannot force a hidden wearable to render.
+- Animated or non-uniform `Transform.scale` on an `AvatarShape` (squash on the beat, stretch, growing) read badly to one owner (2026-11); a static uniform scale (or `0.001` to hide) did not. Mechanism unknown.

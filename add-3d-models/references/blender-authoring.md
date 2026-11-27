@@ -130,19 +130,22 @@ Equivalently, in glTF terms: **glTF (x, y, z) → DCL (-x, y, z)** — Decentral
 Placement helper (headless `bpy`, objects built at the Blender origin):
 
 ```python
-import math, mathutils
+import bpy, math, mathutils
 
 def place(objs, dcl_x, dcl_z, rot_deg=0.0, dcl_y=0.0):
     """Move objects built at the origin to DCL (dcl_x, dcl_y, dcl_z), yawed rot_deg in DCL's sense.
 
     Because DCL mirrors X, a DCL yaw of +θ is a Blender rotation of −θ about Z.
     """
+    bpy.context.view_layer.update()  # matrix_world is stale after setting location/rotation/scale
     rot = mathutils.Matrix.Rotation(math.radians(-rot_deg), 4, 'Z')
     tr  = mathutils.Matrix.Translation((-dcl_x, -dcl_z, dcl_y))
     for o in objs:
         o.matrix_world = tr @ rot @ o.matrix_world
     return objs
 ```
+
+`matrix_world` is stale until the depsgraph updates: on an object whose `location`, `rotation_euler` or `scale` you just set, it still holds the old matrix (the identity on a new object). Call `bpy.context.view_layer.update()` before reading or composing it (tested in Blender 5.1).
 
 **Put the object origin at the world origin before exporting a world-baked chunk** (`scene.cursor.location = (0,0,0)` then `bpy.ops.object.origin_set(type='ORIGIN_CURSOR')`), so the exported node carries no translation and the mesh's local bounds equal its world bounds. Keeping local and world bounds identical means the bounding-box script's numbers are the numbers the scene boundary is checked against.
 
@@ -168,7 +171,8 @@ The Explorer shows coplanar or near-coplanar faces as flicker (z-fighting), wors
 
 - Keep stacked layers (panels on walls, trim on frames, decals) **at least 1 cm** apart.
 - Let pieces **meet instead of overlapping** with faces in one plane: a post stops at the underside of its lintel rather than running up into it with the same front face.
-- After a boolean or knife cut, **split each edge at any vertex that lies on it, then weld** (`remove_doubles`). A vertex sitting on another face's edge (a T-junction) leaves sub-pixel hairlines along the join. A copy of the outer face a few millimetres behind it hides what remains: a crack then shows the same surface instead of light.
+- After a boolean or knife cut, **split each edge at any vertex that lies on it, then weld** (edit-mode `bpy.ops.mesh.remove_doubles`, see below). A vertex sitting on another face's edge (a T-junction) leaves sub-pixel hairlines along the join. A copy of the outer face a few millimetres behind it hides what remains: a crack then shows the same surface instead of light.
+- **Welding an imported GLB with `bmesh.ops.remove_doubles` rewrites its stored normals.** glTF splits vertices at UV seams and hard edges; merging them in a `bm.from_mesh` → `to_mesh` round trip changed about half the corner normals of a smooth model and the export looked faceted (tested in Blender 5.1, 2026-11). Deleting faces, `holes_fill`, `triangulate` and `Mesh.validate()` keep them. Weld with the edit-mode operator `bpy.ops.mesh.remove_doubles`, which keeps custom normals. If normals are already lost, transfer them from an untouched copy (Data Transfer modifier, `data_types_loops={'CUSTOM_NORMAL'}`, `loop_mapping='POLYINTERP_NEAREST'`), then compare a front render with the original.
 
 ## RULE: Collision sheets are one-sided
 
@@ -251,7 +255,7 @@ Run through this before every export (scripts for each check in [`blender-patter
 2. All materials are Principled BSDF; procedural shading baked; textures ≤1024 power-of-two.
 3. Plain colors unified into a palette texture, not per-color materials.
 4. No lights, no cameras.
-5. Collider meshes named `*_collider`, no material slots, low-poly; sheets that must block from both sides built with both windings.
+5. Collider meshes named `*_collider`, no material slots, low-poly; sheets that must block from both sides built with both windings. After export, check each `_collider` node's bounds against its visible mesh: print each `_collider` node's POSITION accessor min/max (the bounding-box script in [`model-patterns.md`](model-patterns.md) filtered to that node, converted to DCL axes). A count of collider nodes proves nothing.
 6. Faces seen from both sides duplicated with reversed winding on their own vertices; no two faces in one plane (1 cm gaps); T-junctions from cuts split and welded.
 7. Origin at **bottom-center** of the model so `Transform.position.y = 0` grounds it; rotation/scale applied (`transform_apply`).
 8. For architecture: envelope sized from the third-person table in the parent SKILL.md, props near human scale.

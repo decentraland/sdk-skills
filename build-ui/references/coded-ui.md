@@ -383,6 +383,8 @@ Set `overflow: 'scroll'` on a parent with fixed dimensions; content that exceeds
 </UiEntity>
 ```
 
+A typed function component rejects `key` (`TS2322`) unless its props type declares `key?: string | number`: React-ECS's JSX types have no `IntrinsicAttributes`. Add it to the props type; the component doesn't need to read it.
+
 Fixed header + scrollable body with `flexGrow: 1`:
 
 ```tsx

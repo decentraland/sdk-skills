@@ -84,7 +84,7 @@ Before writing a fresh composite, verify:
 - [ ] If `asset-packs::Actions`, `asset-packs::Triggers`, or `asset-packs::States` exist anywhere in the composite, then `asset-packs::Counter` must exist on entity 0, with `value` = the highest `id` used inside any Actions/Triggers/States data (it is the id allocator for those ids)
 - [ ] No `{self}`, `{assetPath}`, or placeholder strings — all resolved to concrete values
 - [ ] Component names use base names (e.g., `asset-packs::Actions`, not `asset-packs::Actions-v1`). Never use versioned suffixes like `-v3`.
-- [ ] No extra library is needed, even for `asset-packs::*` components: the build falls back to the `@dcl/asset-packs` copy bundled inside `@dcl/inspector` when the scene does not declare it (`@dcl/sdk` 7.15.1+; on an older pin add `@dcl/asset-packs` as a project dependency)
+- [ ] No extra library is needed, even for `asset-packs::*` components: on `@dcl/sdk` 7.15.1+ the build falls back to the `@dcl/asset-packs` copy bundled inside `@dcl/inspector` when no `node_modules/@dcl/asset-packs` sits at the scene root (on an older pin add `@dcl/asset-packs` as a project dependency). A copy hoisted there by another dependency counts as the scene's own and wins: on `@dcl/sdk` 7.34.0 that is `@dcl/sdk-commands`' 2.17.2 (**script-components** → smart-items.md → Admin Tools)
 
 ### Edit-mode checklist (composite already contains `inspector::*`)
 

@@ -232,10 +232,11 @@ Late joiners get `Teams` with the synced state and dress everyone on the next sc
 
 - [ ] `.glb` only, any case (`.GLB` works). A `.gltf` is skipped.
 - [ ] The file name ends with `_<category>.glb`, one of 14 categories: `upper_body`, `lower_body`, `feet`, `hands_wear`, `hat`, `helmet`, `top_head`, `mask`, `eyewear`, `earring`, `tiara`, `hair`, `facial_hair`, `skin`. The longest match wins: `beard_facial_hair.glb` is `facial_hair`. `eyes`, `eyebrows`, `mouth` (PNG items), `body_shape` and `hands` are not categories.
-- [ ] The entry is the path from the project root with `/` separators, as in the scene content: `'assets/wearables/jersey/jersey_m_upper_body.glb'` (case-insensitive). `./`, a leading `/`, backslashes, a `?query`, trailing spaces and full URLs are skipped. `.dclignore` must not exclude the file.
+- [ ] The entry is the path from the project root with `/` separators, as in the scene content: `'assets/wearables/jersey/jersey_m_upper_body.glb'` (case-insensitive). `./`, a leading `/`, backslashes, a `?query`, trailing spaces and full URLs are skipped. `.dclignore` must not exclude the file. Its patterns ignore case and match at any depth, so a bare `wearables` line drops `assets/Wearables/…`; anchor root folders as `/wearables`.
 - [ ] Textures are embedded in the GLB or sit in the **same folder**; subfolders and `../` are not read. Give each item its own folder under `assets/wearables/`.
 - [ ] Ship `_m_` / `_f_` variants of body-hugging items (a naming convention; the category suffix still comes last) and let the scene pick.
 - [ ] Skinned to the Decentraland avatar armature; model it with **wearables** (base meshes, rig, category limits). The Builder upload, thumbnail and hide settings do not apply.
+- [ ] No spring-bone settings: every bone beyond the avatar skeleton is simulated with fixed defaults (stiffness 0.5, drag 0.4, no gravity), so extra bones sway loosely and can't be tuned. Skin parts that must stay rigid to a skeleton bone.
 - [ ] Materials whose name contains `skin` or `hair` (any case, anywhere: `Chair` too) are tinted with the skin or hair color, as in catalog items. Name other materials without those words.
 - [ ] For color variants export a separate `.glb` per variant, textures embedded; byte-identical copies in two folders may share one look once deployed. An edited file is a new item (preview hot reload picks it up).
 - [ ] A deployed scene loads its `.glb` items from its converted asset bundles. A scene loaded before the conversion finished skips every `.glb` entry, with no fallback, until the scene is loaded again after asset processing finishes. Local preview loads the files directly, so a working preview does not prove the deployed scene.
@@ -274,7 +275,7 @@ Handle an empty `wearables`; fall back to `wearableUrns` when the flags never ar
 
 ## Troubleshooting
 
-Each skipped entry logs `Scene wearable '<entry>' skipped: <reason>` on every write:
+Each skipped entry logs `Scene wearable '<entry>' skipped: <reason>` on every write. Release Explorer builds don't write `WEARABLE` warnings to Player.log: turn them on for the session with `/log-matrix enable WEARABLE Warning` in the Explorer chat [UNVERIFIED: from source, not tried], or confirm instead that the file is served (`.dclignore` check above).
 
 | Reason | Fix |
 | --- | --- |

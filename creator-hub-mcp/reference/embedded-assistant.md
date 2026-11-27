@@ -1,4 +1,4 @@
-# Inside the Creator Hub's AI assistant: what a prompt can carry
+# Inside the Creator Hub's AI assistant: what a prompt can carry, and how a turn ends
 
 Applies only when you run as the Creator Hub's embedded assistant. Two channels deliver files and assets with a prompt, besides the text.
 
@@ -18,3 +18,7 @@ The user can attach files to a turn: the **Attach files** paperclip left of the 
 - A mentioned **file** comes as a project-relative path that already exists in the scene: reference it directly, as it is.
 - A mentioned **built-in avatar animation** comes as a *name*, not a path, and has no file. Play it with `triggerEmote({ predefinedEmote: '<name>' })` (see **avatar-animations**).
 - A chip is a pointer, not an instruction. "This one" plus a chip still needs a verb: ask if the request is ambiguous.
+
+## A turn is one process
+
+The Hub runs each prompt as a separate `claude -p … --resume` process that exits when your turn ends. A background command, Monitor or scheduled wake-up never comes back to you; it surfaces only after the user's next message. To wait for something (a rebuild, the preview becoming ready, a log line), poll inside the turn (`preview_status`, `explorer_call get_scene_state`, `explorer_get_scene_logs` with `sinceSeq`) until the condition holds. End the turn only with a result or a question.

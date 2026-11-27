@@ -101,6 +101,8 @@ Stream audio from a URL (radio, live streams). If the user did not supply the UR
 
 Query state with `AudioStream.getAudioState(entity)` which returns a `PBAudioEvent | undefined` — an object with a `state` field (a `MediaState` enum: `MS_PLAYING`, `MS_ERROR`, etc.) and a `timestamp` field, not a bare enum. Read the state as `AudioStream.getAudioState(entity)?.state`. For callback-style state changes instead of polling, `audioEventsSystem.registerAudioEventsEntity` works on AudioStream entities too (see the AudioSource finish-detection note above).
 
+`AudioStream` and `AudioSource` expose no playback position: `AudioEvent` carries only `state` and `timestamp`, and `AudioSource.currentTime` is input only. To sync visuals to a stream, anchor your own `Date.now()` clock at the play event, or react to live `AudioAnalysis`. A `VideoPlayer` does report its position (`currentOffset` in `videoEventsSystem` events).
+
 ## Audio Events System (audioEventsSystem)
 
 Monitor `AudioSource` and `AudioStream` media state changes. Import from `@dcl/sdk/ecs`. The system fires a callback only when the state changes (not every frame).
@@ -154,6 +156,10 @@ To play video on a non-primitive shape (curved screens), use `GltfNodeModifiers`
 Dragging an audio or `.mp4` file from **Local Assets** onto the viewport spawns a ready sound or Video Screen Smart Item pointed at it (**creator-hub-mcp**).
 
 ⚠️ **`VideoPlayer.src` alone is not enough on a Video Screen item.** The admin message bus re-seeds `src` from `asset-packs::VideoScreen.defaultURL` at runtime, so a `src` you set without updating `defaultURL` is silently replaced by the template's stream URL.
+
+⚠️ **A freshly placed Video Screen plays a demo stream with sound.** Every screen item ships with a CDN demo playlist in `VideoPlayer.src` and `VideoScreen.defaultURL`, with `playing: true`, `loop: true` and `volume: 1`. In a scene with its own music, set `asset-packs::VideoScreen.defaultURL` and `VideoPlayer.src` to `""` and `playing: false`, so the screen stays silent until an admin starts something.
+
+**Admin Tools video screen.** The screen is a Video Screen listed in Admin Tools `videoControl.videoPlayers` (**script-components** → smart-items.md → Admin Tools). It plays `defaultURL` until an admin sets a URL, **DCL Cast → Activate room**, or a stream key. Stream-key and DCL Cast requests are refused in local preview ("LocalPreview not supported"), so test streaming only in the deployed scene. Admin Tools re-applies its state only when the screen's `src` differs from what the admin last set, so a scene-code write to `playing` with the same `src` stays until the next admin action [UNVERIFIED at runtime].
 
 ⚠️ **Silence in the editor is not a diagnosis.** Babylon plays no scene audio and the Bevy editor opens every scene muted (viewport speaker toggle, *Unmute scene audio*) (**creator-hub-mcp** → Gotchas); verify audio in a real preview before changing `volume` or `playing`.
 

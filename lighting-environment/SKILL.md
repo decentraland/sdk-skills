@@ -265,6 +265,8 @@ Full mobile limit table: **optimize-scene** → *Mobile Scene Limits*.
 
 Flashing lights, strobes, rapid color/brightness swaps (emissive pulses, flickering `LightSource`, full-screen UI flashes, video) can trigger seizures. Keep any flash to **at most 3 per second** (WCAG 2.3.1 "Three Flashes or Below Threshold"), keep flashing regions small, and avoid saturated red and large high-contrast full-view flashes. If the design depends on intense effects (club strobes, lightning, damage flashes), add an in-scene toggle to turn them off or tone them down.
 
+A music-reactive show (beat-synced sky, dancing or strobing spots, lightning) always counts as depending on intense effects: ship the toggle in the first effects pass, stored per player and not synced.
+
 ## Gotchas
 
 - **Judge lighting in the Bevy editor only after Play.** A stopped Bevy editor (on open and after Stop) shows editor noon: the root `LightSource`, `GlobalLight`, `Sun`, `Skybox`, `EnvironmentFog` and `SkyboxTime` the scene sets are reset to the defaults, and lights parented to the camera or player are hidden with the Free camera. Play shows the scene's own lighting, sky, sun and fog; Pause keeps them with the clock held. A night scene that looks like noon in the editor is not a bug (**create-scene** → `references/preview-options.md` → *Bevy editor renderer*).

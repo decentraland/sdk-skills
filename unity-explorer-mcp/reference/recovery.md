@@ -9,6 +9,8 @@ When the Explorer shows a scene error, or the MCP is not answering, `Player.log`
 - macOS: `~/Library/Logs/Decentraland/Explorer/Player.log`
 - Windows: `%USERPROFILE%\AppData\LocalLow\Decentraland\Explorer\Player.log`
 
+The running build is the line that starts `Version:` (not `Unity Version:`) near the top of `Player.log`: `grep -m1 '^Version:' <Player.log>`. `/Applications/Decentraland.app` is the launcher, and versioned launcher folders can be stale, so read the build from the log, not from them.
+
 The chat command `/logs` opens the folder from inside the client.
 
 ## Torn bundle (an unrecoverable scene drop)
