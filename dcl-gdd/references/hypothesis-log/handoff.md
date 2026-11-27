@@ -38,4 +38,5 @@ with a recommendation:
 2. **This session** — fine for paper/arithmetic experiments, or while the session is still light.
 3. **A sub-agent** — *not recommended*: playtesting is interactive, and the owner cannot feel a
    build through a sub-agent. Acceptable only for non-interactive experiments (pure arithmetic or
-   paper).
+   paper). This is about the owner feeling a build; agents checking built flows, fixes and
+   regressions in-world is a different job (**scene-testing**).

@@ -79,6 +79,7 @@ Don't use `npx skills update` for this: it only refreshes skills you already hav
 | `scene-feedback` | Help creators choose playtest questions and timing, organize test rounds, review the plan, then integrate in-game surveys or player-opened forms; verify and analyze collected CSV responses. |
 | `scene-retro` | Retrospective of a scene's build sessions: turns real mistakes, failed first attempts and owner corrections into evidence-backed improvements to these skills. Read-only; saves a report. |
 | `scene-runtime` | Cross-cutting runtime APIs — async work, HTTP, messaging, observables. |
+| `scene-testing` | Plan and run testing with agents and the owner: rounds with a separate verifier, persona walk-throughs, wording and translation checks, published-World checks, phone sessions, a tester panel with roles, security and performance audits. |
 | `script-components` | Script component classes for the Creator Hub. |
 | `smart-wearables` | Smart wearables: `wearable.json` schema the Builder accepts, the 3 MB limit, preview vs published behavior, what other players see (emote props yes, scene code and sound no), multiplayer limits, pack and upload. |
 | `unity-explorer-mcp` | Iterate on a scene against a running Decentraland Explorer through its MCP automation server — screenshots, movement, logs, performance. |
