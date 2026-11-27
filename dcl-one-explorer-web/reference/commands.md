@@ -2,16 +2,16 @@
 
 The shared scene test scripts (the `sdk7-test-scenes` repository's `MCP_SHOWCASE.md` and the
 scene READMEs) are written against the Unity Explorer's MCP tools. Each row gives the console
-line that does the same on the dcl-one Explorer and the reply fields the script reads. Argument
-details live in the running client: `/help /<command>`. The console keeps a small set of commands, so several tools map to one command with a flag: take
-the line from the row, never from the tool's name. An argument `camelCase` is `--kebab-case`
-unless the row says otherwise.
+line that does the same on the dcl-one Explorer and the reply fields the script reads. The
+console keeps a small set of commands, so several tools map to one command with a flag: take the
+line from the row, never from the tool's name. An argument `camelCase` is `--kebab-case` unless
+the row says otherwise.
 
 ## Seeing and state
 
 | Unity tool | Console line | Reply fields the scripts read |
 | --- | --- | --- |
-| `screenshot {maxWidth, jpg, worldOnly}` | `/screenshot --max-width N --jpg --world-only` | JSON `image` (base64), `caption` (frame size, `screen`, parcel, a camera-transition wait). Without any option: raw base64 PNG at full size |
+| `screenshot {maxWidth, jpg, worldOnly}` | `/screenshot --max-width N --jpg --world-only` | JSON `image` (base64), `caption` (frame size, `screen`, parcel, a camera-transition wait) |
 | `capture_sequence {count, intervalSec, maxWidth}` | `/screenshot --count N --interval-seconds S --max-width N [--jpg] [--dir path]` | `directory`, `frames[]` with `path`, `tick`, `late` (a frame the encoder fell behind on comes late, never dropped); never inline images. Natively files; on the web memory, read one with `/screenshot --frame <path>`. A reused `--dir` keeps an earlier sequence's frames: `staleFrames` and a `warning`, so read only the listed paths. A `--dir` that cannot be made is refused |
 | `get_player_state` | `/player_state` | `position`, `rotation`, `parcel`, `velocity`, `grounded`, `camera.mode`, camera pose, `cameraRotationEuler`, `modeChangeAllowed`, `heldBy`, `pointerLocked`; `gestures` (what is running or held); `reticle` (next row) |
 | `get_scene_state` | `/scene_loading_state` | `isReady`, `state` (`loading`, `starting`, `running`, `blocked`, `broken`, `failed`, `refused`, `none`), `blockedBy`, `sceneHash`, `playerParcel`, `outOfWorld`, `stage`; `unavailable` says why a field is null. Title, SDK version and tick: `/current_scene_state` |
@@ -50,10 +50,9 @@ unless the row says otherwise.
 | `sweep_pointer {entityId, deltaX, deltaY, seconds}` | `/camera_look --entity <id> \| --at x y z --dx D --dy D --seconds S --hold pointer\|primary\|secondary` | `pressed` (its `hit`), `swept` (degrees), `released`, `aimSettled`, `aimErrorDegrees`, `warning`. It holds the pointer until it replies |
 
 Diagnoses are resolved replies with `diagnosis` set, not failures: `blocked by entity <id>`,
-`blocked by an avatar or another scene's entity`, `blocked by the player's own avatar: ...` (third
-person, with the avatar on the line from the camera to the target: aim in first person),
-`out of reach: ...`, `entity not live`, `input
-held by the HUD`, `timed out waiting for target|hover|tick|release`.
+`blocked by an avatar or another scene's entity`, `blocked by the player's own avatar: ...` (aim
+in first person), `out of reach: ...`, `entity not live`, `input held by the HUD`,
+`timed out waiting for target|hover|tick|release`.
 
 ## Scene UI
 
@@ -69,12 +68,12 @@ held by the HUD`, `timed out waiting for target|hover|tick|release`.
 ## Differences by design
 
 Where a script expects Unity's behaviour, the dcl-one client answers differently on purpose; report
-the difference, do not work around it:
+the difference as a finding and keep the dcl-one behaviour:
 
 - A world aim that reaches nothing is refused without a press; Unity posts a `PET_DOWN` to the
   scene root on a miss.
-- A press on an entity that declares no entry for the button goes to the scene root with a
-  `warning` in the reply.
+- The skill's wire and gotchas name more: the root fallback for a press with no entry, world aims
+  through scene UI, and the parked hover that `/click_entity` or a canvas `/click_at` ends.
 - `camera_look` is in degrees per second, so a turn is the same at any frame rate.
 - The free camera is photo mode's: a `/camera_mode free` pose lands the same frame (no blend),
   through walls, and `/camera_look` turns it while it holds the view; its pitch clamp is
@@ -82,9 +81,8 @@ the difference, do not work around it:
 - `warning` is absent rather than `null` when there is none.
 - A held pointer only paints a stroke through `/camera_look --hold`: a separate press, turn and
   release leaves the ray on its first aim.
-- World aims pass through scene UI (`blockedByUi` stays false); only `/click_at` is taken by it.
 - A capture sequence on the web stays in the engine's memory (`/screenshot --frame` reads a frame).
-- `/click_entity` and a `/click_at` the canvas takes end a parked UI hover before they run (`hoverEnded` in the reply); a `/click_at` on the HUD leaves it parked.
-- Every pointer reply lists `rootEvents`: what the scene root got. `rootBroadcast` is true for either half of a click, so an element with a down handler only shows a lone up there.
+- Every pointer reply lists `rootEvents`: what the scene root got. `rootBroadcast` is true for
+  either half of a click, so an element with a down handler only shows a lone up there.
 - Commands run one at a time on one transport, so a second capture overlapping a running one
   needs a second transport to provoke.
