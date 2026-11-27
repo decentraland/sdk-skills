@@ -4,8 +4,11 @@
 
 ```bash
 find promote -type f -not -path '*/node_modules/*' | sort
+cp {baseDir}/scripts/build_kit.py promote/tools/build_kit.py     # always first: it holds nothing per scene
 python3 promote/tools/build_kit.py --skill {baseDir}/scripts     # WARNING = broken or stale, NOTE = the kit's state
 ```
+
+Copy the builder before running it. A kit made before the stale-tool check has a `build_kit.py` that ignores `--skill` and prints no notes, so the kit would look current. The new builder stops on an option it does not know.
 
 - Outputs are missing (`kit-data.js`, `images/keyart/`, `images/social/`, `copy.md`) → **Resume**: a run stopped mid-way.
 - The kit is complete and the scene has moved on (deployed, renamed, redesigned, an event passed) → **Update**.
@@ -26,7 +29,7 @@ python3 promote/tools/build_kit.py --skill {baseDir}/scripts     # WARNING = bro
 | What the players did | the creator reports on the plan | Audience rows they confirmed become `source: "creator"` and leave `assumptions`. Write the next experiment into `plan`; the earlier one and its result go in the README. |
 | Venues | `verified` is older than a month | Re-read the rules before any new post there: they change. Update `rules`, `verified`. |
 | An event passed | `event.when` is in the past | Fill the recap post from what the creator reports: numbers and quotes only from them (`{baseDir}/references/events.md`). |
-| The tools | `WARNING: promote/tools/… is <date>; the skill now has <date>` | Copy the new file in. For `render_shots.py` and `takes.py`, keep the per-scene sections the warning names. |
+| The tools | `WARNING: promote/tools/… is <date>; the skill now has <date>` | Copy the new file in. For `render_shots.py`, keep the per-scene sections the warning names. `takes.py` is the scene's own file and is never checked; compare it with `takes.example.py` by hand when a capture fails. |
 
 3. **Coming soon → launch.** For each unposted `soon` post: keep its `id` (ids name video files and venue links), set `kind: "launch"`, and rewrite the line in the present tense with `{LINK}`. The `{N}` / `{DATE}` countdown template has no launch form: delete it if it was never posted. `footage`, `quote` and `bts` posts that said "coming soon" in passing get the same edit.
 4. **Rebuild only what the changes touch**: `make_logo.py` and `compose_social.py` for a name, tagline or colour; one named still or render for a new moment; nothing for a link.

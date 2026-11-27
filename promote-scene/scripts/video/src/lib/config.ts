@@ -29,7 +29,12 @@ export const textScale = (width: number, height: number): number => (width > hei
 export type Text = string | Record<string, string>;
 export const LangContext = createContext<string | undefined>(undefined);
 export const pick = (t: Text | undefined, lang: string | undefined): string | undefined => {
-  if (t === undefined || typeof t === "string") return t;
+  if (t === undefined) return t;
+  // in an edit with `langs` every line names its language: a plain string would ship untranslated in all of them
+  if (typeof t === "string") {
+    if (lang !== undefined) throw new Error(`Untranslated line in an edit with langs: give { "${lang}": … } for ${JSON.stringify(t)}`);
+    return t;
+  }
   const k = lang ?? Object.keys(t)[0];
   if (!(k in t)) throw new Error(`No "${k}" text in ${JSON.stringify(t)}`);
   return t[k];

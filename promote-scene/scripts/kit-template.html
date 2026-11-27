@@ -299,8 +299,9 @@ if (K.link) {
 function allTags(mode, lang) {
   if (mode === 'none') return '';
   // a post in another language gets that language's tags (hashtags.by_lang.<code>), or none: never the kit's own
-  const other = lang && lang !== (K.lang || 'en');
-  const H = (other ? ((K.hashtags || {}).by_lang || {})[lang] : K.hashtags) || {};
+  const other = lang && lang.split('-')[0] !== (K.lang || 'en').split('-')[0];
+  const byLang = (K.hashtags || {}).by_lang || {};   // pt-BR falls back to a "pt" table and the other way round
+  const H = (other ? (byLang[lang] || byLang[Object.keys(byLang).find(k => k.split('-')[0] === lang.split('-')[0])]) : K.hashtags) || {};
   const t = mode === 'all' ? (H.core || []).concat(H.extra || []) : (H.core || []);
   return t.join(' ');
 }

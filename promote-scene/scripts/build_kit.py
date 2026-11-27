@@ -42,9 +42,9 @@ for p in data.get('posts', []):
         problems.append('post id %r: use letters, digits, dashes and underscores only (it names files)' % p.get('id'))
 VERSION_RE = re.compile(r'promote-scene tool version: (\d{4}-\d{2}-\d{2})')
 # kit copy -> the skill's file, relative to its scripts folder; tools/*.py map to the same name
-RENAMED = {'tools/takes.py': 'takes.example.py', 'index.html': 'kit-template.html', 'video/src/Root.tsx': 'video/src/Root.tsx'}
+RENAMED = {'index.html': 'kit-template.html', 'video/src/Root.tsx': 'video/src/Root.tsx'}
+NOT_TOOLS = {'tools/takes.py'}   # the scene's own takes, written from takes.example.py: never "stale"
 KEEP = {'tools/render_shots.py': 'keep your per-scene settings and SHOTS section, take the rest',
-        'tools/takes.py': 'your takes stay; read the new example for helpers and fixes',
         'video/src/Root.tsx': 'replace video/src/ and package files, keeping your src/edits.ts'}
 
 
@@ -64,7 +64,7 @@ def stale_tools(skill):
     tdir = os.path.join(P, 'tools')
     copies = ['tools/' + f for f in sorted(os.listdir(tdir)) if f.endswith('.py')] if os.path.isdir(tdir) else []
     n = 0
-    for rel in copies + ['index.html', 'video/src/Root.tsx']:
+    for rel in [c for c in copies if c not in NOT_TOOLS] + ['index.html', 'video/src/Root.tsx']:
         mine = tool_version(os.path.join(P, *rel.split('/')))
         theirs = tool_version(os.path.join(skill, *RENAMED.get(rel, rel[len('tools/'):]).split('/')))
         if mine is None or not theirs:   # not in this kit, or not a tool the skill ships
@@ -76,6 +76,10 @@ def stale_tools(skill):
     print('tool copies checked against the skill:', n)
 
 
+KNOWN = {'--rendering', '--done', '--skill'}   # an option this copy does not know is an error, never ignored
+unknown = [a for a in sys.argv[1:] if a.startswith('--') and a not in KNOWN]
+if unknown:
+    sys.exit('unknown option(s) %s; this build_kit.py takes %s' % (', '.join(unknown), ', '.join(sorted(KNOWN))))
 if '--skill' in sys.argv:
     i = sys.argv.index('--skill') + 1
     if i >= len(sys.argv) or sys.argv[i].startswith('--'):
@@ -240,12 +244,18 @@ else:
 # Languages: the kit's own ("lang", default en) and, per venue or post, the language that community writes in.
 KIT_LANG = data.get('lang') or 'en'
 by_id = {p.get('id'): p for p in data.get('posts', [])}
+base = lambda l: (l or '').split('-')[0].lower()   # pt-BR and pt are the same language for these checks
+tag_langs = (data.get('hashtags') or {}).get('by_lang') or {}
 for i, v in enumerate(aud.get('venues') or []):
     post = by_id.get(v.get('post'))
-    if v.get('lang') and post and (post.get('lang') or KIT_LANG) != v['lang']:
+    if v.get('lang') and post and base(post.get('lang') or KIT_LANG) != base(v['lang']):
         problems.append('audience.venues[%d] (%s) writes in %r but its post %s is in %r: write it in that language, natively'
                         % (i, v.get('name', '?'), v['lang'], post['id'], post.get('lang') or KIT_LANG))
 for p in data.get('posts', []):
+    if p.get('lang') and base(p['lang']) != base(KIT_LANG) and p['kind'] != 'reddit' \
+            and not any(base(k) == base(p['lang']) for k in tag_langs):
+        problems.append('post %s is in %r and hashtags.by_lang has no table for it: the page adds no hashtags to it'
+                        % (p.get('id'), p['lang']))
     if p.get('lang') and p['lang'] != KIT_LANG and not p.get('gloss'):
         problems.append('post %s is in %r without a "gloss": say in %r what it says, so the creator knows what they post'
                         % (p.get('id'), p['lang'], KIT_LANG))
@@ -460,12 +470,12 @@ for pr in problems:
     print('WARNING:', pr)
 
 # The kit's state against the scene, for a later run (references/update-and-resume.md). Notes, not faults.
-n_soon = sum(1 for p in data['posts'] if p['kind'] == 'soon')
+n_soon = sum(1 for p in data['posts'] if p['kind'] == 'soon' and not p.get('posted'))   # a posted one is history
 n_link = sum(1 for p in data['posts'] if '{LINK}' in p['text'])
 if not data.get('link'):
     print('NOTE: not published: "link" is empty, {LINK} stays a placeholder in %d post(s)' % n_link)
 elif n_soon:
-    print('NOTE: the link is set and %d coming-soon post(s) remain: turn the ones not posted yet into launch posts' % n_soon)
+    print('NOTE: the link is set and %d unposted coming-soon post(s) remain: turn them into launch posts' % n_soon)
 if event and not KIT_EVENT_BANNERS:
     print('NOTE: an event without banners: set "event_banners": true and run compose_social.py')
 t_posts = os.path.getmtime(os.path.join(P, 'posts.json'))
