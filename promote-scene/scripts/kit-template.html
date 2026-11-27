@@ -267,8 +267,8 @@ const TABS = ['audience', 'x', 'ig', 'reddit', 'short', 'assets'];   // Audience
 const state = { tab: TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'audience', platform: 'x', tags: 'core', kind: 'all' };
 state.platform = state.tab === 'ig' ? 'ig' : 'x';
 const KINDS = { all: 'All', launch: 'Launch + link', soon: 'Coming soon', footage: 'Footage', quote: 'Quotes', bts: 'Behind the scenes', event: 'Event', reddit: 'Reddit', short: 'Shorts' };
-const GENERAL = ['launch', 'soon', 'footage', 'quote', 'bts', 'event'];
-const PHASES = { announce: 'announcement', countdown: 'countdown', live: 'live now', recap: 'recap' };   // the kinds on the X / Instagram tabs
+const GENERAL = ['launch', 'soon', 'footage', 'quote', 'bts', 'event'];   // the kinds on the X / Instagram tabs
+const PHASES = { announce: 'announcement', countdown: 'countdown', live: 'live now', recap: 'recap' };   // an event post's badge, by phase
 const tabOfKind = k => k === 'reddit' ? 'reddit' : k === 'short' ? 'short' : state.platform === 'ig' ? 'ig' : 'x';
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // posts.json is data: only http(s) links become hrefs, and local files must be plain relative paths (no scheme, no ..).
@@ -300,7 +300,8 @@ function allTags(mode, lang) {
   if (mode === 'none') return '';
   // a post in another language gets that language's tags (hashtags.by_lang.<code>), or none: never the kit's own
   const other = lang && lang.split('-')[0] !== (K.lang || 'en').split('-')[0];
-  const byLang = (K.hashtags || {}).by_lang || {};   // pt-BR falls back to a "pt" table and the other way round
+  const byLang = (K.hashtags || {}).by_lang || {};
+  // an exact table first, then one with the same base language: pt-BR uses a "pt" table and the other way round
   const H = (other ? (byLang[lang] || byLang[Object.keys(byLang).find(k => k.split('-')[0] === lang.split('-')[0])]) : K.hashtags) || {};
   const t = mode === 'all' ? (H.core || []).concat(H.extra || []) : (H.core || []);
   return t.join(' ');
@@ -311,7 +312,7 @@ function fullText(p, raw) {
   if (K.event && K.event.when) t = t.replace(/\{WHEN\}/g, K.event.when);
   if (p.kind === 'reddit') return t;   // hashtags are not a Reddit thing
   const tags = allTags(state.tags, p.lang);
-  if (tags && !/#\w+/.test(t)) t += '\n\n' + tags;
+  if (tags && !/#[\p{L}\p{N}_]+/u.test(t)) t += '\n\n' + tags;
   return t;
 }
 const fieldEdits = {};   // post id -> { post_title | hook }: live edits of the second field on Reddit / Short cards
@@ -321,7 +322,7 @@ function decorate(t) {
   return esc(t)
     .replace(/(https?:\/\/\S+)/g, '<span class="lnk">$1</span>')
     .replace(/(\{N\}|\{DATE\}|\{LINK\}|\{WHEN\})/g, '<mark>$1</mark>')
-    .replace(/(#\w+)/g, '<span class="tags">$1</span>')
+    .replace(/(#[\p{L}\p{N}_]+)/gu, '<span class="tags">$1</span>')
     .replace(/\[FOOTAGE\]/g, '<mark>[clip goes here]</mark>');
 }
 function igUser() { return (K.handle || K.game).replace(/^@/, '').toLowerCase(); }

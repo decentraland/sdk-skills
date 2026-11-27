@@ -28,16 +28,23 @@ export const textScale = (width: number, height: number): number => (width > hei
  */
 export type Text = string | Record<string, string>;
 export const LangContext = createContext<string | undefined>(undefined);
+/** Letters past Latin Extended-B (U+024F): the default face, Bebas Neue, has none of them. */
+const notLatin = (s: string): boolean => [...s].some((c) => /\p{L}/u.test(c) && (c.codePointAt(0) ?? 0) > 0x24f);
+const drawable = (s: string): string => {
+  if (!KIT.brand?.video_font && notLatin(s))
+    throw new Error(`The default video font has Latin letters only: set brand.video_font in posts.json to a font with the letters of ${JSON.stringify(s)}`);
+  return s;
+};
 export const pick = (t: Text | undefined, lang: string | undefined): string | undefined => {
   if (t === undefined) return t;
   // in an edit with `langs` every line names its language: a plain string would ship untranslated in all of them
   if (typeof t === "string") {
     if (lang !== undefined) throw new Error(`Untranslated line in an edit with langs: give { "${lang}": … } for ${JSON.stringify(t)}`);
-    return t;
+    return drawable(t);
   }
   const k = lang ?? Object.keys(t)[0];
   if (!(k in t)) throw new Error(`No "${k}" text in ${JSON.stringify(t)}`);
-  return t[k];
+  return drawable(t[k]);
 };
 /** The text in the language of the composition being rendered. */
 export const useText = (t: Text | undefined): string | undefined => pick(t, useContext(LangContext));

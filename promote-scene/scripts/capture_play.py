@@ -28,8 +28,8 @@ first person or a free-camera pose sets it itself; after a free-camera still the
 that direction until a move_to with look= turns it. World only by default (no HUD, no scene UI); --hud keeps
 the interface for a picture that is about it. The avatar's nameplate shows in third person and NOT under a
 free-camera pose: use ex.camera_pose for a clean picture of the avatar. `still` with no name takes them all,
-in order, after begin(ex). --to-kit copies the PNGs into promote/images/screens/ once the last one is taken:
-that write restarts the scene, so pass it only on the final run.
+in order, after begin(ex). --to-kit then copies every still STILLS names that has a PNG (this run's and earlier ones) into
+promote/images/screens/: that write restarts the scene, so pass it only on the final run.
 Size: the screenshot tool returns at most 1920 px wide, in the window's own shape (a full-screen window on a
 16:10 laptop display gave 1920x1169; a 16:9 display or window gives 1920x1080). --crop centre-crops every
 still to 16:9 (1920x1080 from a 1920-wide frame), the shape the kit's landscape slots and the Foundation's
@@ -505,11 +505,14 @@ if __name__ == '__main__':
             except Exception as e:
                 print('FAILED', name, ':', str(e)[:300])
         release()
-        if 'to-kit' in opts and done:
+        if 'to-kit' in opts:   # the whole set, so a final run that retakes one still still delivers them all
+            kept = [n for n in table if os.path.exists(os.path.join(STILLS, n + '.png'))]
             os.makedirs(KIT_STILLS, exist_ok=True)
-            for path in done:
-                shutil.copy2(path, KIT_STILLS)
-            print('copied %d still(s) to %s (the scene restarts on this write)' % (len(done), KIT_STILLS))
+            for n in kept:
+                shutil.copy2(os.path.join(STILLS, n + '.png'), KIT_STILLS)
+            missing = [n for n in table if n not in kept]
+            print('copied %d still(s) to %s (the scene restarts on this write)%s' % (
+                len(kept), KIT_STILLS, '; never taken: ' + ', '.join(missing) if missing else ''))
         sys.exit(0 if len(done) == len(names) else 1)
     else:
         print('unknown command %r\n' % cmd); print(__doc__); sys.exit(1)

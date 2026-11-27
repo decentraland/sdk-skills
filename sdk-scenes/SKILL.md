@@ -246,7 +246,7 @@ Every skill named below ships in the same `decentraland/sdk-skills` package. If 
 
 ### Promotion & Marketing Kit
 
-**Skill: `promote-scene`** — Audience-first marketing kit for a finished or upcoming scene: names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, logo/wordmark/icon, Blender hero renders of the scene's own GLBs, key art, quote cards, a footage shot list, a first-20-players plan with a stop rule, and an offline HTML kit page to copy/download everything; on request, a Remotion-cut video for one footage post or Short (from the creator's recordings, gameplay it records itself in the Explorer, Blender clips or stills). Not for deploying or for the scene thumbnail alone.
+**Skill: `promote-scene`** — Audience-first marketing kit for a finished or upcoming scene: names who the game is for and which communities they are in (sources and assumptions shown on the page), then post copy for X, Instagram, named subreddits and YouTube Shorts, each venue in its own language; logo/wordmark/icon, in-game stills taken in the Explorer, key art, quote cards, a footage shot list, a first-20-players plan with a stop rule, and an offline HTML kit page to copy/download everything. Brings an existing kit up to date after a deploy, rename or redesign. On request: an event's listing and its four posts, or a Remotion-cut video for one footage post or Short (from the creator's recordings, gameplay it records in the Explorer, Blender clips or stills). Not for deploying or for the scene thumbnail alone.
 
 ### Wearables & Smart Wearables
 

@@ -256,7 +256,7 @@ for p in data.get('posts', []):
             and not any(base(k) == base(p['lang']) for k in tag_langs):
         problems.append('post %s is in %r and hashtags.by_lang has no table for it: the page adds no hashtags to it'
                         % (p.get('id'), p['lang']))
-    if p.get('lang') and p['lang'] != KIT_LANG and not p.get('gloss'):
+    if p.get('lang') and base(p['lang']) != base(KIT_LANG) and not p.get('gloss'):
         problems.append('post %s is in %r without a "gloss": say in %r what it says, so the creator knows what they post'
                         % (p.get('id'), p['lang'], KIT_LANG))
 
